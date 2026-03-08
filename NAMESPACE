@@ -3,6 +3,8 @@
 export(frs_db_conn)
 export(frs_db_query)
 export(frs_lake_fetch)
+export(frs_network_downstream)
+export(frs_network_upstream)
 export(frs_point_locate)
 export(frs_point_snap)
 export(frs_stream_fetch)

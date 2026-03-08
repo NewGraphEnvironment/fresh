@@ -23,9 +23,9 @@ All functions prefixed `frs_`, named noun-first.
 - [x] Tests for both (26 total pass)
 
 ### Phase 4: Traverse Functions (Issue #3)
-- [ ] `frs_network_upstream()` — stream segments upstream of a point
-- [ ] `frs_network_downstream()` — stream segments downstream of a point
-- [ ] Tests for both
+- [x] `frs_network_upstream()` — stream segments upstream (fwa_upstream ltree)
+- [x] `frs_network_downstream()` — stream segments downstream (fwa_downstream ltree)
+- [x] Tests for both (32 total pass)
 
 ### Phase 5: Prune Functions (Issue #4)
 - [ ] `frs_network_prune()` — filter by order, gradient, access
