@@ -10,6 +10,10 @@
 #'   `"whse_basemapping.fwa_stream_networks_sp"`.
 #' @param cols Character vector of column names to select. Default includes
 #'   the most commonly used FWA stream attributes.
+#' @param wscode_col Character. Name of the watershed code ltree column.
+#'   Default `"wscode_ltree"`. Use `"wscode"` for bcfishpass views.
+#' @param localcode_col Character. Name of the local code ltree column.
+#'   Default `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return An `sf` data frame of downstream stream segments.
@@ -36,6 +40,8 @@ frs_network_downstream <- function(
       "downstream_route_measure", "upstream_route_measure", "length_metre",
       "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"
     ),
+    wscode_col = "wscode_ltree",
+    localcode_col = "localcode_ltree",
     ...
 ) {
   select_cols <- paste(paste0("s.", cols), collapse = ", ")
@@ -43,26 +49,27 @@ frs_network_downstream <- function(
   sql <- sprintf(
     paste0(
       "WITH ref AS (\n",
-      "  SELECT wscode_ltree, localcode_ltree\n",
+      "  SELECT %s AS wscode, %s AS localcode\n",
       "  FROM %s\n",
       "  WHERE blue_line_key = %s\n",
       "    AND downstream_route_measure <= %s\n",
-      "    AND upstream_route_measure > %s\n",
+      "  ORDER BY downstream_route_measure DESC\n",
       "  LIMIT 1\n",
       ")\n",
       "SELECT %s\n",
       "FROM %s s, ref\n",
       "WHERE whse_basemapping.fwa_downstream(\n",
-      "  ref.wscode_ltree, ref.localcode_ltree,\n",
-      "  s.wscode_ltree, s.localcode_ltree\n",
+      "  ref.wscode, ref.localcode,\n",
+      "  s.%s, s.%s\n",
       ")"
     ),
+    wscode_col, localcode_col,
     table,
     as.integer(blue_line_key),
     downstream_route_measure,
-    downstream_route_measure,
     select_cols,
-    table
+    table,
+    wscode_col, localcode_col
   )
 
   frs_db_query(sql, ...)

@@ -11,15 +11,18 @@ vignette: >
 
 This vignette demonstrates `fresh` on a real watershed analysis task: extracting
 the coho rearing/spawning stream network upstream of the Neexdzii Kwa (Upper
-Bulkley River) / Wedzin Kwa confluence — the same scoping used in the
+Bulkley River) / Wedzin Kwa confluence, with lakes and wetlands. This is the
+same scoping used in the
 [restoration_wedzin_kwa_2024](https://github.com/NewGraphEnvironment/restoration_wedzin_kwa_2024)
 land cover change analysis. Stream colours come from the
 [gq](https://github.com/NewGraphEnvironment/gq) style registry.
 
-## Snap the confluence
+## Coho rearing network
 
-Start by snapping a point near the Neexdzii Kwa / Wedzin Kwa confluence to the
-FWA stream network.
+Query `bcfishpass.streams_co_vw` — the coho-specific habitat model view —
+for rearing/spawning streams (order 4+) upstream of the Neexdzii Kwa / Wedzin
+Kwa confluence. The `table`, `cols`, `wscode_col`, and `localcode_col`
+parameters let us target this view directly with `frs_network_prune()`.
 
 
 ``` r
@@ -27,99 +30,126 @@ library(fresh)
 library(sf)
 #> Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
 
-mouth <- frs_point_snap(x = -126.18, y = 54.39)
-mouth[, c("gnis_name", "blue_line_key", "downstream_route_measure", "distance_to_stream")]
-#> Simple feature collection with 1 feature and 4 fields
-#> Geometry type: POINT
-#> Dimension:     XY
-#> Bounding box:  xmin: 988463 ymin: 1043062 xmax: 988463 ymax: 1043062
-#> Projected CRS: NAD83 / BC Albers
-#>   gnis_name blue_line_key downstream_route_measure distance_to_stream
-#> 1      <NA>     360312275                 2137.031            154.857
-#>                     geom
-#> 1 POINT (988463 1043062)
-```
-
-In the real analysis, we use the known Bulkley mainstem position directly —
-the same values used in `lulc_network-extract.R`.
-
-## Coho rearing network
-
-Query `bcfishpass.streams_co_vw` — the coho-specific habitat model view — for
-streams with rearing or spawning habitat in the Bulkley watershed group. The
-`table` parameter lets us target this view instead of the default
-`bcfishpass.streams_vw`.
-
-
-``` r
-# Known Neexdzii Kwa / Wedzin Kwa confluence on Bulkley mainstem
+# Neexdzii Kwa / Wedzin Kwa confluence on Bulkley mainstem
 blk <- 360873822
 drm <- 166030.4
 
-co_streams <- frs_fish_habitat(
+co_habitat <- frs_network_prune(
+  blue_line_key = blk,
+  downstream_route_measure = drm,
+  stream_order_min = 4,
   watershed_group_code = "BULK",
+  extra_where = "(s.rearing > 0 OR s.spawning > 0)",
   table = "bcfishpass.streams_co_vw",
-  cols = c("segmented_stream_id", "blue_line_key", "gnis_name",
-           "stream_order", "channel_width", "mapping_code",
-           "rearing", "spawning", "access", "geom")
+  cols = c("segmented_stream_id", "blue_line_key", "waterbody_key",
+           "gnis_name", "stream_order", "channel_width", "mapping_code",
+           "rearing", "spawning", "access", "geom"),
+  wscode_col = "wscode",
+  localcode_col = "localcode"
 )
 
-# Filter to rearing/spawning habitat and order 4+
-co_habitat <- co_streams[
-  (co_streams$rearing > 0 | co_streams$spawning > 0) &
-  co_streams$stream_order >= 4,
-]
-
 nrow(co_habitat)
-#> [1] 3825
+#> [1] 1027
 sort(unique(co_habitat$stream_order))
-#> [1] 4 5 6 7 8
+#> [1] 4 5 6
 table(co_habitat$mapping_code)
 #> 
-#>               REAR;ASSESSED                    REAR;DAM 
-#>                          43                           4 
-#>       REAR;DAM;INTERMITTENT               REAR;MODELLED 
-#>                           1                           9 
-#>                   REAR;NONE              SPAWN;ASSESSED 
-#>                         249                         369 
-#> SPAWN;ASSESSED;INTERMITTENT                   SPAWN;DAM 
-#>                           1                          13 
-#>      SPAWN;DAM;INTERMITTENT              SPAWN;MODELLED 
-#>                           3                          30 
-#>                  SPAWN;NONE     SPAWN;NONE;INTERMITTENT 
-#>                        3100                           3
+#>  REAR;ASSESSED  REAR;MODELLED      REAR;NONE SPAWN;ASSESSED SPAWN;MODELLED 
+#>             28              9            147            103              7 
+#>     SPAWN;NONE 
+#>            733
 ```
 
-## Style with gq
+## Lakes and wetlands
 
-The [gq](https://github.com/NewGraphEnvironment/gq) package provides a
-canonical style registry for bcfishpass layers. The `streams_salmon` layer
-defines colours by `mapping_code` — the same codes used in the coho view.
+Lake and wetland polygon tables (`fwa_lakes_poly`, `fwa_wetlands_poly`) have
+NULL `localcode_ltree`, so `fwa_upstream()` can't query them directly. The
+bridge is `waterbody_key` — stream segments flowing through waterbodies carry
+the same key. We run `fwa_upstream()` on the stream network (which has
+`localcode_ltree`), extract distinct `waterbody_key` values, then join to the
+polygon tables. See [fresh#8](https://github.com/NewGraphEnvironment/fresh/issues/8).
+
+
+``` r
+# Upstream waterbody_key bridge: fwa_upstream() on streams → join to polygons
+wb_sql <- sprintf(paste0(
+  "WITH ref AS (\n",
+  "  SELECT wscode_ltree, localcode_ltree\n",
+  "  FROM whse_basemapping.fwa_stream_networks_sp\n",
+  "  WHERE blue_line_key = %s\n",
+  "    AND downstream_route_measure <= %s\n",
+  "  ORDER BY downstream_route_measure DESC\n",
+  "  LIMIT 1\n",
+  "),\n",
+  "upstream_wbkeys AS (\n",
+  "  SELECT DISTINCT s.waterbody_key\n",
+  "  FROM whse_basemapping.fwa_stream_networks_sp s, ref\n",
+  "  WHERE whse_basemapping.fwa_upstream(\n",
+  "    ref.wscode_ltree, ref.localcode_ltree,\n",
+  "    s.wscode_ltree, s.localcode_ltree\n",
+  "  )\n",
+  "  AND s.waterbody_key IS NOT NULL\n",
+  ")\n"
+), blk, drm)
+
+lakes <- frs_db_query(paste0(
+  wb_sql,
+  "SELECT l.waterbody_key, l.gnis_name_1, l.area_ha, l.geom\n",
+  "FROM whse_basemapping.fwa_lakes_poly l\n",
+  "JOIN upstream_wbkeys u ON l.waterbody_key = u.waterbody_key"
+))
+
+wetlands <- frs_db_query(paste0(
+  wb_sql,
+  "SELECT w.waterbody_key, w.gnis_name_1, w.area_ha, w.geom\n",
+  "FROM whse_basemapping.fwa_wetlands_poly w\n",
+  "JOIN upstream_wbkeys u ON w.waterbody_key = u.waterbody_key"
+))
+
+nrow(lakes)
+#> [1] 363
+nrow(wetlands)
+#> [1] 1293
+if (nrow(lakes) > 0) head(lakes[order(-lakes$area_ha), c("gnis_name_1", "area_ha")], 10)
+#> Simple feature collection with 10 features and 2 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: 955155.1 ymin: 1018170 xmax: 995940.4 ymax: 1065884
+#> Projected CRS: NAD83 / BC Albers
+#>       gnis_name_1   area_ha                           geom
+#> 10     Maxan Lake 654.20608 MULTIPOLYGON (((993644.5 10...
+#> 11       Day Lake 316.79508 MULTIPOLYGON (((981685.4 10...
+#> 12     Elwin Lake 287.88098 MULTIPOLYGON (((980130.3 10...
+#> 13    Goosly Lake 239.17266 MULTIPOLYGON (((975714 1020...
+#> 14   Bulkley Lake 233.40513 MULTIPOLYGON (((993264.4 10...
+#> 15 McQuarrie Lake 230.06659 MULTIPOLYGON (((956158.2 10...
+#> 16     Swans Lake 179.93733 MULTIPOLYGON (((977344.9 10...
+#> 17       Nez Lake 174.64798 MULTIPOLYGON (((991369.5 10...
+#> 18    Sunset Lake 130.58687 MULTIPOLYGON (((975322.1 10...
+#> 20    Conrad Lake  63.40472 MULTIPOLYGON (((994679.2 10...
+```
+
+## Map with gq colours
+
+Colour streams by `mapping_code` using the
+[gq](https://github.com/NewGraphEnvironment/gq) style registry — no hardcoded
+hex values.
 
 
 ``` r
 reg <- gq::gq_reg_main()
 cls <- gq::gq_tmap_classes(reg$layers$streams_salmon)
 
-# mapping_code values and their colours from the registry
-head(cls$values)
-#>                  SPAWN;NONE     SPAWN;NONE;INTERMITTENT 
-#>                   "#129bdb"                   "#129bdb" 
-#>              SPAWN;MODELLED SPAWN;MODELLED;INTERMITTENT 
-#>                   "#ff9f85"                   "#ff9f85" 
-#>              SPAWN;ASSESSED SPAWN;ASSESSED;INTERMITTENT 
-#>                   "#ef4545"                   "#ef4545"
-```
-
-
-``` r
 # Match mapping_code to gq colours
 co_habitat$col <- cls$values[co_habitat$mapping_code]
-# Fallback for codes not in registry
 co_habitat$col[is.na(co_habitat$col)] <- "#999999"
 
-# Line width: spawning thicker than rearing (from gq convention)
+# Line width: spawning thicker than rearing (gq convention)
 co_habitat$lwd <- ifelse(co_habitat$spawning > 0, 1.7, 1.0)
+
+# Lake and wetland styles from registry
+lake_style <- gq::gq_tmap_style(reg$layers$lake)
+wetland_style <- gq::gq_tmap_style(reg$layers$wetland)
 
 plot(
   st_geometry(co_habitat),
@@ -128,51 +158,45 @@ plot(
   main = ""
 )
 
+if (nrow(lakes) > 0) {
+  plot(
+    st_geometry(lakes),
+    col = lake_style$fill,
+    border = lake_style$col,
+    add = TRUE
+  )
+}
+
+if (nrow(wetlands) > 0) {
+  plot(
+    st_geometry(wetlands),
+    col = wetland_style$fill,
+    border = wetland_style$col,
+    add = TRUE
+  )
+}
+
 # Legend from gq registry — show only codes present in the data
 present <- names(cls$values) %in% unique(co_habitat$mapping_code)
 legend(
   "topright",
-  legend = cls$labels[present],
-  col = cls$values[present],
-  lwd = 2,
+  legend = c(cls$labels[present], "Lake", "Wetland"),
+  col = c(cls$values[present], lake_style$col, wetland_style$col),
+  pch = c(rep(NA, sum(present)), 15, 15),
+  lwd = c(rep(2, sum(present)), NA, NA),
+  pt.cex = c(rep(NA, sum(present)), 1.5, 1.5),
   cex = 0.7,
   bg = "white"
 )
 ```
 
-![Coho rearing and spawning habitat in the Neexdzii Kwa (order 4+), coloured by barrier status from the gq style registry.](figure/plot-co-habitat-1.png)
+![Coho rearing and spawning habitat upstream of the Neexdzii Kwa confluence (order 4+), with lakes and wetlands. Stream colours from the gq style registry.](figure/plot-co-habitat-1.png)
 
-Named streams: Ailport Creek, Aitken Creek, Barren Creek, Blunt Creek, Boulder Creek, Buck Creek, Bulkley River, Byman Creek, Cabinet Creek, Canyon Creek, Causqua Creek, Cesford Creek, Coffin Creek, Corduroy Creek, Corya Creek, Crow Creek, Cumming Creek, Deep Creek, Denison Creek, Dockrill Creek, Driftwood Creek, Dungate Creek, Elliott Creek, Emerson Creek, Fifteen Mile Creek, Foxy Creek, Ganokwa Creek, Glacis Creek, Glass Creek, Goathorn Creek, Gramophone Creek, Harold Price Creek, Helps Creek, Howson Creek, Iltzul Creek, John Brown Creek, Johnny David Creek, Jonas Creek, Kathlyn Creek, Klo Creek, Lacroix Creek, Lemieux Creek, Luhk Creek, Luno Creek, Maish Creek, Maxan Creek, McKilligan Creek, McQuarrie Creek, Milk Creek, Morice River, Mudflat Creek, Natlan Creek, Netalzul Creek, Nine Mile Creek, North Ailport Creek, Perow Creek, Pine Creek, Porphyry Creek, Raspberry Creek, Reiseter Creek, Richfield Creek, Robert Hatch Creek, Robin Creek, Scallon Creek, Schippers Creek, Sinclair Creek, Skilokis Creek, Station Creek, Stock Creek, Sunsets Creek, Suskwa River, Telkwa River, Tenas Creek, Thompson Creek, Toboggan Creek, Touhy Creek, Trout Creek, Tsai Creek, Winfield Creek.
+The network contains 1027 coho habitat segments across orders
+4, 5, 6,
+with 363 lakes and 1293 wetlands.
 
-## Custom columns
-
-All functions accept `table` and `cols` parameters so you can target any
-schema/view and select only the columns you need:
-
-
-``` r
-habitat_slim <- frs_fish_habitat(
-  watershed_group_code = "BULK",
-  cols = c("blue_line_key", "gnis_name", "stream_order",
-           "channel_width", "gradient", "geom"),
-  limit = 20
-)
-
-names(habitat_slim)
-#> [1] "blue_line_key" "gnis_name"     "stream_order"  "channel_width"
-#> [5] "gradient"      "geom"
-summary(habitat_slim$channel_width)
-#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-#>   0.660   1.280   1.660   7.257   4.140  47.990      11
-```
-
-## Compare with raw SQL
-
-Without `fresh`, the coho habitat query requires connecting to the database,
-writing SQL with schema-qualified table names, and managing the connection
-lifecycle. `frs_fish_habitat()` wraps this in one call with flexible `table`
-and `cols` parameters. For upstream network traversal with `fwa_upstream()`,
-see `frs_network_prune()` — a single function call replacing ~20 lines of SQL.
+Named streams: Ailport Creek, Aitken Creek, Barren Creek, Buck Creek, Bulkley River, Byman Creek, Cesford Creek, Crow Creek, Dungate Creek, Foxy Creek, Johnny David Creek, Klo Creek, Maxan Creek, McKilligan Creek, McQuarrie Creek, North Ailport Creek, Perow Creek, Raspberry Creek, Richfield Creek, Robert Hatch Creek.
 
 ## Summary
 
@@ -184,5 +208,7 @@ see `frs_network_prune()` — a single function call replacing ~20 lines of SQL.
 | Prune | `frs_network_prune()`, `frs_order_filter()` | Filter by order, gradient |
 | Fish | `frs_fish_obs()`, `frs_fish_habitat()` | Observations and habitat model |
 
-All functions accept `table` and `cols` parameters — swap the source table or
-select only the columns you need.
+All functions accept `table` and `cols` parameters. Traverse functions also
+accept `wscode_col` and `localcode_col` to work with any table that has ltree
+watershed codes (e.g. `bcfishpass.streams_co_vw` uses `wscode`/`localcode`
+instead of `wscode_ltree`/`localcode_ltree`).

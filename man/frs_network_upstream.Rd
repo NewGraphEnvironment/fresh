@@ -12,6 +12,8 @@ frs_network_upstream(
     "gnis_name", "stream_order", "stream_magnitude", "gradient",
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
+  wscode_col = "wscode_ltree",
+  localcode_col = "localcode_ltree",
   ...
 )
 }
@@ -26,6 +28,12 @@ reference point.}
 
 \item{cols}{Character vector of column names to select. Default includes
 the most commonly used FWA stream attributes.}
+
+\item{wscode_col}{Character. Name of the watershed code ltree column.
+Default \code{"wscode_ltree"}. Use \code{"wscode"} for bcfishpass views.}
+
+\item{localcode_col}{Character. Name of the local code ltree column.
+Default \code{"localcode_ltree"}. Use \code{"localcode"} for bcfishpass views.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
@@ -42,6 +50,15 @@ downstream route measure. Uses the fwapg \code{fwa_upstream()} ltree comparison.
 upstream <- frs_network_upstream(
   blue_line_key = 360873822,
   downstream_route_measure = 166030
+)
+
+# Use bcfishpass coho view
+upstream <- frs_network_upstream(
+  blue_line_key = 360873822,
+  downstream_route_measure = 166030,
+  table = "bcfishpass.streams_co_vw",
+  wscode_col = "wscode",
+  localcode_col = "localcode"
 )
 }
 }
