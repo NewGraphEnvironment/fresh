@@ -110,7 +110,9 @@ test_that("frs_network passes custom cols and wscode_col", {
 
   expect_match(sql_sent, "streams_co_vw")
   expect_match(sql_sent, "s.blue_line_key, s.mapping_code, s.geom")
-  expect_match(sql_sent, "s.wscode, s.localcode")
+  # Ref uses standard ltree cols, main query uses custom
+  expect_match(sql_sent, "wscode_ltree AS wscode")
+  expect_match(sql_sent, "s\\.wscode, s\\.localcode")
 })
 
 test_that("frs_network passes extra_where", {
@@ -225,6 +227,9 @@ test_that("upstream_measure with custom wscode_col", {
   ))
 
   expect_match(sql_sent, "ref_up")
-  expect_match(sql_sent, "wscode AS wscode")
-  expect_match(sql_sent, "localcode AS localcode")
+  # Ref always comes from streams with standard ltree cols
+  expect_match(sql_sent, "wscode_ltree AS wscode")
+  expect_match(sql_sent, "localcode_ltree AS localcode")
+  # But the main query uses the custom col names
+  expect_match(sql_sent, "s\\.wscode, s\\.localcode")
 })

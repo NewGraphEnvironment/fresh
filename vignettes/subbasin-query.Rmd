@@ -53,8 +53,8 @@ result <- frs_network(blk, drm_byman, upstream_measure = drm_ailport,
 ```
 
 2167 stream segments, 89 lakes,
-323 wetlands, 526 crossings,
-72 fish observations, and 98 falls
+323 wetlands, 343 crossings,
+161 fish observations, and 8 falls
 — all from network subtraction, no spatial clip.
 
 

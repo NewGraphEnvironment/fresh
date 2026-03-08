@@ -150,12 +150,13 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
   }
 
   blk <- as.integer(blue_line_key)
+  stream_tbl <- "whse_basemapping.fwa_stream_networks_sp"
 
   if (is.null(upstream_measure)) {
     sql <- sprintf(
       paste0(
         "WITH ref AS (\n",
-        "  SELECT %s AS wscode, %s AS localcode\n",
+        "  SELECT wscode_ltree AS wscode, localcode_ltree AS localcode\n",
         "  FROM %s\n",
         "  WHERE blue_line_key = %s\n",
         "    AND downstream_route_measure <= %s\n",
@@ -169,7 +170,7 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
         "  s.%s, s.%s\n",
         ")%s"
       ),
-      wscode_col, localcode_col, table,
+      stream_tbl,
       blk, downstream_route_measure,
       select_cols, table, fwa_fn,
       wscode_col, localcode_col, filter_sql
@@ -178,7 +179,7 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
     sql <- sprintf(
       paste0(
         "WITH ref_down AS (\n",
-        "  SELECT %s AS wscode, %s AS localcode\n",
+        "  SELECT wscode_ltree AS wscode, localcode_ltree AS localcode\n",
         "  FROM %s\n",
         "  WHERE blue_line_key = %s\n",
         "    AND downstream_route_measure <= %s\n",
@@ -186,7 +187,7 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
         "  LIMIT 1\n",
         "),\n",
         "ref_up AS (\n",
-        "  SELECT %s AS wscode, %s AS localcode\n",
+        "  SELECT wscode_ltree AS wscode, localcode_ltree AS localcode\n",
         "  FROM %s\n",
         "  WHERE blue_line_key = %s\n",
         "    AND downstream_route_measure <= %s\n",
@@ -207,9 +208,9 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
         "  )\n",
         ")%s"
       ),
-      wscode_col, localcode_col, table,
+      stream_tbl,
       blk, downstream_route_measure,
-      wscode_col, localcode_col, table,
+      stream_tbl,
       blk, upstream_measure,
       select_cols, table, fwa_fn,
       wscode_col, localcode_col,
