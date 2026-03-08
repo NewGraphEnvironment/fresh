@@ -15,6 +15,8 @@ frs_network_downstream(
     "gnis_name", "stream_order", "stream_magnitude", "gradient",
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
+  wscode_col = "wscode_ltree",
+  localcode_col = "localcode_ltree",
   ...
 )
 ```
@@ -38,6 +40,16 @@ frs_network_downstream(
 
   Character vector of column names to select. Default includes the most
   commonly used FWA stream attributes.
+
+- wscode_col:
+
+  Character. Name of the watershed code ltree column. Default
+  `"wscode_ltree"`. Use `"wscode"` for bcfishpass views.
+
+- localcode_col:
+
+  Character. Name of the local code ltree column. Default
+  `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
 
 - ...:
 

@@ -53,6 +53,8 @@ downstream route measure. Uses the fwapg <code>fwa_downstream()</code> ltree com
 <span>    <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>, <span class="st">"stream_magnitude"</span>, <span class="st">"gradient"</span>,</span>
 <span>    <span class="st">"downstream_route_measure"</span>, <span class="st">"upstream_route_measure"</span>, <span class="st">"length_metre"</span>,</span>
 <span>    <span class="st">"watershed_group_code"</span>, <span class="st">"wscode_ltree"</span>, <span class="st">"localcode_ltree"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
+<span>  wscode_col <span class="op">=</span> <span class="st">"wscode_ltree"</span>,</span>
+<span>  localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -78,6 +80,16 @@ reference point.</p></dd>
 <dt id="arg-cols">cols<a class="anchor" aria-label="anchor" href="#arg-cols"></a></dt>
 <dd><p>Character vector of column names to select. Default includes
 the most commonly used FWA stream attributes.</p></dd>
+
+
+<dt id="arg-wscode-col">wscode_col<a class="anchor" aria-label="anchor" href="#arg-wscode-col"></a></dt>
+<dd><p>Character. Name of the watershed code ltree column.
+Default <code>"wscode_ltree"</code>. Use <code>"wscode"</code> for bcfishpass views.</p></dd>
+
+
+<dt id="arg-localcode-col">localcode_col<a class="anchor" aria-label="anchor" href="#arg-localcode-col"></a></dt>
+<dd><p>Character. Name of the local code ltree column.
+Default <code>"localcode_ltree"</code>. Use <code>"localcode"</code> for bcfishpass views.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

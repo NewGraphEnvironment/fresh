@@ -14,11 +14,14 @@ frs_network_prune(
   stream_order_min = NULL,
   gradient_max = NULL,
   watershed_group_code = NULL,
+  extra_where = NULL,
   table = "whse_basemapping.fwa_stream_networks_sp",
   cols = c("linear_feature_id", "blue_line_key", "waterbody_key", "edge_type",
     "gnis_name", "stream_order", "stream_magnitude", "gradient",
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
+  wscode_col = "wscode_ltree",
+  localcode_col = "localcode_ltree",
   ...
 )
 ```
@@ -45,6 +48,11 @@ frs_network_prune(
 
   Character. Restrict to a watershed group. Default `NULL`.
 
+- extra_where:
+
+  Character vector of additional SQL predicates (applied to alias `s`).
+  Default `NULL`.
+
 - table:
 
   Character. Fully qualified table name. Default
@@ -54,6 +62,16 @@ frs_network_prune(
 
   Character vector of column names to select. Default includes the most
   commonly used FWA stream attributes.
+
+- wscode_col:
+
+  Character. Name of the watershed code ltree column. Default
+  `"wscode_ltree"`. Use `"wscode"` for bcfishpass views.
+
+- localcode_col:
+
+  Character. Name of the local code ltree column. Default
+  `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
 
 - ...:
 
@@ -73,12 +91,27 @@ Other prune:
 
 ``` r
 if (FALSE) { # \dontrun{
-# Upstream network, order >= 3, gradient <= 0.05
+# Upstream network from FWA base table, order >= 3
 pruned <- frs_network_prune(
   blue_line_key = 360873822,
   downstream_route_measure = 166030,
   stream_order_min = 3,
   gradient_max = 0.05
+)
+
+# Coho rearing/spawning upstream of Neexdzii Kwa confluence
+co_habitat <- frs_network_prune(
+  blue_line_key = 360873822,
+  downstream_route_measure = 166030.4,
+  stream_order_min = 4,
+  watershed_group_code = "BULK",
+  extra_where = "(s.rearing > 0 OR s.spawning > 0)",
+  table = "bcfishpass.streams_co_vw",
+  cols = c("segmented_stream_id", "blue_line_key", "waterbody_key",
+           "gnis_name", "stream_order", "channel_width", "mapping_code",
+           "rearing", "spawning", "access", "geom"),
+  wscode_col = "wscode",
+  localcode_col = "localcode"
 )
 } # }
 ```

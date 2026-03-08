@@ -54,11 +54,14 @@ in SQL for efficiency.</p>
 <span>  stream_order_min <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  gradient_max <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  watershed_group_code <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  extra_where <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span>
 <span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"linear_feature_id"</span>, <span class="st">"blue_line_key"</span>, <span class="st">"waterbody_key"</span>, <span class="st">"edge_type"</span>,</span>
 <span>    <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>, <span class="st">"stream_magnitude"</span>, <span class="st">"gradient"</span>,</span>
 <span>    <span class="st">"downstream_route_measure"</span>, <span class="st">"upstream_route_measure"</span>, <span class="st">"length_metre"</span>,</span>
 <span>    <span class="st">"watershed_group_code"</span>, <span class="st">"wscode_ltree"</span>, <span class="st">"localcode_ltree"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
+<span>  wscode_col <span class="op">=</span> <span class="st">"wscode_ltree"</span>,</span>
+<span>  localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -89,6 +92,11 @@ reference point.</p></dd>
 <code>NULL</code>.</p></dd>
 
 
+<dt id="arg-extra-where">extra_where<a class="anchor" aria-label="anchor" href="#arg-extra-where"></a></dt>
+<dd><p>Character vector of additional SQL predicates (applied to
+alias <code>s</code>). Default <code>NULL</code>.</p></dd>
+
+
 <dt id="arg-table">table<a class="anchor" aria-label="anchor" href="#arg-table"></a></dt>
 <dd><p>Character. Fully qualified table name. Default
 <code>"whse_basemapping.fwa_stream_networks_sp"</code>.</p></dd>
@@ -97,6 +105,16 @@ reference point.</p></dd>
 <dt id="arg-cols">cols<a class="anchor" aria-label="anchor" href="#arg-cols"></a></dt>
 <dd><p>Character vector of column names to select. Default includes
 the most commonly used FWA stream attributes.</p></dd>
+
+
+<dt id="arg-wscode-col">wscode_col<a class="anchor" aria-label="anchor" href="#arg-wscode-col"></a></dt>
+<dd><p>Character. Name of the watershed code ltree column.
+Default <code>"wscode_ltree"</code>. Use <code>"wscode"</code> for bcfishpass views.</p></dd>
+
+
+<dt id="arg-localcode-col">localcode_col<a class="anchor" aria-label="anchor" href="#arg-localcode-col"></a></dt>
+<dd><p>Character. Name of the local code ltree column.
+Default <code>"localcode_ltree"</code>. Use <code>"localcode"</code> for bcfishpass views.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -116,12 +134,27 @@ the most commonly used FWA stream attributes.</p></dd>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Upstream network, order &gt;= 3, gradient &lt;= 0.05</span></span></span>
+<span class="r-in"><span><span class="co"># Upstream network from FWA base table, order &gt;= 3</span></span></span>
 <span class="r-in"><span><span class="va">pruned</span> <span class="op">&lt;-</span> <span class="fu">frs_network_prune</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  blue_line_key <span class="op">=</span> <span class="fl">360873822</span>,</span></span>
 <span class="r-in"><span>  downstream_route_measure <span class="op">=</span> <span class="fl">166030</span>,</span></span>
 <span class="r-in"><span>  stream_order_min <span class="op">=</span> <span class="fl">3</span>,</span></span>
 <span class="r-in"><span>  gradient_max <span class="op">=</span> <span class="fl">0.05</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Coho rearing/spawning upstream of Neexdzii Kwa confluence</span></span></span>
+<span class="r-in"><span><span class="va">co_habitat</span> <span class="op">&lt;-</span> <span class="fu">frs_network_prune</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  blue_line_key <span class="op">=</span> <span class="fl">360873822</span>,</span></span>
+<span class="r-in"><span>  downstream_route_measure <span class="op">=</span> <span class="fl">166030.4</span>,</span></span>
+<span class="r-in"><span>  stream_order_min <span class="op">=</span> <span class="fl">4</span>,</span></span>
+<span class="r-in"><span>  watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  extra_where <span class="op">=</span> <span class="st">"(s.rearing &gt; 0 OR s.spawning &gt; 0)"</span>,</span></span>
+<span class="r-in"><span>  table <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span></span>
+<span class="r-in"><span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"segmented_stream_id"</span>, <span class="st">"blue_line_key"</span>, <span class="st">"waterbody_key"</span>,</span></span>
+<span class="r-in"><span>           <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>, <span class="st">"channel_width"</span>, <span class="st">"mapping_code"</span>,</span></span>
+<span class="r-in"><span>           <span class="st">"rearing"</span>, <span class="st">"spawning"</span>, <span class="st">"access"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  wscode_col <span class="op">=</span> <span class="st">"wscode"</span>,</span></span>
+<span class="r-in"><span>  localcode_col <span class="op">=</span> <span class="st">"localcode"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
