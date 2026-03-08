@@ -8,6 +8,7 @@ frs_network(
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
+  upstream_blk = NULL,
   tables = NULL,
   direction = "upstream",
   ...
@@ -22,6 +23,10 @@ downstream boundary.}
 \item{upstream_measure}{Numeric or \code{NULL}. Downstream route measure of the
 upstream boundary. When provided, returns features between the two measures
 (network subtraction). Only valid with \code{direction = "upstream"}.}
+
+\item{upstream_blk}{Integer or \code{NULL}. Blue line key for the upstream point.
+Defaults to \code{blue_line_key} (same stream). Use when the upstream point is
+on a tributary.}
 
 \item{tables}{A named list of table specifications. Each element can be:
 \itemize{
@@ -51,8 +56,9 @@ the waterbody_key bridge through the stream network.
 }
 \details{
 When \code{upstream_measure} is provided, returns only features \emph{between} the two
-measures on the same blue line key — network subtraction (upstream of A minus
-upstream of B) with no spatial clipping needed.
+points — network subtraction (upstream of A minus upstream of B) with no
+spatial clipping needed. The upstream point can be on a different blue line
+key (e.g. a tributary) by specifying \code{upstream_blk}.
 }
 \examples{
 \dontrun{
