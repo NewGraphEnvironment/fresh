@@ -64,31 +64,31 @@
 
     
     
-<p>This vignette demonstrates <code>fresh</code> on a real watershed
-analysis task: extracting the coho rearing/spawning stream network
-upstream of the Neexdzii Kwa (Upper Bulkley River) / Wedzin Kwa
-confluence, with lakes and wetlands. This is the same scoping used in
-the <a href="https://github.com/NewGraphEnvironment/restoration_wedzin_kwa_2024" class="external-link">restoration_wedzin_kwa_2024</a>
-land cover change analysis. Stream colours come from the <a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a> style
+<p>Coho rearing/spawning network upstream of the Neexdzii Kwa / Wedzin
+Kwa confluence with watershed AOI, all FWA streams, lakes, and wetlands.
+Colours from the <a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a> style
 registry.</p>
-<div class="section level2">
-<h2 id="coho-rearing-network">Coho rearing network<a class="anchor" aria-label="anchor" href="#coho-rearing-network"></a>
-</h2>
-<p>Query <code>bcfishpass.streams_co_vw</code> — the coho-specific
-habitat model view — for rearing/spawning streams (order 4+) upstream of
-the Neexdzii Kwa / Wedzin Kwa confluence. The <code>table</code>,
-<code>cols</code>, <code>wscode_col</code>, and
-<code>localcode_col</code> parameters let us target this view directly
-with <code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code>.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/NewGraphEnvironment/fresh" class="external-link">fresh</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-spatial.github.io/sf/" class="external-link">sf</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE</span></span>
 <span></span>
-<span><span class="co"># Neexdzii Kwa / Wedzin Kwa confluence on Bulkley mainstem</span></span>
 <span><span class="va">blk</span> <span class="op">&lt;-</span> <span class="fl">360873822</span></span>
 <span><span class="va">drm</span> <span class="op">&lt;-</span> <span class="fl">166030.4</span></span>
 <span></span>
+<span><span class="co"># Watershed AOI</span></span>
+<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
+<span>  <span class="st">"SELECT ST_Union(geom) as geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)"</span>,</span>
+<span>  <span class="va">blk</span>, <span class="va">drm</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># All upstream streams (background)</span></span>
+<span><span class="va">streams_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network_upstream.html">frs_network_upstream</a></span><span class="op">(</span></span>
+<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
+<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Coho rearing/spawning network (order 4+)</span></span>
 <span><span class="va">co_habitat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network_prune.html">frs_network_prune</a></span><span class="op">(</span></span>
 <span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
 <span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span>,</span>
@@ -103,31 +103,8 @@ with <code><a href="../reference/frs_network_prune.html">frs_network_prune()</a>
 <span>  localcode_col <span class="op">=</span> <span class="st">"localcode"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1027</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">stream_order</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 4 5 6</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">mapping_code</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  REAR;ASSESSED  REAR;MODELLED      REAR;NONE SPAWN;ASSESSED SPAWN;MODELLED </span></span>
-<span><span class="co">#&gt;             28              9            147            103              7 </span></span>
-<span><span class="co">#&gt;     SPAWN;NONE </span></span>
-<span><span class="co">#&gt;            733</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="lakes-and-wetlands">Lakes and wetlands<a class="anchor" aria-label="anchor" href="#lakes-and-wetlands"></a>
-</h2>
-<p>Lake and wetland polygon tables (<code>fwa_lakes_poly</code>,
-<code>fwa_wetlands_poly</code>) have NULL <code>localcode_ltree</code>,
-so <code>fwa_upstream()</code> can’t query them directly.
-<code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code> bridges through the stream network:
-it runs the traversal on stream segments (which have
-<code>localcode_ltree</code>), extracts distinct
-<code>waterbody_key</code> values, then joins to the polygon table. The
-<code>direction</code> parameter switches between upstream and
-downstream. See <a href="https://github.com/NewGraphEnvironment/fresh/issues/8" class="external-link">fresh#8</a>.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_waterbody_network.html">frs_waterbody_network</a></span><span class="op">(</span></span>
+<span><span class="co"># Lakes and wetlands (waterbody_key bridge — see fresh#8)</span></span>
+<span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_waterbody_network.html">frs_waterbody_network</a></span><span class="op">(</span></span>
 <span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
 <span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span></span>
 <span><span class="op">)</span></span>
@@ -136,189 +113,101 @@ downstream. See <a href="https://github.com/NewGraphEnvironment/fresh/issues/8" 
 <span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
 <span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_wetlands_poly"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">lakes</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 363</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">wetlands</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1293</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">lakes</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lakes</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="op">-</span><span class="va">lakes</span><span class="op">$</span><span class="va">area_ha</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gnis_name_1"</span>, <span class="st">"area_ha"</span><span class="op">)</span><span class="op">]</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Simple feature collection with 10 features and 2 fields</span></span>
-<span><span class="co">#&gt; Geometry type: MULTIPOLYGON</span></span>
-<span><span class="co">#&gt; Dimension:     XY</span></span>
-<span><span class="co">#&gt; Bounding box:  xmin: 955155.1 ymin: 1018170 xmax: 995940.4 ymax: 1065884</span></span>
-<span><span class="co">#&gt; Projected CRS: NAD83 / BC Albers</span></span>
-<span><span class="co">#&gt;       gnis_name_1   area_ha                           geom</span></span>
-<span><span class="co">#&gt; 10     Maxan Lake 654.20608 MULTIPOLYGON (((993644.5 10...</span></span>
-<span><span class="co">#&gt; 11       Day Lake 316.79508 MULTIPOLYGON (((981685.4 10...</span></span>
-<span><span class="co">#&gt; 12     Elwin Lake 287.88098 MULTIPOLYGON (((980130.3 10...</span></span>
-<span><span class="co">#&gt; 13    Goosly Lake 239.17266 MULTIPOLYGON (((975714 1020...</span></span>
-<span><span class="co">#&gt; 14   Bulkley Lake 233.40513 MULTIPOLYGON (((993264.4 10...</span></span>
-<span><span class="co">#&gt; 15 McQuarrie Lake 230.06659 MULTIPOLYGON (((956158.2 10...</span></span>
-<span><span class="co">#&gt; 16     Swans Lake 179.93733 MULTIPOLYGON (((977344.9 10...</span></span>
-<span><span class="co">#&gt; 17       Nez Lake 174.64798 MULTIPOLYGON (((991369.5 10...</span></span>
-<span><span class="co">#&gt; 18    Sunset Lake 130.58687 MULTIPOLYGON (((975322.1 10...</span></span>
-<span><span class="co">#&gt; 20    Conrad Lake  63.40472 MULTIPOLYGON (((994679.2 10...</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="watershed-aoi">Watershed AOI<a class="anchor" aria-label="anchor" href="#watershed-aoi"></a>
-</h2>
-<p>Delineate the watershed boundary at the confluence using
-<code>fwa_watershedatmeasure</code>. This gives us the AOI polygon for
-the map.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT ST_Union(geom) as geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)"</span>,</span>
-<span>  <span class="va">blk</span>, <span class="va">drm</span></span>
-<span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="map-with-gq-colours">Map with gq colours<a class="anchor" aria-label="anchor" href="#map-with-gq-colours"></a>
-</h2>
-<p>Colour streams by <code>mapping_code</code> using the <a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a> style registry —
-no hardcoded hex values.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">cls</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_classes.html" class="external-link">gq_tmap_classes</a></span><span class="op">(</span><span class="va">reg</span><span class="op">$</span><span class="va">layers</span><span class="op">$</span><span class="va">streams_salmon</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Match mapping_code to gq colours</span></span>
-<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span> <span class="op">&lt;-</span> <span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">[</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">mapping_code</span><span class="op">]</span></span>
-<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"#999999"</span></span>
-<span></span>
-<span><span class="co"># Line width: spawning thicker than rearing (gq convention)</span></span>
-<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">lwd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">spawning</span> <span class="op">&gt;</span> <span class="fl">0</span>, <span class="fl">1.7</span>, <span class="fl">1.0</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Lake and wetland styles from registry</span></span>
+<span><span class="va">streams_all_style</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_classes.html" class="external-link">gq_tmap_classes</a></span><span class="op">(</span><span class="va">reg</span><span class="op">$</span><span class="va">layers</span><span class="op">$</span><span class="va">streams_all</span><span class="op">)</span></span>
 <span><span class="va">lake_style</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_style.html" class="external-link">gq_tmap_style</a></span><span class="op">(</span><span class="va">reg</span><span class="op">$</span><span class="va">layers</span><span class="op">$</span><span class="va">lake</span><span class="op">)</span></span>
 <span><span class="va">wetland_style</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_style.html" class="external-link">gq_tmap_style</a></span><span class="op">(</span><span class="va">reg</span><span class="op">$</span><span class="va">layers</span><span class="op">$</span><span class="va">wetland</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># AOI boundary first (sets extent)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">aoi</span><span class="op">)</span>,</span>
-<span>  col <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  border <span class="op">=</span> <span class="st">"grey40"</span>,</span>
-<span>  lwd <span class="op">=</span> <span class="fl">1.5</span>,</span>
-<span>  main <span class="op">=</span> <span class="st">""</span></span>
-<span><span class="op">)</span></span>
+<span><span class="co"># Coho colours from registry</span></span>
+<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span> <span class="op">&lt;-</span> <span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">[</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">mapping_code</span><span class="op">]</span></span>
+<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"#999999"</span></span>
+<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">lwd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">spawning</span> <span class="op">&gt;</span> <span class="fl">0</span>, <span class="fl">1.7</span>, <span class="fl">1.0</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Wetlands under lakes under streams</span></span>
+<span><span class="co"># AOI boundary (sets extent)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">aoi</span><span class="op">)</span>, col <span class="op">=</span> <span class="cn">NA</span>, border <span class="op">=</span> <span class="st">"grey40"</span>, lwd <span class="op">=</span> <span class="fl">1.5</span>, main <span class="op">=</span> <span class="st">""</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Layer order: wetlands → lakes → all streams → coho habitat</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">wetlands</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">wetlands</span><span class="op">)</span>,</span>
-<span>    col <span class="op">=</span> <span class="va">wetland_style</span><span class="op">$</span><span class="va">fill</span>,</span>
-<span>    border <span class="op">=</span> <span class="va">wetland_style</span><span class="op">$</span><span class="va">fill</span>,</span>
-<span>    add <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span>  <span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">wetlands</span><span class="op">)</span>, col <span class="op">=</span> <span class="va">wetland_style</span><span class="op">$</span><span class="va">fill</span>,</span>
+<span>       border <span class="op">=</span> <span class="va">wetland_style</span><span class="op">$</span><span class="va">fill</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">lakes</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">lakes</span><span class="op">)</span>,</span>
-<span>    col <span class="op">=</span> <span class="va">lake_style</span><span class="op">$</span><span class="va">fill</span>,</span>
-<span>    border <span class="op">=</span> <span class="va">lake_style</span><span class="op">$</span><span class="va">col</span>,</span>
-<span>    add <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span>  <span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">lakes</span><span class="op">)</span>, col <span class="op">=</span> <span class="va">lake_style</span><span class="op">$</span><span class="va">fill</span>,</span>
+<span>       border <span class="op">=</span> <span class="va">lake_style</span><span class="op">$</span><span class="va">col</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">streams_all</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"#a9e0ff"</span>, lwd <span class="op">=</span> <span class="fl">0.3</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">)</span>, col <span class="op">=</span> <span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span>,</span>
+<span>     lwd <span class="op">=</span> <span class="va">co_habitat</span><span class="op">$</span><span class="va">lwd</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">)</span>,</span>
-<span>  col <span class="op">=</span> <span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span>,</span>
-<span>  lwd <span class="op">=</span> <span class="va">co_habitat</span><span class="op">$</span><span class="va">lwd</span>,</span>
-<span>  add <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Legend from gq registry — show only codes present in the data</span></span>
+<span><span class="co"># Legend</span></span>
 <span><span class="va">present</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">mapping_code</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/legend.html" class="external-link">legend</a></span><span class="op">(</span></span>
 <span>  <span class="st">"topright"</span>,</span>
-<span>  legend <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Watershed AOI"</span>, <span class="va">cls</span><span class="op">$</span><span class="va">labels</span><span class="op">[</span><span class="va">present</span><span class="op">]</span>, <span class="st">"Lake"</span>, <span class="st">"Wetland"</span><span class="op">)</span>,</span>
-<span>  col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"grey40"</span>, <span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">[</span><span class="va">present</span><span class="op">]</span>, <span class="va">lake_style</span><span class="op">$</span><span class="va">col</span>, <span class="va">wetland_style</span><span class="op">$</span><span class="va">fill</span><span class="op">)</span>,</span>
-<span>  pch <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">present</span><span class="op">)</span><span class="op">)</span>, <span class="fl">15</span>, <span class="fl">15</span><span class="op">)</span>,</span>
-<span>  lwd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">present</span><span class="op">)</span><span class="op">)</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span>,</span>
-<span>  pt.cex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">present</span><span class="op">)</span><span class="op">)</span>, <span class="fl">1.5</span>, <span class="fl">1.5</span><span class="op">)</span>,</span>
-<span>  cex <span class="op">=</span> <span class="fl">0.7</span>,</span>
-<span>  bg <span class="op">=</span> <span class="st">"white"</span></span>
+<span>  legend <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Watershed AOI"</span>, <span class="st">"Stream"</span>, <span class="va">cls</span><span class="op">$</span><span class="va">labels</span><span class="op">[</span><span class="va">present</span><span class="op">]</span>, <span class="st">"Lake"</span>, <span class="st">"Wetland"</span><span class="op">)</span>,</span>
+<span>  col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"grey40"</span>, <span class="st">"#a9e0ff"</span>, <span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">[</span><span class="va">present</span><span class="op">]</span>, <span class="va">lake_style</span><span class="op">$</span><span class="va">col</span>, <span class="va">wetland_style</span><span class="op">$</span><span class="va">fill</span><span class="op">)</span>,</span>
+<span>  pch <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">present</span><span class="op">)</span><span class="op">)</span>, <span class="fl">15</span>, <span class="fl">15</span><span class="op">)</span>,</span>
+<span>  lwd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">0.8</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">present</span><span class="op">)</span><span class="op">)</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span>,</span>
+<span>  pt.cex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">present</span><span class="op">)</span><span class="op">)</span>, <span class="fl">1.5</span>, <span class="fl">1.5</span><span class="op">)</span>,</span>
+<span>  cex <span class="op">=</span> <span class="fl">0.7</span>, bg <span class="op">=</span> <span class="st">"white"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="articles/figure/plot-co-habitat-1.png" alt="Coho rearing and spawning habitat upstream of the Neexdzii Kwa confluence (order 4+), with watershed AOI, lakes and wetlands. Stream colours from the gq style registry."><div class="figcaption">Coho rearing and spawning habitat upstream of
-the Neexdzii Kwa confluence (order 4+), with watershed AOI, lakes and
-wetlands. Stream colours from the gq style registry.</div>
+<img src="figure/plot-co-habitat-1.png" alt="Coho rearing and spawning habitat upstream of the Neexdzii Kwa confluence (order 4+), with all FWA streams, lakes, and wetlands."><div class="figcaption">Coho rearing and spawning habitat upstream of
+the Neexdzii Kwa confluence (order 4+), with all FWA streams, lakes, and
+wetlands.</div>
 </div>
-<p>The network contains 1027 coho habitat segments across orders 4, 5,
-6, with 363 lakes and 1293 wetlands.</p>
-<p>Named streams: Ailport Creek, Aitken Creek, Barren Creek, Buck Creek,
-Bulkley River, Byman Creek, Cesford Creek, Crow Creek, Dungate Creek,
-Foxy Creek, Johnny David Creek, Klo Creek, Maxan Creek, McKilligan
-Creek, McQuarrie Creek, North Ailport Creek, Perow Creek, Raspberry
-Creek, Richfield Creek, Robert Hatch Creek.</p>
-</div>
+<p>1027 coho habitat segments (orders 4, 5, 6), 8876 total stream
+segments, 363 lakes, 1293 wetlands.</p>
 <div class="section level2">
 <h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
 </h2>
 <table class="table">
 <colgroup>
-<col width="20%">
-<col width="34%">
-<col width="44%">
+<col width="43%">
+<col width="56%">
 </colgroup>
 <thead><tr class="header">
-<th>Step</th>
 <th>Function</th>
 <th>What it does</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Snap</td>
 <td><code><a href="../reference/frs_point_snap.html">frs_point_snap()</a></code></td>
-<td>Index a point to the nearest stream</td>
+<td>Snap a point to the nearest stream</td>
 </tr>
 <tr class="even">
-<td>Fetch</td>
-<td>
-<code><a href="../reference/frs_stream_fetch.html">frs_stream_fetch()</a></code>, <code><a href="../reference/frs_lake_fetch.html">frs_lake_fetch()</a></code>,
-<code><a href="../reference/frs_wetland_fetch.html">frs_wetland_fetch()</a></code>
-</td>
-<td>Retrieve FWA features</td>
+<td><code><a href="../reference/frs_stream_fetch.html">frs_stream_fetch()</a></code></td>
+<td>Fetch FWA streams by watershed group, bbox, or blue line key</td>
 </tr>
 <tr class="odd">
-<td>Traverse</td>
 <td>
-<code><a href="../reference/frs_network_upstream.html">frs_network_upstream()</a></code>,
-<code><a href="../reference/frs_network_downstream.html">frs_network_downstream()</a></code>
+<code><a href="../reference/frs_network_upstream.html">frs_network_upstream()</a></code> /
+<code>_downstream()</code>
 </td>
 <td>Walk the stream network</td>
 </tr>
 <tr class="even">
-<td>Waterbodies</td>
-<td><code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code></td>
-<td>Lakes/wetlands via waterbody_key bridge</td>
+<td><code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code></td>
+<td>Filter by order, gradient, or custom SQL predicates</td>
 </tr>
 <tr class="odd">
-<td>Prune</td>
-<td>
-<code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code>,
-<code><a href="../reference/frs_order_filter.html">frs_order_filter()</a></code>
-</td>
-<td>Filter by order, gradient</td>
+<td><code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code></td>
+<td>Lakes/wetlands upstream or downstream via waterbody_key bridge</td>
 </tr>
 <tr class="even">
-<td>Fish</td>
 <td>
-<code><a href="../reference/frs_fish_obs.html">frs_fish_obs()</a></code>, <code><a href="../reference/frs_fish_habitat.html">frs_fish_habitat()</a></code>
+<code><a href="../reference/frs_fish_obs.html">frs_fish_obs()</a></code> / <code><a href="../reference/frs_fish_habitat.html">frs_fish_habitat()</a></code>
 </td>
-<td>Observations and habitat model</td>
+<td>Fish observations and habitat model</td>
 </tr>
 </tbody>
 </table>
 <p>All functions accept <code>table</code> and <code>cols</code>
-parameters. Traverse functions also accept <code>wscode_col</code> and
-<code>localcode_col</code> to work with any table that has ltree
-watershed codes (e.g. <code>bcfishpass.streams_co_vw</code> uses
-<code>wscode</code>/<code>localcode</code> instead of
-<code>wscode_ltree</code>/<code>localcode_ltree</code>).</p>
+parameters for flexibility across FWA and bcfishpass views.</p>
 </div>
-  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
-    </nav></aside>
+  </main>
 </div>
 
 
