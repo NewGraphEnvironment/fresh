@@ -7,15 +7,15 @@ All functions prefixed `frs_`, named noun-first.
 ## Phases
 
 ### Phase 1: DB Helpers
-- [ ] `frs_db_conn()` — connect to fwapg/bcfishpass PostgreSQL (env var defaults)
-- [ ] `frs_db_query()` — connect + query + disconnect, return sf
-- [ ] Tests for both
+- [x] `frs_db_conn()` — connect to fwapg/bcfishpass PostgreSQL (env var defaults)
+- [x] `frs_db_query()` — connect + query + disconnect, return sf
+- [x] Tests for both (3/3 pass)
 
 ### Phase 2: Fetch Functions (Issue #1)
-- [ ] `frs_stream_fetch()` — fetch FWA stream segments by watershed group / bbox / blk
-- [ ] `frs_lake_fetch()` — fetch FWA lakes, network-aware filtering
-- [ ] `frs_wetland_fetch()` — fetch FWA wetlands, network-aware filtering
-- [ ] Tests for all three
+- [x] `frs_stream_fetch()` — fetch FWA stream segments by watershed group / bbox / blk
+- [x] `frs_lake_fetch()` — fetch FWA lakes, network-aware filtering
+- [x] `frs_wetland_fetch()` — fetch FWA wetlands, network-aware filtering
+- [x] Tests for all three (9 tests, 18 expectations, all pass)
 
 ### Phase 3: Index Functions (Issue #2)
 - [ ] `frs_point_snap()` — snap xy to nearest stream segment
