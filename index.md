@@ -25,9 +25,10 @@ pak::pak("NewGraphEnvironment/fresh")
 - [bcfishobs](https://github.com/smnorris/bcfishobs) — fish observation
   data
 
-Connect via SSH tunnel to a remote instance or run locally. See the
-[db-newgraph skill](https://github.com/NewGraphEnvironment/soul) for
-connection patterns.
+Connection is configured via `PG_*_SHARE` environment variables
+(`PG_HOST_SHARE`, `PG_PORT_SHARE`, `PG_DB_SHARE`, `PG_USER_SHARE`) or
+passed directly to
+[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
 
 ## Ecosystem
 
