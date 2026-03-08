@@ -3,3 +3,7 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^CLAUDE\.md$
+^data-raw$
+^dev$
+^planning$

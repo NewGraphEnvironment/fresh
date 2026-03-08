@@ -38,9 +38,9 @@ All functions prefixed `frs_`, named noun-first.
 - [x] Tests for both (47 total pass)
 
 ### Phase 7: Package Polish
-- [ ] `devtools::document()` — generate NAMESPACE and man pages
-- [ ] `devtools::check()` — clean check
-- [ ] NEWS.md
+- [x] `devtools::document()` — NAMESPACE and man pages generated
+- [x] `devtools::check()` — 0 errors, 0 warnings, 0 notes (after .Rbuildignore)
+- [x] NEWS.md — v0.1.0
 - [ ] PR to main with SRED reference
 
 ## Decisions
