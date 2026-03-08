@@ -33,7 +33,7 @@ data-raw/             — test data generation scripts
 
 ## Key Patterns
 
-- All exported functions will be prefixed by category: `fwa_`, `idx_`, `net_`, `prn_`, `fish_`
+- All exported functions prefixed `frs_`, named noun-first: `frs_stream_fetch()`, `frs_point_snap()`, etc.
 - Direct SQL via DBI/RPostgres against fwapg/bcfishpass PostgreSQL
 - Returns sf objects for spatial results
 - Requires PostgreSQL with fwapg, bcfishpass, and bcfishobs extensions
