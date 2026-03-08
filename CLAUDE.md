@@ -1231,7 +1231,8 @@ required - **Use bundled test data** via
 [`system.file()`](https://rdrr.io/r/base/system.file.html) so they work
 for anyone - **Show why the function is useful** — not just that it
 runs, but what it produces and why you’d use it - **Use qualified
-names** for non-exported dependencies (`terra::rast()`,
+names** for non-exported dependencies
+([`terra::rast()`](https://rspatial.github.io/terra/reference/rast.html),
 [`sf::st_read()`](https://r-spatial.github.io/sf/reference/st_read.html))
 since examples run in the user’s environment
 

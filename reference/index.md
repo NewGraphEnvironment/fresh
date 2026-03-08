@@ -12,6 +12,8 @@
   : Fetch Fish Observations
 - [`frs_lake_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_lake_fetch.md)
   : Fetch FWA Lakes
+- [`frs_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_network.md)
+  : Query Multiple Tables Upstream or Downstream of a Network Position
 - [`frs_network_downstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_downstream.md)
   : Get Stream Segments Downstream of a Network Position
 - [`frs_network_prune()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_prune.md)
