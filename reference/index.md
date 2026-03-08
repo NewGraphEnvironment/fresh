@@ -30,5 +30,7 @@
   : Fetch FWA Stream Network Segments
 - [`frs_waterbody_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_waterbody_network.md)
   : Get Waterbody Polygons Upstream or Downstream of a Network Position
+- [`frs_watershed_at_measure()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_at_measure.md)
+  : Watershed at Measure
 - [`frs_wetland_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_wetland_fetch.md)
   : Fetch FWA Wetlands

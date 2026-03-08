@@ -92,15 +92,7 @@ the stream network, not clipped spatially. A future
 <span><span class="va">drm_ailport</span> <span class="op">&lt;-</span> <span class="fl">233564</span>   <span class="co"># just upstream of Ailport Creek</span></span>
 <span></span>
 <span><span class="co"># Subbasin polygon (downstream watershed minus upstream watershed)</span></span>
-<span><span class="va">ws_down</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT ST_Union(geom) as geom</span></span>
-<span><span class="st">   FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)"</span>, <span class="va">blk</span>, <span class="va">drm_byman</span></span>
-<span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">ws_up</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT ST_Union(geom) as geom</span></span>
-<span><span class="st">   FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)"</span>, <span class="va">blk</span>, <span class="va">drm_ailport</span></span>
-<span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_binary_ops.html" class="external-link">st_difference</a></span><span class="op">(</span><span class="va">ws_down</span>, <span class="va">ws_up</span><span class="op">)</span></span>
+<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_watershed_at_measure.html">frs_watershed_at_measure</a></span><span class="op">(</span><span class="va">blk</span>, <span class="va">drm_byman</span>, upstream_measure <span class="op">=</span> <span class="va">drm_ailport</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Network features between the two points</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network.html">frs_network</a></span><span class="op">(</span><span class="va">blk</span>, <span class="va">drm_byman</span>, upstream_measure <span class="op">=</span> <span class="va">drm_ailport</span>,</span>
