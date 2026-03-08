@@ -1,12 +1,16 @@
 #' Fetch Fish Observations
 #'
-#' Query fish observation events from `bcfishobs.fiss_fish_obsrvtn_events_vw`.
+#' Query fish observation events from a bcfishobs table.
 #' Filter by species code, watershed group, and/or blue line key.
 #'
 #' @param species_code Character. Species code (e.g. `"CH"` for chinook,
 #'   `"ST"` for steelhead). Default `NULL` (all species).
 #' @param watershed_group_code Character. Watershed group code. Default `NULL`.
 #' @param blue_line_key Integer. Blue line key. Default `NULL`.
+#' @param table Character. Fully qualified table name. Default
+#'   `"bcfishobs.fiss_fish_obsrvtn_events_vw"`.
+#' @param cols Character vector of column names to select. Default includes
+#'   the most commonly used observation attributes.
 #' @param limit Integer. Maximum rows to return. Default `NULL`.
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
@@ -25,6 +29,13 @@ frs_fish_obs <- function(
     species_code = NULL,
     watershed_group_code = NULL,
     blue_line_key = NULL,
+    table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
+    cols = c(
+      "fish_observation_point_id", "species_code", "observation_date",
+      "life_stage", "activity", "blue_line_key",
+      "downstream_route_measure", "watershed_group_code",
+      "wscode_ltree", "localcode_ltree", "geom"
+    ),
     limit = NULL,
     ...
 ) {
@@ -47,7 +58,8 @@ frs_fish_obs <- function(
   }
 
   sql <- paste0(
-    "SELECT * FROM bcfishobs.fiss_fish_obsrvtn_events_vw",
+    "SELECT ", paste(cols, collapse = ", "),
+    " FROM ", table,
     where,
     if (!is.null(limit)) paste0(" LIMIT ", as.integer(limit))
   )

@@ -8,6 +8,10 @@ frs_fish_obs(
   species_code = NULL,
   watershed_group_code = NULL,
   blue_line_key = NULL,
+  table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
+  cols = c("fish_observation_point_id", "species_code", "observation_date", "life_stage",
+    "activity", "blue_line_key", "downstream_route_measure", "watershed_group_code",
+    "wscode_ltree", "localcode_ltree", "geom"),
   limit = NULL,
   ...
 )
@@ -20,6 +24,12 @@ frs_fish_obs(
 
 \item{blue_line_key}{Integer. Blue line key. Default \code{NULL}.}
 
+\item{table}{Character. Fully qualified table name. Default
+\code{"bcfishobs.fiss_fish_obsrvtn_events_vw"}.}
+
+\item{cols}{Character vector of column names to select. Default includes
+the most commonly used observation attributes.}
+
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL}.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
@@ -28,7 +38,7 @@ frs_fish_obs(
 An \code{sf} data frame of fish observation events.
 }
 \description{
-Query fish observation events from \code{bcfishobs.fiss_fish_obsrvtn_events_vw}.
+Query fish observation events from a bcfishobs table.
 Filter by species code, watershed group, and/or blue line key.
 }
 \examples{

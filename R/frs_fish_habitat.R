@@ -1,11 +1,15 @@
 #' Fetch Modelled Fish Habitat from bcfishpass
 #'
-#' Query stream segments with habitat model outputs from `bcfishpass.streams_vw`.
+#' Query stream segments with habitat model outputs from a bcfishpass table.
 #' Filter by watershed group and/or blue line key. Returns segments with
 #' barrier, access, and habitat classification columns.
 #'
 #' @param watershed_group_code Character. Watershed group code. Default `NULL`.
 #' @param blue_line_key Integer. Blue line key. Default `NULL`.
+#' @param table Character. Fully qualified table name. Default
+#'   `"bcfishpass.streams_vw"`.
+#' @param cols Character vector of column names to select. Default includes
+#'   the most commonly used habitat model attributes.
 #' @param limit Integer. Maximum rows to return. Default `NULL`.
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
@@ -24,6 +28,13 @@
 frs_fish_habitat <- function(
     watershed_group_code = NULL,
     blue_line_key = NULL,
+    table = "bcfishpass.streams_vw",
+    cols = c(
+      "segmented_stream_id", "blue_line_key", "waterbody_key",
+      "downstream_route_measure", "upstream_area_ha", "gnis_name",
+      "stream_order", "channel_width", "gradient", "mad_m3s",
+      "watershed_group_code", "wscode", "localcode", "geom"
+    ),
     limit = NULL,
     ...
 ) {
@@ -43,7 +54,8 @@ frs_fish_habitat <- function(
   }
 
   sql <- paste0(
-    "SELECT * FROM bcfishpass.streams_vw",
+    "SELECT ", paste(cols, collapse = ", "),
+    " FROM ", table,
     where,
     if (!is.null(limit)) paste0(" LIMIT ", as.integer(limit))
   )

@@ -9,6 +9,11 @@ frs_stream_fetch(
   blue_line_key = NULL,
   bbox = NULL,
   stream_order_min = NULL,
+  table = "whse_basemapping.fwa_stream_networks_sp",
+  cols = c("linear_feature_id", "blue_line_key", "waterbody_key", "edge_type",
+    "gnis_name", "stream_order", "stream_magnitude", "gradient",
+    "downstream_route_measure", "upstream_route_measure", "length_metre",
+    "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   limit = NULL,
   ...
 )
@@ -26,6 +31,12 @@ BC Albers (EPSG:3005). Default \code{NULL}.}
 \item{stream_order_min}{Integer. Minimum Strahler stream order to return.
 Default \code{NULL} (all orders).}
 
+\item{table}{Character. Fully qualified table name. Default
+\code{"whse_basemapping.fwa_stream_networks_sp"}.}
+
+\item{cols}{Character vector of column names to select. Default includes
+the most commonly used FWA stream attributes.}
+
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
@@ -34,7 +45,7 @@ Default \code{NULL} (all orders).}
 An \code{sf} data frame of stream segments.
 }
 \description{
-Retrieve stream segments from \code{whse_basemapping.fwa_stream_networks_sp}.
+Retrieve stream segments from a stream network table.
 Filter by watershed group code, blue line key, and/or bounding box.
 }
 \examples{
@@ -44,6 +55,12 @@ streams <- frs_stream_fetch(watershed_group_code = "BULK")
 
 # Streams with order >= 4
 streams <- frs_stream_fetch(watershed_group_code = "BULK", stream_order_min = 4)
+
+# Custom columns and table
+streams <- frs_stream_fetch(
+  watershed_group_code = "BULK",
+  cols = c("blue_line_key", "gnis_name", "stream_order", "geom")
+)
 }
 }
 \seealso{

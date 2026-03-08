@@ -9,6 +9,9 @@ frs_wetland_fetch(
   blue_line_key = NULL,
   bbox = NULL,
   area_ha_min = NULL,
+  table = "whse_basemapping.fwa_wetlands_poly",
+  cols = c("waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
+    "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"),
   limit = NULL,
   ...
 )
@@ -25,6 +28,12 @@ BC Albers (EPSG:3005). Default \code{NULL}.}
 
 \item{area_ha_min}{Numeric. Minimum wetland area in hectares. Default \code{NULL}.}
 
+\item{table}{Character. Fully qualified table name. Default
+\code{"whse_basemapping.fwa_wetlands_poly"}.}
+
+\item{cols}{Character vector of column names to select. Default includes
+the most commonly used FWA wetland attributes.}
+
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
@@ -33,7 +42,7 @@ BC Albers (EPSG:3005). Default \code{NULL}.}
 An \code{sf} data frame of wetland polygons.
 }
 \description{
-Retrieve wetland polygons from \code{whse_basemapping.fwa_wetlands_poly}.
+Retrieve wetland polygons from an FWA wetlands table.
 Filter by watershed group code, blue line key, and/or bounding box.
 }
 \examples{

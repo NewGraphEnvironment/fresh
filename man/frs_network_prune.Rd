@@ -10,6 +10,11 @@ frs_network_prune(
   stream_order_min = NULL,
   gradient_max = NULL,
   watershed_group_code = NULL,
+  table = "whse_basemapping.fwa_stream_networks_sp",
+  cols = c("linear_feature_id", "blue_line_key", "waterbody_key", "edge_type",
+    "gnis_name", "stream_order", "stream_magnitude", "gradient",
+    "downstream_route_measure", "upstream_route_measure", "length_metre",
+    "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   ...
 )
 }
@@ -25,6 +30,12 @@ reference point.}
 
 \item{watershed_group_code}{Character. Restrict to a watershed group. Default
 \code{NULL}.}
+
+\item{table}{Character. Fully qualified table name. Default
+\code{"whse_basemapping.fwa_stream_networks_sp"}.}
+
+\item{cols}{Character vector of column names to select. Default includes
+the most commonly used FWA stream attributes.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }

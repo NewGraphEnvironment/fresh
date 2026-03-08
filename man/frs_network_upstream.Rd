@@ -4,13 +4,28 @@
 \alias{frs_network_upstream}
 \title{Get Stream Segments Upstream of a Network Position}
 \usage{
-frs_network_upstream(blue_line_key, downstream_route_measure, ...)
+frs_network_upstream(
+  blue_line_key,
+  downstream_route_measure,
+  table = "whse_basemapping.fwa_stream_networks_sp",
+  cols = c("linear_feature_id", "blue_line_key", "waterbody_key", "edge_type",
+    "gnis_name", "stream_order", "stream_magnitude", "gradient",
+    "downstream_route_measure", "upstream_route_measure", "length_metre",
+    "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
+  ...
+)
 }
 \arguments{
 \item{blue_line_key}{Integer. Blue line key of the reference point.}
 
 \item{downstream_route_measure}{Numeric. Downstream route measure of the
 reference point.}
+
+\item{table}{Character. Fully qualified table name. Default
+\code{"whse_basemapping.fwa_stream_networks_sp"}.}
+
+\item{cols}{Character vector of column names to select. Default includes
+the most commonly used FWA stream attributes.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
