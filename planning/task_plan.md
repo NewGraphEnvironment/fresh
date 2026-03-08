@@ -33,9 +33,9 @@ All functions prefixed `frs_`, named noun-first.
 - [x] Tests for both (37 total pass)
 
 ### Phase 6: Fish Functions (Issue #5)
-- [ ] `frs_fish_obs()` — query bcfishobs observations
-- [ ] `frs_fish_habitat()` — query bcfishpass habitat model
-- [ ] Tests for both
+- [x] `frs_fish_obs()` — query bcfishobs observations by species/wsg/blk
+- [x] `frs_fish_habitat()` — query bcfishpass streams_vw habitat model
+- [x] Tests for both (47 total pass)
 
 ### Phase 7: Package Polish
 - [ ] `devtools::document()` — generate NAMESPACE and man pages
