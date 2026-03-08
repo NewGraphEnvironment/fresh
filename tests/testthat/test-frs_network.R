@@ -137,6 +137,8 @@ test_that("frs_default_cols returns sensible defaults", {
   expect_true("area_ha" %in% frs_default_cols("whse_basemapping.fwa_lakes_poly"))
   expect_true("barrier_status" %in% frs_default_cols("bcfishpass.crossings"))
   expect_true("species_code" %in% frs_default_cols("bcfishpass.observations_vw"))
+  expect_true("species_code" %in% frs_default_cols("bcfishobs.fiss_fish_obsrvtn_events_vw"))
+  expect_true("falls_name" %in% frs_default_cols("bcfishpass.falls_vw"))
   expect_equal(frs_default_cols("some.unknown_table"), "*")
 })
 

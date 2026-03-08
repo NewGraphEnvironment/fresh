@@ -339,6 +339,14 @@ frs_default_cols <- function(table) {
   } else if (grepl("barriers", tbl)) {
     c("barrier_type", "barrier_name", "blue_line_key",
       "downstream_route_measure", "watershed_group_code", "geom")
+  } else if (grepl("falls", tbl)) {
+    c("falls_id", "falls_name", "height_m", "barrier_ind",
+      "blue_line_key", "downstream_route_measure",
+      "watershed_group_code", "geom")
+  } else if (grepl("obsrvtn_events", tbl)) {
+    c("fish_observation_point_id", "species_code",
+      "observation_date", "life_stage", "activity", "blue_line_key",
+      "downstream_route_measure", "watershed_group_code", "geom")
   } else if (grepl("observations", tbl)) {
     c("fish_observation_point_id", "species_code", "species_name",
       "observation_date", "life_stage", "activity", "blue_line_key",
