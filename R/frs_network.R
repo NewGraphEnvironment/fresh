@@ -7,9 +7,16 @@
 #' `fwa_downstream()`. Tables without (like `fwa_lakes_poly`) are queried via
 #' the waterbody_key bridge through the stream network.
 #'
+#' When `upstream_measure` is provided, returns only features *between* the two
+#' measures on the same blue line key — network subtraction (upstream of A minus
+#' upstream of B) with no spatial clipping needed.
+#'
 #' @param blue_line_key Integer. Blue line key of the reference point.
 #' @param downstream_route_measure Numeric. Downstream route measure of the
-#'   reference point.
+#'   downstream boundary.
+#' @param upstream_measure Numeric or `NULL`. Downstream route measure of the
+#'   upstream boundary. When provided, returns features between the two measures
+#'   (network subtraction). Only valid with `direction = "upstream"`.
 #' @param tables A named list of table specifications. Each element can be:
 #'   - A character string (table name) — uses default columns
 #'   - A list with any of: `table`, `cols`, `wscode_col`, `localcode_col`,
@@ -30,39 +37,40 @@
 #' @examples
 #' \dontrun{
 #' blk <- 360873822
-#' drm <- 166030.4
 #'
-#' # Single table (returns sf directly)
-#' streams <- frs_network(blk, drm)
+#' # Everything upstream of a point
+#' streams <- frs_network(blk, 166030)
 #'
-#' # Multiple tables (returns named list)
-#' result <- frs_network(blk, drm, tables = list(
+#' # Between two points (subbasin): upstream of Byman minus upstream of Ailport
+#' result <- frs_network(blk, 208877, upstream_measure = 233564, tables = list(
 #'   streams = "whse_basemapping.fwa_stream_networks_sp",
 #'   lakes = "whse_basemapping.fwa_lakes_poly",
-#'   wetlands = "whse_basemapping.fwa_wetlands_poly",
-#'   crossings = list(
-#'     table = "bcfishpass.crossings",
-#'     cols = c("aggregated_crossings_id", "crossing_source",
-#'              "barrier_status", "gnis_stream_name", "geom")
-#'   ),
-#'   co_habitat = list(
-#'     table = "bcfishpass.streams_co_vw",
-#'     cols = c("segmented_stream_id", "blue_line_key", "gnis_name",
-#'              "stream_order", "mapping_code", "rearing", "spawning", "geom"),
+#'   crossings = "bcfishpass.crossings",
+#'   observations = list(
+#'     table = "bcfishpass.observations_vw",
 #'     wscode_col = "wscode",
-#'     localcode_col = "localcode",
-#'     extra_where = "(s.rearing > 0 OR s.spawning > 0)"
+#'     localcode_col = "localcode"
 #'   )
 #' ))
 #' }
 frs_network <- function(
     blue_line_key,
     downstream_route_measure,
+    upstream_measure = NULL,
     tables = NULL,
     direction = "upstream",
     ...
 ) {
   direction <- match.arg(direction, c("upstream", "downstream"))
+
+  if (!is.null(upstream_measure)) {
+    if (direction != "upstream") {
+      stop("upstream_measure only applies when direction = 'upstream'")
+    }
+    if (upstream_measure <= downstream_route_measure) {
+      stop("upstream_measure must be greater than downstream_route_measure")
+    }
+  }
 
   if (is.null(tables)) {
     tables <- list(streams = "whse_basemapping.fwa_stream_networks_sp")
@@ -77,6 +85,7 @@ frs_network <- function(
     frs_network_one(
       blue_line_key = blue_line_key,
       downstream_route_measure = downstream_route_measure,
+      upstream_measure = upstream_measure,
       spec = spec,
       direction = direction,
       ...
@@ -89,7 +98,7 @@ frs_network <- function(
 
 #' @noRd
 frs_network_one <- function(blue_line_key, downstream_route_measure,
-                            spec, direction, ...) {
+                            upstream_measure = NULL, spec, direction, ...) {
   tbl <- spec$table
   cols <- spec$cols
   wscode_col <- spec$wscode_col
@@ -102,11 +111,13 @@ frs_network_one <- function(blue_line_key, downstream_route_measure,
   if (is_waterbody) {
     frs_network_waterbody(
       blue_line_key, downstream_route_measure,
+      upstream_measure = upstream_measure,
       table = tbl, cols = cols, direction = direction, ...
     )
   } else {
     frs_network_direct(
       blue_line_key, downstream_route_measure,
+      upstream_measure = upstream_measure,
       table = tbl, cols = cols,
       wscode_col = wscode_col, localcode_col = localcode_col,
       extra_where = extra_where, direction = direction, ...
@@ -117,6 +128,7 @@ frs_network_one <- function(blue_line_key, downstream_route_measure,
 
 #' @noRd
 frs_network_direct <- function(blue_line_key, downstream_route_measure,
+                               upstream_measure = NULL,
                                table, cols = NULL, wscode_col = NULL,
                                localcode_col = NULL, extra_where = NULL,
                                direction = "upstream", ...) {
@@ -137,28 +149,74 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
     filter_sql <- paste0("\n  AND ", paste(filters, collapse = "\n  AND "))
   }
 
-  sql <- sprintf(
-    paste0(
-      "WITH ref AS (\n",
-      "  SELECT %s AS wscode, %s AS localcode\n",
-      "  FROM %s\n",
-      "  WHERE blue_line_key = %s\n",
-      "    AND downstream_route_measure <= %s\n",
-      "  ORDER BY downstream_route_measure DESC\n",
-      "  LIMIT 1\n",
-      ")\n",
-      "SELECT %s\n",
-      "FROM %s s, ref\n",
-      "WHERE %s(\n",
-      "  ref.wscode, ref.localcode,\n",
-      "  s.%s, s.%s\n",
-      ")%s"
-    ),
-    wscode_col, localcode_col, table,
-    as.integer(blue_line_key), downstream_route_measure,
-    select_cols, table, fwa_fn,
-    wscode_col, localcode_col, filter_sql
-  )
+  blk <- as.integer(blue_line_key)
+
+  if (is.null(upstream_measure)) {
+    sql <- sprintf(
+      paste0(
+        "WITH ref AS (\n",
+        "  SELECT %s AS wscode, %s AS localcode\n",
+        "  FROM %s\n",
+        "  WHERE blue_line_key = %s\n",
+        "    AND downstream_route_measure <= %s\n",
+        "  ORDER BY downstream_route_measure DESC\n",
+        "  LIMIT 1\n",
+        ")\n",
+        "SELECT %s\n",
+        "FROM %s s, ref\n",
+        "WHERE %s(\n",
+        "  ref.wscode, ref.localcode,\n",
+        "  s.%s, s.%s\n",
+        ")%s"
+      ),
+      wscode_col, localcode_col, table,
+      blk, downstream_route_measure,
+      select_cols, table, fwa_fn,
+      wscode_col, localcode_col, filter_sql
+    )
+  } else {
+    sql <- sprintf(
+      paste0(
+        "WITH ref_down AS (\n",
+        "  SELECT %s AS wscode, %s AS localcode\n",
+        "  FROM %s\n",
+        "  WHERE blue_line_key = %s\n",
+        "    AND downstream_route_measure <= %s\n",
+        "  ORDER BY downstream_route_measure DESC\n",
+        "  LIMIT 1\n",
+        "),\n",
+        "ref_up AS (\n",
+        "  SELECT %s AS wscode, %s AS localcode\n",
+        "  FROM %s\n",
+        "  WHERE blue_line_key = %s\n",
+        "    AND downstream_route_measure <= %s\n",
+        "  ORDER BY downstream_route_measure DESC\n",
+        "  LIMIT 1\n",
+        ")\n",
+        "SELECT %s\n",
+        "FROM %s s, ref_down\n",
+        "WHERE %s(\n",
+        "  ref_down.wscode, ref_down.localcode,\n",
+        "  s.%s, s.%s\n",
+        ")\n",
+        "AND NOT EXISTS (\n",
+        "  SELECT 1 FROM ref_up\n",
+        "  WHERE %s(\n",
+        "    ref_up.wscode, ref_up.localcode,\n",
+        "    s.%s, s.%s\n",
+        "  )\n",
+        ")%s"
+      ),
+      wscode_col, localcode_col, table,
+      blk, downstream_route_measure,
+      wscode_col, localcode_col, table,
+      blk, upstream_measure,
+      select_cols, table, fwa_fn,
+      wscode_col, localcode_col,
+      fwa_fn,
+      wscode_col, localcode_col, filter_sql
+    )
+  }
 
   frs_db_query(sql, ...)
 }
@@ -166,6 +224,7 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
 
 #' @noRd
 frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
+                                  upstream_measure = NULL,
                                   table, cols = NULL, direction = "upstream",
                                   ...) {
   cols <- cols %||% frs_default_cols(table)
@@ -176,33 +235,83 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
   )
 
   select_cols <- paste(paste0("p.", cols), collapse = ", ")
+  blk <- as.integer(blue_line_key)
+  stream_tbl <- "whse_basemapping.fwa_stream_networks_sp"
 
-  sql <- sprintf(
-    paste0(
-      "WITH ref AS (\n",
-      "  SELECT wscode_ltree, localcode_ltree\n",
-      "  FROM whse_basemapping.fwa_stream_networks_sp\n",
-      "  WHERE blue_line_key = %s\n",
-      "    AND downstream_route_measure <= %s\n",
-      "  ORDER BY downstream_route_measure DESC\n",
-      "  LIMIT 1\n",
-      "),\n",
-      "network_wbkeys AS (\n",
-      "  SELECT DISTINCT s.waterbody_key\n",
-      "  FROM whse_basemapping.fwa_stream_networks_sp s, ref\n",
-      "  WHERE %s(\n",
-      "    ref.wscode_ltree, ref.localcode_ltree,\n",
-      "    s.wscode_ltree, s.localcode_ltree\n",
-      "  )\n",
-      "  AND s.waterbody_key IS NOT NULL\n",
-      ")\n",
-      "SELECT %s\n",
-      "FROM %s p\n",
-      "JOIN network_wbkeys n ON p.waterbody_key = n.waterbody_key"
-    ),
-    as.integer(blue_line_key), downstream_route_measure,
-    fwa_fn, select_cols, table
-  )
+  if (is.null(upstream_measure)) {
+    sql <- sprintf(
+      paste0(
+        "WITH ref AS (\n",
+        "  SELECT wscode_ltree, localcode_ltree\n",
+        "  FROM %s\n",
+        "  WHERE blue_line_key = %s\n",
+        "    AND downstream_route_measure <= %s\n",
+        "  ORDER BY downstream_route_measure DESC\n",
+        "  LIMIT 1\n",
+        "),\n",
+        "network_wbkeys AS (\n",
+        "  SELECT DISTINCT s.waterbody_key\n",
+        "  FROM %s s, ref\n",
+        "  WHERE %s(\n",
+        "    ref.wscode_ltree, ref.localcode_ltree,\n",
+        "    s.wscode_ltree, s.localcode_ltree\n",
+        "  )\n",
+        "  AND s.waterbody_key IS NOT NULL\n",
+        ")\n",
+        "SELECT %s\n",
+        "FROM %s p\n",
+        "JOIN network_wbkeys n ON p.waterbody_key = n.waterbody_key"
+      ),
+      stream_tbl, blk, downstream_route_measure,
+      stream_tbl, fwa_fn,
+      select_cols, table
+    )
+  } else {
+    sql <- sprintf(
+      paste0(
+        "WITH ref_down AS (\n",
+        "  SELECT wscode_ltree, localcode_ltree\n",
+        "  FROM %s\n",
+        "  WHERE blue_line_key = %s\n",
+        "    AND downstream_route_measure <= %s\n",
+        "  ORDER BY downstream_route_measure DESC\n",
+        "  LIMIT 1\n",
+        "),\n",
+        "ref_up AS (\n",
+        "  SELECT wscode_ltree, localcode_ltree\n",
+        "  FROM %s\n",
+        "  WHERE blue_line_key = %s\n",
+        "    AND downstream_route_measure <= %s\n",
+        "  ORDER BY downstream_route_measure DESC\n",
+        "  LIMIT 1\n",
+        "),\n",
+        "network_wbkeys AS (\n",
+        "  SELECT DISTINCT s.waterbody_key\n",
+        "  FROM %s s, ref_down\n",
+        "  WHERE %s(\n",
+        "    ref_down.wscode_ltree, ref_down.localcode_ltree,\n",
+        "    s.wscode_ltree, s.localcode_ltree\n",
+        "  )\n",
+        "  AND NOT EXISTS (\n",
+        "    SELECT 1 FROM ref_up\n",
+        "    WHERE %s(\n",
+        "      ref_up.wscode_ltree, ref_up.localcode_ltree,\n",
+        "      s.wscode_ltree, s.localcode_ltree\n",
+        "    )\n",
+        "  )\n",
+        "  AND s.waterbody_key IS NOT NULL\n",
+        ")\n",
+        "SELECT %s\n",
+        "FROM %s p\n",
+        "JOIN network_wbkeys n ON p.waterbody_key = n.waterbody_key"
+      ),
+      stream_tbl, blk, downstream_route_measure,
+      stream_tbl, blk, upstream_measure,
+      stream_tbl, fwa_fn,
+      fwa_fn,
+      select_cols, table
+    )
+  }
 
   frs_db_query(sql, ...)
 }

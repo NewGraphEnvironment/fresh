@@ -143,3 +143,86 @@ test_that("frs_default_cols returns sensible defaults", {
 test_that("frs_network rejects invalid direction", {
   expect_error(frs_network(360873822, 166030, direction = "sideways"), "arg")
 })
+
+test_that("upstream_measure with downstream direction errors", {
+  expect_error(
+    frs_network(360873822, 166030, upstream_measure = 200000, direction = "downstream"),
+    "upstream_measure"
+  )
+})
+
+test_that("upstream_measure <= downstream_route_measure errors", {
+  expect_error(
+    frs_network(360873822, 200000, upstream_measure = 100000),
+    "greater"
+  )
+})
+
+test_that("upstream_measure generates between SQL for direct table", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 208877, upstream_measure = 233564, tables = list(
+    streams = "whse_basemapping.fwa_stream_networks_sp"
+  ))
+
+  expect_match(sql_sent, "ref_down")
+  expect_match(sql_sent, "ref_up")
+  expect_match(sql_sent, "NOT EXISTS")
+  expect_match(sql_sent, "208877")
+  expect_match(sql_sent, "233564")
+})
+
+test_that("upstream_measure generates between SQL for waterbody table", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 208877, upstream_measure = 233564, tables = list(
+    lakes = "whse_basemapping.fwa_lakes_poly"
+  ))
+
+  expect_match(sql_sent, "ref_down")
+  expect_match(sql_sent, "ref_up")
+  expect_match(sql_sent, "NOT EXISTS")
+  expect_match(sql_sent, "network_wbkeys")
+})
+
+test_that("upstream_measure NULL preserves single-ref SQL", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 166030)
+
+  expect_match(sql_sent, "WITH ref AS")
+  expect_no_match(sql_sent, "ref_down")
+  expect_no_match(sql_sent, "NOT EXISTS")
+})
+
+test_that("upstream_measure with custom wscode_col", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 208877, upstream_measure = 233564, tables = list(
+    obs = list(
+      table = "bcfishpass.observations_vw",
+      wscode_col = "wscode",
+      localcode_col = "localcode"
+    )
+  ))
+
+  expect_match(sql_sent, "ref_up")
+  expect_match(sql_sent, "wscode AS wscode")
+  expect_match(sql_sent, "localcode AS localcode")
+})

@@ -7,6 +7,7 @@
 frs_network(
   blue_line_key,
   downstream_route_measure,
+  upstream_measure = NULL,
   tables = NULL,
   direction = "upstream",
   ...
@@ -16,7 +17,11 @@ frs_network(
 \item{blue_line_key}{Integer. Blue line key of the reference point.}
 
 \item{downstream_route_measure}{Numeric. Downstream route measure of the
-reference point.}
+downstream boundary.}
+
+\item{upstream_measure}{Numeric or \code{NULL}. Downstream route measure of the
+upstream boundary. When provided, returns features between the two measures
+(network subtraction). Only valid with \code{direction = "upstream"}.}
 
 \item{tables}{A named list of table specifications. Each element can be:
 \itemize{
@@ -44,31 +49,27 @@ wetlands, or any table with ltree watershed codes. Tables with
 \code{fwa_downstream()}. Tables without (like \code{fwa_lakes_poly}) are queried via
 the waterbody_key bridge through the stream network.
 }
+\details{
+When \code{upstream_measure} is provided, returns only features \emph{between} the two
+measures on the same blue line key — network subtraction (upstream of A minus
+upstream of B) with no spatial clipping needed.
+}
 \examples{
 \dontrun{
 blk <- 360873822
-drm <- 166030.4
 
-# Single table (returns sf directly)
-streams <- frs_network(blk, drm)
+# Everything upstream of a point
+streams <- frs_network(blk, 166030)
 
-# Multiple tables (returns named list)
-result <- frs_network(blk, drm, tables = list(
+# Between two points (subbasin): upstream of Byman minus upstream of Ailport
+result <- frs_network(blk, 208877, upstream_measure = 233564, tables = list(
   streams = "whse_basemapping.fwa_stream_networks_sp",
   lakes = "whse_basemapping.fwa_lakes_poly",
-  wetlands = "whse_basemapping.fwa_wetlands_poly",
-  crossings = list(
-    table = "bcfishpass.crossings",
-    cols = c("aggregated_crossings_id", "crossing_source",
-             "barrier_status", "gnis_stream_name", "geom")
-  ),
-  co_habitat = list(
-    table = "bcfishpass.streams_co_vw",
-    cols = c("segmented_stream_id", "blue_line_key", "gnis_name",
-             "stream_order", "mapping_code", "rearing", "spawning", "geom"),
+  crossings = "bcfishpass.crossings",
+  observations = list(
+    table = "bcfishpass.observations_vw",
     wscode_col = "wscode",
-    localcode_col = "localcode",
-    extra_where = "(s.rearing > 0 OR s.spawning > 0)"
+    localcode_col = "localcode"
   )
 ))
 }
