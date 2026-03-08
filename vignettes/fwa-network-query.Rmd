@@ -9,10 +9,11 @@ vignette: >
 
 
 
-`fresh` wraps fwapg and bcfishpass into composable R functions for
-upstream/downstream network queries, habitat model filtering, and waterbody
-traversal. All functions accept `table` and `cols` parameters so the same
-interface works across FWA base tables and bcfishpass model views.
+`fresh` wraps [fwapg](https://github.com/smnorris/fwapg) and
+[bcfishpass](https://github.com/smnorris/bcfishpass) into composable R
+functions for upstream/downstream network queries, habitat model filtering,
+and waterbody traversal. All functions accept `table` and `cols` parameters
+so the same interface works across FWA base tables and bcfishpass model views.
 
 Here we work in the Neexdzii Kwa (Upper Bulkley River) watershed in the
 traditional territory of the Wet'suwet'en — querying upstream of the
