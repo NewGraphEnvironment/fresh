@@ -40,15 +40,7 @@ drm_byman <- 208877     # just upstream of Byman Creek
 drm_ailport <- 233564   # just upstream of Ailport Creek
 
 # Subbasin polygon (downstream watershed minus upstream watershed)
-ws_down <- frs_db_query(sprintf(
-  "SELECT ST_Union(geom) as geom
-   FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)", blk, drm_byman
-))
-ws_up <- frs_db_query(sprintf(
-  "SELECT ST_Union(geom) as geom
-   FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)", blk, drm_ailport
-))
-aoi <- st_difference(ws_down, ws_up)
+aoi <- frs_watershed_at_measure(blk, drm_byman, upstream_measure = drm_ailport)
 
 # Network features between the two points
 result <- frs_network(blk, drm_byman, upstream_measure = drm_ailport,
