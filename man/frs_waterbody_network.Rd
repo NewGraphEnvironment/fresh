@@ -71,6 +71,7 @@ lakes_ds <- frs_waterbody_network(
 }
 \seealso{
 Other traverse: 
+\code{\link{frs_network}()},
 \code{\link{frs_network_downstream}()},
 \code{\link{frs_network_upstream}()}
 }
