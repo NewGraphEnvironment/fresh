@@ -28,9 +28,9 @@ All functions prefixed `frs_`, named noun-first.
 - [x] Tests for both (32 total pass)
 
 ### Phase 5: Prune Functions (Issue #4)
-- [ ] `frs_network_prune()` — filter by order, gradient, access
-- [ ] `frs_order_filter()` — Strahler order threshold
-- [ ] Tests for both
+- [x] `frs_network_prune()` — filtered upstream (order, gradient, wsg)
+- [x] `frs_order_filter()` — Strahler order threshold on sf result
+- [x] Tests for both (37 total pass)
 
 ### Phase 6: Fish Functions (Issue #5)
 - [ ] `frs_fish_obs()` — query bcfishobs observations
