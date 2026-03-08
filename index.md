@@ -38,13 +38,13 @@ connection patterns.
   floodplain delineation from DEM and stream network
 - **[drift](https://github.com/NewGraphEnvironment/drift)** — land cover
   change detection within floodplains
-- **[fly](https://github.com/NewGraphEnvironment/fly)** — interactive
-  mapping and layer toggle
-- **[diggs](https://github.com/NewGraphEnvironment/diggs)** — Shiny app
-  front-end
+- **[fly](https://github.com/NewGraphEnvironment/fly)** — airphoto
+  footprint estimation and coverage selection
+- **[diggs](https://github.com/NewGraphEnvironment/diggs)** — BC
+  Historic Airphoto Explorer (interactive Shiny app)
 
 Pipeline: `fresh` (network data) → `flooded` (delineate) → `drift`
-(classify) → `fly` (map) → `diggs` (Shiny UI)
+(classify)
 
 ## License
 

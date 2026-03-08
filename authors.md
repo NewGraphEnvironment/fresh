@@ -13,12 +13,12 @@ Source:
 [`DESCRIPTION`](https://github.com/NewGraphEnvironment/fresh/blob/main/DESCRIPTION)
 
 Irvine A (2026). *fresh: FWA-Referenced Spatial Hydrology*. R package
-version 0.0.0.9000, <https://github.com/NewGraphEnvironment/fresh>.
+version 0.1.0, <https://github.com/NewGraphEnvironment/fresh>.
 
     @Manual{,
       title = {fresh: FWA-Referenced Spatial Hydrology},
       author = {Allan Irvine},
       year = {2026},
-      note = {R package version 0.0.0.9000},
+      note = {R package version 0.1.0},
       url = {https://github.com/NewGraphEnvironment/fresh},
     }
