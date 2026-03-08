@@ -18,9 +18,9 @@ All functions prefixed `frs_`, named noun-first.
 - [x] Tests for all three (9 tests, 18 expectations, all pass)
 
 ### Phase 3: Index Functions (Issue #2)
-- [ ] `frs_point_snap()` — snap xy to nearest stream segment
-- [ ] `frs_point_measure()` — get blue_line_key + downstream_route_measure
-- [ ] Tests for both
+- [x] `frs_point_snap()` — snap xy to nearest stream (wraps fwa_indexpoint)
+- [x] `frs_point_locate()` — get point geometry at network position (wraps fwa_locatealong)
+- [x] Tests for both (26 total pass)
 
 ### Phase 4: Traverse Functions (Issue #3)
 - [ ] `frs_network_upstream()` — stream segments upstream of a point
@@ -52,3 +52,4 @@ All functions prefixed `frs_`, named noun-first.
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
+| permission denied for postgisftw.fwa_indexpoint | 1 | Use whse_basemapping.fwa_indexpoint with ST_Transform instead |
