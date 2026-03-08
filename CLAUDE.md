@@ -6,7 +6,7 @@ FWA-Referenced Spatial Hydrology. Stream network-aware spatial operations via di
 
 **Repository:** NewGraphEnvironment/fresh
 **Primary Language:** R (package)
-**Version:** 0.0.0.9000
+**Version:** 0.1.0
 **License:** MIT
 
 ## Ecosystem
@@ -25,23 +25,43 @@ Pipeline: `fresh` (network data) → `flooded` (delineate) → `drift` (classify
 
 ```
 R/
-  fresh-package.R     — package-level doc, imports
-  (functions TBD — see GitHub issues for planned function groups)
-tests/testthat/       — unit tests for each function
-data-raw/             — test data generation scripts
+  fresh-package.R            — package-level doc, imports
+  frs_db_conn.R              — DB connection via PG_*_SHARE env vars
+  frs_db_query.R             — execute SQL, return sf
+  frs_network.R              — unified multi-table network traversal
+  frs_network_upstream.R     — upstream network query (ltree)
+  frs_network_downstream.R   — downstream network query (ltree)
+  frs_network_prune.R        — prune network to measure range
+  frs_waterbody_network.R    — lakes/wetlands by waterbody key
+  frs_point_snap.R           — snap points to nearest stream
+  frs_point_locate.R         — locate point on stream network
+  frs_stream_fetch.R         — fetch stream segments
+  frs_lake_fetch.R           — fetch lakes
+  frs_wetland_fetch.R        — fetch wetlands
+  frs_fish_obs.R             — fish observation queries
+  frs_fish_habitat.R         — habitat model queries
+  frs_order_filter.R         — filter by stream order
+  utils.R                    — internal helpers
+tests/testthat/              — unit tests for each function
+inst/extdata/                — cached vignette data (subbasin_data.rds)
+data-raw/                    — hex sticker generation
+vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output
 ```
 
 ## Key Patterns
 
 - All exported functions prefixed `frs_`, named noun-first: `frs_stream_fetch()`, `frs_point_snap()`, etc.
+- `frs_network()` is the main workhorse — unified multi-table traversal with network subtraction via `upstream_measure`
 - Direct SQL via DBI/RPostgres against fwapg/bcfishpass PostgreSQL
 - Returns sf objects for spatial results
 - Requires PostgreSQL with fwapg, bcfishpass, and bcfishobs extensions
 - Smart defaults: functions detect context (e.g. auto-detect species from bcfishpass)
+- Vignette data cached in `inst/extdata/` with `update_gis` YAML param (FALSE = cached, TRUE = live DB)
 
 ## Dependencies
 
 - **Runtime:** DBI, RPostgres, sf
+- **Suggests:** tmap (>= 4.0), gq, bookdown, knitr, rmarkdown
 - **Database:** PostgreSQL with fwapg + bcfishpass + bcfishobs
 - **Connection:** SSH tunnel to remote instance or local; see db-newgraph skill
 

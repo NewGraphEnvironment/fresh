@@ -22,6 +22,30 @@ Connection is configured via `PG_*_SHARE` environment variables
 (`PG_HOST_SHARE`, `PG_PORT_SHARE`, `PG_DB_SHARE`, `PG_USER_SHARE`) or
 passed directly to `frs_db_conn()`.
 
+## Example
+
+Query all network features between two points on the same blue line key
+using watershed code subtraction — no spatial clipping needed:
+
+```r
+library(fresh)
+
+result <- frs_network(
+  blue_line_key = 360873822,
+  downstream_route_measure = 208877,
+  upstream_measure = 233564,
+  tables = list(
+    streams = "whse_basemapping.fwa_stream_networks_sp",
+    lakes   = "whse_basemapping.fwa_lakes_poly",
+    fish_obs = "bcfishobs.fiss_fish_obsrvtn_events_vw",
+    falls   = "bcfishpass.falls_vw"
+  )
+)
+```
+
+See the [subbasin vignette](https://newgraphenvironment.github.io/fresh/articles/subbasin-query.html)
+for a full worked example with map output.
+
 ## Ecosystem
 
 `fresh` is the data layer in a family of packages:
