@@ -98,6 +98,18 @@ if (nrow(lakes) > 0) head(lakes[order(-lakes$area_ha), c("gnis_name_1", "area_ha
 #> 20    Conrad Lake  63.40472 MULTIPOLYGON (((994679.2 10...
 ```
 
+## Watershed AOI
+
+Delineate the watershed boundary at the confluence using
+`fwa_watershedatmeasure`. This gives us the AOI polygon for the map.
+
+``` r
+aoi <- frs_db_query(sprintf(
+  "SELECT ST_Union(geom) as geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
+  blk, drm
+))
+```
+
 ## Map with gq colours
 
 Colour streams by `mapping_code` using the
@@ -119,12 +131,24 @@ co_habitat$lwd <- ifelse(co_habitat$spawning > 0, 1.7, 1.0)
 lake_style <- gq::gq_tmap_style(reg$layers$lake)
 wetland_style <- gq::gq_tmap_style(reg$layers$wetland)
 
+# AOI boundary first (sets extent)
 plot(
-  st_geometry(co_habitat),
-  col = co_habitat$col,
-  lwd = co_habitat$lwd,
+  st_geometry(aoi),
+  col = NA,
+  border = "grey40",
+  lwd = 1.5,
   main = ""
 )
+
+# Wetlands under lakes under streams
+if (nrow(wetlands) > 0) {
+  plot(
+    st_geometry(wetlands),
+    col = wetland_style$fill,
+    border = wetland_style$fill,
+    add = TRUE
+  )
+}
 
 if (nrow(lakes) > 0) {
   plot(
@@ -135,36 +159,35 @@ if (nrow(lakes) > 0) {
   )
 }
 
-if (nrow(wetlands) > 0) {
-  plot(
-    st_geometry(wetlands),
-    col = wetland_style$fill,
-    border = wetland_style$col,
-    add = TRUE
-  )
-}
+plot(
+  st_geometry(co_habitat),
+  col = co_habitat$col,
+  lwd = co_habitat$lwd,
+  add = TRUE
+)
 
 # Legend from gq registry — show only codes present in the data
 present <- names(cls$values) %in% unique(co_habitat$mapping_code)
 legend(
   "topright",
-  legend = c(cls$labels[present], "Lake", "Wetland"),
-  col = c(cls$values[present], lake_style$col, wetland_style$col),
-  pch = c(rep(NA, sum(present)), 15, 15),
-  lwd = c(rep(2, sum(present)), NA, NA),
-  pt.cex = c(rep(NA, sum(present)), 1.5, 1.5),
+  legend = c("Watershed AOI", cls$labels[present], "Lake", "Wetland"),
+  col = c("grey40", cls$values[present], lake_style$col, wetland_style$fill),
+  pch = c(NA, rep(NA, sum(present)), 15, 15),
+  lwd = c(1.5, rep(2, sum(present)), NA, NA),
+  pt.cex = c(NA, rep(NA, sum(present)), 1.5, 1.5),
   cex = 0.7,
   bg = "white"
 )
 ```
 
 ![Coho rearing and spawning habitat upstream of the Neexdzii Kwa
-confluence (order 4+), with lakes and wetlands. Stream colours from the
-gq style registry.](figure/plot-co-habitat-1.png)
+confluence (order 4+), with watershed AOI, lakes and wetlands. Stream
+colours from the gq style
+registry.](articles/figure/plot-co-habitat-1.png)
 
 Coho rearing and spawning habitat upstream of the Neexdzii Kwa
-confluence (order 4+), with lakes and wetlands. Stream colours from the
-gq style registry.
+confluence (order 4+), with watershed AOI, lakes and wetlands. Stream
+colours from the gq style registry.
 
 The network contains 1027 coho habitat segments across orders 4, 5, 6,
 with 363 lakes and 1293 wetlands.
