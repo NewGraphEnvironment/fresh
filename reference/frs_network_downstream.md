@@ -63,7 +63,8 @@ An `sf` data frame of downstream stream segments.
 ## See also
 
 Other traverse:
-[`frs_network_upstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_upstream.md)
+[`frs_network_upstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_upstream.md),
+[`frs_waterbody_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_waterbody_network.md)
 
 ## Examples
 

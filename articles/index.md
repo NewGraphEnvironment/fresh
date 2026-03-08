@@ -2,5 +2,5 @@
 
 ### All vignettes
 
-- [Neexdzii Kwa Stream
-  Network](https://newgraphenvironment.github.io/fresh/articles/neexdzii-kwa.md):
+- [FWA Network
+  Queries](https://newgraphenvironment.github.io/fresh/articles/fwa-network-query.md):

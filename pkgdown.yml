@@ -2,8 +2,8 @@ pandoc: 3.1.11
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
-  neexdzii-kwa: neexdzii-kwa.html
-last_built: 2026-03-08T06:47Z
+  fwa-network-query: fwa-network-query.html
+last_built: 2026-03-08T06:57Z
 urls:
   reference: https://newgraphenvironment.github.io/fresh/reference
   article: https://newgraphenvironment.github.io/fresh/articles
