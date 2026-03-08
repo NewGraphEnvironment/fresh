@@ -65,10 +65,11 @@
     
     
 <p>This vignette demonstrates <code>fresh</code> on a real watershed
-analysis task: extracting the stream network upstream of the Neexdzii
-Kwa (Upper Bulkley River) / Wedzin Kwa confluence — the same scoping
-used in the <a href="https://github.com/NewGraphEnvironment/restoration_wedzin_kwa_2024" class="external-link">restoration_wedzin_kwa_2024</a>
-land cover change analysis.</p>
+analysis task: extracting the coho rearing/spawning stream network
+upstream of the Neexdzii Kwa (Upper Bulkley River) / Wedzin Kwa
+confluence — the same scoping used in the <a href="https://github.com/NewGraphEnvironment/restoration_wedzin_kwa_2024" class="external-link">restoration_wedzin_kwa_2024</a>
+land cover change analysis. Stream colours come from the <a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a> style
+registry.</p>
 <div class="section level2">
 <h2 id="snap-the-confluence">Snap the confluence<a class="anchor" aria-label="anchor" href="#snap-the-confluence"></a>
 </h2>
@@ -91,104 +92,155 @@ confluence to the FWA stream network.</p>
 <span><span class="co">#&gt;                     geom</span></span>
 <span><span class="co">#&gt; 1 POINT (988463 1043062)</span></span></code></pre></div>
 <p>In the real analysis, we use the known Bulkley mainstem position
-directly (blue_line_key = 360873822, downstream_route_measure =
-166030.4) — the same values used in
+directly — the same values used in
 <code>lulc_network-extract.R</code>.</p>
 </div>
 <div class="section level2">
-<h2 id="extract-upstream-network">Extract upstream network<a class="anchor" aria-label="anchor" href="#extract-upstream-network"></a>
+<h2 id="coho-rearing-network">Coho rearing network<a class="anchor" aria-label="anchor" href="#coho-rearing-network"></a>
 </h2>
-<p>Get all stream segments upstream of the confluence, filtered to order
-4+ — streams large enough to have floodplains.</p>
+<p>Query <code>bcfishpass.streams_co_vw</code> — the coho-specific
+habitat model view — for streams with rearing or spawning habitat in the
+Bulkley watershed group. The <code>table</code> parameter lets us target
+this view instead of the default <code>bcfishpass.streams_vw</code>.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Known Neexdzii Kwa / Wedzin Kwa confluence on Bulkley mainstem</span></span>
 <span><span class="va">blk</span> <span class="op">&lt;-</span> <span class="fl">360873822</span></span>
 <span><span class="va">drm</span> <span class="op">&lt;-</span> <span class="fl">166030.4</span></span>
 <span></span>
-<span><span class="va">upstream</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network_prune.html">frs_network_prune</a></span><span class="op">(</span></span>
-<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
-<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span>,</span>
-<span>  stream_order_min <span class="op">=</span> <span class="fl">4</span>,</span>
-<span>  watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span></span>
+<span><span class="va">co_streams</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_fish_habitat.html">frs_fish_habitat</a></span><span class="op">(</span></span>
+<span>  watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span>
+<span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"segmented_stream_id"</span>, <span class="st">"blue_line_key"</span>, <span class="st">"gnis_name"</span>,</span>
+<span>           <span class="st">"stream_order"</span>, <span class="st">"channel_width"</span>, <span class="st">"mapping_code"</span>,</span>
+<span>           <span class="st">"rearing"</span>, <span class="st">"spawning"</span>, <span class="st">"access"</span>, <span class="st">"geom"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">upstream</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1219</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">upstream</span><span class="op">$</span><span class="va">stream_order</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 4 5 6</span></span></code></pre></div>
+<span><span class="co"># Filter to rearing/spawning habitat and order 4+</span></span>
+<span><span class="va">co_habitat</span> <span class="op">&lt;-</span> <span class="va">co_streams</span><span class="op">[</span></span>
+<span>  <span class="op">(</span><span class="va">co_streams</span><span class="op">$</span><span class="va">rearing</span> <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">|</span> <span class="va">co_streams</span><span class="op">$</span><span class="va">spawning</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">&amp;</span></span>
+<span>  <span class="va">co_streams</span><span class="op">$</span><span class="va">stream_order</span> <span class="op">&gt;=</span> <span class="fl">4</span>,</span>
+<span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 3825</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">stream_order</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 4 5 6 7 8</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">mapping_code</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;               REAR;ASSESSED                    REAR;DAM </span></span>
+<span><span class="co">#&gt;                          43                           4 </span></span>
+<span><span class="co">#&gt;       REAR;DAM;INTERMITTENT               REAR;MODELLED </span></span>
+<span><span class="co">#&gt;                           1                           9 </span></span>
+<span><span class="co">#&gt;                   REAR;NONE              SPAWN;ASSESSED </span></span>
+<span><span class="co">#&gt;                         249                         369 </span></span>
+<span><span class="co">#&gt; SPAWN;ASSESSED;INTERMITTENT                   SPAWN;DAM </span></span>
+<span><span class="co">#&gt;                           1                          13 </span></span>
+<span><span class="co">#&gt;      SPAWN;DAM;INTERMITTENT              SPAWN;MODELLED </span></span>
+<span><span class="co">#&gt;                           3                          30 </span></span>
+<span><span class="co">#&gt;                  SPAWN;NONE     SPAWN;NONE;INTERMITTENT </span></span>
+<span><span class="co">#&gt;                        3100                           3</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="style-with-gq">Style with gq<a class="anchor" aria-label="anchor" href="#style-with-gq"></a>
+</h2>
+<p>The <a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a>
+package provides a canonical style registry for bcfishpass layers. The
+<code>streams_salmon</code> layer defines colours by
+<code>mapping_code</code> — the same codes used in the coho view.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
-<span>  <span class="va">upstream</span><span class="op">[</span><span class="st">"stream_order"</span><span class="op">]</span>,</span>
-<span>  main <span class="op">=</span> <span class="st">""</span>,</span>
-<span>  key.pos <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  key.width <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/graphics/layout.html" class="external-link">lcm</a></span><span class="op">(</span><span class="fl">1.3</span><span class="op">)</span>,</span>
-<span>  lwd <span class="op">=</span> <span class="va">upstream</span><span class="op">$</span><span class="va">stream_order</span> <span class="op">/</span> <span class="fl">2</span></span>
+<code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">cls</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_classes.html" class="external-link">gq_tmap_classes</a></span><span class="op">(</span><span class="va">reg</span><span class="op">$</span><span class="va">layers</span><span class="op">$</span><span class="va">streams_salmon</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># mapping_code values and their colours from the registry</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                  SPAWN;NONE     SPAWN;NONE;INTERMITTENT </span></span>
+<span><span class="co">#&gt;                   "#129bdb"                   "#129bdb" </span></span>
+<span><span class="co">#&gt;              SPAWN;MODELLED SPAWN;MODELLED;INTERMITTENT </span></span>
+<span><span class="co">#&gt;                   "#ff9f85"                   "#ff9f85" </span></span>
+<span><span class="co">#&gt;              SPAWN;ASSESSED SPAWN;ASSESSED;INTERMITTENT </span></span>
+<span><span class="co">#&gt;                   "#ef4545"                   "#ef4545"</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Match mapping_code to gq colours</span></span>
+<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span> <span class="op">&lt;-</span> <span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">[</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">mapping_code</span><span class="op">]</span></span>
+<span><span class="co"># Fallback for codes not in registry</span></span>
+<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"#999999"</span></span>
+<span></span>
+<span><span class="co"># Line width: spawning thicker than rearing (from gq convention)</span></span>
+<span><span class="va">co_habitat</span><span class="op">$</span><span class="va">lwd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">spawning</span> <span class="op">&gt;</span> <span class="fl">0</span>, <span class="fl">1.7</span>, <span class="fl">1.0</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">)</span>,</span>
+<span>  col <span class="op">=</span> <span class="va">co_habitat</span><span class="op">$</span><span class="va">col</span>,</span>
+<span>  lwd <span class="op">=</span> <span class="va">co_habitat</span><span class="op">$</span><span class="va">lwd</span>,</span>
+<span>  main <span class="op">=</span> <span class="st">""</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Legend from gq registry — show only codes present in the data</span></span>
+<span><span class="va">present</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">co_habitat</span><span class="op">$</span><span class="va">mapping_code</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/legend.html" class="external-link">legend</a></span><span class="op">(</span></span>
+<span>  <span class="st">"topright"</span>,</span>
+<span>  legend <span class="op">=</span> <span class="va">cls</span><span class="op">$</span><span class="va">labels</span><span class="op">[</span><span class="va">present</span><span class="op">]</span>,</span>
+<span>  col <span class="op">=</span> <span class="va">cls</span><span class="op">$</span><span class="va">values</span><span class="op">[</span><span class="va">present</span><span class="op">]</span>,</span>
+<span>  lwd <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  cex <span class="op">=</span> <span class="fl">0.7</span>,</span>
+<span>  bg <span class="op">=</span> <span class="st">"white"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/plot-network-1.png" alt="Neexdzii Kwa stream network (order 4+), coloured by Strahler stream order."><div class="figcaption">Neexdzii Kwa stream network (order 4+), coloured
-by Strahler stream order.</div>
+<img src="figure/plot-co-habitat-1.png" alt="Coho rearing and spawning habitat in the Neexdzii Kwa (order 4+), coloured by barrier status from the gq style registry."><div class="figcaption">Coho rearing and spawning habitat in the
+Neexdzii Kwa (order 4+), coloured by barrier status from the gq style
+registry.</div>
 </div>
-<p>The network contains 1219 segments across orders 4, 5, 6. Named
-streams: Ailport Creek, Aitken Creek, Barren Creek, Buck Creek, Bulkley
-River, Byman Creek, Cesford Creek, Crow Creek, Dungate Creek, Foxy
-Creek, Johnny David Creek, Klo Creek, Maxan Creek, McKilligan Creek,
-McQuarrie Creek, North Ailport Creek, Perow Creek, Raspberry Creek,
-Redtop Creek, Richfield Creek, Robert Hatch Creek.</p>
-</div>
-<div class="section level2">
-<h2 id="fish-observations">Fish observations<a class="anchor" aria-label="anchor" href="#fish-observations"></a>
-</h2>
-<p>Query chinook observations in the Bulkley. The <code>cols</code>
-parameter keeps the result lean — we only need species, date, life
-stage, and location.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">chin_obs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_fish_obs.html">frs_fish_obs</a></span><span class="op">(</span></span>
-<span>  species_code <span class="op">=</span> <span class="st">"CH"</span>,</span>
-<span>  watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span>,</span>
-<span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fish_observation_point_id"</span>, <span class="st">"species_code"</span>,</span>
-<span>           <span class="st">"observation_date"</span>, <span class="st">"life_stage"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
-<span>  limit <span class="op">=</span> <span class="fl">100</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">chin_obs</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 68</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">chin_obs</span><span class="op">$</span><span class="va">life_stage</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;      Fry Juvenile     Parr </span></span>
-<span><span class="co">#&gt;        3        1        2</span></span></code></pre></div>
+<p>Named streams: Ailport Creek, Aitken Creek, Barren Creek, Blunt
+Creek, Boulder Creek, Buck Creek, Bulkley River, Byman Creek, Cabinet
+Creek, Canyon Creek, Causqua Creek, Cesford Creek, Coffin Creek,
+Corduroy Creek, Corya Creek, Crow Creek, Cumming Creek, Deep Creek,
+Denison Creek, Dockrill Creek, Driftwood Creek, Dungate Creek, Elliott
+Creek, Emerson Creek, Fifteen Mile Creek, Foxy Creek, Ganokwa Creek,
+Glacis Creek, Glass Creek, Goathorn Creek, Gramophone Creek, Harold
+Price Creek, Helps Creek, Howson Creek, Iltzul Creek, John Brown Creek,
+Johnny David Creek, Jonas Creek, Kathlyn Creek, Klo Creek, Lacroix
+Creek, Lemieux Creek, Luhk Creek, Luno Creek, Maish Creek, Maxan Creek,
+McKilligan Creek, McQuarrie Creek, Milk Creek, Morice River, Mudflat
+Creek, Natlan Creek, Netalzul Creek, Nine Mile Creek, North Ailport
+Creek, Perow Creek, Pine Creek, Porphyry Creek, Raspberry Creek,
+Reiseter Creek, Richfield Creek, Robert Hatch Creek, Robin Creek,
+Scallon Creek, Schippers Creek, Sinclair Creek, Skilokis Creek, Station
+Creek, Stock Creek, Sunsets Creek, Suskwa River, Telkwa River, Tenas
+Creek, Thompson Creek, Toboggan Creek, Touhy Creek, Trout Creek, Tsai
+Creek, Winfield Creek.</p>
 </div>
 <div class="section level2">
-<h2 id="custom-table-and-columns">Custom table and columns<a class="anchor" aria-label="anchor" href="#custom-table-and-columns"></a>
+<h2 id="custom-columns">Custom columns<a class="anchor" aria-label="anchor" href="#custom-columns"></a>
 </h2>
 <p>All functions accept <code>table</code> and <code>cols</code>
 parameters so you can target any schema/view and select only the columns
-you need. For example, to query the bcfishpass habitat model with
-specific columns:</p>
+you need:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">habitat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_fish_habitat.html">frs_fish_habitat</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">habitat_slim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_fish_habitat.html">frs_fish_habitat</a></span><span class="op">(</span></span>
 <span>  watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span>,</span>
 <span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"blue_line_key"</span>, <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>,</span>
 <span>           <span class="st">"channel_width"</span>, <span class="st">"gradient"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">20</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">habitat</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">habitat_slim</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "blue_line_key" "gnis_name"     "stream_order"  "channel_width"</span></span>
 <span><span class="co">#&gt; [5] "gradient"      "geom"</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">habitat</span><span class="op">$</span><span class="va">channel_width</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">habitat_slim</span><span class="op">$</span><span class="va">channel_width</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's </span></span>
 <span><span class="co">#&gt;   0.660   1.280   1.660   7.257   4.140  47.990      11</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="compare-with-raw-sql">Compare with raw SQL<a class="anchor" aria-label="anchor" href="#compare-with-raw-sql"></a>
 </h2>
-<p>Without <code>fresh</code>, the upstream network query requires ~20
-lines of SQL: a CTE to look up the reference segment’s ltree codes, a
-cross join against the full stream table, and an
-<code>fwa_upstream()</code> boolean filter. See
-<code>restoration_wedzin_kwa_2024/scripts/lulc_network-extract.R</code>
-for the raw version. <code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code> wraps this in one
-function call.</p>
+<p>Without <code>fresh</code>, the coho habitat query requires
+connecting to the database, writing SQL with schema-qualified table
+names, and managing the connection lifecycle.
+<code><a href="../reference/frs_fish_habitat.html">frs_fish_habitat()</a></code> wraps this in one call with flexible
+<code>table</code> and <code>cols</code> parameters. For upstream
+network traversal with <code>fwa_upstream()</code>, see
+<code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code> — a single function call replacing ~20
+lines of SQL.</p>
 </div>
 <div class="section level2">
 <h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>

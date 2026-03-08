@@ -410,8 +410,8 @@ data-raw/             — test data generation scripts</code></pre>
 <h2 id="style-registry">Style Registry<a class="anchor" aria-label="anchor" href="#style-registry"></a></h2>
 <p>Use the <code>gq</code> package for all shared layer symbology. Never hardcode hex color values when a registry style exists.</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">gq</span><span class="op">)</span></span>
-<span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu">gq_reg_main</span><span class="op">(</span><span class="op">)</span>  <span class="co"># load once per script — 51+ layers</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></span><span class="op">)</span></span>
+<span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># load once per script — 51+ layers</span></span></code></pre></div>
 <p><strong>Core pattern:</strong> <code>reg$layers$lake</code>, <code>reg$layers$road</code>, <code>reg$layers$bec_zone</code>, etc.</p>
 <div class="section level3">
 <h3 id="translators">Translators<a class="anchor" aria-label="anchor" href="#translators"></a></h3>
@@ -434,7 +434,7 @@ data-raw/             — test data generation scripts</code></pre>
 <h3 id="custom-styles">Custom styles<a class="anchor" aria-label="anchor" href="#custom-styles"></a></h3>
 <p>For project-specific layers not in the main registry, use a hand-curated CSV and merge:</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu">gq_reg_merge</span><span class="op">(</span><span class="fu">gq_reg_main</span><span class="op">(</span><span class="op">)</span>, <span class="fu">gq_reg_read_csv</span><span class="op">(</span><span class="st">"path/to/custom.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_merge.html" class="external-link">gq_reg_merge</a></span><span class="op">(</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_read_csv.html" class="external-link">gq_reg_read_csv</a></span><span class="op">(</span><span class="st">"path/to/custom.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Install: <code>pak::pak("NewGraphEnvironment/gq")</code></p>
 </div>
 </div>
@@ -476,7 +476,7 @@ data-raw/             — test data generation scripts</code></pre>
 <li>
 <strong>Suppress auto-legends</strong> — build manual ones from registry values</li>
 <li>
-<strong>ALL CAPS labels appear larger</strong> — use title case for legend labels (gq <code>gq_tmap_classes()</code> handles this automatically via <code>to_title()</code> fallback)</li>
+<strong>ALL CAPS labels appear larger</strong> — use title case for legend labels (gq <code><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_classes.html" class="external-link">gq_tmap_classes()</a></code> handles this automatically via <code>to_title()</code> fallback)</li>
 </ul></div>
 <div class="section level2">
 <h2 id="self-review-after-every-render">Self-Review (after every render)<a class="anchor" aria-label="anchor" href="#self-review-after-every-render"></a></h2>

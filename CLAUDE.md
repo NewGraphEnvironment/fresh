@@ -577,8 +577,9 @@ Install: `pak::pak("NewGraphEnvironment/gq")`
   Use near-zero `inner.margins` and `outer.margins`.
 - **Suppress auto-legends** — build manual ones from registry values
 - **ALL CAPS labels appear larger** — use title case for legend labels
-  (gq `gq_tmap_classes()` handles this automatically via `to_title()`
-  fallback)
+  (gq
+  [`gq_tmap_classes()`](https://newgraphenvironment.github.io/gq/reference/gq_tmap_classes.html)
+  handles this automatically via `to_title()` fallback)
 
 ## Self-Review (after every render)
 
