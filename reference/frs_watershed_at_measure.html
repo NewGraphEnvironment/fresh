@@ -53,6 +53,7 @@ blue line key and downstream route measure. Wraps the fwapg
 <span>  <span class="va">blue_line_key</span>,</span>
 <span>  <span class="va">downstream_route_measure</span>,</span>
 <span>  upstream_measure <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  upstream_blk <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -76,6 +77,12 @@ point. When provided, returns the watershed between the two measures
 (downstream minus upstream).</p></dd>
 
 
+<dt id="arg-upstream-blk">upstream_blk<a class="anchor" aria-label="anchor" href="#arg-upstream-blk"></a></dt>
+<dd><p>Integer or <code>NULL</code>. Blue line key for the upstream point.
+Defaults to <code>blue_line_key</code> (same stream). Use when the upstream point is
+on a tributary.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments passed to <code><a href="frs_db_conn.html">frs_db_conn()</a></code>.</p></dd>
 
@@ -87,7 +94,9 @@ point. When provided, returns the watershed between the two measures
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>When <code>upstream_measure</code> is provided, returns the difference between the
-downstream and upstream watersheds — the subbasin <em>between</em> the two points.</p>
+downstream and upstream watersheds — the subbasin <em>between</em> the two points.
+The upstream point can be on a different blue line key (e.g. a tributary)
+by specifying <code>upstream_blk</code>.</p>
     </div>
 
     <div class="section level2">
@@ -96,8 +105,12 @@ downstream and upstream watersheds — the subbasin <em>between</em> the two poi
 <span class="r-in"><span><span class="co"># Watershed upstream of a single point</span></span></span>
 <span class="r-in"><span><span class="va">ws</span> <span class="op">&lt;-</span> <span class="fu">frs_watershed_at_measure</span><span class="op">(</span><span class="fl">360873822</span>, <span class="fl">208877</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Subbasin between two points (network subtraction)</span></span></span>
+<span class="r-in"><span><span class="co"># Subbasin between two points on the same stream</span></span></span>
 <span class="r-in"><span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu">frs_watershed_at_measure</span><span class="op">(</span><span class="fl">360873822</span>, <span class="fl">208877</span>, upstream_measure <span class="op">=</span> <span class="fl">233564</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Subbasin with upstream point on a tributary (different BLK)</span></span></span>
+<span class="r-in"><span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu">frs_watershed_at_measure</span><span class="op">(</span><span class="fl">360873822</span>, <span class="fl">165115</span>,</span></span>
+<span class="r-in"><span>  upstream_measure <span class="op">=</span> <span class="fl">838</span>, upstream_blk <span class="op">=</span> <span class="fl">360886221</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

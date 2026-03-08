@@ -11,6 +11,7 @@ frs_watershed_at_measure(
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
+  upstream_blk = NULL,
   ...
 )
 ```
@@ -31,6 +32,12 @@ frs_watershed_at_measure(
   returns the watershed between the two measures (downstream minus
   upstream).
 
+- upstream_blk:
+
+  Integer or `NULL`. Blue line key for the upstream point. Defaults to
+  `blue_line_key` (same stream). Use when the upstream point is on a
+  tributary.
+
 - ...:
 
   Additional arguments passed to
@@ -44,7 +51,8 @@ An `sf` data frame with a single polygon geometry.
 
 When `upstream_measure` is provided, returns the difference between the
 downstream and upstream watersheds — the subbasin *between* the two
-points.
+points. The upstream point can be on a different blue line key (e.g. a
+tributary) by specifying `upstream_blk`.
 
 ## Examples
 
@@ -53,7 +61,11 @@ if (FALSE) { # \dontrun{
 # Watershed upstream of a single point
 ws <- frs_watershed_at_measure(360873822, 208877)
 
-# Subbasin between two points (network subtraction)
+# Subbasin between two points on the same stream
 aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
+
+# Subbasin with upstream point on a tributary (different BLK)
+aoi <- frs_watershed_at_measure(360873822, 165115,
+  upstream_measure = 838, upstream_blk = 360886221)
 } # }
 ```
