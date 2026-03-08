@@ -1,29 +1,29 @@
 ---
-title: "Neexdzii Kwa Stream Network"
+title: "FWA Network Queries"
 output: bookdown::html_vignette2
 vignette: >
-  %\VignetteIndexEntry{Neexdzii Kwa Stream Network}
+  %\VignetteIndexEntry{FWA Network Queries}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.width = 8,
-  fig.height = 6,
-  fig.path = "figure/"
-)
-```
 
-Coho rearing/spawning network upstream of the Neexdzii Kwa / Wedzin Kwa
-confluence with watershed AOI, all FWA streams, lakes, and wetlands.
-Colours from the [gq](https://github.com/NewGraphEnvironment/gq) style registry.
 
-```{r data}
+`fresh` wraps fwapg and bcfishpass into composable R functions for
+upstream/downstream network queries, habitat model filtering, and waterbody
+traversal. All functions accept `table` and `cols` parameters so the same
+interface works across FWA base tables and bcfishpass model views.
+
+Here we work in the Neexdzii Kwa (Upper Bulkley River) watershed in the
+traditional territory of the Wet'suwet'en — querying upstream of the
+Neexdzii Kwa / Wedzin Kwa confluence to pull the full stream network, then
+zooming in to order 4+ coho rearing/spawning habitat from bcfishpass.
+
+
+``` r
 library(fresh)
 library(sf)
+#> Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
 
 blk <- 360873822
 drm <- 166030.4
@@ -34,13 +34,13 @@ aoi <- frs_db_query(sprintf(
   blk, drm
 ))
 
-# All upstream streams (background)
+# Full upstream stream network
 streams_all <- frs_network_upstream(
   blue_line_key = blk,
   downstream_route_measure = drm
 )
 
-# Coho rearing/spawning network (order 4+)
+# Zoom to coho rearing/spawning (order 4+) via bcfishpass
 co_habitat <- frs_network_prune(
   blue_line_key = blk,
   downstream_route_measure = drm,
@@ -55,7 +55,7 @@ co_habitat <- frs_network_prune(
   localcode_col = "localcode"
 )
 
-# Lakes and wetlands (waterbody_key bridge — see fresh#8)
+# Upstream lakes and wetlands via waterbody_key bridge
 lakes <- frs_waterbody_network(
   blue_line_key = blk,
   downstream_route_measure = drm
@@ -68,22 +68,23 @@ wetlands <- frs_waterbody_network(
 )
 ```
 
-```{r plot-co-habitat, fig.cap = "Coho rearing and spawning habitat upstream of the Neexdzii Kwa confluence (order 4+), with all FWA streams, lakes, and wetlands."}
+8876 stream segments in the full network narrow to
+1027 coho habitat segments at order 4+ (orders
+4, 5, 6).
+363 lakes and 1293 wetlands upstream.
+
+
+``` r
 reg <- gq::gq_reg_main()
 cls <- gq::gq_tmap_classes(reg$layers$streams_salmon)
-streams_all_style <- gq::gq_tmap_classes(reg$layers$streams_all)
 lake_style <- gq::gq_tmap_style(reg$layers$lake)
 wetland_style <- gq::gq_tmap_style(reg$layers$wetland)
 
-# Coho colours from registry
 co_habitat$col <- cls$values[co_habitat$mapping_code]
 co_habitat$col[is.na(co_habitat$col)] <- "#999999"
 co_habitat$lwd <- ifelse(co_habitat$spawning > 0, 1.7, 1.0)
 
-# AOI boundary (sets extent)
 plot(st_geometry(aoi), col = NA, border = "grey40", lwd = 1.5, main = "")
-
-# Layer order: wetlands → lakes → all streams → coho habitat
 if (nrow(wetlands) > 0) {
   plot(st_geometry(wetlands), col = wetland_style$fill,
        border = wetland_style$fill, add = TRUE)
@@ -96,7 +97,6 @@ plot(st_geometry(streams_all), col = "#a9e0ff", lwd = 0.3, add = TRUE)
 plot(st_geometry(co_habitat), col = co_habitat$col,
      lwd = co_habitat$lwd, add = TRUE)
 
-# Legend
 present <- names(cls$values) %in% unique(co_habitat$mapping_code)
 legend(
   "topright",
@@ -109,21 +109,14 @@ legend(
 )
 ```
 
-`r nrow(co_habitat)` coho habitat segments (orders
-`r paste(sort(unique(co_habitat$stream_order)), collapse = ", ")`),
-`r nrow(streams_all)` total stream segments,
-`r nrow(lakes)` lakes, `r nrow(wetlands)` wetlands.
+![Upstream network from the Neexdzii Kwa / Wedzin Kwa confluence. Light blue: all FWA streams. Coloured overlay: coho rearing and spawning habitat (order 4+) from bcfishpass, styled with the gq registry.](figure/plot-network-1.png)
 
 ## Summary
 
-| Function | What it does |
-|----------|-------------|
-| `frs_point_snap()` | Snap a point to the nearest stream |
-| `frs_stream_fetch()` | Fetch FWA streams by watershed group, bbox, or blue line key |
-| `frs_network_upstream()` / `_downstream()` | Walk the stream network |
-| `frs_network_prune()` | Filter by order, gradient, or custom SQL predicates |
-| `frs_waterbody_network()` | Lakes/wetlands upstream or downstream via waterbody_key bridge |
+| Function | Purpose |
+|----------|---------|
+| `frs_network_upstream()` / `_downstream()` | Traverse the stream network |
+| `frs_network_prune()` | Filter by order, gradient, or custom SQL |
+| `frs_waterbody_network()` | Lakes/wetlands via waterbody_key bridge |
+| `frs_stream_fetch()` | Fetch by watershed group, bbox, or blue line key |
 | `frs_fish_obs()` / `frs_fish_habitat()` | Fish observations and habitat model |
-
-All functions accept `table` and `cols` parameters for flexibility across
-FWA and bcfishpass views.

@@ -64,6 +64,7 @@ upstream <- frs_network_upstream(
 }
 \seealso{
 Other traverse: 
-\code{\link{frs_network_downstream}()}
+\code{\link{frs_network_downstream}()},
+\code{\link{frs_waterbody_network}()}
 }
 \concept{traverse}
