@@ -119,47 +119,24 @@ with <code><a href="../reference/frs_network_prune.html">frs_network_prune()</a>
 </h2>
 <p>Lake and wetland polygon tables (<code>fwa_lakes_poly</code>,
 <code>fwa_wetlands_poly</code>) have NULL <code>localcode_ltree</code>,
-so <code>fwa_upstream()</code> can’t query them directly. The bridge is
-<code>waterbody_key</code> — stream segments flowing through waterbodies
-carry the same key. We run <code>fwa_upstream()</code> on the stream
-network (which has <code>localcode_ltree</code>), extract distinct
-<code>waterbody_key</code> values, then join to the polygon tables. See
-<a href="https://github.com/NewGraphEnvironment/fresh/issues/8" class="external-link">fresh#8</a>.</p>
+so <code>fwa_upstream()</code> can’t query them directly.
+<code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code> bridges through the stream network:
+it runs the traversal on stream segments (which have
+<code>localcode_ltree</code>), extracts distinct
+<code>waterbody_key</code> values, then joins to the polygon table. The
+<code>direction</code> parameter switches between upstream and
+downstream. See <a href="https://github.com/NewGraphEnvironment/fresh/issues/8" class="external-link">fresh#8</a>.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Upstream waterbody_key bridge: fwa_upstream() on streams → join to polygons</span></span>
-<span><span class="va">wb_sql</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
-<span>  <span class="st">"WITH ref AS (\n"</span>,</span>
-<span>  <span class="st">"  SELECT wscode_ltree, localcode_ltree\n"</span>,</span>
-<span>  <span class="st">"  FROM whse_basemapping.fwa_stream_networks_sp\n"</span>,</span>
-<span>  <span class="st">"  WHERE blue_line_key = %s\n"</span>,</span>
-<span>  <span class="st">"    AND downstream_route_measure &lt;= %s\n"</span>,</span>
-<span>  <span class="st">"  ORDER BY downstream_route_measure DESC\n"</span>,</span>
-<span>  <span class="st">"  LIMIT 1\n"</span>,</span>
-<span>  <span class="st">"),\n"</span>,</span>
-<span>  <span class="st">"upstream_wbkeys AS (\n"</span>,</span>
-<span>  <span class="st">"  SELECT DISTINCT s.waterbody_key\n"</span>,</span>
-<span>  <span class="st">"  FROM whse_basemapping.fwa_stream_networks_sp s, ref\n"</span>,</span>
-<span>  <span class="st">"  WHERE whse_basemapping.fwa_upstream(\n"</span>,</span>
-<span>  <span class="st">"    ref.wscode_ltree, ref.localcode_ltree,\n"</span>,</span>
-<span>  <span class="st">"    s.wscode_ltree, s.localcode_ltree\n"</span>,</span>
-<span>  <span class="st">"  )\n"</span>,</span>
-<span>  <span class="st">"  AND s.waterbody_key IS NOT NULL\n"</span>,</span>
-<span>  <span class="st">")\n"</span></span>
-<span><span class="op">)</span>, <span class="va">blk</span>, <span class="va">drm</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_waterbody_network.html">frs_waterbody_network</a></span><span class="op">(</span></span>
+<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
+<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
-<span>  <span class="va">wb_sql</span>,</span>
-<span>  <span class="st">"SELECT l.waterbody_key, l.gnis_name_1, l.area_ha, l.geom\n"</span>,</span>
-<span>  <span class="st">"FROM whse_basemapping.fwa_lakes_poly l\n"</span>,</span>
-<span>  <span class="st">"JOIN upstream_wbkeys u ON l.waterbody_key = u.waterbody_key"</span></span>
-<span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">wetlands</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
-<span>  <span class="va">wb_sql</span>,</span>
-<span>  <span class="st">"SELECT w.waterbody_key, w.gnis_name_1, w.area_ha, w.geom\n"</span>,</span>
-<span>  <span class="st">"FROM whse_basemapping.fwa_wetlands_poly w\n"</span>,</span>
-<span>  <span class="st">"JOIN upstream_wbkeys u ON w.waterbody_key = u.waterbody_key"</span></span>
-<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">wetlands</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_waterbody_network.html">frs_waterbody_network</a></span><span class="op">(</span></span>
+<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
+<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_wetlands_poly"</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">lakes</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 363</span></span>
@@ -287,9 +264,14 @@ Creek, Richfield Creek, Robert Hatch Creek.</p>
 <code><a href="../reference/frs_network_upstream.html">frs_network_upstream()</a></code>,
 <code><a href="../reference/frs_network_downstream.html">frs_network_downstream()</a></code>
 </td>
-<td>Walk the network</td>
+<td>Walk the stream network</td>
 </tr>
 <tr class="even">
+<td>Waterbodies</td>
+<td><code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code></td>
+<td>Lakes/wetlands via waterbody_key bridge</td>
+</tr>
+<tr class="odd">
 <td>Prune</td>
 <td>
 <code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code>,
@@ -297,7 +279,7 @@ Creek, Richfield Creek, Robert Hatch Creek.</p>
 </td>
 <td>Filter by order, gradient</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Fish</td>
 <td>
 <code><a href="../reference/frs_fish_obs.html">frs_fish_obs()</a></code>, <code><a href="../reference/frs_fish_habitat.html">frs_fish_habitat()</a></code>

@@ -55,47 +55,25 @@ table(co_habitat$mapping_code)
 
 Lake and wetland polygon tables (`fwa_lakes_poly`, `fwa_wetlands_poly`)
 have NULL `localcode_ltree`, so `fwa_upstream()` can’t query them
-directly. The bridge is `waterbody_key` — stream segments flowing
-through waterbodies carry the same key. We run `fwa_upstream()` on the
-stream network (which has `localcode_ltree`), extract distinct
-`waterbody_key` values, then join to the polygon tables. See
+directly.
+[`frs_waterbody_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_waterbody_network.md)
+bridges through the stream network: it runs the traversal on stream
+segments (which have `localcode_ltree`), extracts distinct
+`waterbody_key` values, then joins to the polygon table. The `direction`
+parameter switches between upstream and downstream. See
 [fresh#8](https://github.com/NewGraphEnvironment/fresh/issues/8).
 
 ``` r
-# Upstream waterbody_key bridge: fwa_upstream() on streams → join to polygons
-wb_sql <- sprintf(paste0(
-  "WITH ref AS (\n",
-  "  SELECT wscode_ltree, localcode_ltree\n",
-  "  FROM whse_basemapping.fwa_stream_networks_sp\n",
-  "  WHERE blue_line_key = %s\n",
-  "    AND downstream_route_measure <= %s\n",
-  "  ORDER BY downstream_route_measure DESC\n",
-  "  LIMIT 1\n",
-  "),\n",
-  "upstream_wbkeys AS (\n",
-  "  SELECT DISTINCT s.waterbody_key\n",
-  "  FROM whse_basemapping.fwa_stream_networks_sp s, ref\n",
-  "  WHERE whse_basemapping.fwa_upstream(\n",
-  "    ref.wscode_ltree, ref.localcode_ltree,\n",
-  "    s.wscode_ltree, s.localcode_ltree\n",
-  "  )\n",
-  "  AND s.waterbody_key IS NOT NULL\n",
-  ")\n"
-), blk, drm)
+lakes <- frs_waterbody_network(
+  blue_line_key = blk,
+  downstream_route_measure = drm
+)
 
-lakes <- frs_db_query(paste0(
-  wb_sql,
-  "SELECT l.waterbody_key, l.gnis_name_1, l.area_ha, l.geom\n",
-  "FROM whse_basemapping.fwa_lakes_poly l\n",
-  "JOIN upstream_wbkeys u ON l.waterbody_key = u.waterbody_key"
-))
-
-wetlands <- frs_db_query(paste0(
-  wb_sql,
-  "SELECT w.waterbody_key, w.gnis_name_1, w.area_ha, w.geom\n",
-  "FROM whse_basemapping.fwa_wetlands_poly w\n",
-  "JOIN upstream_wbkeys u ON w.waterbody_key = u.waterbody_key"
-))
+wetlands <- frs_waterbody_network(
+  blue_line_key = blk,
+  downstream_route_measure = drm,
+  table = "whse_basemapping.fwa_wetlands_poly"
+)
 
 nrow(lakes)
 #> [1] 363
@@ -199,13 +177,14 @@ Creek, Richfield Creek, Robert Hatch Creek.
 
 ## Summary
 
-| Step     | Function                                                                                                                                                                                                                                                                                              | What it does                        |
-|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
-| Snap     | [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)                                                                                                                                                                                                         | Index a point to the nearest stream |
-| Fetch    | [`frs_stream_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_stream_fetch.md), [`frs_lake_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_lake_fetch.md), [`frs_wetland_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_wetland_fetch.md) | Retrieve FWA features               |
-| Traverse | [`frs_network_upstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_upstream.md), [`frs_network_downstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_downstream.md)                                                                              | Walk the network                    |
-| Prune    | [`frs_network_prune()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_prune.md), [`frs_order_filter()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_filter.md)                                                                                                | Filter by order, gradient           |
-| Fish     | [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md), [`frs_fish_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_habitat.md)                                                                                                          | Observations and habitat model      |
+| Step        | Function                                                                                                                                                                                                                                                                                              | What it does                            |
+|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------|
+| Snap        | [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)                                                                                                                                                                                                         | Index a point to the nearest stream     |
+| Fetch       | [`frs_stream_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_stream_fetch.md), [`frs_lake_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_lake_fetch.md), [`frs_wetland_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_wetland_fetch.md) | Retrieve FWA features                   |
+| Traverse    | [`frs_network_upstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_upstream.md), [`frs_network_downstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_downstream.md)                                                                              | Walk the stream network                 |
+| Waterbodies | [`frs_waterbody_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_waterbody_network.md)                                                                                                                                                                                           | Lakes/wetlands via waterbody_key bridge |
+| Prune       | [`frs_network_prune()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_prune.md), [`frs_order_filter()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_filter.md)                                                                                                | Filter by order, gradient               |
+| Fish        | [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md), [`frs_fish_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_habitat.md)                                                                                                          | Observations and habitat model          |
 
 All functions accept `table` and `cols` parameters. Traverse functions
 also accept `wscode_col` and `localcode_col` to work with any table that
