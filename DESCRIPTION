@@ -26,6 +26,7 @@ Imports:
     sf
 Suggests:
     bookdown,
+    gq,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
