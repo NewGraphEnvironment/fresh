@@ -8,8 +8,9 @@
 #' the waterbody_key bridge through the stream network.
 #'
 #' When `upstream_measure` is provided, returns only features *between* the two
-#' measures on the same blue line key — network subtraction (upstream of A minus
-#' upstream of B) with no spatial clipping needed.
+#' points — network subtraction (upstream of A minus upstream of B) with no
+#' spatial clipping needed. The upstream point can be on a different blue line
+#' key (e.g. a tributary) by specifying `upstream_blk`.
 #'
 #' @param blue_line_key Integer. Blue line key of the reference point.
 #' @param downstream_route_measure Numeric. Downstream route measure of the
@@ -17,6 +18,9 @@
 #' @param upstream_measure Numeric or `NULL`. Downstream route measure of the
 #'   upstream boundary. When provided, returns features between the two measures
 #'   (network subtraction). Only valid with `direction = "upstream"`.
+#' @param upstream_blk Integer or `NULL`. Blue line key for the upstream point.
+#'   Defaults to `blue_line_key` (same stream). Use when the upstream point is
+#'   on a tributary.
 #' @param tables A named list of table specifications. Each element can be:
 #'   - A character string (table name) — uses default columns
 #'   - A list with any of: `table`, `cols`, `wscode_col`, `localcode_col`,
@@ -57,18 +61,45 @@ frs_network <- function(
     blue_line_key,
     downstream_route_measure,
     upstream_measure = NULL,
+    upstream_blk = NULL,
     tables = NULL,
     direction = "upstream",
     ...
 ) {
+  if (!is.numeric(blue_line_key) || length(blue_line_key) != 1 || is.na(blue_line_key)) {
+    stop("blue_line_key must be a single numeric value")
+  }
+  if (!is.numeric(downstream_route_measure) || length(downstream_route_measure) != 1 ||
+      is.na(downstream_route_measure)) {
+    stop("downstream_route_measure must be a single numeric value")
+  }
+  if (!is.null(upstream_measure)) {
+    if (!is.numeric(upstream_measure) || length(upstream_measure) != 1 ||
+        is.na(upstream_measure)) {
+      stop("upstream_measure must be a single numeric value or NULL")
+    }
+  }
+  if (!is.null(upstream_blk)) {
+    if (!is.numeric(upstream_blk) || length(upstream_blk) != 1 || is.na(upstream_blk)) {
+      stop("upstream_blk must be a single numeric value or NULL")
+    }
+  }
+
   direction <- match.arg(direction, c("upstream", "downstream"))
+
+  up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
 
   if (!is.null(upstream_measure)) {
     if (direction != "upstream") {
       stop("upstream_measure only applies when direction = 'upstream'")
     }
-    if (upstream_measure <= downstream_route_measure) {
+    if (up_blk == blue_line_key &&
+        upstream_measure <= downstream_route_measure) {
       stop("upstream_measure must be greater than downstream_route_measure")
+    }
+    if (up_blk != blue_line_key) {
+      frs_check_upstream(blue_line_key, downstream_route_measure,
+                         up_blk, upstream_measure, ...)
     }
   }
 
@@ -86,6 +117,7 @@ frs_network <- function(
       blue_line_key = blue_line_key,
       downstream_route_measure = downstream_route_measure,
       upstream_measure = upstream_measure,
+      upstream_blk = up_blk,
       spec = spec,
       direction = direction,
       ...
@@ -98,12 +130,15 @@ frs_network <- function(
 
 #' @noRd
 frs_network_one <- function(blue_line_key, downstream_route_measure,
-                            upstream_measure = NULL, spec, direction, ...) {
+                            upstream_measure = NULL, upstream_blk = NULL,
+                            spec, direction, ...) {
   tbl <- spec$table
   cols <- spec$cols
   wscode_col <- spec$wscode_col
   localcode_col <- spec$localcode_col
   extra_where <- spec$extra_where
+
+  up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
 
   # Detect waterbody bridge tables
   is_waterbody <- grepl("lakes_poly|wetlands_poly|rivers_poly", tbl)
@@ -112,12 +147,14 @@ frs_network_one <- function(blue_line_key, downstream_route_measure,
     frs_network_waterbody(
       blue_line_key, downstream_route_measure,
       upstream_measure = upstream_measure,
+      upstream_blk = up_blk,
       table = tbl, cols = cols, direction = direction, ...
     )
   } else {
     frs_network_direct(
       blue_line_key, downstream_route_measure,
       upstream_measure = upstream_measure,
+      upstream_blk = up_blk,
       table = tbl, cols = cols,
       wscode_col = wscode_col, localcode_col = localcode_col,
       extra_where = extra_where, direction = direction, ...
@@ -128,7 +165,7 @@ frs_network_one <- function(blue_line_key, downstream_route_measure,
 
 #' @noRd
 frs_network_direct <- function(blue_line_key, downstream_route_measure,
-                               upstream_measure = NULL,
+                               upstream_measure = NULL, upstream_blk = NULL,
                                table, cols = NULL, wscode_col = NULL,
                                localcode_col = NULL, extra_where = NULL,
                                direction = "upstream", ...) {
@@ -150,6 +187,7 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
   }
 
   blk <- as.integer(blue_line_key)
+  up_blk <- if (is.null(upstream_blk)) blk else as.integer(upstream_blk)
   stream_tbl <- "whse_basemapping.fwa_stream_networks_sp"
 
   if (is.null(upstream_measure)) {
@@ -211,7 +249,7 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
       stream_tbl,
       blk, downstream_route_measure,
       stream_tbl,
-      blk, upstream_measure,
+      up_blk, upstream_measure,
       select_cols, table, fwa_fn,
       wscode_col, localcode_col,
       fwa_fn,
@@ -225,7 +263,7 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
 
 #' @noRd
 frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
-                                  upstream_measure = NULL,
+                                  upstream_measure = NULL, upstream_blk = NULL,
                                   table, cols = NULL, direction = "upstream",
                                   ...) {
   cols <- cols %||% frs_default_cols(table)
@@ -237,6 +275,7 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
 
   select_cols <- paste(paste0("p.", cols), collapse = ", ")
   blk <- as.integer(blue_line_key)
+  up_blk <- if (is.null(upstream_blk)) blk else as.integer(upstream_blk)
   stream_tbl <- "whse_basemapping.fwa_stream_networks_sp"
 
   if (is.null(upstream_measure)) {
@@ -307,7 +346,7 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
         "JOIN network_wbkeys n ON p.waterbody_key = n.waterbody_key"
       ),
       stream_tbl, blk, downstream_route_measure,
-      stream_tbl, blk, upstream_measure,
+      stream_tbl, up_blk, upstream_measure,
       stream_tbl, fwa_fn,
       fwa_fn,
       select_cols, table
@@ -356,4 +395,42 @@ frs_default_cols <- function(table) {
     # Unknown table — select all
     c("*")
   }
+}
+
+
+#' @noRd
+frs_check_upstream <- function(down_blk, down_drm, up_blk, up_drm, ...) {
+  sql <- sprintf(
+    paste0(
+      "WITH ref_down AS (\n",
+      "  SELECT wscode_ltree, localcode_ltree\n",
+      "  FROM whse_basemapping.fwa_stream_networks_sp\n",
+      "  WHERE blue_line_key = %s\n",
+      "    AND downstream_route_measure <= %s\n",
+      "  ORDER BY downstream_route_measure DESC\n",
+      "  LIMIT 1\n",
+      "),\n",
+      "ref_up AS (\n",
+      "  SELECT wscode_ltree, localcode_ltree\n",
+      "  FROM whse_basemapping.fwa_stream_networks_sp\n",
+      "  WHERE blue_line_key = %s\n",
+      "    AND downstream_route_measure <= %s\n",
+      "  ORDER BY downstream_route_measure DESC\n",
+      "  LIMIT 1\n",
+      ")\n",
+      "SELECT whse_basemapping.fwa_upstream(\n",
+      "  ref_down.wscode_ltree, ref_down.localcode_ltree,\n",
+      "  ref_up.wscode_ltree, ref_up.localcode_ltree\n",
+      ") AS is_upstream\n",
+      "FROM ref_down, ref_up"
+    ),
+    as.integer(down_blk), down_drm,
+    as.integer(up_blk), up_drm
+  )
+  result <- frs_db_query(sql, ...)
+  if (nrow(result) == 0 || !isTRUE(result$is_upstream)) {
+    stop("upstream point (blk ", up_blk, ") is not upstream of downstream ",
+         "point (blk ", down_blk, "); points may not be on the same network")
+  }
+  invisible(TRUE)
 }

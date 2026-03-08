@@ -8,6 +8,7 @@ frs_watershed_at_measure(
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
+  upstream_blk = NULL,
   ...
 )
 }
@@ -20,6 +21,10 @@ point (metres).}
 \item{upstream_measure}{Numeric or \code{NULL}. Route measure of an upstream
 point. When provided, returns the watershed between the two measures
 (downstream minus upstream).}
+
+\item{upstream_blk}{Integer or \code{NULL}. Blue line key for the upstream point.
+Defaults to \code{blue_line_key} (same stream). Use when the upstream point is
+on a tributary.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
@@ -34,14 +39,20 @@ blue line key and downstream route measure. Wraps the fwapg
 \details{
 When \code{upstream_measure} is provided, returns the difference between the
 downstream and upstream watersheds — the subbasin \emph{between} the two points.
+The upstream point can be on a different blue line key (e.g. a tributary)
+by specifying \code{upstream_blk}.
 }
 \examples{
 \dontrun{
 # Watershed upstream of a single point
 ws <- frs_watershed_at_measure(360873822, 208877)
 
-# Subbasin between two points (network subtraction)
+# Subbasin between two points on the same stream
 aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
+
+# Subbasin with upstream point on a tributary (different BLK)
+aoi <- frs_watershed_at_measure(360873822, 165115,
+  upstream_measure = 838, upstream_blk = 360886221)
 }
 }
 \concept{network}
