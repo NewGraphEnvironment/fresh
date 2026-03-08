@@ -9,20 +9,9 @@ vignette: >
 
 
 
-This vignette demonstrates `fresh` on a real watershed analysis task: extracting
-the coho rearing/spawning stream network upstream of the Neexdzii Kwa (Upper
-Bulkley River) / Wedzin Kwa confluence, with lakes and wetlands. This is the
-same scoping used in the
-[restoration_wedzin_kwa_2024](https://github.com/NewGraphEnvironment/restoration_wedzin_kwa_2024)
-land cover change analysis. Stream colours come from the
-[gq](https://github.com/NewGraphEnvironment/gq) style registry.
-
-## Coho rearing network
-
-Query `bcfishpass.streams_co_vw` — the coho-specific habitat model view —
-for rearing/spawning streams (order 4+) upstream of the Neexdzii Kwa / Wedzin
-Kwa confluence. The `table`, `cols`, `wscode_col`, and `localcode_col`
-parameters let us target this view directly with `frs_network_prune()`.
+Coho rearing/spawning network upstream of the Neexdzii Kwa / Wedzin Kwa
+confluence with watershed AOI, all FWA streams, lakes, and wetlands.
+Colours from the [gq](https://github.com/NewGraphEnvironment/gq) style registry.
 
 
 ``` r
@@ -30,10 +19,22 @@ library(fresh)
 library(sf)
 #> Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
 
-# Neexdzii Kwa / Wedzin Kwa confluence on Bulkley mainstem
 blk <- 360873822
 drm <- 166030.4
 
+# Watershed AOI
+aoi <- frs_db_query(sprintf(
+  "SELECT ST_Union(geom) as geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
+  blk, drm
+))
+
+# All upstream streams (background)
+streams_all <- frs_network_upstream(
+  blue_line_key = blk,
+  downstream_route_measure = drm
+)
+
+# Coho rearing/spawning network (order 4+)
 co_habitat <- frs_network_prune(
   blue_line_key = blk,
   downstream_route_measure = drm,
@@ -48,30 +49,7 @@ co_habitat <- frs_network_prune(
   localcode_col = "localcode"
 )
 
-nrow(co_habitat)
-#> [1] 1027
-sort(unique(co_habitat$stream_order))
-#> [1] 4 5 6
-table(co_habitat$mapping_code)
-#> 
-#>  REAR;ASSESSED  REAR;MODELLED      REAR;NONE SPAWN;ASSESSED SPAWN;MODELLED 
-#>             28              9            147            103              7 
-#>     SPAWN;NONE 
-#>            733
-```
-
-## Lakes and wetlands
-
-Lake and wetland polygon tables (`fwa_lakes_poly`, `fwa_wetlands_poly`) have
-NULL `localcode_ltree`, so `fwa_upstream()` can't query them directly.
-`frs_waterbody_network()` bridges through the stream network: it runs the
-traversal on stream segments (which have `localcode_ltree`), extracts distinct
-`waterbody_key` values, then joins to the polygon table. The `direction`
-parameter switches between upstream and downstream.
-See [fresh#8](https://github.com/NewGraphEnvironment/fresh/issues/8).
-
-
-``` r
+# Lakes and wetlands (waterbody_key bridge — see fresh#8)
 lakes <- frs_waterbody_network(
   blue_line_key = blk,
   downstream_route_measure = drm
@@ -82,134 +60,67 @@ wetlands <- frs_waterbody_network(
   downstream_route_measure = drm,
   table = "whse_basemapping.fwa_wetlands_poly"
 )
-
-nrow(lakes)
-#> [1] 363
-nrow(wetlands)
-#> [1] 1293
-if (nrow(lakes) > 0) head(lakes[order(-lakes$area_ha), c("gnis_name_1", "area_ha")], 10)
-#> Simple feature collection with 10 features and 2 fields
-#> Geometry type: MULTIPOLYGON
-#> Dimension:     XY
-#> Bounding box:  xmin: 955155.1 ymin: 1018170 xmax: 995940.4 ymax: 1065884
-#> Projected CRS: NAD83 / BC Albers
-#>       gnis_name_1   area_ha                           geom
-#> 10     Maxan Lake 654.20608 MULTIPOLYGON (((993644.5 10...
-#> 11       Day Lake 316.79508 MULTIPOLYGON (((981685.4 10...
-#> 12     Elwin Lake 287.88098 MULTIPOLYGON (((980130.3 10...
-#> 13    Goosly Lake 239.17266 MULTIPOLYGON (((975714 1020...
-#> 14   Bulkley Lake 233.40513 MULTIPOLYGON (((993264.4 10...
-#> 15 McQuarrie Lake 230.06659 MULTIPOLYGON (((956158.2 10...
-#> 16     Swans Lake 179.93733 MULTIPOLYGON (((977344.9 10...
-#> 17       Nez Lake 174.64798 MULTIPOLYGON (((991369.5 10...
-#> 18    Sunset Lake 130.58687 MULTIPOLYGON (((975322.1 10...
-#> 20    Conrad Lake  63.40472 MULTIPOLYGON (((994679.2 10...
 ```
-
-## Watershed AOI
-
-Delineate the watershed boundary at the confluence using `fwa_watershedatmeasure`.
-This gives us the AOI polygon for the map.
-
-
-``` r
-aoi <- frs_db_query(sprintf(
-  "SELECT ST_Union(geom) as geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
-  blk, drm
-))
-```
-
-## Map with gq colours
-
-Colour streams by `mapping_code` using the
-[gq](https://github.com/NewGraphEnvironment/gq) style registry — no hardcoded
-hex values.
 
 
 ``` r
 reg <- gq::gq_reg_main()
 cls <- gq::gq_tmap_classes(reg$layers$streams_salmon)
-
-# Match mapping_code to gq colours
-co_habitat$col <- cls$values[co_habitat$mapping_code]
-co_habitat$col[is.na(co_habitat$col)] <- "#999999"
-
-# Line width: spawning thicker than rearing (gq convention)
-co_habitat$lwd <- ifelse(co_habitat$spawning > 0, 1.7, 1.0)
-
-# Lake and wetland styles from registry
+streams_all_style <- gq::gq_tmap_classes(reg$layers$streams_all)
 lake_style <- gq::gq_tmap_style(reg$layers$lake)
 wetland_style <- gq::gq_tmap_style(reg$layers$wetland)
 
-# AOI boundary first (sets extent)
-plot(
-  st_geometry(aoi),
-  col = NA,
-  border = "grey40",
-  lwd = 1.5,
-  main = ""
-)
+# Coho colours from registry
+co_habitat$col <- cls$values[co_habitat$mapping_code]
+co_habitat$col[is.na(co_habitat$col)] <- "#999999"
+co_habitat$lwd <- ifelse(co_habitat$spawning > 0, 1.7, 1.0)
 
-# Wetlands under lakes under streams
+# AOI boundary (sets extent)
+plot(st_geometry(aoi), col = NA, border = "grey40", lwd = 1.5, main = "")
+
+# Layer order: wetlands → lakes → all streams → coho habitat
 if (nrow(wetlands) > 0) {
-  plot(
-    st_geometry(wetlands),
-    col = wetland_style$fill,
-    border = wetland_style$fill,
-    add = TRUE
-  )
+  plot(st_geometry(wetlands), col = wetland_style$fill,
+       border = wetland_style$fill, add = TRUE)
 }
-
 if (nrow(lakes) > 0) {
-  plot(
-    st_geometry(lakes),
-    col = lake_style$fill,
-    border = lake_style$col,
-    add = TRUE
-  )
+  plot(st_geometry(lakes), col = lake_style$fill,
+       border = lake_style$col, add = TRUE)
 }
+plot(st_geometry(streams_all), col = "#a9e0ff", lwd = 0.3, add = TRUE)
+plot(st_geometry(co_habitat), col = co_habitat$col,
+     lwd = co_habitat$lwd, add = TRUE)
 
-plot(
-  st_geometry(co_habitat),
-  col = co_habitat$col,
-  lwd = co_habitat$lwd,
-  add = TRUE
-)
-
-# Legend from gq registry — show only codes present in the data
+# Legend
 present <- names(cls$values) %in% unique(co_habitat$mapping_code)
 legend(
   "topright",
-  legend = c("Watershed AOI", cls$labels[present], "Lake", "Wetland"),
-  col = c("grey40", cls$values[present], lake_style$col, wetland_style$fill),
-  pch = c(NA, rep(NA, sum(present)), 15, 15),
-  lwd = c(1.5, rep(2, sum(present)), NA, NA),
-  pt.cex = c(NA, rep(NA, sum(present)), 1.5, 1.5),
-  cex = 0.7,
-  bg = "white"
+  legend = c("Watershed AOI", "Stream", cls$labels[present], "Lake", "Wetland"),
+  col = c("grey40", "#a9e0ff", cls$values[present], lake_style$col, wetland_style$fill),
+  pch = c(NA, NA, rep(NA, sum(present)), 15, 15),
+  lwd = c(1.5, 0.8, rep(2, sum(present)), NA, NA),
+  pt.cex = c(NA, NA, rep(NA, sum(present)), 1.5, 1.5),
+  cex = 0.7, bg = "white"
 )
 ```
 
-![Coho rearing and spawning habitat upstream of the Neexdzii Kwa confluence (order 4+), with watershed AOI, lakes and wetlands. Stream colours from the gq style registry.](vignettes/figure/plot-co-habitat-1.png)
+![Coho rearing and spawning habitat upstream of the Neexdzii Kwa confluence (order 4+), with all FWA streams, lakes, and wetlands.](figure/plot-co-habitat-1.png)
 
-The network contains 1027 coho habitat segments across orders
-4, 5, 6,
-with 363 lakes and 1293 wetlands.
-
-Named streams: Ailport Creek, Aitken Creek, Barren Creek, Buck Creek, Bulkley River, Byman Creek, Cesford Creek, Crow Creek, Dungate Creek, Foxy Creek, Johnny David Creek, Klo Creek, Maxan Creek, McKilligan Creek, McQuarrie Creek, North Ailport Creek, Perow Creek, Raspberry Creek, Richfield Creek, Robert Hatch Creek.
+1027 coho habitat segments (orders
+4, 5, 6),
+8876 total stream segments,
+363 lakes, 1293 wetlands.
 
 ## Summary
 
-| Step | Function | What it does |
-|------|----------|-------------|
-| Snap | `frs_point_snap()` | Index a point to the nearest stream |
-| Fetch | `frs_stream_fetch()`, `frs_lake_fetch()`, `frs_wetland_fetch()` | Retrieve FWA features |
-| Traverse | `frs_network_upstream()`, `frs_network_downstream()` | Walk the stream network |
-| Waterbodies | `frs_waterbody_network()` | Lakes/wetlands via waterbody_key bridge |
-| Prune | `frs_network_prune()`, `frs_order_filter()` | Filter by order, gradient |
-| Fish | `frs_fish_obs()`, `frs_fish_habitat()` | Observations and habitat model |
+| Function | What it does |
+|----------|-------------|
+| `frs_point_snap()` | Snap a point to the nearest stream |
+| `frs_stream_fetch()` | Fetch FWA streams by watershed group, bbox, or blue line key |
+| `frs_network_upstream()` / `_downstream()` | Walk the stream network |
+| `frs_network_prune()` | Filter by order, gradient, or custom SQL predicates |
+| `frs_waterbody_network()` | Lakes/wetlands upstream or downstream via waterbody_key bridge |
+| `frs_fish_obs()` / `frs_fish_habitat()` | Fish observations and habitat model |
 
-All functions accept `table` and `cols` parameters. Traverse functions also
-accept `wscode_col` and `localcode_col` to work with any table that has ltree
-watershed codes (e.g. `bcfishpass.streams_co_vw` uses `wscode`/`localcode`
-instead of `wscode_ltree`/`localcode_ltree`).
+All functions accept `table` and `cols` parameters for flexibility across
+FWA and bcfishpass views.
