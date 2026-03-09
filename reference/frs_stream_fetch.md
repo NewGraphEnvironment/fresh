@@ -16,6 +16,7 @@ frs_stream_fetch(
     "gnis_name", "stream_order", "stream_magnitude", "gradient",
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
+  include_all = FALSE,
   limit = NULL,
   ...
 )
@@ -50,6 +51,12 @@ frs_stream_fetch(
 
   Character vector of column names to select. Default includes the most
   commonly used FWA stream attributes.
+
+- include_all:
+
+  Logical. If `TRUE`, include placeholder streams (999 wscode) and
+  unmapped tributaries (NULL localcode). Default `FALSE` filters these
+  out. Only applied when querying the FWA base table.
 
 - limit:
 

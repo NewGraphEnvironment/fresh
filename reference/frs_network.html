@@ -65,6 +65,7 @@ the waterbody_key bridge through the stream network.</p>
 <span>  upstream_blk <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tables <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  direction <span class="op">=</span> <span class="st">"upstream"</span>,</span>
+<span>  include_all <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -103,6 +104,12 @@ on a tributary.</p></dd>
 
 <dt id="arg-direction">direction<a class="anchor" aria-label="anchor" href="#arg-direction"></a></dt>
 <dd><p>Character. <code>"upstream"</code> (default) or <code>"downstream"</code>.</p></dd>
+
+
+<dt id="arg-include-all">include_all<a class="anchor" aria-label="anchor" href="#arg-include-all"></a></dt>
+<dd><p>Logical. If <code>TRUE</code>, include placeholder streams (999
+wscode) and unmapped tributaries (NULL localcode). Default <code>FALSE</code> filters
+these out. Only applied when querying the FWA base table.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

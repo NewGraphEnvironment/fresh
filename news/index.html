@@ -39,14 +39,21 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="fresh-010">fresh 0.1.0<a class="anchor" aria-label="anchor" href="#fresh-010"></a></h2><p class="text-muted">CRAN release: 2019-10-21</p>
 <ul><li>Multi-blue-line-key support for <code><a href="../reference/frs_watershed_at_measure.html">frs_watershed_at_measure()</a></code> and <code><a href="../reference/frs_network.html">frs_network()</a></code> via <code>upstream_blk</code> param (<a href="https://github.com/NewGraphEnvironment/fresh/issues/20" class="external-link">#20</a>)</li>
+<li>Add <code><a href="../reference/frs_watershed_at_measure.html">frs_watershed_at_measure()</a></code> for watershed polygon delineation with subbasin subtraction</li>
+<li>Add <code><a href="../reference/frs_network.html">frs_network()</a></code> unified multi-table traversal function replacing per-type fetch functions</li>
+<li>Add <code>frs_default_cols()</code> with sensible column defaults for streams, lakes, crossings, fish obs, and falls</li>
+<li>Add <code>upstream_measure</code> param for network subtraction between two points on the same stream</li>
+<li>Add <code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code> for upstream/downstream lake and wetland queries via waterbody key bridge</li>
+<li>Add <code>wscode_col</code>, <code>localcode_col</code>, and <code>extra_where</code> params for custom table schemas</li>
+<li>Add <code>frs_check_upstream()</code> validation for cross-BLK network connectivity</li>
+<li>Add <code>blue_line_key</code> and <code>stream_order_min</code> params to <code><a href="../reference/frs_point_snap.html">frs_point_snap()</a></code> for targeted snapping via KNN (<a href="https://github.com/NewGraphEnvironment/fresh/issues/16" class="external-link">#16</a>, <a href="https://github.com/NewGraphEnvironment/fresh/issues/17" class="external-link">#17</a>, <a href="https://github.com/NewGraphEnvironment/fresh/issues/7" class="external-link">#7</a>, <a href="https://github.com/NewGraphEnvironment/fresh/issues/18" class="external-link">#18</a>)</li>
+<li>Add stream filtering guards: exclude placeholder streams (999 wscode) and unmapped tributaries (NULL localcode) from network queries; <code>include_all</code> to bypass. Subsurface flow (edge_type 1410/1425) kept in network results (real connectivity) but excluded from KNN snap candidates (<a href="https://github.com/NewGraphEnvironment/fresh/issues/15" class="external-link">#15</a>)</li>
 <li>Input type validation on all numeric params</li>
-</ul></div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.0.1" id="fresh-001">fresh 0.0.1<a class="anchor" aria-label="anchor" href="#fresh-001"></a></h2>
-<p>Initial release. Stream network-aware spatial operations via direct SQL against fwapg and bcfishpass. See the <a href="https://newgraphenvironment.github.io/fresh/reference/">function reference</a> for details.</p>
+<li>Add subbasin query vignette with tmap v4 composition</li>
+<li>Fix ref CTE to always query stream network, not target table</li>
+</ul><p>Initial release. Stream network-aware spatial operations via direct SQL against fwapg and bcfishpass. See the <a href="https://newgraphenvironment.github.io/fresh/reference/">function reference</a> for details.</p>
 </div>
-  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
-    </nav></aside></div>
+  </main></div>
 
 
     <footer><div class="pkgdown-footer-left">

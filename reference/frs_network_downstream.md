@@ -17,6 +17,7 @@ frs_network_downstream(
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   wscode_col = "wscode_ltree",
   localcode_col = "localcode_ltree",
+  include_all = FALSE,
   ...
 )
 ```
@@ -50,6 +51,12 @@ frs_network_downstream(
 
   Character. Name of the local code ltree column. Default
   `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
+
+- include_all:
+
+  Logical. If `TRUE`, include placeholder streams (999 wscode) and
+  unmapped tributaries (NULL localcode). Default `FALSE` filters these
+  out. Only applied when querying the FWA base table.
 
 - ...:
 

@@ -56,6 +56,7 @@ Filter by watershed group code, blue line key, and/or bounding box.</p>
 <span>    <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>, <span class="st">"stream_magnitude"</span>, <span class="st">"gradient"</span>,</span>
 <span>    <span class="st">"downstream_route_measure"</span>, <span class="st">"upstream_route_measure"</span>, <span class="st">"length_metre"</span>,</span>
 <span>    <span class="st">"watershed_group_code"</span>, <span class="st">"wscode_ltree"</span>, <span class="st">"localcode_ltree"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
+<span>  include_all <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  limit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -93,6 +94,12 @@ Default <code>NULL</code> (all orders).</p></dd>
 <dt id="arg-cols">cols<a class="anchor" aria-label="anchor" href="#arg-cols"></a></dt>
 <dd><p>Character vector of column names to select. Default includes
 the most commonly used FWA stream attributes.</p></dd>
+
+
+<dt id="arg-include-all">include_all<a class="anchor" aria-label="anchor" href="#arg-include-all"></a></dt>
+<dd><p>Logical. If <code>TRUE</code>, include placeholder streams (999
+wscode) and unmapped tributaries (NULL localcode). Default <code>FALSE</code> filters
+these out. Only applied when querying the FWA base table.</p></dd>
 
 
 <dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>

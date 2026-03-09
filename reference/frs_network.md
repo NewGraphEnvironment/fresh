@@ -17,6 +17,7 @@ frs_network(
   upstream_blk = NULL,
   tables = NULL,
   direction = "upstream",
+  include_all = FALSE,
   ...
 )
 ```
@@ -57,6 +58,12 @@ frs_network(
 - direction:
 
   Character. `"upstream"` (default) or `"downstream"`.
+
+- include_all:
+
+  Logical. If `TRUE`, include placeholder streams (999 wscode) and
+  unmapped tributaries (NULL localcode). Default `FALSE` filters these
+  out. Only applied when querying the FWA base table.
 
 - ...:
 

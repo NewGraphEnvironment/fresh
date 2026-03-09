@@ -56,6 +56,7 @@ in SQL for efficiency.</p>
 <span>  gradient_max <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  watershed_group_code <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  extra_where <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  include_all <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span>
 <span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"linear_feature_id"</span>, <span class="st">"blue_line_key"</span>, <span class="st">"waterbody_key"</span>, <span class="st">"edge_type"</span>,</span>
 <span>    <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>, <span class="st">"stream_magnitude"</span>, <span class="st">"gradient"</span>,</span>
@@ -96,6 +97,12 @@ reference point.</p></dd>
 <dt id="arg-extra-where">extra_where<a class="anchor" aria-label="anchor" href="#arg-extra-where"></a></dt>
 <dd><p>Character vector of additional SQL predicates (applied to
 alias <code>s</code>). Default <code>NULL</code>.</p></dd>
+
+
+<dt id="arg-include-all">include_all<a class="anchor" aria-label="anchor" href="#arg-include-all"></a></dt>
+<dd><p>Logical. If <code>TRUE</code>, include placeholder streams (999
+wscode) and unmapped tributaries (NULL localcode). Default <code>FALSE</code> filters
+these out. Only applied when querying the FWA base table.</p></dd>
 
 
 <dt id="arg-table">table<a class="anchor" aria-label="anchor" href="#arg-table"></a></dt>

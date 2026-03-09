@@ -1,13 +1,24 @@
 # Snap a Point to the Nearest FWA Stream
 
-Wraps the fwapg `fwa_indexpoint()` function to snap x/y coordinates to
-the nearest stream segment. Returns the snapped point with its blue line
-key, downstream route measure, and distance to stream.
+Snaps x/y coordinates to the nearest stream segment. When no
+`blue_line_key` is given, wraps fwapg `fwa_indexpoint()`. When
+`blue_line_key` is provided, uses KNN against `fwa_stream_networks_sp`
+filtered to that stream, with measure derivation and boundary clamping
+(following the bcfishpass pattern).
 
 ## Usage
 
 ``` r
-frs_point_snap(x, y, srid = 4326L, tolerance = 5000, num_features = 1L, ...)
+frs_point_snap(
+  x,
+  y,
+  srid = 4326L,
+  tolerance = 5000,
+  num_features = 1L,
+  blue_line_key = NULL,
+  stream_order_min = NULL,
+  ...
+)
 ```
 
 ## Arguments
@@ -33,6 +44,17 @@ frs_point_snap(x, y, srid = 4326L, tolerance = 5000, num_features = 1L, ...)
 
   Integer. Number of candidate matches to return. Default `1`.
 
+- blue_line_key:
+
+  Integer. Optional. When provided, snap only to this stream. Bypasses
+  `fwa_indexpoint()` and uses KNN against `fwa_stream_networks_sp` with
+  measure derivation and boundary clamping.
+
+- stream_order_min:
+
+  Integer. Optional. Minimum stream order for snap candidates. Ignored
+  when `blue_line_key` is provided. Forces KNN path.
+
 - ...:
 
   Additional arguments passed to
@@ -53,9 +75,13 @@ Other index:
 
 ``` r
 if (FALSE) { # \dontrun{
-# Snap a lon/lat point to the nearest stream
+# Snap to nearest stream (any)
 snapped <- frs_point_snap(x = -126.5, y = 54.5)
-snapped$blue_line_key
-snapped$downstream_route_measure
+
+# Snap to a specific stream (Bulkley River)
+snapped <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+
+# Snap to order 4+ streams only
+snapped <- frs_point_snap(x = -126.5, y = 54.5, stream_order_min = 4)
 } # }
 ```
