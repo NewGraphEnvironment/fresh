@@ -32,7 +32,6 @@ test_that("frs_stream_fetch includes guards by default", {
 
   expect_match(sql_sent, "localcode_ltree IS NOT NULL")
   expect_match(sql_sent, "wscode_ltree <@ '999'")
-  expect_match(sql_sent, "edge_type NOT IN \\(1410, 1425\\)")
 })
 
 test_that("frs_stream_fetch skips guards with include_all = TRUE", {

@@ -39,9 +39,8 @@ Default \code{NULL} (all orders).}
 the most commonly used FWA stream attributes.}
 
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
-wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
-(NULL localcode). Default \code{FALSE} filters these out (bcfishpass convention).
-Only applied when querying the FWA base table.}
+wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
+these out. Only applied when querying the FWA base table.}
 
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
 

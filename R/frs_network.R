@@ -29,9 +29,8 @@
 #'   If `NULL` (default), queries FWA streams only.
 #' @param direction Character. `"upstream"` (default) or `"downstream"`.
 #' @param include_all Logical. If `TRUE`, include placeholder streams (999
-#'   wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
-#'   (NULL localcode). Default `FALSE` filters these out (bcfishpass convention).
-#'   Only applied when querying the FWA base table.
+#'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
+#'   these out. Only applied when querying the FWA base table.
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return A named list of `sf` data frames (or plain data frames for tables

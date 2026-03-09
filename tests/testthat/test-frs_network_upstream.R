@@ -8,7 +8,6 @@ test_that("guards are included by default for FWA base table", {
     frs_db_query = function(sql, ...) {
       expect_match(sql, "localcode_ltree IS NOT NULL")
       expect_match(sql, "wscode_ltree <@ '999'")
-      expect_match(sql, "edge_type NOT IN \\(1410, 1425\\)")
       mock_result
     }
   )
@@ -61,7 +60,7 @@ test_that("frs_network_upstream returns sf of upstream segments", {
   expect_true("stream_order" %in% names(upstream))
 })
 
-test_that("include_all = TRUE returns more segments (subsurface)", {
+test_that("include_all = TRUE returns more or equal segments (placeholder/unmapped)", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
 
   blk <- 360873822
@@ -69,7 +68,7 @@ test_that("include_all = TRUE returns more segments (subsurface)", {
   with_guards <- frs_network_upstream(blk, drm)
   without_guards <- frs_network_upstream(blk, drm, include_all = TRUE)
 
-  # Without guards should include subsurface flow segments
-
+  # Without guards may include placeholder (999 wscode) or unmapped segments
+  # In practice fwa_upstream() rarely returns these, so counts may be equal
   expect_true(nrow(without_guards) >= nrow(with_guards))
 })

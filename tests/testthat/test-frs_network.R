@@ -432,7 +432,6 @@ test_that("frs_network includes guards for FWA streams by default", {
 
   expect_match(sql_sent, "localcode_ltree IS NOT NULL")
   expect_match(sql_sent, "wscode_ltree <@ '999'")
-  expect_match(sql_sent, "edge_type NOT IN \\(1410, 1425\\)")
 })
 
 test_that("frs_network skips guards with include_all = TRUE", {
@@ -459,7 +458,6 @@ test_that("frs_network includes guards in waterbody CTE", {
     lakes = "whse_basemapping.fwa_lakes_poly"
   ))
 
-  expect_match(sql_sent, "edge_type NOT IN \\(1410, 1425\\)")
   expect_match(sql_sent, "localcode_ltree IS NOT NULL")
 })
 

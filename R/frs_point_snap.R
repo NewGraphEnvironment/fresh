@@ -108,12 +108,8 @@ frs_point_snap_knn <- function(
     x, y, srid, tolerance, num_features,
     blue_line_key = NULL, stream_order_min = NULL, ...
 ) {
-  # Build WHERE clauses for stream filtering
-  where_parts <- c(
-    "s.localcode_ltree IS NOT NULL",
-    "NOT s.wscode_ltree <@ '999'",
-    "s.edge_type NOT IN (1410, 1425)"
-  )
+  # Build WHERE clauses for stream filtering (includes subsurface guard)
+  where_parts <- .frs_snap_guards("s")
   if (!is.null(blue_line_key)) {
     where_parts <- c(where_parts,
       sprintf("s.blue_line_key = %s", as.integer(blue_line_key))

@@ -7,7 +7,6 @@ test_that("guards are included by default for FWA base table", {
   local_mocked_bindings(
     frs_db_query = function(sql, ...) {
       expect_match(sql, "localcode_ltree IS NOT NULL")
-      expect_match(sql, "edge_type NOT IN \\(1410, 1425\\)")
       mock_result
     }
   )

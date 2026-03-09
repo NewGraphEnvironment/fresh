@@ -41,9 +41,8 @@ If \code{NULL} (default), queries FWA streams only.}
 \item{direction}{Character. \code{"upstream"} (default) or \code{"downstream"}.}
 
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
-wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
-(NULL localcode). Default \code{FALSE} filters these out (bcfishpass convention).
-Only applied when querying the FWA base table.}
+wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
+these out. Only applied when querying the FWA base table.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }

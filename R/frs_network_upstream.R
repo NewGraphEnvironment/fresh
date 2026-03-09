@@ -15,9 +15,8 @@
 #' @param localcode_col Character. Name of the local code ltree column.
 #'   Default `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
 #' @param include_all Logical. If `TRUE`, include placeholder streams (999
-#'   wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
-#'   (NULL localcode). Default `FALSE` filters these out (bcfishpass convention).
-#'   Only applied when querying the FWA base table.
+#'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
+#'   these out. Only applied when querying the FWA base table.
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return An `sf` data frame of upstream stream segments.

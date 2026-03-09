@@ -39,9 +39,8 @@ reference point.}
 alias \code{s}). Default \code{NULL}.}
 
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
-wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
-(NULL localcode). Default \code{FALSE} filters these out (bcfishpass convention).
-Only applied when querying the FWA base table.}
+wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
+these out. Only applied when querying the FWA base table.}
 
 \item{table}{Character. Fully qualified table name. Default
 \code{"whse_basemapping.fwa_stream_networks_sp"}.}

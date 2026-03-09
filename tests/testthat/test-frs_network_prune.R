@@ -10,7 +10,6 @@ test_that("frs_network_prune includes guards by default", {
   frs_network_prune(blue_line_key = 360873822, downstream_route_measure = 166030)
 
   expect_match(sql_sent, "localcode_ltree IS NOT NULL")
-  expect_match(sql_sent, "edge_type NOT IN \\(1410, 1425\\)")
 })
 
 test_that("frs_network_prune skips guards with include_all = TRUE", {

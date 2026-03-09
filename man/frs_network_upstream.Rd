@@ -37,9 +37,8 @@ Default \code{"wscode_ltree"}. Use \code{"wscode"} for bcfishpass views.}
 Default \code{"localcode_ltree"}. Use \code{"localcode"} for bcfishpass views.}
 
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
-wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
-(NULL localcode). Default \code{FALSE} filters these out (bcfishpass convention).
-Only applied when querying the FWA base table.}
+wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
+these out. Only applied when querying the FWA base table.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }

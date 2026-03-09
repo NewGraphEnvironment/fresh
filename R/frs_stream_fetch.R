@@ -16,9 +16,8 @@
 #' @param cols Character vector of column names to select. Default includes
 #'   the most commonly used FWA stream attributes.
 #' @param include_all Logical. If `TRUE`, include placeholder streams (999
-#'   wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
-#'   (NULL localcode). Default `FALSE` filters these out (bcfishpass convention).
-#'   Only applied when querying the FWA base table.
+#'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
+#'   these out. Only applied when querying the FWA base table.
 #' @param limit Integer. Maximum rows to return. Default `NULL` (no limit).
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
