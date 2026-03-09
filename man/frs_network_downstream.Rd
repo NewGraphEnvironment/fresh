@@ -14,6 +14,7 @@ frs_network_downstream(
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   wscode_col = "wscode_ltree",
   localcode_col = "localcode_ltree",
+  include_all = FALSE,
   ...
 )
 }
@@ -34,6 +35,11 @@ Default \code{"wscode_ltree"}. Use \code{"wscode"} for bcfishpass views.}
 
 \item{localcode_col}{Character. Name of the local code ltree column.
 Default \code{"localcode_ltree"}. Use \code{"localcode"} for bcfishpass views.}
+
+\item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
+wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
+(NULL localcode). Default \code{FALSE} filters these out (bcfishpass convention).
+Only applied when querying the FWA base table.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }

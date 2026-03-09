@@ -14,6 +14,7 @@ frs_stream_fetch(
     "gnis_name", "stream_order", "stream_magnitude", "gradient",
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
+  include_all = FALSE,
   limit = NULL,
   ...
 )
@@ -36,6 +37,11 @@ Default \code{NULL} (all orders).}
 
 \item{cols}{Character vector of column names to select. Default includes
 the most commonly used FWA stream attributes.}
+
+\item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
+wscode), subsurface flow (edge_type 1410/1425), and unmapped tributaries
+(NULL localcode). Default \code{FALSE} filters these out (bcfishpass convention).
+Only applied when querying the FWA base table.}
 
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
 
