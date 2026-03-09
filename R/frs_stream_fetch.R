@@ -15,6 +15,9 @@
 #'   `"whse_basemapping.fwa_stream_networks_sp"`.
 #' @param cols Character vector of column names to select. Default includes
 #'   the most commonly used FWA stream attributes.
+#' @param include_all Logical. If `TRUE`, include placeholder streams (999
+#'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
+#'   these out. Only applied when querying the FWA base table.
 #' @param limit Integer. Maximum rows to return. Default `NULL` (no limit).
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
@@ -50,16 +53,23 @@ frs_stream_fetch <- function(
       "downstream_route_measure", "upstream_route_measure", "length_metre",
       "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"
     ),
+    include_all = FALSE,
     limit = NULL,
     ...
 ) {
+  extra_guards <- character(0)
+  if (!include_all && .is_fwa_stream_table(table)) {
+    extra_guards <- .frs_stream_guards(alias = "")
+  }
+  if (!is.null(stream_order_min)) {
+    extra_guards <- c(extra_guards, paste0("stream_order >= ", as.integer(stream_order_min)))
+  }
+
   where <- .frs_build_where(
     watershed_group_code = watershed_group_code,
     blue_line_key = blue_line_key,
     bbox = bbox,
-    extra = if (!is.null(stream_order_min)) {
-      paste0("stream_order >= ", as.integer(stream_order_min))
-    }
+    extra = if (length(extra_guards) > 0) extra_guards
   )
 
   sql <- paste0(

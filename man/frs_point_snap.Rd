@@ -4,7 +4,16 @@
 \alias{frs_point_snap}
 \title{Snap a Point to the Nearest FWA Stream}
 \usage{
-frs_point_snap(x, y, srid = 4326L, tolerance = 5000, num_features = 1L, ...)
+frs_point_snap(
+  x,
+  y,
+  srid = 4326L,
+  tolerance = 5000,
+  num_features = 1L,
+  blue_line_key = NULL,
+  stream_order_min = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{Numeric. Longitude or easting.}
@@ -18,6 +27,13 @@ frs_point_snap(x, y, srid = 4326L, tolerance = 5000, num_features = 1L, ...)
 
 \item{num_features}{Integer. Number of candidate matches to return. Default \code{1}.}
 
+\item{blue_line_key}{Integer. Optional. When provided, snap only to this
+stream. Bypasses \code{fwa_indexpoint()} and uses KNN against
+\code{fwa_stream_networks_sp} with measure derivation and boundary clamping.}
+
+\item{stream_order_min}{Integer. Optional. Minimum stream order for snap
+candidates. Ignored when \code{blue_line_key} is provided. Forces KNN path.}
+
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
@@ -26,16 +42,22 @@ An \code{sf} data frame with columns: \code{linear_feature_id}, \code{gnis_name}
 snapped point \code{geom}.
 }
 \description{
-Wraps the fwapg \code{fwa_indexpoint()} function to snap x/y coordinates to the
-nearest stream segment. Returns the snapped point with its blue line key,
-downstream route measure, and distance to stream.
+Snaps x/y coordinates to the nearest stream segment. When no
+\code{blue_line_key} is given, wraps fwapg \code{fwa_indexpoint()}. When
+\code{blue_line_key} is provided, uses KNN against \code{fwa_stream_networks_sp}
+filtered to that stream, with measure derivation and boundary clamping
+(following the bcfishpass pattern).
 }
 \examples{
 \dontrun{
-# Snap a lon/lat point to the nearest stream
+# Snap to nearest stream (any)
 snapped <- frs_point_snap(x = -126.5, y = 54.5)
-snapped$blue_line_key
-snapped$downstream_route_measure
+
+# Snap to a specific stream (Bulkley River)
+snapped <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+
+# Snap to order 4+ streams only
+snapped <- frs_point_snap(x = -126.5, y = 54.5, stream_order_min = 4)
 }
 }
 \seealso{

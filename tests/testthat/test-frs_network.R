@@ -418,3 +418,63 @@ test_that("upstream_measure with custom wscode_col", {
   # But the main query uses the custom col names
   expect_match(sql_sent, "s\\.wscode, s\\.localcode")
 })
+
+# -- stream guard tests -------------------------------------------------------
+
+test_that("frs_network includes guards for FWA streams by default", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 166030)
+
+  expect_match(sql_sent, "localcode_ltree IS NOT NULL")
+  expect_match(sql_sent, "wscode_ltree <@ '999'")
+})
+
+test_that("frs_network skips guards with include_all = TRUE", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 166030, include_all = TRUE)
+
+  expect_no_match(sql_sent, "edge_type NOT IN")
+  expect_no_match(sql_sent, "wscode_ltree <@ '999'")
+})
+
+test_that("frs_network includes guards in waterbody CTE", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 166030, tables = list(
+    lakes = "whse_basemapping.fwa_lakes_poly"
+  ))
+
+  expect_match(sql_sent, "localcode_ltree IS NOT NULL")
+})
+
+test_that("frs_network skips guards for non-FWA tables", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network(360873822, 166030, tables = list(
+    streams = list(
+      table = "bcfishpass.streams_co_vw",
+      wscode_col = "wscode",
+      localcode_col = "localcode"
+    )
+  ))
+
+  expect_no_match(sql_sent, "edge_type NOT IN")
+})

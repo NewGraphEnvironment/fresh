@@ -28,6 +28,9 @@
 #'
 #'   If `NULL` (default), queries FWA streams only.
 #' @param direction Character. `"upstream"` (default) or `"downstream"`.
+#' @param include_all Logical. If `TRUE`, include placeholder streams (999
+#'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
+#'   these out. Only applied when querying the FWA base table.
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return A named list of `sf` data frames (or plain data frames for tables
@@ -64,6 +67,7 @@ frs_network <- function(
     upstream_blk = NULL,
     tables = NULL,
     direction = "upstream",
+    include_all = FALSE,
     ...
 ) {
   if (!is.numeric(blue_line_key) || length(blue_line_key) != 1 || is.na(blue_line_key)) {
@@ -120,6 +124,7 @@ frs_network <- function(
       upstream_blk = up_blk,
       spec = spec,
       direction = direction,
+      include_all = include_all,
       ...
     )
   })
@@ -131,7 +136,7 @@ frs_network <- function(
 #' @noRd
 frs_network_one <- function(blue_line_key, downstream_route_measure,
                             upstream_measure = NULL, upstream_blk = NULL,
-                            spec, direction, ...) {
+                            spec, direction, include_all = FALSE, ...) {
   tbl <- spec$table
   cols <- spec$cols
   wscode_col <- spec$wscode_col
@@ -148,7 +153,8 @@ frs_network_one <- function(blue_line_key, downstream_route_measure,
       blue_line_key, downstream_route_measure,
       upstream_measure = upstream_measure,
       upstream_blk = up_blk,
-      table = tbl, cols = cols, direction = direction, ...
+      table = tbl, cols = cols, direction = direction,
+      include_all = include_all, ...
     )
   } else {
     frs_network_direct(
@@ -157,7 +163,8 @@ frs_network_one <- function(blue_line_key, downstream_route_measure,
       upstream_blk = up_blk,
       table = tbl, cols = cols,
       wscode_col = wscode_col, localcode_col = localcode_col,
-      extra_where = extra_where, direction = direction, ...
+      extra_where = extra_where, direction = direction,
+      include_all = include_all, ...
     )
   }
 }
@@ -168,10 +175,11 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
                                upstream_measure = NULL, upstream_blk = NULL,
                                table, cols = NULL, wscode_col = NULL,
                                localcode_col = NULL, extra_where = NULL,
-                               direction = "upstream", ...) {
-  wscode_col <- wscode_col %||% "wscode_ltree"
-  localcode_col <- localcode_col %||% "localcode_ltree"
-  cols <- cols %||% frs_default_cols(table)
+                               direction = "upstream", include_all = FALSE,
+                               ...) {
+  wscode_col <- if (is.null(wscode_col)) "wscode_ltree" else wscode_col
+  localcode_col <- if (is.null(localcode_col)) "localcode_ltree" else localcode_col
+  cols <- if (is.null(cols)) frs_default_cols(table) else cols
 
   fwa_fn <- switch(direction,
     upstream = "whse_basemapping.fwa_upstream",
@@ -180,10 +188,18 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
 
   select_cols <- paste(paste0("s.", cols), collapse = ", ")
 
-  filter_sql <- ""
+  filters <- character(0)
+  if (!include_all && .is_fwa_stream_table(table)) {
+    filters <- .frs_stream_guards("s", wscode_col, localcode_col)
+  }
   if (!is.null(extra_where)) {
-    filters <- if (is.character(extra_where)) extra_where else as.character(extra_where)
-    filter_sql <- paste0("\n  AND ", paste(filters, collapse = "\n  AND "))
+    extra <- if (is.character(extra_where)) extra_where else as.character(extra_where)
+    filters <- c(filters, extra)
+  }
+  filter_sql <- if (length(filters) > 0) {
+    paste0("\n  AND ", paste(filters, collapse = "\n  AND "))
+  } else {
+    ""
   }
 
   blk <- as.integer(blue_line_key)
@@ -265,8 +281,8 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
 frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
                                   upstream_measure = NULL, upstream_blk = NULL,
                                   table, cols = NULL, direction = "upstream",
-                                  ...) {
-  cols <- cols %||% frs_default_cols(table)
+                                  include_all = FALSE, ...) {
+  cols <- if (is.null(cols)) frs_default_cols(table) else cols
 
   fwa_fn <- switch(direction,
     upstream = "whse_basemapping.fwa_upstream",
@@ -277,6 +293,13 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
   blk <- as.integer(blue_line_key)
   up_blk <- if (is.null(upstream_blk)) blk else as.integer(upstream_blk)
   stream_tbl <- "whse_basemapping.fwa_stream_networks_sp"
+
+  # Guards apply to the stream network CTE (alias "s")
+  guard_sql <- ""
+  if (!include_all) {
+    guards <- .frs_stream_guards("s")
+    guard_sql <- paste0("\n  AND ", paste(guards, collapse = "\n  AND "))
+  }
 
   if (is.null(upstream_measure)) {
     sql <- sprintf(
@@ -296,7 +319,7 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
         "    ref.wscode_ltree, ref.localcode_ltree,\n",
         "    s.wscode_ltree, s.localcode_ltree\n",
         "  )\n",
-        "  AND s.waterbody_key IS NOT NULL\n",
+        "  AND s.waterbody_key IS NOT NULL%s\n",
         ")\n",
         "SELECT %s\n",
         "FROM %s p\n",
@@ -304,6 +327,7 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
       ),
       stream_tbl, blk, downstream_route_measure,
       stream_tbl, fwa_fn,
+      guard_sql,
       select_cols, table
     )
   } else {
@@ -339,7 +363,7 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
         "      s.wscode_ltree, s.localcode_ltree\n",
         "    )\n",
         "  )\n",
-        "  AND s.waterbody_key IS NOT NULL\n",
+        "  AND s.waterbody_key IS NOT NULL%s\n",
         ")\n",
         "SELECT %s\n",
         "FROM %s p\n",
@@ -349,6 +373,7 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
       stream_tbl, up_blk, upstream_measure,
       stream_tbl, fwa_fn,
       fwa_fn,
+      guard_sql,
       select_cols, table
     )
   }

@@ -13,6 +13,9 @@
 #'   `NULL`.
 #' @param extra_where Character vector of additional SQL predicates (applied to
 #'   alias `s`). Default `NULL`.
+#' @param include_all Logical. If `TRUE`, include placeholder streams (999
+#'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
+#'   these out. Only applied when querying the FWA base table.
 #' @param table Character. Fully qualified table name. Default
 #'   `"whse_basemapping.fwa_stream_networks_sp"`.
 #' @param cols Character vector of column names to select. Default includes
@@ -61,6 +64,7 @@ frs_network_prune <- function(
     gradient_max = NULL,
     watershed_group_code = NULL,
     extra_where = NULL,
+    include_all = FALSE,
     table = "whse_basemapping.fwa_stream_networks_sp",
     cols = c(
       "linear_feature_id", "blue_line_key", "waterbody_key", "edge_type",
@@ -73,6 +77,10 @@ frs_network_prune <- function(
     ...
 ) {
   filters <- character(0)
+
+  if (!include_all && .is_fwa_stream_table(table)) {
+    filters <- .frs_stream_guards("s", wscode_col, localcode_col)
+  }
 
   if (!is.null(stream_order_min)) {
     filters <- c(filters, paste0("s.stream_order >= ", as.integer(stream_order_min)))

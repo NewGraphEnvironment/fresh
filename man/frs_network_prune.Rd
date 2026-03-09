@@ -11,6 +11,7 @@ frs_network_prune(
   gradient_max = NULL,
   watershed_group_code = NULL,
   extra_where = NULL,
+  include_all = FALSE,
   table = "whse_basemapping.fwa_stream_networks_sp",
   cols = c("linear_feature_id", "blue_line_key", "waterbody_key", "edge_type",
     "gnis_name", "stream_order", "stream_magnitude", "gradient",
@@ -36,6 +37,10 @@ reference point.}
 
 \item{extra_where}{Character vector of additional SQL predicates (applied to
 alias \code{s}). Default \code{NULL}.}
+
+\item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
+wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
+these out. Only applied when querying the FWA base table.}
 
 \item{table}{Character. Fully qualified table name. Default
 \code{"whse_basemapping.fwa_stream_networks_sp"}.}

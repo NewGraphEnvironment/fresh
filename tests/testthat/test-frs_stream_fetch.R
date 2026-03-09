@@ -18,3 +18,30 @@ test_that("frs_stream_fetch filters by stream_order_min", {
   )
   expect_true(all(streams$stream_order >= 5))
 })
+
+# -- stream guard tests (mocked) ---------------------------------------------
+
+test_that("frs_stream_fetch includes guards by default", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_stream_fetch(watershed_group_code = "BULK", limit = 1)
+
+  expect_match(sql_sent, "localcode_ltree IS NOT NULL")
+  expect_match(sql_sent, "wscode_ltree <@ '999'")
+})
+
+test_that("frs_stream_fetch skips guards with include_all = TRUE", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_stream_fetch(watershed_group_code = "BULK", include_all = TRUE, limit = 1)
+
+  expect_no_match(sql_sent, "edge_type NOT IN")
+})

@@ -47,3 +47,60 @@
 
   paste0(" WHERE ", paste(clauses, collapse = " AND "))
 }
+
+
+#' Stream filtering guards to exclude invalid FWA segments
+#'
+#' Returns SQL predicates that filter out placeholder streams (999 wscode)
+#' and unmapped tributaries (NULL localcode). These are no-ops in network
+#' traversal (fwa_upstream/fwa_downstream never return them) but matter
+#' for direct table queries (frs_stream_fetch, frs_point_snap KNN).
+#'
+#' Subsurface flow (edge_type 1410/1425 — underground conduits, culverts)
+#' is NOT filtered by default because these are real network connectivity.
+#' Use [.frs_snap_guards()] for snap-specific filtering that excludes
+#' subsurface segments.
+#'
+#' @param alias Character. Table alias prefix. Default `"s"`.
+#' @param wscode_col Character. Watershed code column name. Default
+#'   `"wscode_ltree"`.
+#' @param localcode_col Character. Local code column name. Default
+#'   `"localcode_ltree"`.
+#' @return Character vector of SQL predicates.
+#' @noRd
+.frs_stream_guards <- function(alias = "s", wscode_col = "wscode_ltree",
+                               localcode_col = "localcode_ltree") {
+  prefix <- if (nzchar(alias)) paste0(alias, ".") else ""
+  c(
+    paste0(prefix, localcode_col, " IS NOT NULL"),
+    paste0("NOT ", prefix, wscode_col, " <@ '999'")
+  )
+}
+
+
+#' Snap-specific filtering guards
+#'
+#' Like [.frs_stream_guards()] but also excludes subsurface flow
+#' (edge_type 1410/1425 — underground conduits). Used by the KNN snap
+#' path where snapping to a culvert is not useful.
+#'
+#' @inheritParams .frs_stream_guards
+#' @return Character vector of SQL predicates.
+#' @noRd
+.frs_snap_guards <- function(alias = "s", wscode_col = "wscode_ltree",
+                             localcode_col = "localcode_ltree") {
+  c(
+    .frs_stream_guards(alias, wscode_col, localcode_col),
+    {
+      prefix <- if (nzchar(alias)) paste0(alias, ".") else ""
+      paste0(prefix, "edge_type NOT IN (1410, 1425)")
+    }
+  )
+}
+
+
+#' Check if table is the FWA base stream network table
+#' @noRd
+.is_fwa_stream_table <- function(table) {
+  grepl("fwa_stream_networks_sp", tolower(table))
+}

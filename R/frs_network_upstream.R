@@ -14,6 +14,9 @@
 #'   Default `"wscode_ltree"`. Use `"wscode"` for bcfishpass views.
 #' @param localcode_col Character. Name of the local code ltree column.
 #'   Default `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
+#' @param include_all Logical. If `TRUE`, include placeholder streams (999
+#'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
+#'   these out. Only applied when querying the FWA base table.
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return An `sf` data frame of upstream stream segments.
@@ -51,9 +54,16 @@ frs_network_upstream <- function(
     ),
     wscode_col = "wscode_ltree",
     localcode_col = "localcode_ltree",
+    include_all = FALSE,
     ...
 ) {
   select_cols <- paste(paste0("s.", cols), collapse = ", ")
+
+  guard_sql <- ""
+  if (!include_all && .is_fwa_stream_table(table)) {
+    guards <- .frs_stream_guards("s", wscode_col, localcode_col)
+    guard_sql <- paste0("\n  AND ", paste(guards, collapse = "\n  AND "))
+  }
 
   sql <- sprintf(
     paste0(
@@ -70,7 +80,7 @@ frs_network_upstream <- function(
       "WHERE whse_basemapping.fwa_upstream(\n",
       "  ref.wscode, ref.localcode,\n",
       "  s.%s, s.%s\n",
-      ")"
+      ")%s"
     ),
     wscode_col, localcode_col,
     table,
@@ -78,7 +88,8 @@ frs_network_upstream <- function(
     downstream_route_measure,
     select_cols,
     table,
-    wscode_col, localcode_col
+    wscode_col, localcode_col,
+    guard_sql
   )
 
   frs_db_query(sql, ...)
