@@ -1,7 +1,55 @@
+# -- stream guard SQL (mocked) ------------------------------------------------
+
+test_that("guards are included by default for FWA base table", {
+  mock_result <- sf::st_sf(
+    linear_feature_id = 1L, geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
+  )
+  local_mocked_bindings(
+    frs_db_query = function(sql, ...) {
+      expect_match(sql, "localcode_ltree IS NOT NULL")
+      expect_match(sql, "wscode_ltree <@ '999'")
+      expect_match(sql, "edge_type NOT IN \\(1410, 1425\\)")
+      mock_result
+    }
+  )
+  frs_network_upstream(blue_line_key = 360873822, downstream_route_measure = 166030)
+})
+
+test_that("guards are skipped with include_all = TRUE", {
+  mock_result <- sf::st_sf(
+    linear_feature_id = 1L, geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
+  )
+  local_mocked_bindings(
+    frs_db_query = function(sql, ...) {
+      expect_no_match(sql, "edge_type NOT IN")
+      expect_no_match(sql, "wscode_ltree <@ '999'")
+      mock_result
+    }
+  )
+  frs_network_upstream(blue_line_key = 360873822, downstream_route_measure = 166030,
+    include_all = TRUE)
+})
+
+test_that("guards are skipped for non-FWA tables", {
+  mock_result <- sf::st_sf(
+    linear_feature_id = 1L, geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
+  )
+  local_mocked_bindings(
+    frs_db_query = function(sql, ...) {
+      expect_no_match(sql, "edge_type NOT IN")
+      mock_result
+    }
+  )
+  frs_network_upstream(blue_line_key = 360873822, downstream_route_measure = 166030,
+    table = "bcfishpass.streams_co_vw", wscode_col = "wscode",
+    localcode_col = "localcode")
+})
+
+# -- live DB tests ------------------------------------------------------------
+
 test_that("frs_network_upstream returns sf of upstream segments", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
 
-  # Snap a point first to get valid network position
   snapped <- frs_point_snap(x = -126.5, y = 54.5)
 
   upstream <- frs_network_upstream(
@@ -11,4 +59,17 @@ test_that("frs_network_upstream returns sf of upstream segments", {
   expect_s3_class(upstream, "sf")
   expect_true(nrow(upstream) > 0)
   expect_true("stream_order" %in% names(upstream))
+})
+
+test_that("include_all = TRUE returns more segments (subsurface)", {
+  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+
+  blk <- 360873822
+  drm <- 166030
+  with_guards <- frs_network_upstream(blk, drm)
+  without_guards <- frs_network_upstream(blk, drm, include_all = TRUE)
+
+  # Without guards should include subsurface flow segments
+
+  expect_true(nrow(without_guards) >= nrow(with_guards))
 })

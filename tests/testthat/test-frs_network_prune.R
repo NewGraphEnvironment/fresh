@@ -1,3 +1,33 @@
+# -- stream guard tests (mocked) ---------------------------------------------
+
+test_that("frs_network_prune includes guards by default", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network_prune(blue_line_key = 360873822, downstream_route_measure = 166030)
+
+  expect_match(sql_sent, "localcode_ltree IS NOT NULL")
+  expect_match(sql_sent, "edge_type NOT IN \\(1410, 1425\\)")
+})
+
+test_that("frs_network_prune skips guards with include_all = TRUE", {
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+
+  frs_network_prune(blue_line_key = 360873822, downstream_route_measure = 166030,
+    include_all = TRUE)
+
+  expect_no_match(sql_sent, "edge_type NOT IN")
+})
+
+# -- live DB tests ------------------------------------------------------------
+
 test_that("frs_network_prune filters upstream by stream order", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
 

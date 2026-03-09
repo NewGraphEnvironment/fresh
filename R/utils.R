@@ -47,3 +47,34 @@
 
   paste0(" WHERE ", paste(clauses, collapse = " AND "))
 }
+
+
+#' Stream filtering guards to exclude invalid FWA segments
+#'
+#' Returns SQL predicates that filter out placeholder streams (999 wscode),
+#' subsurface flow (edge_type 1410/1425), and unmapped tributaries (NULL
+#' localcode). These guards match the bcfishpass universal filter pattern.
+#'
+#' @param alias Character. Table alias prefix. Default `"s"`.
+#' @param wscode_col Character. Watershed code column name. Default
+#'   `"wscode_ltree"`.
+#' @param localcode_col Character. Local code column name. Default
+#'   `"localcode_ltree"`.
+#' @return Character vector of SQL predicates.
+#' @noRd
+.frs_stream_guards <- function(alias = "s", wscode_col = "wscode_ltree",
+                               localcode_col = "localcode_ltree") {
+  prefix <- if (nzchar(alias)) paste0(alias, ".") else ""
+  c(
+    paste0(prefix, localcode_col, " IS NOT NULL"),
+    paste0("NOT ", prefix, wscode_col, " <@ '999'"),
+    paste0(prefix, "edge_type NOT IN (1410, 1425)")
+  )
+}
+
+
+#' Check if table is the FWA base stream network table
+#' @noRd
+.is_fwa_stream_table <- function(table) {
+  grepl("fwa_stream_networks_sp", tolower(table))
+}
