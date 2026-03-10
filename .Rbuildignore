@@ -7,3 +7,5 @@
 ^data-raw$
 ^dev$
 ^planning$
+^\.claude$
+^vignettes/figure$
