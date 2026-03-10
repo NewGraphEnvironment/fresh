@@ -52,7 +52,8 @@ frs_network_prune(
 - extra_where:
 
   Character vector of additional SQL predicates (applied to alias `s`).
-  Default `NULL`.
+  Default `NULL`. **Warning:** this is raw SQL — never populate from
+  untrusted user input.
 
 - include_all:
 

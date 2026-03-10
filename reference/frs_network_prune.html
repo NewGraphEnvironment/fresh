@@ -96,7 +96,8 @@ reference point.</p></dd>
 
 <dt id="arg-extra-where">extra_where<a class="anchor" aria-label="anchor" href="#arg-extra-where"></a></dt>
 <dd><p>Character vector of additional SQL predicates (applied to
-alias <code>s</code>). Default <code>NULL</code>.</p></dd>
+alias <code>s</code>). Default <code>NULL</code>. <strong>Warning:</strong> this is raw SQL — never populate
+from untrusted user input.</p></dd>
 
 
 <dt id="arg-include-all">include_all<a class="anchor" aria-label="anchor" href="#arg-include-all"></a></dt>

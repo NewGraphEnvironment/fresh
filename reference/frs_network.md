@@ -51,7 +51,8 @@ frs_network(
   - A character string (table name) — uses default columns
 
   - A list with any of: `table`, `cols`, `wscode_col`, `localcode_col`,
-    `extra_where`
+    `extra_where` (**Warning:** `extra_where` is raw SQL — never
+    populate from untrusted user input.)
 
   If `NULL` (default), queries FWA streams only.
 

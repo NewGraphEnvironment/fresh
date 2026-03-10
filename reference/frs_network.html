@@ -98,7 +98,8 @@ on a tributary.</p></dd>
 <dt id="arg-tables">tables<a class="anchor" aria-label="anchor" href="#arg-tables"></a></dt>
 <dd><p>A named list of table specifications. Each element can be:</p><ul><li><p>A character string (table name) — uses default columns</p></li>
 <li><p>A list with any of: <code>table</code>, <code>cols</code>, <code>wscode_col</code>, <code>localcode_col</code>,
-<code>extra_where</code></p></li>
+<code>extra_where</code> (<strong>Warning:</strong> <code>extra_where</code> is raw SQL — never populate
+from untrusted user input.)</p></li>
 </ul><p>If <code>NULL</code> (default), queries FWA streams only.</p></dd>
 
 
