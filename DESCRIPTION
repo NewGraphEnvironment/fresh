@@ -29,6 +29,7 @@ Suggests:
     gq,
     knitr,
     rmarkdown,
+    mockery,
     testthat (>= 3.0.0),
     tmap (>= 4.0)
 Config/testthat/edition: 3
