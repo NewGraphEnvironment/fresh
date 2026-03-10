@@ -2,6 +2,8 @@
 
 ## All functions
 
+- [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md)
+  : Clip Spatial Features to an AOI Polygon
 - [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
   : Connect to FWA PostgreSQL Database
 - [`frs_db_query()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_query.md)

@@ -42,6 +42,12 @@ CRAN release: 2019-10-21
   network results (real connectivity) but excluded from KNN snap
   candidates
   ([\#15](https://github.com/NewGraphEnvironment/fresh/issues/15))
+- Add
+  [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md)
+  for clipping sf results to an AOI polygon, with `clip` param on
+  [`frs_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_network.md)
+  for inline use
+  ([\#12](https://github.com/NewGraphEnvironment/fresh/issues/12))
 - Security hardening: quote string values in SQL, validate table/column
   identifiers, clear error on missing PG env vars, gitignore credential
   files ([\#19](https://github.com/NewGraphEnvironment/fresh/issues/19))

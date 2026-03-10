@@ -18,6 +18,7 @@ frs_network(
   tables = NULL,
   direction = "upstream",
   include_all = FALSE,
+  clip = NULL,
   ...
 )
 ```
@@ -65,6 +66,14 @@ frs_network(
   Logical. If `TRUE`, include placeholder streams (999 wscode) and
   unmapped tributaries (NULL localcode). Default `FALSE` filters these
   out. Only applied when querying the FWA base table.
+
+- clip:
+
+  An `sf` or `sfc` polygon to clip results to (e.g. from
+  [`frs_watershed_at_measure()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_at_measure.md)).
+  Default `NULL` (no clipping). Useful for waterbody polygons that
+  straddle watershed boundaries. See
+  [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md).
 
 - ...:
 

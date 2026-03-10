@@ -66,6 +66,7 @@ the waterbody_key bridge through the stream network.</p>
 <span>  tables <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  direction <span class="op">=</span> <span class="st">"upstream"</span>,</span>
 <span>  include_all <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  clip <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -111,6 +112,12 @@ from untrusted user input.)</p></li>
 <dd><p>Logical. If <code>TRUE</code>, include placeholder streams (999
 wscode) and unmapped tributaries (NULL localcode). Default <code>FALSE</code> filters
 these out. Only applied when querying the FWA base table.</p></dd>
+
+
+<dt id="arg-clip">clip<a class="anchor" aria-label="anchor" href="#arg-clip"></a></dt>
+<dd><p>An <code>sf</code> or <code>sfc</code> polygon to clip results to (e.g. from
+<code><a href="frs_watershed_at_measure.html">frs_watershed_at_measure()</a></code>). Default <code>NULL</code> (no clipping). Useful for
+waterbody polygons that straddle watershed boundaries. See <code><a href="frs_clip.html">frs_clip()</a></code>.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
