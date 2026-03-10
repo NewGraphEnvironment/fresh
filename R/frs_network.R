@@ -32,6 +32,9 @@
 #' @param include_all Logical. If `TRUE`, include placeholder streams (999
 #'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
 #'   these out. Only applied when querying the FWA base table.
+#' @param clip An `sf` or `sfc` polygon to clip results to (e.g. from
+#'   [frs_watershed_at_measure()]). Default `NULL` (no clipping). Useful for
+#'   waterbody polygons that straddle watershed boundaries. See [frs_clip()].
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return A named list of `sf` data frames (or plain data frames for tables
@@ -69,6 +72,7 @@ frs_network <- function(
     tables = NULL,
     direction = "upstream",
     include_all = FALSE,
+    clip = NULL,
     ...
 ) {
   if (!is.numeric(blue_line_key) || length(blue_line_key) != 1 || is.na(blue_line_key)) {
@@ -129,6 +133,14 @@ frs_network <- function(
       ...
     )
   })
+
+  # Clip to AOI if provided
+
+  if (!is.null(clip)) {
+    results <- lapply(results, function(res) {
+      if (inherits(res, "sf") && nrow(res) > 0L) frs_clip(res, clip) else res
+    })
+  }
 
   if (length(results) == 1L) results[[1L]] else results
 }
