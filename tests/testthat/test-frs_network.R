@@ -478,3 +478,28 @@ test_that("frs_network skips guards for non-FWA tables", {
 
   expect_no_match(sql_sent, "edge_type NOT IN")
 })
+
+# -- clip parameter -----------------------------------------------------------
+
+test_that("frs_network clip param clips results", {
+  mock_sf <- sf::st_sf(
+    id = 1:2,
+    geom = sf::st_sfc(
+      sf::st_polygon(list(rbind(c(0, 0), c(5, 0), c(5, 5), c(0, 5), c(0, 0)))),
+      sf::st_polygon(list(rbind(c(50, 50), c(51, 50), c(51, 51), c(50, 51), c(50, 50)))),
+      crs = 4326
+    )
+  )
+  local_mocked_bindings(frs_db_query = function(sql, ...) mock_sf)
+
+  aoi <- sf::st_sf(
+    geom = sf::st_sfc(
+      sf::st_polygon(list(rbind(c(0, 0), c(3, 0), c(3, 3), c(0, 3), c(0, 0)))),
+      crs = 4326
+    )
+  )
+
+  result <- frs_network(360873822, 166030, clip = aoi)
+  # Only first polygon intersects, and it should be clipped smaller
+  expect_true(nrow(result) == 1L)
+})

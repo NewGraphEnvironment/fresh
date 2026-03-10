@@ -12,6 +12,7 @@ frs_network(
   tables = NULL,
   direction = "upstream",
   include_all = FALSE,
+  clip = NULL,
   ...
 )
 }
@@ -44,6 +45,10 @@ If \code{NULL} (default), queries FWA streams only.}
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
 wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
 these out. Only applied when querying the FWA base table.}
+
+\item{clip}{An \code{sf} or \code{sfc} polygon to clip results to (e.g. from
+\code{\link[=frs_watershed_at_measure]{frs_watershed_at_measure()}}). Default \code{NULL} (no clipping). Useful for
+waterbody polygons that straddle watershed boundaries. See \code{\link[=frs_clip]{frs_clip()}}.}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
