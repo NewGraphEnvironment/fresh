@@ -1,5 +1,38 @@
 # Internal helpers — not exported
 
+#' Quote a string value for safe SQL interpolation
+#'
+#' Escapes single quotes by doubling them (SQL standard) and wraps in single
+#' quotes. Prevents SQL injection for string literals without needing a DB
+#' connection.
+#'
+#' @param x Character scalar.
+#' @return Character scalar, e.g. `"'O''Brien'"`.
+#' @noRd
+.frs_quote_string <- function(x) {
+  paste0("'", gsub("'", "''", x, fixed = TRUE), "'")
+}
+
+
+#' Validate a SQL identifier (table or column name)
+#'
+#' Checks that the identifier matches a safe pattern: word characters, dots
+#' (for schema-qualified names), and underscores. Stops with an informative
+#' error if validation fails.
+#'
+#' @param x Character scalar.
+#' @param label Character. Name used in error message (e.g. `"table"`).
+#' @return `x` invisibly (called for side effect).
+#' @noRd
+.frs_validate_identifier <- function(x, label = "identifier") {
+  if (identical(x, "*")) return(invisible(x))
+  if (!grepl("^[A-Za-z_][A-Za-z0-9_.]*$", x)) {
+    stop(sprintf("%s contains invalid characters: %s", label, x), call. = FALSE)
+  }
+  invisible(x)
+}
+
+
 #' Build a SQL WHERE clause from common filter parameters
 #'
 #' @param watershed_group_code Character or NULL.
@@ -20,7 +53,7 @@
   if (!is.null(watershed_group_code)) {
     clauses <- c(
       clauses,
-      paste0("watershed_group_code = '", watershed_group_code, "'")
+      paste0("watershed_group_code = ", .frs_quote_string(watershed_group_code))
     )
   }
 

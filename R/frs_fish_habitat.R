@@ -38,10 +38,13 @@ frs_fish_habitat <- function(
     limit = NULL,
     ...
 ) {
+  .frs_validate_identifier(table, "table")
+  for (col in cols) .frs_validate_identifier(col, "column")
+
   clauses <- character(0)
 
   if (!is.null(watershed_group_code)) {
-    clauses <- c(clauses, paste0("watershed_group_code = '", watershed_group_code, "'"))
+    clauses <- c(clauses, paste0("watershed_group_code = ", .frs_quote_string(watershed_group_code)))
   }
   if (!is.null(blue_line_key)) {
     clauses <- c(clauses, paste0("blue_line_key = ", as.integer(blue_line_key)))

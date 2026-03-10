@@ -24,7 +24,8 @@
 #' @param tables A named list of table specifications. Each element can be:
 #'   - A character string (table name) — uses default columns
 #'   - A list with any of: `table`, `cols`, `wscode_col`, `localcode_col`,
-#'     `extra_where`
+#'     `extra_where` (**Warning:** `extra_where` is raw SQL — never populate
+#'     from untrusted user input.)
 #'
 #'   If `NULL` (default), queries FWA streams only.
 #' @param direction Character. `"upstream"` (default) or `"downstream"`.
@@ -177,9 +178,13 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
                                localcode_col = NULL, extra_where = NULL,
                                direction = "upstream", include_all = FALSE,
                                ...) {
+  .frs_validate_identifier(table, "table")
   wscode_col <- if (is.null(wscode_col)) "wscode_ltree" else wscode_col
   localcode_col <- if (is.null(localcode_col)) "localcode_ltree" else localcode_col
+  .frs_validate_identifier(wscode_col, "wscode_col")
+  .frs_validate_identifier(localcode_col, "localcode_col")
   cols <- if (is.null(cols)) frs_default_cols(table) else cols
+  for (col in cols) .frs_validate_identifier(col, "column")
 
   fwa_fn <- switch(direction,
     upstream = "whse_basemapping.fwa_upstream",

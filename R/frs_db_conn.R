@@ -28,6 +28,11 @@ frs_db_conn <- function(
     user = Sys.getenv("PG_USER_SHARE"),
     password = Sys.getenv("PG_PASS_SHARE")
 ) {
+  if (!nzchar(dbname)) stop("PG_DB_SHARE env var is not set", call. = FALSE)
+  if (!nzchar(host)) stop("PG_HOST_SHARE env var is not set", call. = FALSE)
+  if (!nzchar(port)) stop("PG_PORT_SHARE env var is not set", call. = FALSE)
+  if (!nzchar(user)) stop("PG_USER_SHARE env var is not set", call. = FALSE)
+
   DBI::dbConnect(
     RPostgres::Postgres(),
     dbname = dbname,

@@ -36,7 +36,8 @@ reference point.}
 \code{NULL}.}
 
 \item{extra_where}{Character vector of additional SQL predicates (applied to
-alias \code{s}). Default \code{NULL}.}
+alias \code{s}). Default \code{NULL}. \strong{Warning:} this is raw SQL — never populate
+from untrusted user input.}
 
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
 wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
