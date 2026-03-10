@@ -65,6 +65,13 @@ Like \code{\link[=frs_network_upstream]{frs_network_upstream()}} but with additi
 order, maximum gradient, and watershed group restriction. Filtering happens
 in SQL for efficiency.
 }
+\note{
+\strong{Caveat:} filtering on \code{rearing > 0} or \code{spawning > 0} with
+bcfishpass species views (e.g. \code{streams_co_vw}) drops lake and wetland
+segments. These waterbodies are habitat but are scored \code{rearing = 0} due
+to a gap in the bcfishpass rearing model. See
+\href{https://github.com/NewGraphEnvironment/bcfishpass/issues/7}{bcfishpass#7}.
+}
 \examples{
 \dontrun{
 # Upstream network from FWA base table, order >= 3
@@ -76,6 +83,7 @@ pruned <- frs_network_prune(
 )
 
 # Coho rearing/spawning upstream of Neexdzii Kwa confluence
+# NB: rearing/spawning filters drop lake/wetland segments (see @note)
 co_habitat <- frs_network_prune(
   blue_line_key = 360873822,
   downstream_route_measure = 166030.4,
