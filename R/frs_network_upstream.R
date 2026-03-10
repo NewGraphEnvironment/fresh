@@ -57,6 +57,11 @@ frs_network_upstream <- function(
     include_all = FALSE,
     ...
 ) {
+  .frs_validate_identifier(table, "table")
+  .frs_validate_identifier(wscode_col, "wscode_col")
+  .frs_validate_identifier(localcode_col, "localcode_col")
+  for (col in cols) .frs_validate_identifier(col, "column")
+
   select_cols <- paste(paste0("s.", cols), collapse = ", ")
 
   guard_sql <- ""

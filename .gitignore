@@ -7,3 +7,5 @@ inst/doc
 *.html
 Rplots.pdf
 data-raw/nge-icon_white.png
+.Renviron
+.env

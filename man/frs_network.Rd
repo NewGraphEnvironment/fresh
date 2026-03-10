@@ -33,7 +33,8 @@ on a tributary.}
 \itemize{
 \item A character string (table name) — uses default columns
 \item A list with any of: \code{table}, \code{cols}, \code{wscode_col}, \code{localcode_col},
-\code{extra_where}
+\code{extra_where} (\strong{Warning:} \code{extra_where} is raw SQL — never populate
+from untrusted user input.)
 }
 
 If \code{NULL} (default), queries FWA streams only.}

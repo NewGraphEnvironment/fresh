@@ -57,6 +57,9 @@ frs_stream_fetch <- function(
     limit = NULL,
     ...
 ) {
+  .frs_validate_identifier(table, "table")
+  for (col in cols) .frs_validate_identifier(col, "column")
+
   extra_guards <- character(0)
   if (!include_all && .is_fwa_stream_table(table)) {
     extra_guards <- .frs_stream_guards(alias = "")

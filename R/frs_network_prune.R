@@ -12,7 +12,8 @@
 #' @param watershed_group_code Character. Restrict to a watershed group. Default
 #'   `NULL`.
 #' @param extra_where Character vector of additional SQL predicates (applied to
-#'   alias `s`). Default `NULL`.
+#'   alias `s`). Default `NULL`. **Warning:** this is raw SQL — never populate
+#'   from untrusted user input.
 #' @param include_all Logical. If `TRUE`, include placeholder streams (999
 #'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
 #'   these out. Only applied when querying the FWA base table.
@@ -76,6 +77,11 @@ frs_network_prune <- function(
     localcode_col = "localcode_ltree",
     ...
 ) {
+  .frs_validate_identifier(table, "table")
+  .frs_validate_identifier(wscode_col, "wscode_col")
+  .frs_validate_identifier(localcode_col, "localcode_col")
+  for (col in cols) .frs_validate_identifier(col, "column")
+
   filters <- character(0)
 
   if (!include_all && .is_fwa_stream_table(table)) {
@@ -89,7 +95,7 @@ frs_network_prune <- function(
     filters <- c(filters, paste0("s.gradient <= ", gradient_max))
   }
   if (!is.null(watershed_group_code)) {
-    filters <- c(filters, paste0("s.watershed_group_code = '", watershed_group_code, "'"))
+    filters <- c(filters, paste0("s.watershed_group_code = ", .frs_quote_string(watershed_group_code)))
   }
   if (!is.null(extra_where)) {
     filters <- c(filters, extra_where)
