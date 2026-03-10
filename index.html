@@ -106,20 +106,44 @@
 <div class="section level2">
 <h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a>
 </h2>
-<p><code>fresh</code> is the data layer in a family of packages:</p>
-<ul>
-<li>
-<strong>fresh</strong> — fetch and query FWA network data (this package)</li>
-<li>
-<strong><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></strong> — floodplain delineation from DEM and stream network</li>
-<li>
-<strong><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></strong> — land cover change detection within floodplains</li>
-<li>
-<strong><a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a></strong> — airphoto footprint estimation and coverage selection</li>
-<li>
-<strong><a href="https://github.com/NewGraphEnvironment/diggs" class="external-link">diggs</a></strong> — BC Historic Airphoto Explorer (interactive Shiny app)</li>
-</ul>
-<p>Pipeline: <code>fresh</code> (network data) → <code>flooded</code> (delineate) → <code>drift</code> (classify)</p>
+<p>fresh is one piece of a larger watershed analysis workflow:</p>
+<table class="table">
+<colgroup>
+<col width="60%">
+<col width="40%">
+</colgroup>
+<thead><tr class="header">
+<th>Package</th>
+<th>Role</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><strong>fresh</strong></td>
+<td>FWA-referenced spatial hydrology (this package)</td>
+</tr>
+<tr class="even">
+<td><a href="https://github.com/NewGraphEnvironment/breaks" class="external-link">breaks</a></td>
+<td>Delineate sub-basins from break points on stream networks</td>
+</tr>
+<tr class="odd">
+<td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
+<td>Delineate floodplain extents from DEMs and stream networks</td>
+</tr>
+<tr class="even">
+<td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
+<td>Track land cover change within floodplains over time</td>
+</tr>
+<tr class="odd">
+<td><a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a></td>
+<td>Estimate airphoto footprints and select optimal coverage for a study area</td>
+</tr>
+<tr class="even">
+<td><a href="https://github.com/NewGraphEnvironment/diggs" class="external-link">diggs</a></td>
+<td>Interactive explorer for <a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a> airphoto selections (Shiny app)</td>
+</tr>
+</tbody>
+</table>
+<p>Pipeline: fresh (network data) → breaks (sub-basins) → flooded (floodplains) → drift (land cover change)</p>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
