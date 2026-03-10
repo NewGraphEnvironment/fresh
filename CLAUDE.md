@@ -11,15 +11,16 @@ FWA-Referenced Spatial Hydrology. Stream network-aware spatial operations via di
 
 ## Ecosystem
 
-`fresh` is the data layer in a family of packages:
+| Package | Role |
+|---------|------|
+| **fresh** | FWA-referenced spatial hydrology (this package) |
+| [breaks](https://github.com/NewGraphEnvironment/breaks) | Delineate sub-basins from break points on stream networks |
+| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks |
+| [drift](https://github.com/NewGraphEnvironment/drift) | Track land cover change within floodplains over time |
+| [fly](https://github.com/NewGraphEnvironment/fly) | Estimate airphoto footprints and select optimal coverage for a study area |
+| [diggs](https://github.com/NewGraphEnvironment/diggs) | Interactive explorer for fly airphoto selections (Shiny app) |
 
-- **fresh** — FWA-referenced spatial hydrology (this package)
-- **[flooded](https://github.com/NewGraphEnvironment/flooded)** — floodplain delineation from DEM and stream network
-- **[drift](https://github.com/NewGraphEnvironment/drift)** — land cover change detection within floodplains
-- **[fly](https://github.com/NewGraphEnvironment/fly)** — airphoto footprint estimation and coverage selection
-- **[diggs](https://github.com/NewGraphEnvironment/diggs)** — BC Historic Airphoto Explorer (interactive Shiny app)
-
-Pipeline: `fresh` (network data) → `flooded` (delineate) → `drift` (classify)
+Pipeline: fresh (network data) → breaks (sub-basins) → flooded (floodplains) → drift (land cover change)
 
 ## Architecture
 
