@@ -1,3 +1,15 @@
 url: https://newgraphenvironment.github.io/fresh/
 template:
   bootstrap: 5
+home:
+  sidebar:
+    structure: [dev, links, license, community, citation, authors]
+    components:
+      dev:
+        title: About
+        text: >
+          Stream network-aware spatial operations for the
+          BC Freshwater Atlas. Snap points to streams, delineate
+          watersheds, traverse upstream/downstream networks, and
+          query fish observations — all via direct SQL against
+          fwapg and bcfishpass.
