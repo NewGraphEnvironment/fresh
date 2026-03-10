@@ -90,6 +90,14 @@ frs_network_prune(
 
 An `sf` data frame of filtered upstream stream segments.
 
+## Note
+
+**Caveat:** filtering on `rearing > 0` or `spawning > 0` with bcfishpass
+species views (e.g. `streams_co_vw`) drops lake and wetland segments.
+These waterbodies are habitat but are scored `rearing = 0` due to a gap
+in the bcfishpass rearing model. See
+[bcfishpass#7](https://github.com/NewGraphEnvironment/bcfishpass/issues/7).
+
 ## See also
 
 Other prune:
@@ -108,6 +116,7 @@ pruned <- frs_network_prune(
 )
 
 # Coho rearing/spawning upstream of Neexdzii Kwa confluence
+# NB: rearing/spawning filters drop lake/wetland segments (see @note)
 co_habitat <- frs_network_prune(
   blue_line_key = 360873822,
   downstream_route_measure = 166030.4,
