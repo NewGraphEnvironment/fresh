@@ -54,6 +54,11 @@ downstream and upstream watersheds — the subbasin *between* the two
 points. The upstream point can be on a different blue line key (e.g. a
 tributary) by specifying `upstream_blk`.
 
+## See also
+
+Other watershed:
+[`frs_watershed_split()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_split.md)
+
 ## Examples
 
 ``` r

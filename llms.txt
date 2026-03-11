@@ -111,6 +111,8 @@ MIT
   : Get Waterbody Polygons Upstream or Downstream of a Network Position
 - [`frs_watershed_at_measure()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_at_measure.md)
   : Watershed at Measure
+- [`frs_watershed_split()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_split.md)
+  : Split a Watershed into Sub-Basins at Break Points
 - [`frs_wetland_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_wetland_fetch.md)
   : Fetch FWA Wetlands
 

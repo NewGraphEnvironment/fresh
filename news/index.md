@@ -48,6 +48,11 @@ CRAN release: 2019-10-21
   [`frs_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_network.md)
   for inline use
   ([\#12](https://github.com/NewGraphEnvironment/fresh/issues/12))
+- Add
+  [`frs_watershed_split()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_split.md)
+  for programmatic sub-basin delineation from break points — snap,
+  delineate, subtract with stable `blk`/`drm` identifiers
+  ([\#31](https://github.com/NewGraphEnvironment/fresh/issues/31))
 - Security hardening: quote string values in SQL, validate table/column
   identifiers, clear error on missing PG env vars, gitignore credential
   files ([\#19](https://github.com/NewGraphEnvironment/fresh/issues/19))
