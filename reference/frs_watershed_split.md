@@ -9,7 +9,7 @@ and all smaller (upstream) watersheds.
 ## Usage
 
 ``` r
-frs_watershed_split(points, aoi = NULL, tolerance = 5000, ...)
+frs_watershed_split(points, aoi = NULL, tolerance = 5000, crs = NULL, ...)
 ```
 
 ## Arguments
@@ -31,6 +31,12 @@ frs_watershed_split(points, aoi = NULL, tolerance = 5000, ...)
 - tolerance:
 
   Numeric. Maximum snap distance in metres. Default `5000`.
+
+- crs:
+
+  Target CRS for the output (integer EPSG code, character, or
+  [`sf::st_crs()`](https://r-spatial.github.io/sf/reference/st_crs.html)
+  object). Default `NULL` returns WGS84 (EPSG:4326).
 
 - ...:
 

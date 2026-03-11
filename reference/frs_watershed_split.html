@@ -55,7 +55,7 @@ sub-basin is the difference between its full watershed and all smaller
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_watershed_split</span><span class="op">(</span><span class="va">points</span>, aoi <span class="op">=</span> <span class="cn">NULL</span>, tolerance <span class="op">=</span> <span class="fl">5000</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_watershed_split</span><span class="op">(</span><span class="va">points</span>, aoi <span class="op">=</span> <span class="cn">NULL</span>, tolerance <span class="op">=</span> <span class="fl">5000</span>, crs <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -78,6 +78,11 @@ downstream point as a break point to get complete tiling with no gaps
 
 <dt id="arg-tolerance">tolerance<a class="anchor" aria-label="anchor" href="#arg-tolerance"></a></dt>
 <dd><p>Numeric. Maximum snap distance in metres. Default <code>5000</code>.</p></dd>
+
+
+<dt id="arg-crs">crs<a class="anchor" aria-label="anchor" href="#arg-crs"></a></dt>
+<dd><p>Target CRS for the output (integer EPSG code, character, or
+<code><a href="https://r-spatial.github.io/sf/reference/st_crs.html" class="external-link">sf::st_crs()</a></code> object). Default <code>NULL</code> returns WGS84 (EPSG:4326).</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
