@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   fwa-network-query: fwa-network-query.html
   subbasin-query: subbasin-query.html
-last_built: 2026-03-11T15:20Z
+last_built: 2026-03-11T16:25Z
 urls:
   reference: https://newgraphenvironment.github.io/fresh/reference
   article: https://newgraphenvironment.github.io/fresh/articles

@@ -83,47 +83,32 @@ bcfishpass.</p>
 <span><span class="va">blk</span> <span class="op">&lt;-</span> <span class="fl">360873822</span></span>
 <span><span class="va">drm</span> <span class="op">&lt;-</span> <span class="fl">166030.4</span></span>
 <span></span>
-<span><span class="co"># Watershed AOI</span></span>
-<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT ST_Union(geom) as geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)"</span>,</span>
-<span>  <span class="va">blk</span>, <span class="va">drm</span></span>
+<span><span class="co"># Watershed AOI via frs_watershed_at_measure()</span></span>
+<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_watershed_at_measure.html">frs_watershed_at_measure</a></span><span class="op">(</span><span class="va">blk</span>, <span class="va">drm</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Full upstream network: streams, coho habitat, lakes, wetlands — one call</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network.html">frs_network</a></span><span class="op">(</span><span class="va">blk</span>, <span class="va">drm</span>, tables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  streams <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span>
+<span>  co <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    table <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span>
+<span>    cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"segmented_stream_id"</span>, <span class="st">"blue_line_key"</span>, <span class="st">"waterbody_key"</span>,</span>
+<span>             <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>, <span class="st">"channel_width"</span>, <span class="st">"mapping_code"</span>,</span>
+<span>             <span class="st">"rearing"</span>, <span class="st">"spawning"</span>, <span class="st">"access"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
+<span>    wscode_col <span class="op">=</span> <span class="st">"wscode"</span>,</span>
+<span>    localcode_col <span class="op">=</span> <span class="st">"localcode"</span>,</span>
+<span>    extra_where <span class="op">=</span> <span class="st">"(s.rearing &gt; 0 OR s.spawning &gt; 0)"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  lakes <span class="op">=</span> <span class="st">"whse_basemapping.fwa_lakes_poly"</span>,</span>
+<span>  wetlands <span class="op">=</span> <span class="st">"whse_basemapping.fwa_wetlands_poly"</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Full upstream stream network</span></span>
-<span><span class="va">streams_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network_upstream.html">frs_network_upstream</a></span><span class="op">(</span></span>
-<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
-<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Zoom to coho rearing/spawning (order 4+) via bcfishpass</span></span>
-<span><span class="va">co_habitat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network_prune.html">frs_network_prune</a></span><span class="op">(</span></span>
-<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
-<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span>,</span>
-<span>  stream_order_min <span class="op">=</span> <span class="fl">4</span>,</span>
-<span>  watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span>,</span>
-<span>  extra_where <span class="op">=</span> <span class="st">"(s.rearing &gt; 0 OR s.spawning &gt; 0)"</span>,</span>
-<span>  table <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span>
-<span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"segmented_stream_id"</span>, <span class="st">"blue_line_key"</span>, <span class="st">"waterbody_key"</span>,</span>
-<span>           <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>, <span class="st">"channel_width"</span>, <span class="st">"mapping_code"</span>,</span>
-<span>           <span class="st">"rearing"</span>, <span class="st">"spawning"</span>, <span class="st">"access"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
-<span>  wscode_col <span class="op">=</span> <span class="st">"wscode"</span>,</span>
-<span>  localcode_col <span class="op">=</span> <span class="st">"localcode"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Upstream lakes and wetlands via waterbody_key bridge</span></span>
-<span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_waterbody_network.html">frs_waterbody_network</a></span><span class="op">(</span></span>
-<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
-<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">wetlands</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_waterbody_network.html">frs_waterbody_network</a></span><span class="op">(</span></span>
-<span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span>
-<span>  downstream_route_measure <span class="op">=</span> <span class="va">drm</span>,</span>
-<span>  table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_wetlands_poly"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>8876 stream segments in the full network narrow to 1027 coho habitat
-segments at order 4+ (orders 4, 5, 6). 363 lakes and 1293 wetlands
-upstream.</p>
+<span><span class="va">streams_all</span> <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">streams</span></span>
+<span><span class="va">co_habitat</span> <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">co</span></span>
+<span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">lakes</span></span>
+<span><span class="va">wetlands</span> <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">wetlands</span></span></code></pre></div>
+<p>8876 stream segments in the full network narrow to 2133 coho habitat
+segments with rearing or spawning (orders 1, 2, 3, 4, 5, 6). 363 lakes
+and 1293 wetlands upstream.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">cls</span> <span class="op">&lt;-</span> <span class="fu">gq</span><span class="fu">::</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_classes.html" class="external-link">gq_tmap_classes</a></span><span class="op">(</span><span class="va">reg</span><span class="op">$</span><span class="va">layers</span><span class="op">$</span><span class="va">streams_salmon</span><span class="op">)</span></span>
@@ -163,47 +148,8 @@ Kwa confluence. Light blue: all FWA streams. Coloured overlay: coho
 rearing and spawning habitat (order 4+) from bcfishpass, styled with the
 gq registry.</div>
 </div>
-<div class="section level2">
-<h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
-</h2>
-<table class="table">
-<colgroup>
-<col width="52%">
-<col width="47%">
-</colgroup>
-<thead><tr class="header">
-<th>Function</th>
-<th>Purpose</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td>
-<code><a href="../reference/frs_network_upstream.html">frs_network_upstream()</a></code> /
-<code>_downstream()</code>
-</td>
-<td>Traverse the stream network</td>
-</tr>
-<tr class="even">
-<td><code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code></td>
-<td>Filter by order, gradient, or custom SQL</td>
-</tr>
-<tr class="odd">
-<td><code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code></td>
-<td>Lakes/wetlands via waterbody_key bridge</td>
-</tr>
-<tr class="even">
-<td><code><a href="../reference/frs_stream_fetch.html">frs_stream_fetch()</a></code></td>
-<td>Fetch by watershed group, bbox, or blue line key</td>
-</tr>
-<tr class="odd">
-<td>
-<code><a href="../reference/frs_fish_obs.html">frs_fish_obs()</a></code> / <code><a href="../reference/frs_fish_habitat.html">frs_fish_habitat()</a></code>
-</td>
-<td>Fish observations and habitat model</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>See the <a href="https://newgraphenvironment.github.io/fresh/reference/">function
+reference</a> for the full API.</p>
   </main>
 </div>
 
