@@ -9,3 +9,5 @@
 ^planning$
 ^\.claude$
 ^vignettes/figure$
+^.*\.Rproj$
+^\.Rproj\.user$

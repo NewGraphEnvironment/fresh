@@ -55,4 +55,8 @@ aoi <- frs_watershed_at_measure(360873822, 165115,
   upstream_measure = 838, upstream_blk = 360886221)
 }
 }
-\concept{network}
+\seealso{
+Other watershed: 
+\code{\link{frs_watershed_split}()}
+}
+\concept{watershed}

@@ -22,7 +22,7 @@
 #'
 #' @return An `sf` data frame with a single polygon geometry.
 #'
-#' @family network
+#' @family watershed
 #'
 #' @export
 #'

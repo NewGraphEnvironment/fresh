@@ -11,6 +11,7 @@
 - Add `blue_line_key` and `stream_order_min` params to `frs_point_snap()` for targeted snapping via KNN ([#16](https://github.com/NewGraphEnvironment/fresh/issues/16), [#17](https://github.com/NewGraphEnvironment/fresh/issues/17), [#7](https://github.com/NewGraphEnvironment/fresh/issues/7), [#18](https://github.com/NewGraphEnvironment/fresh/issues/18))
 - Add stream filtering guards: exclude placeholder streams (999 wscode) and unmapped tributaries (NULL localcode) from network queries; `include_all` to bypass. Subsurface flow (edge_type 1410/1425) kept in network results (real connectivity) but excluded from KNN snap candidates ([#15](https://github.com/NewGraphEnvironment/fresh/issues/15))
 - Add `frs_clip()` for clipping sf results to an AOI polygon, with `clip` param on `frs_network()` for inline use ([#12](https://github.com/NewGraphEnvironment/fresh/issues/12))
+- Add `frs_watershed_split()` for programmatic sub-basin delineation from break points — snap, delineate, subtract with stable `blk`/`drm` identifiers ([#31](https://github.com/NewGraphEnvironment/fresh/issues/31))
 - Security hardening: quote string values in SQL, validate table/column identifiers, clear error on missing PG env vars, gitignore credential files ([#19](https://github.com/NewGraphEnvironment/fresh/issues/19))
 - Input type validation on all numeric params
 - Add subbasin query vignette with tmap v4 composition
