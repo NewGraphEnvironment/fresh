@@ -35,48 +35,33 @@ library(sf)
 blk <- 360873822
 drm <- 166030.4
 
-# Watershed AOI
-aoi <- frs_db_query(sprintf(
-  "SELECT ST_Union(geom) as geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
-  blk, drm
+# Watershed AOI via frs_watershed_at_measure()
+aoi <- frs_watershed_at_measure(blk, drm)
+
+# Full upstream network: streams, coho habitat, lakes, wetlands — one call
+result <- frs_network(blk, drm, tables = list(
+  streams = "whse_basemapping.fwa_stream_networks_sp",
+  co = list(
+    table = "bcfishpass.streams_co_vw",
+    cols = c("segmented_stream_id", "blue_line_key", "waterbody_key",
+             "gnis_name", "stream_order", "channel_width", "mapping_code",
+             "rearing", "spawning", "access", "geom"),
+    wscode_col = "wscode",
+    localcode_col = "localcode",
+    extra_where = "(s.rearing > 0 OR s.spawning > 0)"
+  ),
+  lakes = "whse_basemapping.fwa_lakes_poly",
+  wetlands = "whse_basemapping.fwa_wetlands_poly"
 ))
 
-# Full upstream stream network
-streams_all <- frs_network_upstream(
-  blue_line_key = blk,
-  downstream_route_measure = drm
-)
-
-# Zoom to coho rearing/spawning (order 4+) via bcfishpass
-co_habitat <- frs_network_prune(
-  blue_line_key = blk,
-  downstream_route_measure = drm,
-  stream_order_min = 4,
-  watershed_group_code = "BULK",
-  extra_where = "(s.rearing > 0 OR s.spawning > 0)",
-  table = "bcfishpass.streams_co_vw",
-  cols = c("segmented_stream_id", "blue_line_key", "waterbody_key",
-           "gnis_name", "stream_order", "channel_width", "mapping_code",
-           "rearing", "spawning", "access", "geom"),
-  wscode_col = "wscode",
-  localcode_col = "localcode"
-)
-
-# Upstream lakes and wetlands via waterbody_key bridge
-lakes <- frs_waterbody_network(
-  blue_line_key = blk,
-  downstream_route_measure = drm
-)
-
-wetlands <- frs_waterbody_network(
-  blue_line_key = blk,
-  downstream_route_measure = drm,
-  table = "whse_basemapping.fwa_wetlands_poly"
-)
+streams_all <- result$streams
+co_habitat <- result$co
+lakes <- result$lakes
+wetlands <- result$wetlands
 ```
 
 `r nrow(streams_all)` stream segments in the full network narrow to
-`r nrow(co_habitat)` coho habitat segments at order 4+ (orders
+`r nrow(co_habitat)` coho habitat segments with rearing or spawning (orders
 `r paste(sort(unique(co_habitat$stream_order)), collapse = ", ")`).
 `r nrow(lakes)` lakes and `r nrow(wetlands)` wetlands upstream.
 
@@ -115,12 +100,4 @@ legend(
 )
 ```
 
-## Summary
-
-| Function | Purpose |
-|----------|---------|
-| `frs_network_upstream()` / `_downstream()` | Traverse the stream network |
-| `frs_network_prune()` | Filter by order, gradient, or custom SQL |
-| `frs_waterbody_network()` | Lakes/wetlands via waterbody_key bridge |
-| `frs_stream_fetch()` | Fetch by watershed group, bbox, or blue line key |
-| `frs_fish_obs()` / `frs_fish_habitat()` | Fish observations and habitat model |
+See the [function reference](https://newgraphenvironment.github.io/fresh/reference/) for the full API.
