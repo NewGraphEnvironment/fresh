@@ -19,6 +19,8 @@
 #'   downstream point as a break point to get complete tiling with no gaps
 #'   (see Examples).
 #' @param tolerance Numeric. Maximum snap distance in metres. Default `5000`.
+#' @param crs Target CRS for the output (integer EPSG code, character, or
+#'   `sf::st_crs()` object). Default `NULL` returns WGS84 (EPSG:4326).
 #' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return An `sf` data frame with columns: `blk`, `drm`, `gnis_name`,
@@ -76,6 +78,7 @@ frs_watershed_split <- function(
     points,
     aoi = NULL,
     tolerance = 5000,
+    crs = NULL,
     ...
 ) {
   if (!is.data.frame(points)) stop("points must be a data frame", call. = FALSE)
@@ -232,5 +235,5 @@ frs_watershed_split <- function(
     result <- frs_clip(result, aoi)
   }
 
-  result
+  .frs_transform(result, crs)
 }

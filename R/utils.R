@@ -137,3 +137,16 @@
 .is_fwa_stream_table <- function(table) {
   grepl("fwa_stream_networks_sp", tolower(table))
 }
+
+
+#' Transform sf result to a target CRS
+#'
+#' @param x An `sf` object.
+#' @param crs Target CRS (integer EPSG code, character proj4/WKT, or
+#'   `sf::st_crs()` object). `NULL` returns `x` unchanged.
+#' @return `x`, optionally transformed.
+#' @noRd
+.frs_transform <- function(x, crs = NULL) {
+  if (is.null(crs)) return(x)
+  sf::st_transform(x, crs)
+}

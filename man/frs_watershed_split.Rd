@@ -4,7 +4,7 @@
 \alias{frs_watershed_split}
 \title{Split a Watershed into Sub-Basins at Break Points}
 \usage{
-frs_watershed_split(points, aoi = NULL, tolerance = 5000, ...)
+frs_watershed_split(points, aoi = NULL, tolerance = 5000, crs = NULL, ...)
 }
 \arguments{
 \item{points}{A data frame (or sf) with \code{lon} and \code{lat} columns (WGS84).
@@ -18,6 +18,9 @@ downstream point as a break point to get complete tiling with no gaps
 (see Examples).}
 
 \item{tolerance}{Numeric. Maximum snap distance in metres. Default \code{5000}.}
+
+\item{crs}{Target CRS for the output (integer EPSG code, character, or
+\code{sf::st_crs()} object). Default \code{NULL} returns WGS84 (EPSG:4326).}
 
 \item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }

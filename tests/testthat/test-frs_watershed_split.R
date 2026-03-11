@@ -128,3 +128,23 @@ test_that("frs_watershed_split drops sf geometry from input", {
   expect_s3_class(result, "sf")
   expect_equal(nrow(result), 1L)
 })
+
+test_that("frs_watershed_split transforms to target crs", {
+  snap_result <- sf::st_sf(
+    linear_feature_id = 1L, gnis_name = "Test Creek",
+    blue_line_key = 100L, downstream_route_measure = 500,
+    distance_to_stream = 5,
+    geom = sf::st_sfc(sf::st_point(c(1000, 1000)), crs = 3005)
+  )
+  ws <- sf::st_sf(
+    geom = sf::st_sfc(sf::st_polygon(list(rbind(
+      c(0, 0), c(10, 0), c(10, 10), c(0, 10), c(0, 0)
+    ))), crs = 3005)
+  )
+  mockery::stub(frs_watershed_split, "frs_point_snap", function(...) snap_result)
+  mockery::stub(frs_watershed_split, "frs_watershed_at_measure", function(...) ws)
+
+  pts <- data.frame(lon = -126.5, lat = 54.19)
+  result <- suppressMessages(frs_watershed_split(pts, crs = 3005))
+  expect_equal(sf::st_crs(result)$epsg, 3005L)
+})
