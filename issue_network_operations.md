@@ -23,6 +23,46 @@ Distilling the bcfishpass `01_access` and `02_habitat_linear` SQL scripts down t
 
 ~45 scripts collapse to **4 abstract operations**.
 
+## AOI — Flexible Spatial Partitioning
+
+Watershed group codes are the default partition (bcfishpass convention), but the `aoi` parameter accepts anything that resolves to network features:
+
+| `aoi` input | What happens | Use case |
+|---|---|---|
+| `"BULK"` | Filter by `watershed_group_code` | Standard bcfishpass-style run |
+| `c("BULK", "MORR", "ELKR")` | Multiple WSGs | Regional build |
+| `sf` polygon | Intersect with stream network | Custom study area, Neexdzii Kwa-style watershed from `fwa_watershedatmeasure` |
+| `list(blk = 360873822, measure = 1000)` | Build watershed via `fwa_watershedatmeasure`, then intersect | Single-point watershed delineation as AOI |
+| `NULL` (default) | No spatial filter — whole province | Full build (rare) |
+
+Resolution logic (internal):
+1. Character vector → `WHERE watershed_group_code IN (...)`
+2. sf polygon → upload as temp table, `ST_Intersects` join
+3. blk+measure list → call `fwa_watershedatmeasure()` first to get the polygon, then treat as sf
+4. NULL → no spatial predicate
+
+The key insight: WSGs are just the coarsest convenient partition. Anything smaller works — a `fwa_watershedatmeasure` polygon, a hand-drawn AOI, a sub-basin from breaks. The functions don't care about the partition semantics, only the spatial extent.
+
+```r
+# WSG — standard
+frs_break(conn, aoi = "BULK", ...)
+
+# Multiple WSGs
+frs_break(conn, aoi = c("BULK", "MORR"), ...)
+
+# Custom watershed (Neexdzii Kwa style)
+neexdzii <- frs_db_query(conn,
+  "SELECT * FROM fwa_watershedatmeasure(360873822, 1000)")
+frs_break(conn, aoi = neexdzii, ...)
+
+# Shorthand for the above
+frs_break(conn, aoi = list(blk = 360873822, measure = 1000), ...)
+
+# Sub-basin from breaks package
+sub <- breaks::brk_delineate(conn, blk = 360873822, measure = 1000)
+frs_break(conn, aoi = sub, ...)
+```
+
 ## Proposed Functions
 
 ### `frs_break()`
@@ -31,37 +71,47 @@ Break geometry on the network where conditions are met. Optionally validate brea
 
 ```r
 # Break segments where gradient > 5%
-frs_break(conn, wsg = "BULK", type = "segment",
+frs_break(conn, aoi = "BULK", type = "segment",
           attribute = "gradient", threshold = 0.05,
           schema = "working")
 
 # Break segments at features from a table
-frs_break(conn, wsg = "BULK", type = "segment",
+frs_break(conn, aoi = "BULK", type = "segment",
           table = "whse_basemapping.fwa_obstructions_sp",
           schema = "working")
 
 # Break segments at user-defined points
-frs_break(conn, wsg = "BULK", type = "segment",
+frs_break(conn, aoi = "BULK", type = "segment",
           points = my_points, schema = "working")
 
 # Break with evidence — validate inline
-frs_break(conn, wsg = "BULK", type = "segment",
+frs_break(conn, aoi = "BULK", type = "segment",
           attribute = "gradient", threshold = 0.05,
           evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
           where = "species_code IN ('CH','CO','PK','SK','CM')
                    AND observation_date >= '1990-01-01'",
           count_threshold = 5, schema = "working")
 
+# Custom watershed AOI — Neexdzii Kwa
+frs_break(conn, aoi = list(blk = 360873822, measure = 1000),
+          type = "segment", attribute = "gradient", threshold = 0.05,
+          schema = "working")
+
+# sf polygon AOI
+frs_break(conn, aoi = my_study_area, type = "segment",
+          attribute = "gradient", threshold = 0.05,
+          schema = "working")
+
 # Break lake polygon where a tributary enters
-frs_break(conn, wsg = "BULK", type = "waterbody",
+frs_break(conn, aoi = "BULK", type = "waterbody",
           blk = 360873822, measure = 1000, schema = "working")
 
 # Break watershed at a pour point
-frs_break(conn, wsg = "BULK", type = "watershed",
+frs_break(conn, aoi = "BULK", type = "watershed",
           blk = 360873822, measure = 1000, schema = "working")
 ```
 
-**Essence:** given criteria and a geometry type, produce break points or split geometries. `type` determines what gets broken — segments, waterbodies, or watersheds. When `evidence_table` is provided, breaks are validated inline: breaks with upstream evidence exceeding `count_threshold` are removed.
+**Essence:** given criteria and a geometry type, produce break points or split geometries. `type` determines what gets broken — segments, waterbodies, or watersheds. `aoi` determines spatial extent — WSG codes, sf polygons, or blk+measure specs. When `evidence_table` is provided, breaks are validated inline: breaks with upstream evidence exceeding `count_threshold` are removed.
 
 | type | bcfishpass scripts replaced |
 |---|---|
@@ -76,7 +126,7 @@ Label features by any combination of: attribute ranges, spatial relationship to 
 
 ```r
 # --- Attribute ranges only ---
-frs_classify(conn, wsg = "BULK",
+frs_classify(conn, aoi = "BULK",
              table = "working.streams",
              ranges = list(gradient = c(0, 0.025),
                            channel_width = c(2, 20),
@@ -89,8 +139,8 @@ frs_classify(conn,
              breaks = "working.breaks",
              label = "accessible", schema = "working")
 
-# --- Combined ---
-frs_classify(conn, wsg = "BULK",
+# --- Combined, custom AOI ---
+frs_classify(conn, aoi = list(blk = 360873822, measure = 1000),
              table = "working.streams",
              ranges = list(gradient = c(0, 0.025), channel_width = c(2, 20)),
              breaks = "working.breaks",
@@ -173,11 +223,12 @@ The CSV (or pg table) has one row per species with all thresholds. `purrr::walk(
 
 ```r
 params <- frs_params(conn)  # or frs_params(csv = "my_experimental.csv")
+aoi <- "BULK"  # or c("BULK", "MORR"), or an sf polygon, or list(blk, measure)
 
 params |>
   purrr::walk(~{
     conn |>
-      frs_break(wsg = "BULK", type = "segment",
+      frs_break(aoi = aoi, type = "segment",
                 attribute = "gradient", threshold = .x$gradient_max,
                 evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
                 where = glue::glue("species_code IN ({.x$species_codes})"),
@@ -192,39 +243,39 @@ params |>
 
 ### Scenario Testing
 
-Edit a local CSV, run a few watershed groups, compare outputs. No database changes needed to test new parameter combinations.
+Edit a local CSV, run on any AOI, compare outputs. No database changes needed to test new parameter combinations.
 
 ```r
 # Experiment: shift all spawning gradient mins from 0 to 0.0036
 # 1. Copy CSV, edit gradient_min column
-# 2. Run both scenarios on target watershed groups
-wsgs <- c("BULK", "MORR", "ELKR")
+# 2. Run both scenarios on target AOIs
+
+# AOI can be WSGs, a custom watershed, or any sf polygon
+aoi <- c("BULK", "MORR", "ELKR")
+# aoi <- list(blk = 360873822, measure = 1000)  # Neexdzii Kwa
+# aoi <- my_study_area_sf                        # any sf polygon
 
 baseline <- frs_params(conn)  # current bcfishpass params
 experiment <- frs_params(csv = "experiment_gradient_min_0036.csv")
 
 # Run baseline
-wsgs |> purrr::walk(~{
-  baseline |> purrr::walk(\(p) {
-    conn |>
-      frs_break(wsg = .x, type = "segment",
-                attribute = "gradient", threshold = p$gradient_max,
-                schema = "working_baseline") |>
-      frs_classify(table = "working_baseline.streams",
-                   ranges = p$ranges, label = p$species)
-  })
+baseline |> purrr::walk(\(p) {
+  conn |>
+    frs_break(aoi = aoi, type = "segment",
+              attribute = "gradient", threshold = p$gradient_max,
+              schema = "working_baseline") |>
+    frs_classify(table = "working_baseline.streams",
+                 ranges = p$ranges, label = p$species)
 })
 
 # Run experiment
-wsgs |> purrr::walk(~{
-  experiment |> purrr::walk(\(p) {
-    conn |>
-      frs_break(wsg = .x, type = "segment",
-                attribute = "gradient", threshold = p$gradient_max,
-                schema = "working_experiment") |>
-      frs_classify(table = "working_experiment.streams",
-                   ranges = p$ranges, label = p$species)
-  })
+experiment |> purrr::walk(\(p) {
+  conn |>
+    frs_break(aoi = aoi, type = "segment",
+              attribute = "gradient", threshold = p$gradient_max,
+              schema = "working_experiment") |>
+    frs_classify(table = "working_experiment.streams",
+                 ranges = p$ranges, label = p$species)
 })
 
 # 3. Compare: summary tables of lengths/areas
@@ -278,11 +329,12 @@ conn |>
 
 ```r
 params <- frs_params(conn)
+aoi <- "BULK"  # or any valid aoi spec
 
 params |>
   purrr::walk(~{
     conn |>
-      frs_break(wsg = "BULK", type = "segment",
+      frs_break(aoi = aoi, type = "segment",
                 attribute = "gradient", threshold = .x$gradient_max,
                 evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
                 where = glue::glue("species_code IN ({.x$species_codes})"),
@@ -322,15 +374,15 @@ All functions write results server-side to `{schema}.{table}` — no data crosse
 
 ```r
 # Default: write to pg (zero R memory)
-frs_break(conn, wsg = "BULK", type = "segment",
+frs_break(conn, aoi = "BULK", type = "segment",
           attribute = "gradient", threshold = 0.05, schema = "working")
 
 # Return sf object for inspection (small queries)
-result <- frs_break(conn, wsg = "BULK", type = "segment",
+result <- frs_break(conn, aoi = "BULK", type = "segment",
                     attribute = "gradient", threshold = 0.05, collect = TRUE)
 
 # Export to parquet after server-side compute
-frs_break(conn, wsg = "BULK", type = "segment",
+frs_break(conn, aoi = "BULK", type = "segment",
           attribute = "gradient", threshold = 0.05, schema = "working",
           parquet = "breaks_gradient_BULK.parquet")
 ```
@@ -343,12 +395,13 @@ options(fresh.schema = "working")
 
 ## Design Principles
 
-1. **Geometry-agnostic** — functions work on segments, lakes, wetlands, watersheds
-2. **Direction-agnostic** — aggregate upstream or downstream with a param
-3. **Attribute-agnostic** — `ranges` takes any column name; no signature changes when new attributes (temperature, conductivity, etc.) arrive
-4. **Species-agnostic** — fish biology lives in parameter values, not function code
-5. **Parameter-source-agnostic** — pg table, custom table, or local CSV through `frs_params()`
-6. **Schema-flexible** — write to any schema; use separate schemas for A/B comparison
+1. **AOI-agnostic** — WSG codes, sf polygons, blk+measure watersheds, or NULL for full extent; functions don't care about the partition semantics
+2. **Geometry-agnostic** — functions work on segments, lakes, wetlands, watersheds
+3. **Direction-agnostic** — aggregate upstream or downstream with a param
+4. **Attribute-agnostic** — `ranges` takes any column name; no signature changes when new attributes (temperature, conductivity, etc.) arrive
+5. **Species-agnostic** — fish biology lives in parameter values, not function code
+6. **Parameter-source-agnostic** — pg table, custom table, or local CSV through `frs_params()`
+7. **Schema-flexible** — write to any schema; use separate schemas for A/B comparison
 7. **Server-side by default** — SQL executes in pg, R orchestrates
 8. **Composable** — `break → classify → aggregate` chains naturally; `frs_classify()` is pipeable for multi-step labelling
 
