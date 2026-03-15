@@ -451,13 +451,150 @@ Three layers with different portability profiles:
 
 ### Separation strategy
 
-Three potential packages, matching the layers:
+The portability question leads to a deeper one: **fwapg's traversal logic isn't FWA-specific.** ltree codes, upstream/downstream checks, snap-to-nearest, measure derivation — these work on any directed linear network. The FWA is just one network that happens to have the codes pre-computed.
 
-| Package | Role | pg required? |
+A LiDAR-derived channel network has the same structure: connected line segments with direction (downhill), branching, and confluences. If you assign ltree codes to it, you get the same traversal speed. Then fresh's `frs_break()`, `frs_classify()`, `frs_aggregate()` work unchanged — they don't know or care where the network came from.
+
+This suggests four packages, not three:
+
+| Package | Role | What it needs |
 |---|---|---|
-| **fwapg-functions** (or keep in fwapg) | Network topology: `fwa_upstream()`, `fwa_downstream()`, `fwa_watershedatmeasure()`, `fwa_indexpoint()` — the PL/pgSQL functions that require ltree + PostGIS | Yes — these ARE the pg extension |
-| **fwapg-load** (or keep in fwapg) | ETL: load FWA data into any pg instance. The load scripts from `fwapg/load/`. Could become a standalone package that builds an empty db from source data | Yes for target, but source-agnostic |
-| **fresh** | Operations: `frs_break()`, `frs_classify()`, `frs_aggregate()`, `frs_params()`. Generates SQL, dispatches to a connection | Today: pg. Future: could dispatch generic SQL portions to duckdb |
+| **spyda** | Network topology engine. Takes any linear network, builds ltree codes + topology, installs traversal functions (`spd_upstream()`, `spd_downstream()`, `spd_snap()`, `spd_watershed()`). Source-agnostic — FWA, LiDAR channels, any jurisdiction's hydro data | pg + ltree + PostGIS (for now). The functions ARE the pg extension. Future: could target duckdb if ltree-equivalent emerges |
+| **fwapg** (becomes thin) | FWA-specific data loader. Downloads BC FWA from BCGW, calls spyda to build the topology. Knows about FWA schema, watershed group codes, BC Albers. No traversal functions of its own — delegates to spyda | pg for target. spyda for topology |
+| **fresh** | Operations layer. `frs_break()`, `frs_classify()`, `frs_aggregate()`, `frs_params()`. Generates SQL, dispatches to a connection. Network-source-agnostic — works against any spyda-built network | conn (pg today, duckdb for portable ops later) |
+| **bcfishpass** (becomes thin) | Fish-passage-specific params, species tables, crossing logic. Calls fresh with BC-specific parameter sets. No SQL of its own | fresh + fwapg-built network |
+
+```
+                    ┌──────────────┐
+                    │  bcfishpass   │  species params, crossing logic
+                    └──────┬───────┘
+                           │ calls
+                    ┌──────▼───────┐
+                    │    fresh     │  break, classify, aggregate
+                    └──────┬───────┘
+                           │ generates SQL against
+              ┌────────────┼────────────┐
+              │            │            │
+       ┌──────▼───┐  ┌────▼─────┐  ┌──▼──────────┐
+       │  fwapg   │  │  LiDAR   │  │  other net  │  data loaders
+       │  (FWA)   │  │  loader  │  │  loader     │
+       └──────┬───┘  └────┬─────┘  └──┬──────────┘
+              │            │           │
+              └────────────┼───────────┘
+                           │ all call
+                    ┌──────▼───────┐
+                    │    spyda    │  topology engine
+                    │  ltree codes │
+                    │  traversal   │
+                    │  snap/locate │
+                    └──────────────┘
+```
+
+### What spyda does
+
+Given any set of connected linestrings with direction:
+
+1. **Build topology** — identify confluences, headwaters, outlets. Determine parent-child relationships between branches
+2. **Assign ltree codes** — compute `wscode_ltree` and `localcode_ltree` for every segment. This is the key step that makes traversal O(1) instead of recursive
+3. **Compute measures** — `downstream_route_measure` and `upstream_route_measure` along each route. Enables point-level precision on the network
+4. **Install functions** — `spd_upstream()`, `spd_downstream()`, `spd_snap()`, `spd_locate()`, `spd_watershed()` into the target database
+5. **Build indexes** — GiST on geometry, ltree indexes on codes
+
+```r
+# === FWA network (existing workflow) ===
+# fwapg handles the FWA-specific ETL, spyda handles topology
+conn <- DBI::dbConnect(RPostgres::Postgres(), dbname = "mydb")
+fwapg::fwa_load(conn, source = "bcgw")  # download + load FWA tables
+# topology already exists in FWA data — spyda verifies/indexes
+
+# === LiDAR-derived network (new workflow) ===
+# Extract channels from DEM, load into pg, spyda builds topology
+channels <- whitebox::wbt_extract_streams(dem, threshold = 100)
+spyda::spd_load(conn, network = channels, schema = "lidar_net")
+spyda::spd_build_topology(conn, schema = "lidar_net")
+# now spd_upstream(), spd_downstream() work on this network
+
+# === fresh doesn't care which network ===
+# Same operations, different network source
+frs_break(conn, aoi = my_study_area, type = "segment",
+          attribute = "gradient", threshold = 0.05,
+          network_schema = "lidar_net",  # or "whse_basemapping" for FWA
+          schema = "working")
+
+frs_point_snap(conn, x = -126.5, y = 54.5,
+               network_schema = "lidar_net")
+```
+
+### The ltree assignment problem
+
+For FWA, ltree codes are pre-computed by the province — every stream segment already has `wscode_ltree` and `localcode_ltree`. spyda just loads and indexes them.
+
+For a LiDAR network, spyda needs to **compute** the codes. This is the core algorithm:
+
+1. Find the outlet(s) — segments with no downstream neighbour
+2. Walk upstream from each outlet, assigning hierarchical codes
+3. At each confluence, the mainstem continues (by drainage area, length, or user choice), and the tributary gets a new branch code
+4. Measures accumulate upstream along each route
+
+This is a one-time cost per network. Once codes exist, traversal is the same O(1) ltree check regardless of source.
+
+The mainstem-vs-tributary decision at confluences is where domain knowledge enters. FWA uses a pre-determined hierarchy. For LiDAR channels, options:
+- **Drainage area** (largest upstream area = mainstem) — most hydrologically defensible
+- **Channel length** (longest path = mainstem) — Strahler-adjacent
+- **User-specified** — provide a table of confluence decisions
+
+### What this means for the ecosystem
+
+```
+Pipeline with FWA:
+  fwapg (load FWA) → spyda (verify topology) → fresh (operations) → bcfishpass (fish params)
+
+Pipeline with LiDAR:
+  whitebox (extract channels) → spyda (build topology) → fresh (operations) → your params
+
+Pipeline with other jurisdiction:
+  custom loader → spyda (build topology) → fresh (operations) → your params
+```
+
+fresh becomes network-source-agnostic. spyda is the thing that makes any network traversable. fwapg is just one data loader among many.
+
+### Snap fish observations to LiDAR network
+
+This is the concrete use case. You have:
+- LiDAR-derived channels (higher resolution than FWA in headwaters)
+- Fish observation points (from field GPS or bcfishobs)
+- Barriers identified in the field
+
+```r
+# Build LiDAR network topology
+spyda::spd_load(conn, network = lidar_channels, schema = "lidar")
+spyda::spd_build_topology(conn, schema = "lidar")
+
+# Snap fish obs to the LiDAR network (not FWA)
+snapped <- frs_point_snap(conn, points = fish_obs,
+                          network_schema = "lidar")
+
+# Break at field-identified barriers
+frs_break(conn, aoi = study_area, type = "segment",
+          points = field_barriers,
+          network_schema = "lidar", schema = "working")
+
+# Classify habitat using the same parameter sets
+frs_classify(conn, table = "working.streams",
+             breaks = "working.breaks",
+             ranges = list(gradient = c(0, 0.025), channel_width = c(1, 10)),
+             label = "spawning", schema = "working")
+
+# How much habitat upstream of each barrier?
+frs_aggregate(conn,
+              points_table = "working.breaks",
+              target_table = "working.streams",
+              metrics = c("length_m"),
+              direction = "upstream",
+              network_schema = "lidar", schema = "working")
+```
+
+Same functions, same API, different network. The only new parameter is `network_schema` to tell fresh which spyda-built network to query against.
 
 The key question: **should fresh generate SQL that's backend-aware?**
 
@@ -534,7 +671,10 @@ For now (v0.1.x): pg only. The design already separates concerns cleanly enough 
 - Do we need `frs_filter()` as distinct from `frs_classify()`? (subsurface flow removal is filtering, not classifying)
 - Local dev db via docker-compose for testing without remote permission constraints?
 - `frs_break(type = "waterbody")` cut geometry — perpendicular to lake long axis at entry point? Derived from shoreline angle? User-specified?
-- fwapg-load as separate package — when? Blocks on having a clean, tested load path that's not coupled to Simon's specific infra
+- fwapg as thin FWA loader — when? Blocks on having spyda's topology builder working first
+- spyda's ltree assignment algorithm — mainstem selection at confluences (drainage area vs length vs user-specified)
+- spyda scope: does it also handle waterbody topology (lakes on the network) or just linestrings?
+- `network_schema` param on fresh functions — clean enough? Or does fresh hold a "network registry" so you can name them?
 - Backend dispatch (duckdb for classify/aggregate) — design for it now (conn-agnostic signatures), build it later
 
 Relates to NewGraphEnvironment/bcfishpass
