@@ -10,9 +10,9 @@ Distilling the bcfishpass `01_access` and `02_habitat_linear` SQL scripts down t
 
 | What bcfishpass does | What it actually is |
 |---|---|
-| `barriers_gradient.sql` | Split network where segment attribute exceeds threshold |
-| `barriers_falls.sql` | Split network at features from a point table |
-| `barriers_anthropogenic.sql` | Split network at features from a point table |
+| `barriers_gradient.sql` | Break segments where attribute exceeds threshold |
+| `barriers_falls.sql` | Break segments at features from a point table |
+| `barriers_anthropogenic.sql` | Break segments at features from a point table |
 | `barriers_subsurfaceflow.sql` | Filter/remove segments by attribute value |
 | `model_access_*.sql` | Validate break points — drop breaks with upstream evidence |
 | `load_streams_access.sql` | Tag segments as reachable/unreachable given break points |
@@ -25,27 +25,44 @@ Distilling the bcfishpass `01_access` and `02_habitat_linear` SQL scripts down t
 
 ## Proposed Functions
 
-### `frs_network_break()`
+### `frs_break()`
 
-Place break points on the network where conditions are met.
+Break geometry on the network where conditions are met.
 
 ```r
-# Split where gradient > 5% (attribute threshold on stream segments)
-frs_network_break(conn, wsg = "BULK",
-                  attribute = "gradient", threshold = 0.05,
-                  schema = "working")
+# Break segments where gradient > 5% (attribute threshold)
+frs_break(conn, wsg = "BULK", type = "segment",
+          attribute = "gradient", threshold = 0.05,
+          schema = "working")
 
-# Split at features from a point/line table (falls, dams, crossings)
-frs_network_break(conn, wsg = "BULK",
-                  table = "whse_basemapping.fwa_obstructions_sp",
-                  schema = "working")
+# Break segments at features from a point/line table (falls, dams, crossings)
+frs_break(conn, wsg = "BULK", type = "segment",
+          table = "whse_basemapping.fwa_obstructions_sp",
+          schema = "working")
 
-# Split at user-defined points (sf or data.frame with blk + measure)
-frs_network_break(conn, wsg = "BULK", points = my_points,
-                  schema = "working")
+# Break segments at user-defined points (sf or data.frame with blk + measure)
+frs_break(conn, wsg = "BULK", type = "segment",
+          points = my_points,
+          schema = "working")
+
+# Break lake polygon where a stream enters
+frs_break(conn, wsg = "BULK", type = "waterbody",
+          blk = 360873822, measure = 1000,
+          schema = "working")
+
+# Break watershed at a pour point (absorbs existing frs_watershed_split)
+frs_break(conn, wsg = "BULK", type = "watershed",
+          blk = 360873822, measure = 1000,
+          schema = "working")
 ```
 
-**Essence:** given criteria, produce a table of break points (blk, measure, break_type) and write to pg.
+**Essence:** given criteria and a geometry type, produce break points or split geometries. `type` determines what gets broken — segments, waterbodies, or watersheds.
+
+| type | bcfishpass scripts replaced |
+|---|---|
+| `"segment"` | `barriers_gradient.sql`, `barriers_falls.sql`, `barriers_subsurfaceflow.sql`, `barriers_anthropogenic.sql`, `barriers_dams.sql`, `barriers_dams_hydro.sql`, `barriers_pscis.sql`, `barriers_user_definite.sql`, `remediations_barriers.sql` |
+| `"waterbody"` | (new capability) |
+| `"watershed"` | absorbs existing `frs_watershed_split()` |
 
 ### `frs_break_validate()`
 
@@ -64,6 +81,10 @@ frs_break_validate(conn, wsg = "BULK",
 ```
 
 **Essence:** given break points and an evidence table, remove breaks where evidence upstream proves they're not real barriers. Returns validated breaks.
+
+| bcfishpass scripts replaced |
+|---|
+| `model_access_bt.sql`, `model_access_ch_cm_co_pk_sk.sql`, `model_access_ct_dv_rb.sql`, `model_access_st.sql`, `model_access_wct.sql` |
 
 ### `frs_segment_classify()`
 
@@ -86,6 +107,10 @@ frs_segment_classify(conn, wsg = "BULK",
 
 **Essence:** given attribute ranges, tag segments that fall within all ranges. Multi-attribute AND filter → classified segments table.
 
+| bcfishpass scripts replaced |
+|---|
+| `load_habitat_linear_bt.sql`, `load_habitat_linear_ch.sql`, `load_habitat_linear_cm.sql`, `load_habitat_linear_co.sql`, `load_habitat_linear_pk.sql`, `load_habitat_linear_sk.sql`, `load_habitat_linear_st.sql`, `load_habitat_linear_wct.sql`, `load_streams_mapping_code.sql`, `horsefly_sk.sql` |
+
 ### `frs_network_reach()`
 
 Given break points, determine which segments are reachable from reference points (e.g. river mouth).
@@ -105,6 +130,10 @@ frs_network_reach(conn, wsg = "BULK",
 
 **Essence:** flood-fill the network from a starting point, stopping at break points. Tag each segment as reachable or not.
 
+| bcfishpass scripts replaced |
+|---|
+| `load_streams_access.sql`, `streams_model_access.sql` |
+
 ### `frs_upstream_sum()`
 
 At given points, compute upstream summaries.
@@ -120,6 +149,10 @@ frs_upstream_sum(conn,
 
 **Essence:** for each point in a table, aggregate attributes from an upstream target table. Generic rollup.
 
+| bcfishpass scripts replaced |
+|---|
+| `add_length_upstream.sql`, `load_crossings_upstream_access_01.sql`, `load_crossings_upstream_access_02.sql`, `load_crossings_upstream_habitat_01.sql`, `load_crossings_upstream_habitat_02.sql`, `load_crossings_upstream_habitat_wcrp.sql` |
+
 ### `frs_classify_override()`
 
 Override automated classification with known/manual values.
@@ -134,23 +167,36 @@ frs_classify_override(conn, wsg = "BULK",
 
 **Essence:** left-join manual overrides onto classified segments, manual wins.
 
+| bcfishpass scripts replaced |
+|---|
+| `load_habitat_known.sql`, `user_habitat_classification_endpoints.sql` |
+
+## Existing fresh functions covering remaining scripts
+
+| fresh function | bcfishpass scripts |
+|---|---|
+| `frs_fish_obs()` | `load_observations.sql`, `load_qa_observations_naturalbarriers.sql` |
+| `frs_stream_fetch()` | `load_streams.sql` |
+| `frs_network()` | `load_crossings.sql`, `load_crossings_dnstr_observations.sql`, `load_crossings_upstr_observations.sql`, `load_streams_dnstr_species.sql`, `load_streams_upstr_observations.sql` |
+| `frs_dam_fetch()` (new, small) | `load_dams.sql`, `load_falls.sql` |
+
 ## Output Strategy
 
 All functions write results server-side to `{schema}.{table}` — no data crosses the wire by default.
 
 ```r
 # Default: write to pg (zero R memory)
-frs_network_break(conn, wsg = "BULK", attribute = "gradient",
-                  threshold = 0.05, schema = "working")
+frs_break(conn, wsg = "BULK", type = "segment",
+          attribute = "gradient", threshold = 0.05, schema = "working")
 
 # Return sf object for inspection (small queries)
-result <- frs_network_break(conn, wsg = "BULK", attribute = "gradient",
-                            threshold = 0.05, collect = TRUE)
+result <- frs_break(conn, wsg = "BULK", type = "segment",
+                    attribute = "gradient", threshold = 0.05, collect = TRUE)
 
 # Export to parquet after server-side compute
-frs_network_break(conn, wsg = "BULK", attribute = "gradient",
-                  threshold = 0.05, schema = "working",
-                  parquet = "breaks_gradient_BULK.parquet")
+frs_break(conn, wsg = "BULK", type = "segment",
+          attribute = "gradient", threshold = 0.05, schema = "working",
+          parquet = "breaks_gradient_BULK.parquet")
 ```
 
 Default schema set once per session:
