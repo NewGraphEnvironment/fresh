@@ -1,3 +1,7 @@
+**Prerequisite:** `inst/issues/design-spyda.md` — spyda builds the network
+databases that fresh queries. Fresh table/column names are configurable via
+`options()` so fresh works against any spyda-built network, not just fwapg.
+
 ## Problem
 
 bcfishpass builds access and habitat models via ~45 SQL scripts that are hardcoded to species-specific tables and the `bcfishpass` schema. The underlying operations are generic network manipulations — splitting, classifying, validating, summarizing — that apply far beyond fish passage.

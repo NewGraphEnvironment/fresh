@@ -111,8 +111,76 @@ All exported functions prefixed `spd_`, noun-first.
 
 5. **fresh contract** — which fwapg columns/functions does fresh actually use? That defines the minimum schema spyda must produce and the options fresh needs to expose.
 
+## Package Architecture — What Lives Where
+
+Two generic packages, BC-specific loading stays separate:
+
+```
+Generic (any network, any jurisdiction):
+  spyda  → topology engine (linestrings → coded network in PG)
+  fresh  → operations layer (query, break, classify, aggregate)
+
+BC-specific (data loading / ETL):
+  fwapg     → load FWA streams, watersheds, lakes from BCGW
+  bcfishobs → load fish observations from DataBC, snap to network
+  bcfishpass → crossing CSVs, barrier overrides, species params
+```
+
+### Why not consolidate the loaders now?
+
+The three BC repos already work. Their ETL is tested and runs weekly
+(bcfishobs) or on-demand. Rewriting ETL into a single loader blocks on
+spyda's schema being stable — you need to know what you're loading *into*
+before consolidating what loads it.
+
+**Sequence:**
+1. Build spyda (topology engine)
+2. Build fresh operations (break, classify, aggregate) with flexible table names
+3. Once spyda schema is stable, *then* consider a single BC loader that
+   knows how to populate a spyda-built DB from BCGW/DataBC sources
+4. fwapg/bcfishobs/bcfishpass thin down to param files + data archives
+
+### What the loaders actually do
+
+| Repo | Extract from | Transform | Load into |
+|------|-------------|-----------|-----------|
+| fwapg | BCGW parquet (14 spatial datasets) | ltree codes, indexes | `whse_basemapping.*` tables + 23 PL/pgSQL functions |
+| bcfishobs | DataBC `fiss_fish_obsrvtn_pnt_sp` + species CSVs | Multi-criteria snap (100m/500m/1500m, wscode validation) | `bcfishobs.observations` with FWA references |
+| bcfishpass | User CSVs (barriers, habitat overrides, WCRP watersheds) | — | `bcfishpass.*` tables |
+
+The snapping logic in bcfishobs (multi-criteria matching with distance
+thresholds and wscode validation) is actually generic — it's "snap points
+to nearest stream with fallback rules." That could eventually live in
+fresh as `frs_point_snap()` with configurable match rules.
+
+### fresh table name flexibility
+
+fresh uses `options()` for table/column names. Defaults match fwapg so
+existing code works unchanged. Any spyda-built network uses whatever
+names make sense:
+
+```r
+options(
+  fresh.stream_table = "streams",
+  fresh.blk_col = "route_id",
+  fresh.wscode_col = "wscode_ltree",
+  fresh.localcode_col = "localcode_ltree",
+  fresh.measure_col = "route_measure"
+)
+```
+
+This means spyda is free to choose the most rational, abstract table names
+without coupling to FWA conventions. The flexibility lives in fresh, not
+in compatibility shims.
+
+## Related
+
+- `inst/issues/design-habitat-models.md` — fresh operations layer design
+  (frs_break, frs_classify, frs_aggregate) that queries spyda-built networks
+- NewGraphEnvironment/fresh#27
+
 ## Ports to New Repo
 
-This issue is the design seed. When `NewGraphEnvironment/spyda` is created, port this as the initial `CLAUDE.md` architecture section and close this issue with a cross-reference.
-
-Relates to NewGraphEnvironment/fresh#27
+This issue is the design seed. When `NewGraphEnvironment/spyda` is created,
+port this as the initial `CLAUDE.md` architecture section and close this
+issue with a cross-reference.
