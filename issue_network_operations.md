@@ -14,20 +14,20 @@ Distilling the bcfishpass `01_access` and `02_habitat_linear` SQL scripts down t
 | `barriers_falls.sql` | Break geometry at features from a point table |
 | `barriers_anthropogenic.sql` | Break geometry at features from a point table |
 | `barriers_subsurfaceflow.sql` | Filter/remove features by attribute value |
-| `model_access_*.sql` | Validate break points — drop breaks with upstream evidence |
+| `model_access_*.sql` | Break with evidence — drop breaks with upstream observations |
 | `load_streams_access.sql` | Label features by relationship to breaks (which side) |
 | `load_habitat_linear_*.sql` | Classify features by multi-attribute thresholds |
 | `load_habitat_known.sql` | Override classification with manual/known values |
-| `add_length_upstream.sql` | Aggregate upstream/downstream of points |
-| `load_crossings_upstream_*.sql` | Aggregate upstream/downstream of points |
+| `add_length_upstream.sql` | Aggregate along network from points |
+| `load_crossings_upstream_*.sql` | Aggregate along network from points |
 
-~45 scripts collapse to **5 abstract operations**.
+~45 scripts collapse to **4 abstract operations**.
 
 ## Proposed Functions
 
 ### `frs_break()`
 
-Break geometry on the network where conditions are met.
+Break geometry on the network where conditions are met. Optionally validate breaks against evidence in one step.
 
 ```r
 # Break segments where gradient > 5% (attribute threshold)
@@ -45,6 +45,15 @@ frs_break(conn, wsg = "BULK", type = "segment",
           points = my_points,
           schema = "working")
 
+# Break with evidence — validate inline, drop breaks with > 5 obs upstream
+frs_break(conn, wsg = "BULK", type = "segment",
+          attribute = "gradient", threshold = 0.05,
+          evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
+          where = "species_code IN ('CH','CO','PK','SK','CM')
+                   AND observation_date >= '1990-01-01'",
+          count_threshold = 5,
+          schema = "working")
+
 # Break lake polygon where a tributary enters
 frs_break(conn, wsg = "BULK", type = "waterbody",
           blk = 360873822, measure = 1000,
@@ -56,41 +65,14 @@ frs_break(conn, wsg = "BULK", type = "watershed",
           schema = "working")
 ```
 
-**Essence:** given criteria and a geometry type, produce break points or split geometries. `type` determines what gets broken — segments, waterbodies, or watersheds.
+**Essence:** given criteria and a geometry type, produce break points or split geometries. `type` determines what gets broken — segments, waterbodies, or watersheds. When `evidence_table` is provided, breaks are validated inline: breaks with upstream evidence exceeding `count_threshold` are removed.
 
 | type | bcfishpass scripts replaced |
 |---|---|
 | `"segment"` | `barriers_gradient.sql`, `barriers_falls.sql`, `barriers_subsurfaceflow.sql`, `barriers_anthropogenic.sql`, `barriers_dams.sql`, `barriers_dams_hydro.sql`, `barriers_pscis.sql`, `barriers_user_definite.sql`, `remediations_barriers.sql` |
+| `"segment"` + evidence | `model_access_bt.sql`, `model_access_ch_cm_co_pk_sk.sql`, `model_access_ct_dv_rb.sql`, `model_access_st.sql`, `model_access_wct.sql` |
 | `"waterbody"` | (new — e.g. split lake at tributary entry for nutrient modelling) |
 | `"watershed"` | absorbs existing `frs_watershed_split()` |
-
-### `frs_break_validate()`
-
-Filter break points against evidence upstream or downstream. Remove breaks where enough features exist to invalidate them.
-
-```r
-# Drop breaks with > 5 salmon observations upstream since 1990
-frs_break_validate(conn,
-                   breaks_table = "working.breaks",
-                   evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
-                   where = "species_code IN ('CH','CO','PK','SK','CM')
-                            AND observation_date >= '1990-01-01'",
-                   count_threshold = 5,
-                   schema = "working")
-
-# Drop breaks with any water license upstream
-frs_break_validate(conn,
-                   breaks_table = "working.breaks",
-                   evidence_table = "water_licenses",
-                   count_threshold = 1,
-                   schema = "working")
-```
-
-**Essence:** given break points and an evidence table, remove breaks where count of upstream evidence exceeding threshold proves they're not real. The `where` clause filters the evidence table — works for any evidence type.
-
-| bcfishpass scripts replaced |
-|---|
-| `model_access_bt.sql`, `model_access_ch_cm_co_pk_sk.sql`, `model_access_ct_dv_rb.sql`, `model_access_st.sql`, `model_access_wct.sql` |
 
 ### `frs_tag()`
 
@@ -100,7 +82,7 @@ Label features by their spatial relationship to breaks. Given breaks and feature
 # Tag stream segments as reachable/unreachable given barriers
 frs_tag(conn,
         features = "working.streams",
-        by = "working.breaks_validated",
+        by = "working.breaks",
         label = "reachable",
         schema = "working")
 
@@ -178,7 +160,7 @@ frs_classify(conn, wsg = "BULK",
 
 ### `frs_aggregate()`
 
-At given points, compute summaries upstream or downstream along the network.
+At given points, summarize features along the network in either direction. Wraps the network traversal + spatial join + aggregation SQL that would otherwise be ~30-40 lines per query. The network nuance — `fwa_upstream()` / `fwa_downstream()` with ltree — is the thing native SQL can't do without the fwapg functions.
 
 ```r
 # Habitat length upstream of each crossing (bcfishpass use case)
@@ -206,7 +188,7 @@ frs_aggregate(conn,
               schema = "working")
 ```
 
-**Essence:** for each point in a table, aggregate attributes from a target table in the specified direction along the network. Direction-agnostic, geometry-agnostic. Uses existing `frs_network_upstream()` / `frs_network_downstream()` under the hood.
+**Essence:** for each point in a table, traverse the network in the specified direction, find features on that network, and aggregate their attributes. Hides the CTE joining points → network traversal → target table → aggregation. Direction-agnostic, geometry-agnostic. Uses existing `frs_network_upstream()` / `frs_network_downstream()` under the hood.
 
 | bcfishpass scripts replaced |
 |---|
@@ -253,27 +235,22 @@ frs_classify(conn,
 ## Example Workflow: Fish Habitat Model (bcfishpass replacement)
 
 ```r
-# 1. Break network at gradient barriers
+# 1. Break network at gradient barriers, validate against observations
 frs_break(conn, wsg = "BULK", type = "segment",
           attribute = "gradient", threshold = 0.05,
+          evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
+          where = "species_code IN ('CH','CO') AND observation_date >= '1990-01-01'",
+          count_threshold = 5,
           schema = "working")
 
-# 2. Validate — remove breaks with salmon observations upstream
-frs_break_validate(conn,
-                   breaks_table = "working.breaks",
-                   evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
-                   where = "species_code IN ('CH','CO') AND observation_date >= '1990-01-01'",
-                   count_threshold = 5,
-                   schema = "working")
-
-# 3. Tag segments as reachable/unreachable
+# 2. Tag segments as reachable/unreachable
 frs_tag(conn,
         features = "working.streams",
-        by = "working.breaks_validated",
+        by = "working.breaks",
         label = "accessible",
         schema = "working")
 
-# 4. Classify reachable segments by habitat thresholds
+# 3. Classify reachable segments by habitat thresholds
 frs_classify(conn, wsg = "BULK",
              table = "working.streams",
              ranges = list(
@@ -283,7 +260,7 @@ frs_classify(conn, wsg = "BULK",
              ),
              schema = "working")
 
-# 5. Summarize habitat upstream of each crossing
+# 4. Summarize habitat upstream of each crossing
 frs_aggregate(conn,
               points_table = "bcfishpass.crossings",
               target_table = "working.habitat_classified",
@@ -296,12 +273,11 @@ frs_aggregate(conn,
 
 | Function | Essence | Geometry | Direction | Scripts replaced |
 |---|---|---|---|---|
-| `frs_break()` | Break geometry at thresholds, features, or points | segment, waterbody, watershed | — | 9 |
-| `frs_break_validate()` | Remove breaks with evidence | any | upstream/downstream | 5 |
+| `frs_break()` | Break geometry + optional evidence validation | segment, waterbody, watershed | — | 14 |
 | `frs_tag()` | Label features by relationship to breaks | any | — | 2 |
 | `frs_classify()` | Tag features by attribute ranges + overrides | any | — | 12 |
 | `frs_aggregate()` | Summarize along network from points | any | upstream/downstream | 6 |
-| **Total** | **5 functions** | | | **34 scripts** |
+| **Total** | **4 functions** | | | **34 scripts** |
 
 Remaining scripts covered by existing fresh functions or thin fetch wrappers.
 
@@ -339,7 +315,7 @@ options(fresh.schema = "working")
 5. **CSV-optional** — functions take vectors; CSV loading is a convenience wrapper
 6. **Schema-flexible** — write to any schema; default from `options(fresh.schema)`
 7. **Server-side by default** — SQL executes in pg, R orchestrates
-8. **Composable** — `break → validate → tag → classify → aggregate` chains naturally but each step is independently useful
+8. **Composable** — `break → tag → classify → aggregate` chains naturally but each step is independently useful
 
 ## Non-Goals
 
