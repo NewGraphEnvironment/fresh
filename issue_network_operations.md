@@ -15,13 +15,13 @@ Distilling the bcfishpass `01_access` and `02_habitat_linear` SQL scripts down t
 | `barriers_anthropogenic.sql` | Break geometry at features from a point table |
 | `barriers_subsurfaceflow.sql` | Filter/remove features by attribute value |
 | `model_access_*.sql` | Break with evidence — drop breaks with upstream observations |
-| `load_streams_access.sql` | Label features by relationship to breaks (which side) |
+| `load_streams_access.sql` | Classify features by relationship to breaks |
 | `load_habitat_linear_*.sql` | Classify features by multi-attribute thresholds |
-| `load_habitat_known.sql` | Override classification with manual/known values |
+| `load_habitat_known.sql` | Classify with manual overrides |
 | `add_length_upstream.sql` | Aggregate along network from points |
 | `load_crossings_upstream_*.sql` | Aggregate along network from points |
 
-~45 scripts collapse to **4 abstract operations**.
+~45 scripts collapse to **3 abstract operations**.
 
 ## Proposed Functions
 
@@ -74,44 +74,13 @@ frs_break(conn, wsg = "BULK", type = "watershed",
 | `"waterbody"` | (new — e.g. split lake at tributary entry for nutrient modelling) |
 | `"watershed"` | absorbs existing `frs_watershed_split()` |
 
-### `frs_tag()`
-
-Label features by their spatial relationship to breaks. Given breaks and features, tag each feature by which side of the break it's on.
-
-```r
-# Tag stream segments as reachable/unreachable given barriers
-frs_tag(conn,
-        features = "working.streams",
-        by = "working.breaks",
-        label = "reachable",
-        schema = "working")
-
-# Tag lake pieces after splitting — upstream vs downstream of trib entry
-frs_tag(conn,
-        features = "working.lake_pieces",
-        by = "working.breaks",
-        label = "nutrient_zone",
-        schema = "working")
-
-# Tag segments by sub-basin after watershed break
-frs_tag(conn,
-        features = "working.streams",
-        by = "working.watershed_breaks",
-        label = "subbasin_id",
-        schema = "working")
-```
-
-**Essence:** the glue between breaking and classifying. Breaks create split points; `frs_tag()` propagates those splits into labels on features. Same operation whether it's barrier reachability, lake nutrient zones, or sub-basin assignment. Works on any geometry type.
-
-| bcfishpass scripts replaced |
-|---|
-| `load_streams_access.sql`, `streams_model_access.sql` |
-
 ### `frs_classify()`
 
-Tag features where multiple attributes fall within specified ranges. Optionally override with known/manual values. Works on any geometry type — segments, lakes, wetlands, watershed pieces.
+Label features by any combination of: attribute ranges, spatial relationship to breaks, and manual overrides. All three inputs are optional but at least one is required. When combined they compose as AND conditions. Pipeable — call multiple times for readable multi-step labelling.
 
 ```r
+# --- Attribute ranges only ---
+
 # Classify stream segments by gradient + channel width + discharge
 frs_classify(conn, wsg = "BULK",
              table = "working.streams",
@@ -120,6 +89,7 @@ frs_classify(conn, wsg = "BULK",
                channel_width = c(2, 20),
                mad_m3s = c(0.5, 100)
              ),
+             label = "spawning",
              schema = "working")
 
 # Classify with temperature when available
@@ -130,6 +100,7 @@ frs_classify(conn, wsg = "BULK",
                channel_width = c(0.5, 999),
                temperature = c(8, 16)
              ),
+             label = "rearing",
              schema = "working")
 
 # Classify lake pieces by area + depth
@@ -141,22 +112,57 @@ frs_classify(conn, wsg = "BULK",
              ),
              schema = "working")
 
-# With manual overrides — known values win over modelled
+# --- Breaks only (reachability tagging) ---
+
+# Label segments by which side of barriers they're on
+frs_classify(conn,
+             table = "working.streams",
+             breaks = "working.breaks",
+             label = "accessible",
+             schema = "working")
+
+# Label lake pieces after splitting
+frs_classify(conn,
+             table = "working.lake_pieces",
+             breaks = "working.breaks",
+             label = "nutrient_zone",
+             schema = "working")
+
+# --- Combined ---
+
+# Reachable AND meets habitat thresholds in one call
 frs_classify(conn, wsg = "BULK",
              table = "working.streams",
              ranges = list(
                gradient = c(0, 0.025),
                channel_width = c(2, 20)
              ),
+             breaks = "working.breaks",
              overrides = "working.known_habitat",
              schema = "working")
+
+# --- Piped for readability ---
+
+conn |>
+  frs_classify(table = "working.streams",
+               breaks = "working.breaks",
+               label = "accessible") |>
+  frs_classify(ranges = list(
+                 gradient = c(0, 0.025),
+                 channel_width = c(2, 20),
+                 mad_m3s = c(0.5, 100)),
+               label = "spawning") |>
+  frs_classify(overrides = "working.known_habitat",
+               label = "spawning_confirmed")
 ```
 
-**Essence:** given a named list of attribute ranges, tag features that fall within all ranges (AND filter). Any column in the source table is a valid attribute — no function signature change when new attributes arrive. `overrides` left-joins manual classifications; manual wins. Geometry-agnostic.
+**Essence:** unified labelling function. `ranges` classifies by attribute values. `breaks` classifies by network position relative to break points. `overrides` applies manual corrections. Any column in the source table is a valid attribute — no function signature change when new attributes arrive. Geometry-agnostic: works on segments, lakes, wetlands, watershed pieces.
 
-| bcfishpass scripts replaced |
-|---|
-| `load_habitat_linear_bt.sql`, `load_habitat_linear_ch.sql`, `load_habitat_linear_cm.sql`, `load_habitat_linear_co.sql`, `load_habitat_linear_pk.sql`, `load_habitat_linear_sk.sql`, `load_habitat_linear_st.sql`, `load_habitat_linear_wct.sql`, `load_streams_mapping_code.sql`, `horsefly_sk.sql`, `load_habitat_known.sql`, `user_habitat_classification_endpoints.sql` |
+| Input | bcfishpass scripts replaced |
+|---|---|
+| `breaks` | `load_streams_access.sql`, `streams_model_access.sql` |
+| `ranges` | `load_habitat_linear_bt.sql`, `load_habitat_linear_ch.sql`, `load_habitat_linear_cm.sql`, `load_habitat_linear_co.sql`, `load_habitat_linear_pk.sql`, `load_habitat_linear_sk.sql`, `load_habitat_linear_st.sql`, `load_habitat_linear_wct.sql`, `load_streams_mapping_code.sql`, `horsefly_sk.sql` |
+| `overrides` | `load_habitat_known.sql`, `user_habitat_classification_endpoints.sql` |
 
 ### `frs_aggregate()`
 
@@ -203,6 +209,27 @@ frs_aggregate(conn,
 | `frs_network()` | `load_crossings.sql`, `load_crossings_dnstr_observations.sql`, `load_crossings_upstr_observations.sql`, `load_streams_dnstr_species.sql`, `load_streams_upstr_observations.sql` |
 | `frs_dam_fetch()` (new, small) | `load_dams.sql`, `load_falls.sql` |
 
+## Parameter Sets
+
+Parameter sets (gradient thresholds per species, channel width ranges, etc.) ship as package data built from CSV source files.
+
+- **Source:** `data-raw/parameters_habitat_thresholds.csv` — human-readable, editable
+- **Build:** script in `data-raw/` reads CSV and saves as package data via `usethis::use_data()`
+- **Access:** `fresh::habitat_thresholds$ch_spawning` returns a named list ready for `ranges`
+- **Optional:** users can build their own `ranges` lists — no dependency on shipped params
+
+```r
+# Use shipped defaults
+frs_classify(conn, wsg = "BULK",
+             table = "working.streams",
+             ranges = fresh::habitat_thresholds$ch_spawning)
+
+# Or build your own
+frs_classify(conn, wsg = "BULK",
+             table = "working.streams",
+             ranges = list(gradient = c(0, 0.03), temperature = c(8, 16)))
+```
+
 ## Example Workflow: Lake Nutrient Modelling
 
 Tributary brings P and N into a lake, but the portion of the lake upstream of where the trib enters doesn't receive that load. Need to model lake portions differently.
@@ -213,54 +240,41 @@ entry <- frs_point_snap(conn, x = -126.5, y = 54.5,
                         blue_line_key = lake_blk)
 
 # 2. Break the lake at that point
-frs_break(conn, type = "waterbody",
-          blk = entry$blue_line_key,
-          measure = entry$downstream_route_measure,
-          schema = "working")
+conn |>
+  frs_break(type = "waterbody",
+            blk = entry$blue_line_key,
+            measure = entry$downstream_route_measure,
+            schema = "working") |>
 
-# 3. Tag each piece — upstream vs downstream of entry
-frs_tag(conn,
-        features = "working.lake_pieces",
-        by = "working.breaks",
-        label = "nutrient_zone",
-        schema = "working")
-
-# 4. Classify lake pieces by attributes
-frs_classify(conn,
-             table = "working.lake_pieces",
-             ranges = list(area_ha = c(1, 1000)),
-             schema = "working")
+# 3. Classify pieces by relationship to break
+  frs_classify(table = "working.lake_pieces",
+               breaks = "working.breaks",
+               label = "nutrient_zone",
+               schema = "working")
 ```
 
 ## Example Workflow: Fish Habitat Model (bcfishpass replacement)
 
 ```r
-# 1. Break network at gradient barriers, validate against observations
-frs_break(conn, wsg = "BULK", type = "segment",
-          attribute = "gradient", threshold = 0.05,
-          evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
-          where = "species_code IN ('CH','CO') AND observation_date >= '1990-01-01'",
-          count_threshold = 5,
-          schema = "working")
+conn |>
+  # 1. Break network at gradient barriers, validate against observations
+  frs_break(wsg = "BULK", type = "segment",
+            attribute = "gradient", threshold = 0.05,
+            evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
+            where = "species_code IN ('CH','CO') AND observation_date >= '1990-01-01'",
+            count_threshold = 5,
+            schema = "working") |>
 
-# 2. Tag segments as reachable/unreachable
-frs_tag(conn,
-        features = "working.streams",
-        by = "working.breaks",
-        label = "accessible",
-        schema = "working")
+  # 2. Classify: reachable + meets habitat thresholds
+  frs_classify(table = "working.streams",
+               breaks = "working.breaks",
+               label = "accessible") |>
+  frs_classify(ranges = fresh::habitat_thresholds$ch_spawning,
+               label = "spawning") |>
+  frs_classify(overrides = "working.known_habitat",
+               label = "spawning_confirmed")
 
-# 3. Classify reachable segments by habitat thresholds
-frs_classify(conn, wsg = "BULK",
-             table = "working.streams",
-             ranges = list(
-               gradient = c(0, 0.025),
-               channel_width = c(2, 20),
-               mad_m3s = c(0.5, 100)
-             ),
-             schema = "working")
-
-# 4. Summarize habitat upstream of each crossing
+# 3. Summarize habitat upstream of each crossing
 frs_aggregate(conn,
               points_table = "bcfishpass.crossings",
               target_table = "working.habitat_classified",
@@ -274,10 +288,9 @@ frs_aggregate(conn,
 | Function | Essence | Geometry | Direction | Scripts replaced |
 |---|---|---|---|---|
 | `frs_break()` | Break geometry + optional evidence validation | segment, waterbody, watershed | — | 14 |
-| `frs_tag()` | Label features by relationship to breaks | any | — | 2 |
-| `frs_classify()` | Tag features by attribute ranges + overrides | any | — | 12 |
+| `frs_classify()` | Label features by ranges, breaks, overrides (any combo, pipeable) | any | — | 14 |
 | `frs_aggregate()` | Summarize along network from points | any | upstream/downstream | 6 |
-| **Total** | **4 functions** | | | **34 scripts** |
+| **Total** | **3 functions** | | | **34 scripts** |
 
 Remaining scripts covered by existing fresh functions or thin fetch wrappers.
 
@@ -315,18 +328,17 @@ options(fresh.schema = "working")
 5. **CSV-optional** — functions take vectors; CSV loading is a convenience wrapper
 6. **Schema-flexible** — write to any schema; default from `options(fresh.schema)`
 7. **Server-side by default** — SQL executes in pg, R orchestrates
-8. **Composable** — `break → tag → classify → aggregate` chains naturally but each step is independently useful
+8. **Composable** — `break → classify → aggregate` chains naturally; `frs_classify()` is pipeable for multi-step labelling
 
 ## Non-Goals
 
 - Lateral/off-channel habitat (that's flooded)
 - Raster processing
-- Species-specific wrapper functions (parameter sets can ship as data, not code)
+- Species-specific wrapper functions (parameter sets ship as data, not code)
 
 ## Open Questions
 
 - Do we need `frs_filter()` as distinct from `frs_classify()`? (subsurface flow removal is filtering, not classifying)
-- Should parameter sets (gradient thresholds per species, channel width ranges) ship as package data (`inst/parameters/`) or stay external?
 - Local dev db via docker-compose for testing without remote permission constraints?
 - `frs_break(type = "waterbody")` cut geometry — perpendicular to lake long axis at entry point? Derived from shoreline angle? User-specified?
 
