@@ -21,7 +21,7 @@ Distilling the bcfishpass `01_access` and `02_habitat_linear` SQL scripts down t
 | `add_length_upstream.sql` | Summarize upstream of points (length, area, count) |
 | `load_crossings_upstream_*.sql` | Summarize upstream of points (length, area, count) |
 
-~45 scripts collapse to **5-6 abstract operations**.
+~45 scripts collapse to **5 abstract operations**.
 
 ## Proposed Functions
 
@@ -66,21 +66,27 @@ frs_break(conn, wsg = "BULK", type = "watershed",
 
 ### `frs_break_validate()`
 
-Filter break points against upstream/downstream evidence. Remove breaks that don't matter.
+Filter break points against upstream/downstream evidence. Remove breaks where enough upstream features exist to invalidate them.
 
 ```r
-# Drop breaks with > 5 observations upstream since 1990
-frs_break_validate(conn, wsg = "BULK",
+# Drop breaks with > 5 salmon observations upstream since 1990
+frs_break_validate(conn,
                    breaks_table = "working.breaks",
                    evidence_table = "bcfishobs.fiss_fish_obsrvtn_events_vw",
-                   evidence_col = "species_code",
-                   evidence_values = c("CH", "CO", "PK", "SK", "CM"),
-                   obs_year_min = 1990,
-                   obs_count_threshold = 5,
+                   where = "species_code IN ('CH','CO','PK','SK','CM')
+                            AND observation_date >= '1990-01-01'",
+                   count_threshold = 5,
+                   schema = "working")
+
+# Drop breaks with any water license upstream
+frs_break_validate(conn,
+                   breaks_table = "working.breaks",
+                   evidence_table = "water_licenses",
+                   count_threshold = 1,
                    schema = "working")
 ```
 
-**Essence:** given break points and an evidence table, remove breaks where evidence upstream proves they're not real barriers. Returns validated breaks.
+**Essence:** given break points and an evidence table, remove breaks where count of upstream evidence exceeding threshold proves they're not real. The `where` clause filters the evidence table — works for any evidence type.
 
 | bcfishpass scripts replaced |
 |---|
@@ -88,28 +94,42 @@ frs_break_validate(conn, wsg = "BULK",
 
 ### `frs_segment_classify()`
 
-Tag stream segments meeting multi-attribute threshold criteria.
+Tag stream segments where multiple attributes fall within specified ranges. Optionally override with known/manual values.
 
 ```r
-# Classify by gradient + channel width ranges (spawning habitat thresholds)
+# Classify by gradient + channel width + discharge (spawning thresholds)
 frs_segment_classify(conn, wsg = "BULK",
-                     gradient_max = 0.025,
-                     channel_width = c(2, 20),  # min, max
-                     mad_m3s = c(0.5, 100),     # min, max
+                     ranges = list(
+                       gradient = c(0, 0.025),
+                       channel_width = c(2, 20),
+                       mad_m3s = c(0.5, 100)
+                     ),
                      schema = "working")
 
-# Different thresholds for rearing
+# Different thresholds for rearing — add temperature when available
 frs_segment_classify(conn, wsg = "BULK",
-                     gradient_max = 0.05,
-                     channel_width = c(0.5, 999),
+                     ranges = list(
+                       gradient = c(0, 0.05),
+                       channel_width = c(0.5, 999),
+                       temperature = c(8, 16)
+                     ),
+                     schema = "working")
+
+# With manual overrides — known values win over modelled
+frs_segment_classify(conn, wsg = "BULK",
+                     ranges = list(
+                       gradient = c(0, 0.025),
+                       channel_width = c(2, 20)
+                     ),
+                     overrides = "working.known_habitat",  # or an sf object
                      schema = "working")
 ```
 
-**Essence:** given attribute ranges, tag segments that fall within all ranges. Multi-attribute AND filter → classified segments table.
+**Essence:** given a named list of attribute ranges, tag segments that fall within all ranges (AND filter). Any column in the source table is a valid attribute — no function signature change when new attributes arrive. `overrides` left-joins manual classifications; manual wins.
 
 | bcfishpass scripts replaced |
 |---|
-| `load_habitat_linear_bt.sql`, `load_habitat_linear_ch.sql`, `load_habitat_linear_cm.sql`, `load_habitat_linear_co.sql`, `load_habitat_linear_pk.sql`, `load_habitat_linear_sk.sql`, `load_habitat_linear_st.sql`, `load_habitat_linear_wct.sql`, `load_streams_mapping_code.sql`, `horsefly_sk.sql` |
+| `load_habitat_linear_bt.sql`, `load_habitat_linear_ch.sql`, `load_habitat_linear_cm.sql`, `load_habitat_linear_co.sql`, `load_habitat_linear_pk.sql`, `load_habitat_linear_sk.sql`, `load_habitat_linear_st.sql`, `load_habitat_linear_wct.sql`, `load_streams_mapping_code.sql`, `horsefly_sk.sql`, `load_habitat_known.sql`, `user_habitat_classification_endpoints.sql` |
 
 ### `frs_network_reach()`
 
@@ -153,24 +173,6 @@ frs_upstream_sum(conn,
 |---|
 | `add_length_upstream.sql`, `load_crossings_upstream_access_01.sql`, `load_crossings_upstream_access_02.sql`, `load_crossings_upstream_habitat_01.sql`, `load_crossings_upstream_habitat_02.sql`, `load_crossings_upstream_habitat_wcrp.sql` |
 
-### `frs_classify_override()`
-
-Override automated classification with known/manual values.
-
-```r
-# Apply manual habitat classifications
-frs_classify_override(conn, wsg = "BULK",
-                      classified_table = "working.habitat_classified",
-                      overrides = my_known_habitat,  # sf or table name
-                      schema = "working")
-```
-
-**Essence:** left-join manual overrides onto classified segments, manual wins.
-
-| bcfishpass scripts replaced |
-|---|
-| `load_habitat_known.sql`, `user_habitat_classification_endpoints.sql` |
-
 ## Existing fresh functions covering remaining scripts
 
 | fresh function | bcfishpass scripts |
@@ -179,6 +181,19 @@ frs_classify_override(conn, wsg = "BULK",
 | `frs_stream_fetch()` | `load_streams.sql` |
 | `frs_network()` | `load_crossings.sql`, `load_crossings_dnstr_observations.sql`, `load_crossings_upstr_observations.sql`, `load_streams_dnstr_species.sql`, `load_streams_upstr_observations.sql` |
 | `frs_dam_fetch()` (new, small) | `load_dams.sql`, `load_falls.sql` |
+
+## Summary
+
+| Function | Essence | Scripts replaced |
+|---|---|---|
+| `frs_break()` | Break geometry at thresholds, features, or points | 9 |
+| `frs_break_validate()` | Remove breaks with upstream evidence | 5 |
+| `frs_segment_classify()` | Tag segments by attribute ranges + optional overrides | 12 |
+| `frs_network_reach()` | Flood-fill to reachable segments given breaks | 2 |
+| `frs_upstream_sum()` | Aggregate upstream of points | 6 |
+| **Total** | **5 functions** | **34 scripts** |
+
+Remaining scripts covered by existing fresh functions or thin fetch wrappers.
 
 ## Output Strategy
 
@@ -212,10 +227,7 @@ options(fresh.schema = "working")
 3. **Schema-flexible** — write to any schema; default from `options(fresh.schema)`
 4. **Server-side by default** — SQL executes in pg, R orchestrates
 5. **Composable** — `break → validate → reach → classify → summarize` chains naturally but each step is independently useful
-
-## Future Attributes
-
-`frs_segment_classify()` is attribute-agnostic by design. Current bcfishpass thresholds use gradient, channel width, and mean annual discharge. Temperature is a planned addition — same pattern, just another range parameter. The function doesn't care what the attribute represents.
+6. **Attribute-agnostic** — `ranges` takes any column name; no signature changes when new attributes (temperature, conductivity, etc.) arrive
 
 ## Non-Goals
 
