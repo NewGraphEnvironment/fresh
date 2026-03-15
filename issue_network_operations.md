@@ -405,6 +405,124 @@ options(fresh.schema = "working")
 7. **Server-side by default** — SQL executes in pg, R orchestrates
 8. **Composable** — `break → classify → aggregate` chains naturally; `frs_classify()` is pipeable for multi-step labelling
 
+## Portability — What Lives Where
+
+Three layers with different portability profiles:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Layer 3: Operations (fresh)                            │
+│  frs_break(), frs_classify(), frs_aggregate()           │
+│  Generates SQL. Mostly generic.                         │
+├─────────────────────────────────────────────────────────┤
+│  Layer 2: Data (fwapg load)                             │
+│  FWA streams, watersheds, ltree codes, geometry         │
+│  ETL scripts. Source → target db.                       │
+├─────────────────────────────────────────────────────────┤
+│  Layer 1: Network topology functions (fwapg functions)  │
+│  fwa_upstream(), fwa_downstream(),                      │
+│  fwa_watershedatmeasure(), fwa_indexpoint()              │
+│  PL/pgSQL + ltree + PostGIS. pg-native.                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+### What's pg-native and why
+
+| Capability | pg feature | Why it can't move easily |
+|---|---|---|
+| Upstream/downstream check | ltree `<@` operator + custom `fwa_upstream()` | Hierarchical path comparison with measure logic. No standard SQL equivalent — recursive CTEs are orders of magnitude slower on a 1M+ segment network |
+| Snap point to stream | PostGIS `<->` KNN + `ST_LineLocatePoint` | Spatial index-driven nearest-neighbour. DuckDB spatial has `ST_Distance` but no KNN index operator |
+| Watershed delineation | `fwa_watershedatmeasure()` | PL/pgSQL procedure assembling watershed polygon from pre-computed fundamental watersheds + partial area at the pour point. ~50 lines of spatial SQL |
+| Geometry operations | PostGIS `ST_Transform`, `ST_Intersects`, `ST_MakeEnvelope` | DuckDB spatial covers some of these but not all, and no SRID transform |
+
+### What's already portable
+
+| Operation | pg-native parts | Generic SQL parts |
+|---|---|---|
+| `frs_classify(ranges = ...)` | None | `WHERE col BETWEEN a AND b`, `UPDATE SET label` |
+| `frs_classify(breaks = ...)` | Network position check uses `fwa_upstream()` | The labelling itself is a join + update |
+| `frs_classify(overrides = ...)` | None | Join + update |
+| `frs_break(attribute + threshold)` | None | `WHERE gradient > 0.05` |
+| `frs_break(evidence_table)` | `fwa_upstream()` for counting obs upstream | The break/keep decision is generic |
+| `frs_aggregate()` | `fwa_upstream()`/`fwa_downstream()` for traversal | `SUM(length_m)`, `SUM(area_ha)` |
+| `frs_params()` | None | Read a table or CSV, return a list |
+
+**Pattern:** network traversal is the only hard pg dependency. Everything downstream of "which features are on this network" is standard SQL.
+
+### Separation strategy
+
+Three potential packages, matching the layers:
+
+| Package | Role | pg required? |
+|---|---|---|
+| **fwapg-functions** (or keep in fwapg) | Network topology: `fwa_upstream()`, `fwa_downstream()`, `fwa_watershedatmeasure()`, `fwa_indexpoint()` — the PL/pgSQL functions that require ltree + PostGIS | Yes — these ARE the pg extension |
+| **fwapg-load** (or keep in fwapg) | ETL: load FWA data into any pg instance. The load scripts from `fwapg/load/`. Could become a standalone package that builds an empty db from source data | Yes for target, but source-agnostic |
+| **fresh** | Operations: `frs_break()`, `frs_classify()`, `frs_aggregate()`, `frs_params()`. Generates SQL, dispatches to a connection | Today: pg. Future: could dispatch generic SQL portions to duckdb |
+
+The key question: **should fresh generate SQL that's backend-aware?**
+
+Option A — **pg only, keep it simple.** fresh generates pg SQL, full stop. The ltree + PostGIS dependency is a feature, not a bug — it's what makes network queries fast. Anyone who wants to use fresh needs pg with fwapg. This is the current reality and it works.
+
+Option B — **Backend-aware dispatch.** fresh detects the connection type and generates appropriate SQL. Network traversal always goes to pg (because ltree). But `frs_classify(ranges = ...)` against a local parquet/duckdb? That's just `WHERE col BETWEEN a AND b` — no reason it needs pg. This enables:
+
+```r
+# Heavy network ops on pg
+conn_pg <- frs_db_conn()
+frs_break(conn_pg, aoi = "BULK", type = "segment",
+          attribute = "gradient", threshold = 0.05,
+          schema = "working")
+
+# Pull results to local duckdb for fast classify/aggregate iteration
+conn_duck <- DBI::dbConnect(duckdb::duckdb())
+frs_classify(conn_duck, table = "streams",
+             ranges = list(gradient = c(0, 0.025)),
+             label = "spawning")
+```
+
+Option C — **Parquet as the interchange format.** Network traversal runs on pg, writes results to parquet. Everything after that — classify, aggregate, compare scenarios — runs locally against parquet via duckdb/arrow. No pg needed for the iteration loop:
+
+```r
+# One-time: extract network results from pg to parquet
+frs_break(conn_pg, aoi = "BULK", ..., parquet = "breaks.parquet")
+frs_network(conn_pg, ..., parquet = "network.parquet")
+
+# Iterate locally — no pg connection needed
+conn_duck <- DBI::dbConnect(duckdb::duckdb())
+duckdb::duckdb_register(conn_duck, "streams", arrow::read_parquet("network.parquet"))
+
+# Classify, re-classify, experiment — all local, fast
+frs_classify(conn_duck, table = "streams",
+             ranges = list(gradient = c(0, 0.025)),
+             label = "spawning")
+```
+
+This is interesting for the scenario testing workflow — extract once, iterate many times without network round-trips.
+
+### fwapg-load as its own package
+
+The load scripts (`fwapg/load/`) are pure ETL — download BC FWA data, compute ltree codes, build indexes. They're independent of the functions and independent of any consuming application. A separate package makes sense:
+
+```r
+# Build a fresh fwapg database from scratch
+fwapg.load::fwl_create(conn, source = "bcgw")  # or "geopackage", "parquet"
+
+# Update specific tables
+fwapg.load::fwl_update(conn, tables = c("streams", "watersheds"))
+
+# Build on a different pg instance (empty db → fully loaded)
+conn_local <- DBI::dbConnect(RPostgres::Postgres(), dbname = "fwa_dev")
+fwapg.load::fwl_create(conn_local, source = "bcgw")
+fwapg.load::fwl_install_functions(conn_local)  # install fwa_upstream() etc.
+```
+
+This would let anyone stand up their own fwapg instance — local docker, cloud pg, CI test db — without needing access to the shared instance. The functions travel with the db because they're installed into it.
+
+### What this means for fresh
+
+fresh stays as the R interface — it generates SQL and dispatches it. The question is whether `conn` is always pg, or whether fresh learns to talk to multiple backends for the operations that don't need ltree.
+
+For now (v0.1.x): pg only. The design already separates concerns cleanly enough that adding duckdb dispatch later doesn't require API changes — `frs_classify(conn, ...)` works regardless of what `conn` is.
+
 ## Non-Goals
 
 - Lateral/off-channel habitat (that's flooded)
@@ -416,5 +534,7 @@ options(fresh.schema = "working")
 - Do we need `frs_filter()` as distinct from `frs_classify()`? (subsurface flow removal is filtering, not classifying)
 - Local dev db via docker-compose for testing without remote permission constraints?
 - `frs_break(type = "waterbody")` cut geometry — perpendicular to lake long axis at entry point? Derived from shoreline angle? User-specified?
+- fwapg-load as separate package — when? Blocks on having a clean, tested load path that's not coupled to Simon's specific infra
+- Backend dispatch (duckdb for classify/aggregate) — design for it now (conn-agnostic signatures), build it later
 
 Relates to NewGraphEnvironment/bcfishpass
