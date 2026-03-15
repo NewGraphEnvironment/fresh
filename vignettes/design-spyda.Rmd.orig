@@ -1,0 +1,168 @@
+---
+title: "spyda: Stream Processing Yielding Drainage Assignment"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{spyda: Stream Processing Yielding Drainage Assignment}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Overview
+
+**spyda** — Stream Processing Yielding Drainage Assignment — builds custom
+stream network databases that `fresh` can query. It is the construction layer;
+`fresh` is the retrieval layer.
+
+The BC Freshwater Atlas (FWA) provides a province-wide coded stream network
+via `fwapg`. But habitat modelling often requires networks derived from
+higher-resolution sources (LiDAR DEMs, field-surveyed channels) or networks
+outside BC. spyda fills that gap: ingest raw stream geometries, walk the
+network, assign the same code architecture that FWA uses, and build a
+PostgreSQL database that fresh queries identically.
+
+```
+spyda (build) -> fresh (query) -> breaks (sub-basins) -> flooded (floodplains) -> drift (change)
+```
+
+## The Problem
+
+`fresh` queries work because fwapg encodes every stream segment with:
+- **blue_line_key** — unique route identifier (mouth to headwaters)
+- **wscode_ltree** — hierarchical drainage address (ltree)
+- **localcode_ltree** — position along the parent route (ltree)
+- **downstream_route_measure** — metres from the mouth
+
+These aren't properties of the raw geometry. They're *assigned* by walking
+the network and making decisions at every confluence. FWA made those decisions
+once for the whole province. spyda makes them for any network you give it.
+
+## Mainstem Selection
+
+At every confluence, one branch continues as mainstem (keeps the parent code
+path) and the other becomes a tributary (gets a new code level appended).
+This single decision drives the entire hierarchy.
+
+### Decision rules
+
+spyda supports pluggable rules, applied in priority order:
+
+1. **User override** — a table of `(confluence_id, mainstem_branch)` pairs
+   for expert decisions at specific junctions
+2. **Drainage area** — largest contributing area continues. Most
+   hydrologically defensible. Requires DEM or precomputed areas.
+3. **Channel length** — longest upstream path continues. No DEM needed.
+4. **Stream order** — higher Strahler order continues. Ties broken by length.
+
+### Algorithm
+
+```
+1. Identify outlet(s) — segments with no downstream neighbour
+2. Assign root code (e.g., '100')
+3. Walk upstream from each outlet (BFS/DFS)
+4. At each confluence:
+   a. Evaluate decision rule (user override > area > length > order)
+   b. Winner keeps current code path (mainstem)
+   c. Loser gets new code level appended (tributary)
+5. Assign blue_line_keys — each continuous mainstem route gets one key
+6. Compute downstream_route_measure along each blue_line_key
+7. Assign localcode_ltree from position along parent route
+8. Build ltree + spatial GiST indexes
+```
+
+## Code Architecture
+
+The watershed code is a dot-separated numeric path stored as PostgreSQL
+`ltree`. FWA uses a 21-level scheme (3-digit root + up to 20 six-digit
+levels). spyda follows the same convention so `fresh` queries work unchanged.
+
+| Code | Meaning |
+|------|---------|
+| `100` | Root drainage (outlet) |
+| `100.000001` | First tributary upstream from mouth |
+| `100.000001.000001` | First trib of that trib |
+| `100.000002` | Second tributary upstream from mouth |
+
+**wscode_ltree** identifies which drainage a segment belongs to.
+**localcode_ltree** encodes where on the parent route the tributary enters,
+enabling sub-segment precision for upstream/downstream queries.
+
+The key insight: once these codes exist, `fresh::frs_network_upstream()` and
+`frs_network_downstream()` are just ltree containment checks (`<@`). O(1)
+index lookups, not graph traversals. The network source doesn't matter.
+
+## Proposed Function Surface
+
+All exported functions prefixed `spd_`, noun-first (matching fresh convention).
+
+### Database initialization
+
+- `spd_db_init()` — create a PostgreSQL database with ltree extension and
+  spyda schema
+- `spd_db_conn()` — connect to a spyda-built database
+
+### Network ingestion
+
+- `spd_network_ingest()` — load stream geometries (sf object, GeoPackage,
+  or shapefile) into the database. Validates topology (connected network,
+  consistent flow direction).
+- `spd_network_validate()` — check for disconnected segments, loops,
+  inconsistent digitization direction
+
+### Code assignment
+
+- `spd_mainstem_assign()` — walk confluences, pick mainstems using the
+  decision rule hierarchy. Returns a table of assignments.
+- `spd_code_assign()` — burn wscode_ltree + localcode_ltree onto every
+  segment based on mainstem assignments
+- `spd_bluelinekey_assign()` — assign blue_line_key to each continuous route
+- `spd_measure_compute()` — compute downstream_route_measure along each
+  blue_line_key
+
+### Indexing
+
+- `spd_index_build()` — create GiST indexes on ltree columns + spatial
+  index on geometry. After this, the database is ready for fresh queries.
+
+### Overrides
+
+- `spd_override_table()` — create/manage a user override table for
+  mainstem decisions at specific confluences
+- `spd_override_add()` — add an override for a specific confluence
+
+## fresh Compatibility
+
+fresh currently assumes fwapg table names and column names. Two options:
+
+**Option A: Views** — spyda creates views that match fwapg naming conventions.
+fresh queries hit the views, unaware of the source. Zero changes to fresh.
+
+**Option B: Connection-aware** — fresh accepts a schema or table name
+parameter. Minor fresh changes, more explicit.
+
+Option A is simpler and preserves fresh as truly source-agnostic.
+
+## Dependencies
+
+- **Runtime:** DBI, RPostgres, sf, igraph (for network walking)
+- **Suggests:** terra (for drainage area from DEM), fresh (for integration
+  testing)
+- **Database:** PostgreSQL with ltree extension (no fwapg/bcfishpass needed)
+
+## Open Questions
+
+1. **Flow direction** — LiDAR-derived networks may not have consistent
+   digitization direction. How much topology repair does spyda handle vs
+   requiring clean input?
+
+2. **Multiple outlets** — coastal drainages have many independent outlets.
+   Each gets its own root code. How to assign root codes systematically?
+
+3. **Waterbody integration** — FWA has separate lake/wetland tables linked
+   by waterbody_key. Does spyda need the same, or is stream-only sufficient
+   for habitat modelling?
+
+4. **Scale** — province-wide LiDAR network could be millions of segments.
+   Does the BFS walk need to be done in SQL rather than R?
+
+5. **fwapg compatibility depth** — which fwapg functions does fresh actually
+   call? That defines the minimum view/schema contract spyda must satisfy.
