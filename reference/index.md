@@ -24,6 +24,8 @@
   : Get Stream Segments Upstream of a Network Position
 - [`frs_order_filter()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_filter.md)
   : Filter Stream Segments by Strahler Order
+- [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
+  : Load Habitat Model Parameter Sets
 - [`frs_point_locate()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_locate.md)
   : Locate a Point on the FWA Stream Network
 - [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
