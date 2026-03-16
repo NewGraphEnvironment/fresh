@@ -32,23 +32,26 @@ iteration with \code{\link[=lapply]{lapply()}} or \code{purrr::walk()} over the 
 \code{frs_classify()} pipeline.
 }
 \examples{
+# Load species thresholds from bundled test data
+params <- frs_params(csv = system.file("testdata", "test_params.csv",
+  package = "fresh"))
+names(params)
+
+# Coho spawning: gradient 0-5.5\%, channel width 2m+, MAD 0.16-9999 m3/s
+params$CO$ranges$spawn
+
+# Bull trout rearing: no gradient or MAD constraint, just channel width 1.5m+
+params$BT$ranges$rear
+
 \dontrun{
 conn <- frs_db_conn()
 
-# Default: bcfishpass parameter tables
+# Default: bcfishpass parameter tables (11 species)
 params <- frs_params(conn)
-params$CO$spawn_gradient_max
-params$CO$ranges$spawn
 
-# Custom table
-params <- frs_params(conn, table = "working.my_thresholds")
-
-# Local CSV for rapid iteration
-params <- frs_params(csv = "my_experimental_thresholds.csv")
-
-# Drive the pipeline
+# Drive the pipeline — one iteration per species
 lapply(params, function(p) {
-  message("Processing: ", p$species_code)
+  message(p$species_code, ": gradient max = ", p$spawn_gradient_max)
   # frs_break(conn, ..., threshold = p$spawn_gradient_max)
   # frs_classify(conn, ..., ranges = p$ranges$spawn)
 })
