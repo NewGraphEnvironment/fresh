@@ -139,6 +139,123 @@
 }
 
 
+#' Check if a DB connection to fwapg is available
+#'
+#' Attempts to connect and run a trivial query. Returns `TRUE` on success,
+#' `FALSE` on any failure. Used by integration tests to skip gracefully
+#' when no tunnel/DB is available.
+#'
+#' @return Logical scalar.
+#' @noRd
+.frs_db_available <- function() {
+  tryCatch({
+    conn <- frs_db_conn()
+    on.exit(DBI::dbDisconnect(conn))
+    DBI::dbGetQuery(conn, "SELECT 1")
+    TRUE
+  }, error = function(e) FALSE)
+}
+
+
+#' Resolve an AOI specification to a SQL WHERE predicate
+#'
+#' Normalizes any AOI input into a SQL predicate string that can be appended
+#' to a WHERE clause. Handles sf polygons, table+id lookups, character
+#' shortcuts (via partition options), blk+measure watershed delineation,
+#' and NULL (no filter).
+#'
+#' @param aoi AOI specification. One of:
+#'   - `NULL` — no spatial filter
+#'   - Character vector — shortcut for partition table lookup using
+#'     `getOption("fresh.partition_table")` and
+#'     `getOption("fresh.partition_col")`
+#'   - `sf`/`sfc` polygon — spatial intersection
+#'   - Named list with `table` and `id` (and optionally `id_col`) — lookup
+#'     polygon from a pg table
+#'   - Named list with `blk` and `measure` — delineate watershed via
+#'     `fwa_watershedatmeasure()`
+#' @param conn A [DBI::DBIConnection-class] object. Required for sf upload,
+#'   table lookup, and blk+measure delineation. Not needed for character
+#'   or NULL inputs.
+#' @param geom_col Character. Name of the geometry column in the target
+#'   table. Default `"geom"`.
+#' @param alias Character. Table alias prefix for the predicate. Default
+#'   `""` (no prefix).
+#'
+#' @return Character scalar. A SQL predicate (without leading WHERE/AND),
+#'   or empty string `""` for NULL aoi.
+#' @noRd
+.frs_resolve_aoi <- function(aoi, conn = NULL, geom_col = "geom",
+                             alias = "") {
+  if (is.null(aoi)) return("")
+
+  prefix <- if (nzchar(alias)) paste0(alias, ".") else ""
+
+  # Character vector — partition table shortcut
+
+  if (is.character(aoi)) {
+    tbl <- getOption("fresh.partition_table",
+                     "whse_basemapping.fwa_watershed_groups_poly")
+    col <- getOption("fresh.partition_col", "watershed_group_code")
+    .frs_validate_identifier(tbl, "partition table")
+    .frs_validate_identifier(col, "partition column")
+    quoted <- paste(vapply(aoi, .frs_quote_string, character(1)),
+                    collapse = ", ")
+    return(sprintf(
+      "%s%s && (SELECT ST_Union(geom) FROM %s WHERE %s IN (%s))",
+      prefix, geom_col, tbl, col, quoted
+    ))
+  }
+
+  # sf/sfc polygon — spatial intersection
+  if (inherits(aoi, c("sf", "sfc"))) {
+    # Transform to BC Albers (3005) to match DB geometry
+    aoi_3005 <- sf::st_transform(aoi, 3005)
+    wkt <- sf::st_as_text(sf::st_union(sf::st_geometry(aoi_3005)))
+    return(sprintf(
+      "ST_Intersects(%s%s, ST_GeomFromText('%s', 3005))",
+      prefix, geom_col, wkt
+    ))
+  }
+
+  # Named list — table+id lookup or blk+measure delineation
+  if (is.list(aoi)) {
+    # blk + measure → watershed delineation
+    if (!is.null(aoi$blk) && !is.null(aoi$measure)) {
+      blk <- as.integer(aoi$blk)
+      measure <- as.numeric(aoi$measure)
+      return(sprintf(
+        "ST_Intersects(%s%s, (SELECT ST_Union(geom) FROM whse_basemapping.fwa_watershedatmeasure(%d, %s)))",
+        prefix, geom_col, blk, measure
+      ))
+    }
+
+    # table + id → polygon lookup
+    if (!is.null(aoi$table) && !is.null(aoi$id)) {
+      .frs_validate_identifier(aoi$table, "AOI table")
+      id_col <- if (!is.null(aoi$id_col)) aoi$id_col else "id"
+      .frs_validate_identifier(id_col, "AOI id column")
+      id_val <- if (is.character(aoi$id)) {
+        .frs_quote_string(aoi$id)
+      } else {
+        as.character(aoi$id)
+      }
+      return(sprintf(
+        "ST_Intersects(%s%s, (SELECT ST_Union(geom) FROM %s WHERE %s = %s))",
+        prefix, geom_col, aoi$table, id_col, id_val
+      ))
+    }
+
+    stop("list aoi must have 'blk'+'measure' or 'table'+'id'", call. = FALSE)
+  }
+
+  stop(
+    sprintf("aoi must be NULL, character, sf, or list. Got: %s", class(aoi)[1]),
+    call. = FALSE
+  )
+}
+
+
 #' Transform sf result to a target CRS
 #'
 #' @param x An `sf` object.
