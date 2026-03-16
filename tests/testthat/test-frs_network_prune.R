@@ -2,24 +2,24 @@
 
 test_that("frs_network_prune includes guards by default", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network_prune(blue_line_key = 360873822, downstream_route_measure = 166030)
+  frs_network_prune("mock", blue_line_key = 360873822, downstream_route_measure = 166030)
 
   expect_match(sql_sent, "localcode_ltree IS NOT NULL")
 })
 
 test_that("frs_network_prune skips guards with include_all = TRUE", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network_prune(blue_line_key = 360873822, downstream_route_measure = 166030,
+  frs_network_prune("mock", blue_line_key = 360873822, downstream_route_measure = 166030,
     include_all = TRUE)
 
   expect_no_match(sql_sent, "edge_type NOT IN")
@@ -29,10 +29,12 @@ test_that("frs_network_prune skips guards with include_all = TRUE", {
 
 test_that("frs_network_prune filters upstream by stream order", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(x = -126.5, y = 54.5)
+  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
 
-  pruned <- frs_network_prune(
+  pruned <- frs_network_prune(conn,
     blue_line_key = snapped$blue_line_key,
     downstream_route_measure = snapped$downstream_route_measure,
     stream_order_min = 3
@@ -45,10 +47,12 @@ test_that("frs_network_prune filters upstream by stream order", {
 
 test_that("frs_network_prune filters by gradient", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(x = -126.5, y = 54.5)
+  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
 
-  pruned <- frs_network_prune(
+  pruned <- frs_network_prune(conn,
     blue_line_key = snapped$blue_line_key,
     downstream_route_measure = snapped$downstream_route_measure,
     gradient_max = 0.03

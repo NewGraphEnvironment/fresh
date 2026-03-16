@@ -19,7 +19,7 @@
 #' @param cols Character vector of column names to select from the polygon
 #'   table. Default includes the most commonly used attributes.
 #' @param direction Character. `"upstream"` (default) or `"downstream"`.
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame of waterbody polygons.
 #'
@@ -29,27 +29,24 @@
 #'
 #' @examples
 #' \dontrun{
+#' conn <- frs_db_conn()
+#'
 #' # Upstream lakes from the Neexdzii Kwa / Wedzin Kwa confluence
-#' lakes <- frs_waterbody_network(
+#' lakes <- frs_waterbody_network(conn,
 #'   blue_line_key = 360873822,
 #'   downstream_route_measure = 166030
 #' )
 #'
 #' # Upstream wetlands
-#' wetlands <- frs_waterbody_network(
+#' wetlands <- frs_waterbody_network(conn,
 #'   blue_line_key = 360873822,
 #'   downstream_route_measure = 166030,
 #'   table = "whse_basemapping.fwa_wetlands_poly"
 #' )
-#'
-#' # Downstream lakes
-#' lakes_ds <- frs_waterbody_network(
-#'   blue_line_key = 360873822,
-#'   downstream_route_measure = 166030,
-#'   direction = "downstream"
-#' )
+#' DBI::dbDisconnect(conn)
 #' }
 frs_waterbody_network <- function(
+    conn,
     blue_line_key,
     downstream_route_measure,
     table = "whse_basemapping.fwa_lakes_poly",
@@ -57,8 +54,7 @@ frs_waterbody_network <- function(
       "waterbody_key", "waterbody_type", "gnis_name_1", "area_ha",
       "blue_line_key", "watershed_group_code", "geom"
     ),
-    direction = "upstream",
-    ...
+    direction = "upstream"
 ) {
   direction <- match.arg(direction, c("upstream", "downstream"))
   fwa_fn <- switch(direction,
@@ -98,5 +94,5 @@ frs_waterbody_network <- function(
     table
   )
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }

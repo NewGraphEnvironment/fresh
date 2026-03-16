@@ -15,7 +15,7 @@
 #' @param cols Character vector of column names to select. Default includes
 #'   the most commonly used FWA wetland attributes.
 #' @param limit Integer. Maximum rows to return. Default `NULL` (no limit).
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame of wetland polygons.
 #'
@@ -25,13 +25,14 @@
 #'
 #' @examples
 #' \dontrun{
-#' # All wetlands in the Bulkley watershed group
-#' wetlands <- frs_wetland_fetch(watershed_group_code = "BULK")
-#'
-#' # Wetlands larger than 5 ha
-#' wetlands <- frs_wetland_fetch(watershed_group_code = "BULK", area_ha_min = 5)
+#' conn <- frs_db_conn()
+#' wetlands <- frs_wetland_fetch(conn, watershed_group_code = "BULK")
+#' wetlands_big <- frs_wetland_fetch(conn, watershed_group_code = "BULK",
+#'   area_ha_min = 5)
+#' DBI::dbDisconnect(conn)
 #' }
 frs_wetland_fetch <- function(
+    conn,
     watershed_group_code = NULL,
     blue_line_key = NULL,
     bbox = NULL,
@@ -41,8 +42,7 @@ frs_wetland_fetch <- function(
       "waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
       "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"
     ),
-    limit = NULL,
-    ...
+    limit = NULL
 ) {
   where <- .frs_build_where(
     watershed_group_code = watershed_group_code,
@@ -60,5 +60,5 @@ frs_wetland_fetch <- function(
     if (!is.null(limit)) paste0(" LIMIT ", as.integer(limit))
   )
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }

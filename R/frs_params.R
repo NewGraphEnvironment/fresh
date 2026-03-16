@@ -5,8 +5,9 @@
 #' iteration with [lapply()] or `purrr::walk()` over the `frs_break()` /
 #' `frs_classify()` pipeline.
 #'
-#' @param conn A [DBI::DBIConnection-class] object. Required when reading
-#'   from a database table. Ignored when `csv` is provided.
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
+#'   Required when reading from a database table. Use `NULL` when reading
+#'   from a CSV file.
 #' @param table Character. Schema-qualified table name to read parameters from.
 #'   Default `"bcfishpass.parameters_habitat_thresholds"`.
 #' @param csv Character or `NULL`. Path to a local CSV file. When provided,

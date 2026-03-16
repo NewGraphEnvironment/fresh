@@ -1,11 +1,10 @@
 #' Query FWA PostgreSQL Database
 #'
-#' Connects via [frs_db_conn()], executes a SQL query, disconnects, and
-#' returns the result. Uses [sf::st_read()] so spatial columns are returned
-#' as sf geometry.
+#' Executes a SQL query on an open connection. Uses [sf::st_read()] so
+#' spatial columns are returned as sf geometry.
 #'
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param query Character. SQL query string.
-#' @param ... Additional arguments passed to [frs_db_conn()].
 #'
 #' @return An `sf` data frame (if the query returns geometry) or a plain
 #'   data frame.
@@ -16,10 +15,10 @@
 #'
 #' @examples
 #' \dontrun{
-#' frs_db_query("SELECT * FROM whse_basemapping.fwa_lakes_poly LIMIT 5")
+#' conn <- frs_db_conn()
+#' frs_db_query(conn, "SELECT * FROM whse_basemapping.fwa_lakes_poly LIMIT 5")
+#' DBI::dbDisconnect(conn)
 #' }
-frs_db_query <- function(query, ...) {
-  conn <- frs_db_conn(...)
-  on.exit(DBI::dbDisconnect(conn))
+frs_db_query <- function(conn, query) {
   sf::st_read(conn, query = query)
 }

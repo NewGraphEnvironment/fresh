@@ -18,7 +18,7 @@
 #' @param upstream_blk Integer or `NULL`. Blue line key for the upstream point.
 #'   Defaults to `blue_line_key` (same stream). Use when the upstream point is
 #'   on a tributary.
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame with a single polygon geometry.
 #'
@@ -28,22 +28,26 @@
 #'
 #' @examples
 #' \dontrun{
+#' conn <- frs_db_conn()
+#'
 #' # Watershed upstream of a single point
-#' ws <- frs_watershed_at_measure(360873822, 208877)
+#' ws <- frs_watershed_at_measure(conn, 360873822, 208877)
 #'
 #' # Subbasin between two points on the same stream
-#' aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
+#' aoi <- frs_watershed_at_measure(conn, 360873822, 208877,
+#'   upstream_measure = 233564)
 #'
 #' # Subbasin with upstream point on a tributary (different BLK)
-#' aoi <- frs_watershed_at_measure(360873822, 165115,
+#' aoi <- frs_watershed_at_measure(conn, 360873822, 165115,
 #'   upstream_measure = 838, upstream_blk = 360886221)
+#' DBI::dbDisconnect(conn)
 #' }
 frs_watershed_at_measure <- function(
+    conn,
     blue_line_key,
     downstream_route_measure,
     upstream_measure = NULL,
-    upstream_blk = NULL,
-    ...
+    upstream_blk = NULL
 ) {
   if (!is.numeric(blue_line_key) || length(blue_line_key) != 1 || is.na(blue_line_key)) {
     stop("blue_line_key must be a single numeric value")
@@ -64,12 +68,20 @@ frs_watershed_at_measure <- function(
     }
   }
 
-  ws_down <- frs_db_query(
+  # Validate upstream > downstream before hitting the DB
+  if (!is.null(upstream_measure)) {
+    up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
+    if (up_blk == blue_line_key &&
+        upstream_measure <= downstream_route_measure) {
+      stop("upstream_measure must be greater than downstream_route_measure")
+    }
+  }
+
+  ws_down <- frs_db_query(conn,
     sprintf(
       "SELECT geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
       blue_line_key, downstream_route_measure
-    ),
-    ...
+    )
   )
 
   if (is.null(upstream_measure)) {
@@ -78,17 +90,11 @@ frs_watershed_at_measure <- function(
 
   up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
 
-  if (up_blk == blue_line_key &&
-      upstream_measure <= downstream_route_measure) {
-    stop("upstream_measure must be greater than downstream_route_measure")
-  }
-
-  ws_up <- frs_db_query(
+  ws_up <- frs_db_query(conn,
     sprintf(
       "SELECT geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
       up_blk, upstream_measure
-    ),
-    ...
+    )
   )
 
   if (!sf::st_intersects(ws_down, ws_up, sparse = FALSE)[1, 1]) {

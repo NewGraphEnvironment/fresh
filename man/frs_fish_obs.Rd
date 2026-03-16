@@ -5,6 +5,7 @@
 \title{Fetch Fish Observations}
 \usage{
 frs_fish_obs(
+  conn,
   species_code = NULL,
   watershed_group_code = NULL,
   blue_line_key = NULL,
@@ -12,11 +13,12 @@ frs_fish_obs(
   cols = c("fish_observation_point_id", "species_code", "observation_date", "life_stage",
     "activity", "blue_line_key", "downstream_route_measure", "watershed_group_code",
     "wscode_ltree", "localcode_ltree", "geom"),
-  limit = NULL,
-  ...
+  limit = NULL
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{species_code}{Character. Species code (e.g. \code{"CH"} for chinook,
 \code{"ST"} for steelhead). Default \code{NULL} (all species).}
 
@@ -31,8 +33,6 @@ frs_fish_obs(
 the most commonly used observation attributes.}
 
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL}.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of fish observation events.
@@ -43,8 +43,10 @@ Filter by species code, watershed group, and/or blue line key.
 }
 \examples{
 \dontrun{
-# Chinook observations in the Bulkley
-obs <- frs_fish_obs(species_code = "CH", watershed_group_code = "BULK")
+conn <- frs_db_conn()
+obs <- frs_fish_obs(conn, species_code = "CH",
+  watershed_group_code = "BULK")
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

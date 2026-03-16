@@ -11,7 +11,7 @@
 #' @param cols Character vector of column names to select. Default includes
 #'   the most commonly used habitat model attributes.
 #' @param limit Integer. Maximum rows to return. Default `NULL`.
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame of stream segments with bcfishpass habitat model
 #'   columns (barriers, access, gradient, channel width, etc.).
@@ -22,10 +22,13 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Habitat model for the Bulkley
-#' habitat <- frs_fish_habitat(watershed_group_code = "BULK", limit = 100)
+#' conn <- frs_db_conn()
+#' habitat <- frs_fish_habitat(conn, watershed_group_code = "BULK",
+#'   limit = 100)
+#' DBI::dbDisconnect(conn)
 #' }
 frs_fish_habitat <- function(
+    conn,
     watershed_group_code = NULL,
     blue_line_key = NULL,
     table = "bcfishpass.streams_vw",
@@ -35,8 +38,7 @@ frs_fish_habitat <- function(
       "stream_order", "channel_width", "gradient", "mad_m3s",
       "watershed_group_code", "wscode", "localcode", "geom"
     ),
-    limit = NULL,
-    ...
+    limit = NULL
 ) {
   .frs_validate_identifier(table, "table")
   for (col in cols) .frs_validate_identifier(col, "column")
@@ -63,5 +65,5 @@ frs_fish_habitat <- function(
     if (!is.null(limit)) paste0(" LIMIT ", as.integer(limit))
   )
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }

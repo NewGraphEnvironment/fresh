@@ -12,7 +12,7 @@
 #' @param cols Character vector of column names to select. Default includes
 #'   the most commonly used observation attributes.
 #' @param limit Integer. Maximum rows to return. Default `NULL`.
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame of fish observation events.
 #'
@@ -22,10 +22,13 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Chinook observations in the Bulkley
-#' obs <- frs_fish_obs(species_code = "CH", watershed_group_code = "BULK")
+#' conn <- frs_db_conn()
+#' obs <- frs_fish_obs(conn, species_code = "CH",
+#'   watershed_group_code = "BULK")
+#' DBI::dbDisconnect(conn)
 #' }
 frs_fish_obs <- function(
+    conn,
     species_code = NULL,
     watershed_group_code = NULL,
     blue_line_key = NULL,
@@ -36,8 +39,7 @@ frs_fish_obs <- function(
       "downstream_route_measure", "watershed_group_code",
       "wscode_ltree", "localcode_ltree", "geom"
     ),
-    limit = NULL,
-    ...
+    limit = NULL
 ) {
   .frs_validate_identifier(table, "table")
   for (col in cols) .frs_validate_identifier(col, "column")
@@ -67,5 +69,5 @@ frs_fish_obs <- function(
     if (!is.null(limit)) paste0(" LIMIT ", as.integer(limit))
   )
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }

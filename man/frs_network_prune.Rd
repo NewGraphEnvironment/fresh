@@ -5,6 +5,7 @@
 \title{Get Pruned Upstream Network}
 \usage{
 frs_network_prune(
+  conn,
   blue_line_key,
   downstream_route_measure,
   stream_order_min = NULL,
@@ -18,11 +19,12 @@ frs_network_prune(
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   wscode_col = "wscode_ltree",
-  localcode_col = "localcode_ltree",
-  ...
+  localcode_col = "localcode_ltree"
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{blue_line_key}{Integer. Blue line key of the reference point.}
 
 \item{downstream_route_measure}{Numeric. Downstream route measure of the
@@ -54,8 +56,6 @@ Default \code{"wscode_ltree"}. Use \code{"wscode"} for bcfishpass views.}
 
 \item{localcode_col}{Character. Name of the local code ltree column.
 Default \code{"localcode_ltree"}. Use \code{"localcode"} for bcfishpass views.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of filtered upstream stream segments.
@@ -74,8 +74,10 @@ to a gap in the bcfishpass rearing model. See
 }
 \examples{
 \dontrun{
+conn <- frs_db_conn()
+
 # Upstream network from FWA base table, order >= 3
-pruned <- frs_network_prune(
+pruned <- frs_network_prune(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030,
   stream_order_min = 3,
@@ -84,7 +86,7 @@ pruned <- frs_network_prune(
 
 # Coho rearing/spawning upstream of Neexdzii Kwa confluence
 # NB: rearing/spawning filters drop lake/wetland segments (see @note)
-co_habitat <- frs_network_prune(
+co_habitat <- frs_network_prune(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030.4,
   stream_order_min = 4,
@@ -97,6 +99,7 @@ co_habitat <- frs_network_prune(
   wscode_col = "wscode",
   localcode_col = "localcode"
 )
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

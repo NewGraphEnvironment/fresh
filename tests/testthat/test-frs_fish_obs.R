@@ -1,7 +1,9 @@
 test_that("frs_fish_obs returns sf with species filter", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
-  obs <- frs_fish_obs(species_code = "CH", watershed_group_code = "BULK", limit = 5)
+  obs <- frs_fish_obs(conn, species_code = "CH", watershed_group_code = "BULK", limit = 5)
   expect_s3_class(obs, "sf")
   expect_true(nrow(obs) > 0)
   expect_true("species_code" %in% names(obs))
@@ -10,8 +12,10 @@ test_that("frs_fish_obs returns sf with species filter", {
 
 test_that("frs_fish_obs returns all species when unfiltered", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
-  obs <- frs_fish_obs(watershed_group_code = "BULK", limit = 10)
+  obs <- frs_fish_obs(conn, watershed_group_code = "BULK", limit = 10)
   expect_s3_class(obs, "sf")
   expect_true(nrow(obs) > 0)
 })

@@ -5,6 +5,7 @@
 \title{Fetch FWA Lakes}
 \usage{
 frs_lake_fetch(
+  conn,
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
@@ -12,11 +13,12 @@ frs_lake_fetch(
   table = "whse_basemapping.fwa_lakes_poly",
   cols = c("waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
     "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"),
-  limit = NULL,
-  ...
+  limit = NULL
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{watershed_group_code}{Character. Watershed group code (e.g. \code{"BULK"}).
 Default \code{NULL}.}
 
@@ -35,8 +37,6 @@ BC Albers (EPSG:3005). Default \code{NULL}.}
 the most commonly used FWA lake attributes.}
 
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of lake polygons.
@@ -47,11 +47,11 @@ Filter by watershed group code, blue line key, and/or bounding box.
 }
 \examples{
 \dontrun{
-# All lakes in the Bulkley watershed group
-lakes <- frs_lake_fetch(watershed_group_code = "BULK")
-
-# Lakes larger than 10 ha
-lakes <- frs_lake_fetch(watershed_group_code = "BULK", area_ha_min = 10)
+conn <- frs_db_conn()
+lakes <- frs_lake_fetch(conn, watershed_group_code = "BULK")
+lakes_big <- frs_lake_fetch(conn, watershed_group_code = "BULK",
+  area_ha_min = 10)
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

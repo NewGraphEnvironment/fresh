@@ -25,7 +25,7 @@
 #'   Default `"wscode_ltree"`. Use `"wscode"` for bcfishpass views.
 #' @param localcode_col Character. Name of the local code ltree column.
 #'   Default `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame of filtered upstream stream segments.
 #'
@@ -41,8 +41,10 @@
 #'
 #' @examples
 #' \dontrun{
+#' conn <- frs_db_conn()
+#'
 #' # Upstream network from FWA base table, order >= 3
-#' pruned <- frs_network_prune(
+#' pruned <- frs_network_prune(conn,
 #'   blue_line_key = 360873822,
 #'   downstream_route_measure = 166030,
 #'   stream_order_min = 3,
@@ -51,7 +53,7 @@
 #'
 #' # Coho rearing/spawning upstream of Neexdzii Kwa confluence
 #' # NB: rearing/spawning filters drop lake/wetland segments (see @note)
-#' co_habitat <- frs_network_prune(
+#' co_habitat <- frs_network_prune(conn,
 #'   blue_line_key = 360873822,
 #'   downstream_route_measure = 166030.4,
 #'   stream_order_min = 4,
@@ -64,8 +66,10 @@
 #'   wscode_col = "wscode",
 #'   localcode_col = "localcode"
 #' )
+#' DBI::dbDisconnect(conn)
 #' }
 frs_network_prune <- function(
+    conn,
     blue_line_key,
     downstream_route_measure,
     stream_order_min = NULL,
@@ -81,8 +85,7 @@ frs_network_prune <- function(
       "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"
     ),
     wscode_col = "wscode_ltree",
-    localcode_col = "localcode_ltree",
-    ...
+    localcode_col = "localcode_ltree"
 ) {
   .frs_validate_identifier(table, "table")
   .frs_validate_identifier(wscode_col, "wscode_col")
@@ -143,5 +146,5 @@ frs_network_prune <- function(
     filter_sql
   )
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }

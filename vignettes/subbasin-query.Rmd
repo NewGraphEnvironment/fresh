@@ -35,15 +35,17 @@ library(tmap)
 
 sf_use_s2(FALSE)
 
+conn <- frs_db_conn()
+
 blk <- 360873822
 drm_byman <- 208877     # just upstream of Byman Creek
 drm_ailport <- 233564   # just upstream of Ailport Creek
 
 # Subbasin polygon (downstream watershed minus upstream watershed)
-aoi <- frs_watershed_at_measure(blk, drm_byman, upstream_measure = drm_ailport)
+aoi <- frs_watershed_at_measure(conn, blk, drm_byman, upstream_measure = drm_ailport)
 
 # Network features between the two points
-result <- frs_network(blk, drm_byman, upstream_measure = drm_ailport,
+result <- frs_network(conn, blk, drm_byman, upstream_measure = drm_ailport,
   tables = list(
     streams = "whse_basemapping.fwa_stream_networks_sp",
     co = list(
@@ -69,7 +71,7 @@ env <- sprintf(
   bb["xmin"], bb["ymin"], bb["xmax"], bb["ymax"]
 )
 
-roads <- frs_db_query(sprintf(
+roads <- frs_db_query(conn, sprintf(
   "SELECT transport_line_type_code, geom
    FROM whse_basemapping.transport_line
    WHERE transport_line_type_code IN
@@ -82,7 +84,7 @@ roads <- st_collection_extract(st_intersection(roads, aoi), "LINESTRING")
 highways <- roads[roads$transport_line_type_code %in% c("RF", "RH1", "RH2"), ]
 roads_other <- roads[!roads$transport_line_type_code %in% c("RF", "RH1", "RH2"), ]
 
-fsr <- frs_db_query(sprintf(
+fsr <- frs_db_query(conn, sprintf(
   "SELECT road_section_name, geom
    FROM whse_forest_tenure.ften_road_section_lines_svw
    WHERE life_cycle_status_code = 'ACTIVE'
@@ -91,7 +93,7 @@ fsr <- frs_db_query(sprintf(
 ))
 fsr <- st_collection_extract(st_intersection(fsr, aoi), "LINESTRING")
 
-railway <- frs_db_query(sprintf(
+railway <- frs_db_query(conn, sprintf(
   "SELECT track_name, geom
    FROM whse_basemapping.gba_railway_tracks_sp
    WHERE ST_Intersects(geom, %s)", env
@@ -101,10 +103,10 @@ if (nrow(railway) > 0) {
 }
 
 # Keymap data: BC outline + Bulkley/Morice watershed groups
-bc <- frs_db_query(
+bc <- frs_db_query(conn,
   "SELECT ST_Simplify(geom, 5000) as geom FROM whse_basemapping.fwa_bcboundary"
 )
-wsg <- frs_db_query(
+wsg <- frs_db_query(conn,
   "SELECT watershed_group_code, geom
    FROM whse_basemapping.fwa_watershed_groups_poly
    WHERE watershed_group_code IN ('BULK', 'MORR')"

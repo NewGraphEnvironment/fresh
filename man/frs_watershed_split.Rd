@@ -4,9 +4,11 @@
 \alias{frs_watershed_split}
 \title{Split a Watershed into Sub-Basins at Break Points}
 \usage{
-frs_watershed_split(points, aoi = NULL, tolerance = 5000, crs = NULL, ...)
+frs_watershed_split(conn, points, aoi = NULL, tolerance = 5000, crs = NULL)
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{points}{A data frame (or sf) with \code{lon} and \code{lat} columns (WGS84).
 All extra columns (e.g. \code{name_basin}) are preserved in the output,
 making this the place to attach labels, site IDs, or any metadata to
@@ -21,8 +23,6 @@ downstream point as a break point to get complete tiling with no gaps
 
 \item{crs}{Target CRS for the output (integer EPSG code, character, or
 \code{sf::st_crs()} object). Default \code{NULL} returns WGS84 (EPSG:4326).}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame with columns: \code{blk}, \code{drm}, \code{gnis_name},
@@ -72,16 +72,18 @@ text(sf::st_coordinates(sf::st_centroid(subbasins_no_aoi)),
   labels = subbasins_no_aoi$name_basin, cex = 0.7, font = 2)
 
 \dontrun{
-# Live: split a watershed from a CSV of break points
+conn <- frs_db_conn()
 pts <- read.csv(system.file("extdata", "break_points.csv", package = "fresh"))
 
 # Without AOI — full upstream watersheds, pairwise subtracted
-subbasins <- frs_watershed_split(pts)
+subbasins <- frs_watershed_split(conn, pts)
 
 # With AOI — clipped to study area. Include the downstream boundary
 # point in break_points.csv for complete tiling with no gaps.
-aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
-subbasins <- frs_watershed_split(pts, aoi = aoi)
+aoi <- frs_watershed_at_measure(conn, 360873822, 208877,
+  upstream_measure = 233564)
+subbasins <- frs_watershed_split(conn, pts, aoi = aoi)
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

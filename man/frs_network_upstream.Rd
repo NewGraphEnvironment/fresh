@@ -5,6 +5,7 @@
 \title{Get Stream Segments Upstream of a Network Position}
 \usage{
 frs_network_upstream(
+  conn,
   blue_line_key,
   downstream_route_measure,
   table = "whse_basemapping.fwa_stream_networks_sp",
@@ -14,11 +15,12 @@ frs_network_upstream(
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   wscode_col = "wscode_ltree",
   localcode_col = "localcode_ltree",
-  include_all = FALSE,
-  ...
+  include_all = FALSE
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{blue_line_key}{Integer. Blue line key of the reference point.}
 
 \item{downstream_route_measure}{Numeric. Downstream route measure of the
@@ -39,8 +41,6 @@ Default \code{"localcode_ltree"}. Use \code{"localcode"} for bcfishpass views.}
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
 wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
 these out. Only applied when querying the FWA base table.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of upstream stream segments.
@@ -51,20 +51,23 @@ downstream route measure. Uses the fwapg \code{fwa_upstream()} ltree comparison.
 }
 \examples{
 \dontrun{
+conn <- frs_db_conn()
+
 # Get all streams upstream of a point on the Bulkley
-upstream <- frs_network_upstream(
+upstream <- frs_network_upstream(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030
 )
 
 # Use bcfishpass coho view
-upstream <- frs_network_upstream(
+upstream <- frs_network_upstream(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030,
   table = "bcfishpass.streams_co_vw",
   wscode_col = "wscode",
   localcode_col = "localcode"
 )
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

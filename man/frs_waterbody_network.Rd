@@ -5,16 +5,18 @@
 \title{Get Waterbody Polygons Upstream or Downstream of a Network Position}
 \usage{
 frs_waterbody_network(
+  conn,
   blue_line_key,
   downstream_route_measure,
   table = "whse_basemapping.fwa_lakes_poly",
   cols = c("waterbody_key", "waterbody_type", "gnis_name_1", "area_ha", "blue_line_key",
     "watershed_group_code", "geom"),
-  direction = "upstream",
-  ...
+  direction = "upstream"
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{blue_line_key}{Integer. Blue line key of the reference point.}
 
 \item{downstream_route_measure}{Numeric. Downstream route measure of the
@@ -27,8 +29,6 @@ reference point.}
 table. Default includes the most commonly used attributes.}
 
 \item{direction}{Character. \code{"upstream"} (default) or \code{"downstream"}.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of waterbody polygons.
@@ -48,25 +48,21 @@ background.
 }
 \examples{
 \dontrun{
+conn <- frs_db_conn()
+
 # Upstream lakes from the Neexdzii Kwa / Wedzin Kwa confluence
-lakes <- frs_waterbody_network(
+lakes <- frs_waterbody_network(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030
 )
 
 # Upstream wetlands
-wetlands <- frs_waterbody_network(
+wetlands <- frs_waterbody_network(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030,
   table = "whse_basemapping.fwa_wetlands_poly"
 )
-
-# Downstream lakes
-lakes_ds <- frs_waterbody_network(
-  blue_line_key = 360873822,
-  downstream_route_measure = 166030,
-  direction = "downstream"
-)
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

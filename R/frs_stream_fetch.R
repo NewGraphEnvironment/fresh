@@ -19,7 +19,7 @@
 #'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
 #'   these out. Only applied when querying the FWA base table.
 #' @param limit Integer. Maximum rows to return. Default `NULL` (no limit).
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame of stream segments.
 #'
@@ -29,19 +29,18 @@
 #'
 #' @examples
 #' \dontrun{
+#' conn <- frs_db_conn()
+#'
 #' # All streams in the Bulkley watershed group
-#' streams <- frs_stream_fetch(watershed_group_code = "BULK")
+#' streams <- frs_stream_fetch(conn, watershed_group_code = "BULK")
 #'
 #' # Streams with order >= 4
-#' streams <- frs_stream_fetch(watershed_group_code = "BULK", stream_order_min = 4)
-#'
-#' # Custom columns and table
-#' streams <- frs_stream_fetch(
-#'   watershed_group_code = "BULK",
-#'   cols = c("blue_line_key", "gnis_name", "stream_order", "geom")
-#' )
+#' streams <- frs_stream_fetch(conn, watershed_group_code = "BULK",
+#'   stream_order_min = 4)
+#' DBI::dbDisconnect(conn)
 #' }
 frs_stream_fetch <- function(
+    conn,
     watershed_group_code = NULL,
     blue_line_key = NULL,
     bbox = NULL,
@@ -54,8 +53,7 @@ frs_stream_fetch <- function(
       "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"
     ),
     include_all = FALSE,
-    limit = NULL,
-    ...
+    limit = NULL
 ) {
   .frs_validate_identifier(table, "table")
   for (col in cols) .frs_validate_identifier(col, "column")
@@ -82,5 +80,5 @@ frs_stream_fetch <- function(
     if (!is.null(limit)) paste0(" LIMIT ", as.integer(limit))
   )
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }
