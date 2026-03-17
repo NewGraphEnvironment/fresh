@@ -1,3 +1,7 @@
+# fresh 0.2.0
+
+- **Breaking:** All DB-using functions now take `conn` as the first required parameter instead of `...` connection args. Create a connection once with `conn <- frs_db_conn()` and pass it to all calls. Enables piping: `conn |> frs_break() |> frs_classify()` ([#35](https://github.com/NewGraphEnvironment/fresh/issues/35))
+
 # fresh 0.1.0
 
 - Multi-blue-line-key support for `frs_watershed_at_measure()` and `frs_network()` via `upstream_blk` param ([#20](https://github.com/NewGraphEnvironment/fresh/issues/20))
