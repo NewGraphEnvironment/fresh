@@ -1,55 +1,55 @@
 # -- input validation (mocked, no DB needed) ----------------------------------
 
 test_that("x must be single numeric", {
-  expect_error(frs_point_snap(x = "a", y = 1), "x must be a single numeric")
-  expect_error(frs_point_snap(x = NULL, y = 1), "x must be a single numeric")
-  expect_error(frs_point_snap(x = NA, y = 1), "x must be a single numeric")
-  expect_error(frs_point_snap(x = c(1, 2), y = 1), "x must be a single numeric")
+  expect_error(frs_point_snap("mock", x = "a", y = 1), "x must be a single numeric")
+  expect_error(frs_point_snap("mock", x = NULL, y = 1), "x must be a single numeric")
+  expect_error(frs_point_snap("mock", x = NA, y = 1), "x must be a single numeric")
+  expect_error(frs_point_snap("mock", x = c(1, 2), y = 1), "x must be a single numeric")
 })
 
 test_that("y must be single numeric", {
-  expect_error(frs_point_snap(x = 1, y = "a"), "y must be a single numeric")
-  expect_error(frs_point_snap(x = 1, y = NA), "y must be a single numeric")
-  expect_error(frs_point_snap(x = 1, y = c(1, 2)), "y must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = "a"), "y must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = NA), "y must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = c(1, 2)), "y must be a single numeric")
 })
 
 test_that("srid must be single numeric", {
-  expect_error(frs_point_snap(x = 1, y = 1, srid = "abc"), "srid must be a single numeric")
-  expect_error(frs_point_snap(x = 1, y = 1, srid = NA), "srid must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = 1, srid = "abc"), "srid must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = 1, srid = NA), "srid must be a single numeric")
 })
 
 test_that("tolerance must be single numeric", {
-  expect_error(frs_point_snap(x = 1, y = 1, tolerance = "abc"), "tolerance must be a single numeric")
-  expect_error(frs_point_snap(x = 1, y = 1, tolerance = NA), "tolerance must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = 1, tolerance = "abc"), "tolerance must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = 1, tolerance = NA), "tolerance must be a single numeric")
 })
 
 test_that("num_features must be single numeric", {
-  expect_error(frs_point_snap(x = 1, y = 1, num_features = "abc"), "num_features must be a single numeric")
-  expect_error(frs_point_snap(x = 1, y = 1, num_features = NA), "num_features must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = 1, num_features = "abc"), "num_features must be a single numeric")
+  expect_error(frs_point_snap("mock", x = 1, y = 1, num_features = NA), "num_features must be a single numeric")
 })
 
 test_that("blue_line_key must be single numeric when provided", {
   expect_error(
-    frs_point_snap(x = 1, y = 1, blue_line_key = "abc"),
+    frs_point_snap("mock", x = 1, y = 1, blue_line_key = "abc"),
     "blue_line_key must be a single numeric"
   )
   expect_error(
-    frs_point_snap(x = 1, y = 1, blue_line_key = NA),
+    frs_point_snap("mock", x = 1, y = 1, blue_line_key = NA),
     "blue_line_key must be a single numeric"
   )
   expect_error(
-    frs_point_snap(x = 1, y = 1, blue_line_key = c(1, 2)),
+    frs_point_snap("mock", x = 1, y = 1, blue_line_key = c(1, 2)),
     "blue_line_key must be a single numeric"
   )
 })
 
 test_that("stream_order_min must be single numeric when provided", {
   expect_error(
-    frs_point_snap(x = 1, y = 1, stream_order_min = "abc"),
+    frs_point_snap("mock", x = 1, y = 1, stream_order_min = "abc"),
     "stream_order_min must be a single numeric"
   )
   expect_error(
-    frs_point_snap(x = 1, y = 1, stream_order_min = NA),
+    frs_point_snap("mock", x = 1, y = 1, stream_order_min = NA),
     "stream_order_min must be a single numeric"
   )
 })
@@ -66,12 +66,12 @@ test_that("default path uses fwa_indexpoint", {
     geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
   )
   local_mocked_bindings(
-    frs_db_query = function(sql, ...) {
+    frs_db_query = function(conn, sql, ...) {
       expect_match(sql, "fwa_indexpoint")
       mock_result
     }
   )
-  result <- frs_point_snap(x = -126.5, y = 54.5)
+  result <- frs_point_snap("mock", x = -126.5, y = 54.5)
   expect_s3_class(result, "sf")
 })
 
@@ -85,14 +85,14 @@ test_that("blue_line_key triggers KNN path", {
     geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
   )
   local_mocked_bindings(
-    frs_db_query = function(sql, ...) {
+    frs_db_query = function(conn, sql, ...) {
       expect_match(sql, "blue_line_key = 360873822")
       expect_match(sql, "ST_LineLocatePoint")
       expect_no_match(sql, "fwa_indexpoint")
       mock_result
     }
   )
-  result <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+  result <- frs_point_snap("mock", x = -126.5, y = 54.5, blue_line_key = 360873822)
   expect_s3_class(result, "sf")
 })
 
@@ -106,13 +106,13 @@ test_that("stream_order_min triggers KNN path with filter", {
     geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
   )
   local_mocked_bindings(
-    frs_db_query = function(sql, ...) {
+    frs_db_query = function(conn, sql, ...) {
       expect_match(sql, "stream_order >= 4")
       expect_no_match(sql, "fwa_indexpoint")
       mock_result
     }
   )
-  result <- frs_point_snap(x = -126.5, y = 54.5, stream_order_min = 4)
+  result <- frs_point_snap("mock", x = -126.5, y = 54.5, stream_order_min = 4)
   expect_s3_class(result, "sf")
 })
 
@@ -126,14 +126,14 @@ test_that("KNN path includes stream filtering guards", {
     geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
   )
   local_mocked_bindings(
-    frs_db_query = function(sql, ...) {
+    frs_db_query = function(conn, sql, ...) {
       expect_match(sql, "localcode_ltree IS NOT NULL")
       expect_match(sql, "wscode_ltree <@ '999'")
       expect_match(sql, "edge_type NOT IN \\(1410, 1425\\)")
       mock_result
     }
   )
-  result <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+  result <- frs_point_snap("mock", x = -126.5, y = 54.5, blue_line_key = 360873822)
   expect_s3_class(result, "sf")
 })
 
@@ -147,13 +147,13 @@ test_that("blue_line_key and stream_order_min combine in KNN", {
     geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
   )
   local_mocked_bindings(
-    frs_db_query = function(sql, ...) {
+    frs_db_query = function(conn, sql, ...) {
       expect_match(sql, "blue_line_key = 360873822")
       expect_match(sql, "stream_order >= 3")
       mock_result
     }
   )
-  result <- frs_point_snap(x = -126.5, y = 54.5,
+  result <- frs_point_snap("mock", x = -126.5, y = 54.5,
     blue_line_key = 360873822, stream_order_min = 3)
   expect_s3_class(result, "sf")
 })
@@ -168,14 +168,14 @@ test_that("KNN SQL has boundary clamping", {
     geom = sf::st_sfc(sf::st_point(c(1, 1)), crs = 3005)
   )
   local_mocked_bindings(
-    frs_db_query = function(sql, ...) {
+    frs_db_query = function(conn, sql, ...) {
       expect_match(sql, "CEIL.*GREATEST")
       expect_match(sql, "FLOOR.*LEAST")
       expect_match(sql, "upstream_route_measure")
       mock_result
     }
   )
-  result <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+  result <- frs_point_snap("mock", x = -126.5, y = 54.5, blue_line_key = 360873822)
   expect_s3_class(result, "sf")
 })
 
@@ -183,8 +183,10 @@ test_that("KNN SQL has boundary clamping", {
 
 test_that("frs_point_snap returns sf with network position", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(x = -126.5, y = 54.5)
+  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
   expect_s3_class(snapped, "sf")
   expect_true(nrow(snapped) == 1)
   expect_true("blue_line_key" %in% names(snapped))
@@ -194,16 +196,20 @@ test_that("frs_point_snap returns sf with network position", {
 
 test_that("frs_point_snap returns multiple candidates", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(x = -126.5, y = 54.5, num_features = 3)
+  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, num_features = 3)
   expect_true(nrow(snapped) <= 3)
 })
 
 test_that("blue_line_key snaps to specified stream", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
   # Bulkley River near confluence — without blk hint might snap to tributary
-  snapped <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, blue_line_key = 360873822)
   expect_s3_class(snapped, "sf")
   expect_true(nrow(snapped) == 1)
   expect_equal(snapped$blue_line_key, 360873822L)
@@ -213,17 +219,21 @@ test_that("blue_line_key snaps to specified stream", {
 
 test_that("stream_order_min filters small streams", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
   # Order 4+ near Bulkley should still find the river
-  snapped <- frs_point_snap(x = -126.5, y = 54.5, stream_order_min = 4)
+  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, stream_order_min = 4)
   expect_s3_class(snapped, "sf")
   expect_true(nrow(snapped) >= 1)
 })
 
 test_that("blue_line_key + stream_order_min work together", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(x = -126.5, y = 54.5,
+  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5,
     blue_line_key = 360873822, stream_order_min = 3)
   expect_s3_class(snapped, "sf")
   expect_equal(snapped$blue_line_key, 360873822L)
@@ -231,10 +241,12 @@ test_that("blue_line_key + stream_order_min work together", {
 
 test_that("KNN returns consistent measure with fwa_indexpoint", {
   skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
 
   # Both paths should find the same stream and similar measure
-  default <- frs_point_snap(x = -126.5, y = 54.5)
-  knn <- frs_point_snap(x = -126.5, y = 54.5,
+  default <- frs_point_snap(conn, x = -126.5, y = 54.5)
+  knn <- frs_point_snap(conn, x = -126.5, y = 54.5,
     blue_line_key = default$blue_line_key)
 
   expect_equal(knn$blue_line_key, default$blue_line_key)

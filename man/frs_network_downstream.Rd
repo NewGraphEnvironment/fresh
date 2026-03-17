@@ -5,6 +5,7 @@
 \title{Get Stream Segments Downstream of a Network Position}
 \usage{
 frs_network_downstream(
+  conn,
   blue_line_key,
   downstream_route_measure,
   table = "whse_basemapping.fwa_stream_networks_sp",
@@ -14,11 +15,12 @@ frs_network_downstream(
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   wscode_col = "wscode_ltree",
   localcode_col = "localcode_ltree",
-  include_all = FALSE,
-  ...
+  include_all = FALSE
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{blue_line_key}{Integer. Blue line key of the reference point.}
 
 \item{downstream_route_measure}{Numeric. Downstream route measure of the
@@ -39,8 +41,6 @@ Default \code{"localcode_ltree"}. Use \code{"localcode"} for bcfishpass views.}
 \item{include_all}{Logical. If \code{TRUE}, include placeholder streams (999
 wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
 these out. Only applied when querying the FWA base table.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of downstream stream segments.
@@ -51,11 +51,12 @@ downstream route measure. Uses the fwapg \code{fwa_downstream()} ltree compariso
 }
 \examples{
 \dontrun{
-# Get all streams downstream of a point
-downstream <- frs_network_downstream(
+conn <- frs_db_conn()
+downstream <- frs_network_downstream(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030
 )
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

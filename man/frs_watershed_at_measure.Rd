@@ -5,14 +5,16 @@
 \title{Watershed at Measure}
 \usage{
 frs_watershed_at_measure(
+  conn,
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
-  upstream_blk = NULL,
-  ...
+  upstream_blk = NULL
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{blue_line_key}{Integer. FWA blue line key identifying the stream.}
 
 \item{downstream_route_measure}{Numeric. Route measure of the downstream
@@ -25,8 +27,6 @@ point. When provided, returns the watershed between the two measures
 \item{upstream_blk}{Integer or \code{NULL}. Blue line key for the upstream point.
 Defaults to \code{blue_line_key} (same stream). Use when the upstream point is
 on a tributary.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame with a single polygon geometry.
@@ -44,15 +44,19 @@ by specifying \code{upstream_blk}.
 }
 \examples{
 \dontrun{
+conn <- frs_db_conn()
+
 # Watershed upstream of a single point
-ws <- frs_watershed_at_measure(360873822, 208877)
+ws <- frs_watershed_at_measure(conn, 360873822, 208877)
 
 # Subbasin between two points on the same stream
-aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
+aoi <- frs_watershed_at_measure(conn, 360873822, 208877,
+  upstream_measure = 233564)
 
 # Subbasin with upstream point on a tributary (different BLK)
-aoi <- frs_watershed_at_measure(360873822, 165115,
+aoi <- frs_watershed_at_measure(conn, 360873822, 165115,
   upstream_measure = 838, upstream_blk = 360886221)
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

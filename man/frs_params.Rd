@@ -11,8 +11,9 @@ frs_params(
 )
 }
 \arguments{
-\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object. Required when reading
-from a database table. Ignored when \code{csv} is provided.}
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).
+Required when reading from a database table. Use \code{NULL} when reading
+from a CSV file.}
 
 \item{table}{Character. Schema-qualified table name to read parameters from.
 Default \code{"bcfishpass.parameters_habitat_thresholds"}.}

@@ -1,17 +1,17 @@
 # -- frs_watershed_split unit tests --------------------------------------------
 
 test_that("frs_watershed_split validates inputs", {
-  expect_error(frs_watershed_split("not a df"), "points must be a data frame")
+  expect_error(frs_watershed_split("mock", "not a df"), "points must be a data frame")
   expect_error(
-    frs_watershed_split(data.frame(x = 1, y = 2)),
+    frs_watershed_split("mock", data.frame(x = 1, y = 2)),
     "must have 'lon' and 'lat' columns"
   )
   expect_error(
-    frs_watershed_split(data.frame(lon = numeric(0), lat = numeric(0))),
+    frs_watershed_split("mock", data.frame(lon = numeric(0), lat = numeric(0))),
     "points has no rows"
   )
   expect_error(
-    frs_watershed_split(data.frame(lon = 1, lat = 1), aoi = "bad"),
+    frs_watershed_split("mock", data.frame(lon = 1, lat = 1), aoi = "bad"),
     "aoi must be an sf or sfc"
   )
 })
@@ -22,7 +22,7 @@ test_that("frs_watershed_split errors when all snaps fail", {
   })
   pts <- data.frame(lon = c(0, 0), lat = c(0, 0))
   expect_error(
-    suppressMessages(frs_watershed_split(pts)),
+    suppressMessages(frs_watershed_split("mock", pts)),
     "No points could be snapped"
   )
 })
@@ -42,7 +42,7 @@ test_that("frs_watershed_split errors when all watersheds fail", {
   })
   pts <- data.frame(lon = c(-126, -125), lat = c(54, 55))
   expect_error(
-    suppressMessages(frs_watershed_split(pts)),
+    suppressMessages(frs_watershed_split("mock", pts)),
     "No watersheds could be delineated"
   )
 })
@@ -81,7 +81,7 @@ test_that("frs_watershed_split produces sub-basins from mocked data", {
       c(3, 3), c(7, 3), c(7, 7), c(3, 7), c(3, 3)
     ))), crs = 3005)
   )
-  mockery::stub(frs_watershed_split, "frs_watershed_at_measure", function(blk, drm, ...) {
+  mockery::stub(frs_watershed_split, "frs_watershed_at_measure", function(conn, blk, drm, ...) {
     ws_call <<- ws_call + 1L
     if (ws_call == 1L) big_ws else small_ws
   })
@@ -91,7 +91,7 @@ test_that("frs_watershed_split produces sub-basins from mocked data", {
     lat = c(54.19, 54.46),
     site_name = c("Lower", "Upper")
   )
-  result <- suppressMessages(frs_watershed_split(pts))
+  result <- suppressMessages(frs_watershed_split("mock", pts))
 
   expect_s3_class(result, "sf")
   expect_equal(nrow(result), 2L)
@@ -124,7 +124,7 @@ test_that("frs_watershed_split drops sf geometry from input", {
   mockery::stub(frs_watershed_split, "frs_point_snap", function(...) snap_result)
   mockery::stub(frs_watershed_split, "frs_watershed_at_measure", function(...) ws)
 
-  result <- suppressMessages(frs_watershed_split(pts_sf))
+  result <- suppressMessages(frs_watershed_split("mock", pts_sf))
   expect_s3_class(result, "sf")
   expect_equal(nrow(result), 1L)
 })
@@ -145,6 +145,6 @@ test_that("frs_watershed_split transforms to target crs", {
   mockery::stub(frs_watershed_split, "frs_watershed_at_measure", function(...) ws)
 
   pts <- data.frame(lon = -126.5, lat = 54.19)
-  result <- suppressMessages(frs_watershed_split(pts, crs = 3005))
+  result <- suppressMessages(frs_watershed_split("mock", pts, crs = 3005))
   expect_equal(sf::st_crs(result)$epsg, 3005L)
 })

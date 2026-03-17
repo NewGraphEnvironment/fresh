@@ -17,7 +17,7 @@
 #' @param include_all Logical. If `TRUE`, include placeholder streams (999
 #'   wscode) and unmapped tributaries (NULL localcode). Default `FALSE` filters
 #'   these out. Only applied when querying the FWA base table.
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame of downstream stream segments.
 #'
@@ -27,13 +27,15 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Get all streams downstream of a point
-#' downstream <- frs_network_downstream(
+#' conn <- frs_db_conn()
+#' downstream <- frs_network_downstream(conn,
 #'   blue_line_key = 360873822,
 #'   downstream_route_measure = 166030
 #' )
+#' DBI::dbDisconnect(conn)
 #' }
 frs_network_downstream <- function(
+    conn,
     blue_line_key,
     downstream_route_measure,
     table = "whse_basemapping.fwa_stream_networks_sp",
@@ -45,8 +47,7 @@ frs_network_downstream <- function(
     ),
     wscode_col = "wscode_ltree",
     localcode_col = "localcode_ltree",
-    include_all = FALSE,
-    ...
+    include_all = FALSE
 ) {
   .frs_validate_identifier(table, "table")
   .frs_validate_identifier(wscode_col, "wscode_col")
@@ -88,5 +89,5 @@ frs_network_downstream <- function(
     guard_sql
   )
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }

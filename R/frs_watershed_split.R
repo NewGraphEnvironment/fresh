@@ -21,7 +21,7 @@
 #' @param tolerance Numeric. Maximum snap distance in metres. Default `5000`.
 #' @param crs Target CRS for the output (integer EPSG code, character, or
 #'   `sf::st_crs()` object). Default `NULL` returns WGS84 (EPSG:4326).
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame with columns: `blk`, `drm`, `gnis_name`,
 #'   `area_km2`, any extra columns from the input, and `geometry`.
@@ -63,23 +63,25 @@
 #'   labels = subbasins_no_aoi$name_basin, cex = 0.7, font = 2)
 #'
 #' \dontrun{
-#' # Live: split a watershed from a CSV of break points
+#' conn <- frs_db_conn()
 #' pts <- read.csv(system.file("extdata", "break_points.csv", package = "fresh"))
 #'
 #' # Without AOI — full upstream watersheds, pairwise subtracted
-#' subbasins <- frs_watershed_split(pts)
+#' subbasins <- frs_watershed_split(conn, pts)
 #'
 #' # With AOI — clipped to study area. Include the downstream boundary
 #' # point in break_points.csv for complete tiling with no gaps.
-#' aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
-#' subbasins <- frs_watershed_split(pts, aoi = aoi)
+#' aoi <- frs_watershed_at_measure(conn, 360873822, 208877,
+#'   upstream_measure = 233564)
+#' subbasins <- frs_watershed_split(conn, pts, aoi = aoi)
+#' DBI::dbDisconnect(conn)
 #' }
 frs_watershed_split <- function(
+    conn,
     points,
     aoi = NULL,
     tolerance = 5000,
-    crs = NULL,
-    ...
+    crs = NULL
 ) {
   if (!is.data.frame(points)) stop("points must be a data frame", call. = FALSE)
   if (!all(c("lon", "lat") %in% names(points))) {
@@ -101,11 +103,10 @@ frs_watershed_split <- function(
   snapped <- list()
   for (i in seq_len(nrow(points))) {
     row <- tryCatch(
-      frs_point_snap(
+      frs_point_snap(conn,
         x = points$lon[i],
         y = points$lat[i],
-        tolerance = tolerance,
-        ...
+        tolerance = tolerance
       ),
       error = function(e) NULL
     )
@@ -136,10 +137,9 @@ frs_watershed_split <- function(
   watersheds <- vector("list", nrow(snapped_df))
   for (j in seq_len(nrow(snapped_df))) {
     ws <- tryCatch(
-      frs_watershed_at_measure(
+      frs_watershed_at_measure(conn,
         snapped_df$blk[j],
-        snapped_df$drm[j],
-        ...
+        snapped_df$drm[j]
       ),
       error = function(e) {
         message(sprintf("Watershed failed for point %d (blk=%d, drm=%.0f): %s",

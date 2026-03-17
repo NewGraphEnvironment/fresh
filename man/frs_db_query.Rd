@@ -4,25 +4,26 @@
 \alias{frs_db_query}
 \title{Query FWA PostgreSQL Database}
 \usage{
-frs_db_query(query, ...)
+frs_db_query(conn, query)
 }
 \arguments{
-\item{query}{Character. SQL query string.}
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
 
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
+\item{query}{Character. SQL query string.}
 }
 \value{
 An \code{sf} data frame (if the query returns geometry) or a plain
 data frame.
 }
 \description{
-Connects via \code{\link[=frs_db_conn]{frs_db_conn()}}, executes a SQL query, disconnects, and
-returns the result. Uses \code{\link[sf:st_read]{sf::st_read()}} so spatial columns are returned
-as sf geometry.
+Executes a SQL query on an open connection. Uses \code{\link[sf:st_read]{sf::st_read()}} so
+spatial columns are returned as sf geometry.
 }
 \examples{
 \dontrun{
-frs_db_query("SELECT * FROM whse_basemapping.fwa_lakes_poly LIMIT 5")
+conn <- frs_db_conn()
+frs_db_query(conn, "SELECT * FROM whse_basemapping.fwa_lakes_poly LIMIT 5")
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

@@ -5,6 +5,7 @@
 \title{Query Multiple Tables Upstream or Downstream of a Network Position}
 \usage{
 frs_network(
+  conn,
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
@@ -12,11 +13,12 @@ frs_network(
   tables = NULL,
   direction = "upstream",
   include_all = FALSE,
-  clip = NULL,
-  ...
+  clip = NULL
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{blue_line_key}{Integer. Blue line key of the reference point.}
 
 \item{downstream_route_measure}{Numeric. Downstream route measure of the
@@ -49,8 +51,6 @@ these out. Only applied when querying the FWA base table.}
 \item{clip}{An \code{sf} or \code{sfc} polygon to clip results to (e.g. from
 \code{\link[=frs_watershed_at_measure]{frs_watershed_at_measure()}}). Default \code{NULL} (no clipping). Useful for
 waterbody polygons that straddle watershed boundaries. See \code{\link[=frs_clip]{frs_clip()}}.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 A named list of \code{sf} data frames (or plain data frames for tables
@@ -73,22 +73,25 @@ key (e.g. a tributary) by specifying \code{upstream_blk}.
 }
 \examples{
 \dontrun{
+conn <- frs_db_conn()
 blk <- 360873822
 
 # Everything upstream of a point
-streams <- frs_network(blk, 166030)
+streams <- frs_network(conn, blk, 166030)
 
 # Between two points (subbasin): upstream of Byman minus upstream of Ailport
-result <- frs_network(blk, 208877, upstream_measure = 233564, tables = list(
-  streams = "whse_basemapping.fwa_stream_networks_sp",
-  lakes = "whse_basemapping.fwa_lakes_poly",
-  crossings = "bcfishpass.crossings",
-  observations = list(
-    table = "bcfishpass.observations_vw",
-    wscode_col = "wscode",
-    localcode_col = "localcode"
-  )
-))
+result <- frs_network(conn, blk, 208877, upstream_measure = 233564,
+  tables = list(
+    streams = "whse_basemapping.fwa_stream_networks_sp",
+    lakes = "whse_basemapping.fwa_lakes_poly",
+    crossings = "bcfishpass.crossings",
+    observations = list(
+      table = "bcfishpass.observations_vw",
+      wscode_col = "wscode",
+      localcode_col = "localcode"
+    )
+  ))
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

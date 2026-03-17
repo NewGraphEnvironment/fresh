@@ -1,11 +1,11 @@
 test_that("frs_network with no tables returns streams directly", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  result <- frs_network(360873822, 166030)
+  result <- frs_network("mock", 360873822, 166030)
 
   expect_match(sql_sent, "fwa_stream_networks_sp")
   expect_match(sql_sent, "fwa_upstream")
@@ -13,9 +13,9 @@ test_that("frs_network with no tables returns streams directly", {
 })
 
 test_that("frs_network returns named list for multiple tables", {
-  local_mocked_bindings(frs_db_query = function(sql, ...) data.frame())
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) data.frame())
 
-  result <- frs_network(360873822, 166030, tables = list(
+  result <- frs_network("mock", 360873822, 166030, tables = list(
     streams = "whse_basemapping.fwa_stream_networks_sp",
     lakes = "whse_basemapping.fwa_lakes_poly"
   ))
@@ -26,12 +26,12 @@ test_that("frs_network returns named list for multiple tables", {
 
 test_that("frs_network detects waterbody bridge for lakes", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, tables = list(
+  frs_network("mock", 360873822, 166030, tables = list(
     lakes = "whse_basemapping.fwa_lakes_poly"
   ))
 
@@ -42,12 +42,12 @@ test_that("frs_network detects waterbody bridge for lakes", {
 
 test_that("frs_network detects waterbody bridge for wetlands", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, tables = list(
+  frs_network("mock", 360873822, 166030, tables = list(
     wetlands = "whse_basemapping.fwa_wetlands_poly"
   ))
 
@@ -57,12 +57,12 @@ test_that("frs_network detects waterbody bridge for wetlands", {
 
 test_that("frs_network uses direct query for crossings", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, tables = list(
+  frs_network("mock", 360873822, 166030, tables = list(
     crossings = "bcfishpass.crossings"
   ))
 
@@ -74,13 +74,13 @@ test_that("frs_network uses direct query for crossings", {
 test_that("frs_network passes direction downstream", {
   sqls <- list()
   call_n <- 0
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     call_n <<- call_n + 1
     sqls[[call_n]] <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030,
+  frs_network("mock", 360873822, 166030,
     tables = list(
       streams = "whse_basemapping.fwa_stream_networks_sp",
       lakes = "whse_basemapping.fwa_lakes_poly"
@@ -94,12 +94,12 @@ test_that("frs_network passes direction downstream", {
 
 test_that("frs_network passes custom cols and wscode_col", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, tables = list(
+  frs_network("mock", 360873822, 166030, tables = list(
     co = list(
       table = "bcfishpass.streams_co_vw",
       cols = c("blue_line_key", "mapping_code", "geom"),
@@ -117,12 +117,12 @@ test_that("frs_network passes custom cols and wscode_col", {
 
 test_that("frs_network passes extra_where", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, tables = list(
+  frs_network("mock", 360873822, 166030, tables = list(
     co = list(
       table = "bcfishpass.streams_co_vw",
       wscode_col = "wscode",
@@ -145,64 +145,64 @@ test_that("frs_default_cols returns sensible defaults", {
 })
 
 test_that("frs_network rejects NULL blue_line_key", {
-  expect_error(frs_network(NULL, 166030), "single numeric")
+  expect_error(frs_network("mock", NULL, 166030), "single numeric")
 })
 
 test_that("frs_network rejects NA blue_line_key", {
-  expect_error(frs_network(NA, 166030), "single numeric")
+  expect_error(frs_network("mock", NA, 166030), "single numeric")
 })
 
 test_that("frs_network rejects character blue_line_key", {
-  expect_error(frs_network("abc", 166030), "single numeric")
+  expect_error(frs_network("mock", "abc", 166030), "single numeric")
 })
 
 test_that("frs_network rejects NA downstream_route_measure", {
-  expect_error(frs_network(360873822, NA), "single numeric")
+  expect_error(frs_network("mock", 360873822, NA), "single numeric")
 })
 
 test_that("frs_network rejects vector measure", {
-  expect_error(frs_network(360873822, c(100, 200)), "single numeric")
+  expect_error(frs_network("mock", 360873822, c(100, 200)), "single numeric")
 })
 
 test_that("frs_network rejects NA upstream_measure", {
-  expect_error(frs_network(360873822, 166030, upstream_measure = NA), "single numeric")
+  expect_error(frs_network("mock", 360873822, 166030, upstream_measure = NA), "single numeric")
 })
 
 test_that("frs_network rejects character upstream_blk", {
   expect_error(
-    frs_network(360873822, 166030, upstream_measure = 200000, upstream_blk = "bad"),
+    frs_network("mock", 360873822, 166030, upstream_measure = 200000, upstream_blk = "bad"),
     "single numeric"
   )
 })
 
 test_that("frs_network rejects invalid direction", {
-  expect_error(frs_network(360873822, 166030, direction = "sideways"), "arg")
+  expect_error(frs_network("mock", 360873822, 166030, direction = "sideways"), "arg")
 })
 
 test_that("upstream_measure with downstream direction errors", {
   expect_error(
-    frs_network(360873822, 166030, upstream_measure = 200000, direction = "downstream"),
+    frs_network("mock", 360873822, 166030, upstream_measure = 200000, direction = "downstream"),
     "upstream_measure"
   )
 })
 
 test_that("upstream_measure <= downstream_route_measure errors on same BLK", {
   expect_error(
-    frs_network(360873822, 200000, upstream_measure = 100000),
+    frs_network("mock", 360873822, 200000, upstream_measure = 100000),
     "greater"
   )
 })
 
 test_that("upstream_blk skips measure check for different BLK", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     if (grepl("is_upstream", sql)) return(data.frame(is_upstream = TRUE))
     sql_sent <<- sql
     data.frame()
   })
 
   # upstream_measure < downstream_route_measure but on different BLK — should NOT error
-  frs_network(360873822, 208877, upstream_measure = 838,
+  frs_network("mock", 360873822, 208877, upstream_measure = 838,
     upstream_blk = 360886221, tables = list(
       streams = "whse_basemapping.fwa_stream_networks_sp"
     ))
@@ -214,13 +214,13 @@ test_that("upstream_blk skips measure check for different BLK", {
 
 test_that("upstream_blk uses different BLK in ref_up for direct table", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     if (grepl("is_upstream", sql)) return(data.frame(is_upstream = TRUE))
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 165115, upstream_measure = 838,
+  frs_network("mock", 360873822, 165115, upstream_measure = 838,
     upstream_blk = 360886221, tables = list(
       crossings = "bcfishpass.crossings"
     ))
@@ -234,7 +234,7 @@ test_that("upstream_blk uses different BLK in ref_up for direct table", {
 
 test_that("upstream_blk on different network errors", {
   call_count <- 0
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     call_count <<- call_count + 1
     if (grepl("fwa_upstream", sql)) {
       # Validation query — not upstream
@@ -245,7 +245,7 @@ test_that("upstream_blk on different network errors", {
   })
 
   expect_error(
-    frs_network(360873822, 208877, upstream_measure = 79244,
+    frs_network("mock", 360873822, 208877, upstream_measure = 79244,
       upstream_blk = 356570562, tables = list(
         streams = "whse_basemapping.fwa_stream_networks_sp"
       )),
@@ -255,7 +255,7 @@ test_that("upstream_blk on different network errors", {
 
 test_that("upstream_blk on same network passes validation", {
   call_count <- 0
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     call_count <<- call_count + 1
     if (grepl("fwa_upstream\\(", sql) && grepl("is_upstream", sql)) {
       data.frame(is_upstream = TRUE)
@@ -264,7 +264,7 @@ test_that("upstream_blk on same network passes validation", {
     }
   })
 
-  result <- frs_network(360873822, 165115, upstream_measure = 838,
+  result <- frs_network("mock", 360873822, 165115, upstream_measure = 838,
     upstream_blk = 360886221, tables = list(
       streams = "whse_basemapping.fwa_stream_networks_sp"
     ))
@@ -275,13 +275,13 @@ test_that("upstream_blk on same network passes validation", {
 
 test_that("upstream_blk uses different BLK in ref_up for waterbody table", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     if (grepl("is_upstream", sql)) return(data.frame(is_upstream = TRUE))
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 165115, upstream_measure = 838,
+  frs_network("mock", 360873822, 165115, upstream_measure = 838,
     upstream_blk = 360886221, tables = list(
       lakes = "whse_basemapping.fwa_lakes_poly"
     ))
@@ -293,12 +293,12 @@ test_that("upstream_blk uses different BLK in ref_up for waterbody table", {
 
 test_that("upstream_measure generates between SQL for direct table", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 208877, upstream_measure = 233564, tables = list(
+  frs_network("mock", 360873822, 208877, upstream_measure = 233564, tables = list(
     streams = "whse_basemapping.fwa_stream_networks_sp"
   ))
 
@@ -311,12 +311,12 @@ test_that("upstream_measure generates between SQL for direct table", {
 
 test_that("upstream_measure generates between SQL for waterbody table", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 208877, upstream_measure = 233564, tables = list(
+  frs_network("mock", 360873822, 208877, upstream_measure = 233564, tables = list(
     lakes = "whse_basemapping.fwa_lakes_poly"
   ))
 
@@ -328,12 +328,12 @@ test_that("upstream_measure generates between SQL for waterbody table", {
 
 test_that("upstream_measure NULL preserves single-ref SQL", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030)
+  frs_network("mock", 360873822, 166030)
 
   expect_match(sql_sent, "WITH ref AS")
   expect_no_match(sql_sent, "ref_down")
@@ -342,20 +342,20 @@ test_that("upstream_measure NULL preserves single-ref SQL", {
 
 test_that("upstream_blk without upstream_measure is ignored", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
   # upstream_blk provided but upstream_measure is NULL — no subtraction
-  frs_network(360873822, 166030, upstream_blk = 360886221)
+  frs_network("mock", 360873822, 166030, upstream_blk = 360886221)
   expect_match(sql_sent, "WITH ref AS")
   expect_no_match(sql_sent, "ref_down")
 })
 
 test_that("frs_network equal measures on same BLK errors", {
   expect_error(
-    frs_network(360873822, 208877, upstream_measure = 208877),
+    frs_network("mock", 360873822, 208877, upstream_measure = 208877),
     "greater"
   )
 })
@@ -363,7 +363,7 @@ test_that("frs_network equal measures on same BLK errors", {
 test_that("frs_network same BLK passed as upstream_blk still checks measures", {
   # Explicitly passing upstream_blk = same as blue_line_key should still enforce measure check
   expect_error(
-    frs_network(360873822, 200000, upstream_measure = 100000,
+    frs_network("mock", 360873822, 200000, upstream_measure = 100000,
       upstream_blk = 360873822),
     "greater"
   )
@@ -371,14 +371,14 @@ test_that("frs_network same BLK passed as upstream_blk still checks measures", {
 
 test_that("frs_network upstream_blk with downstream direction errors", {
   expect_error(
-    frs_network(360873822, 166030, upstream_measure = 838,
+    frs_network("mock", 360873822, 166030, upstream_measure = 838,
       upstream_blk = 360886221, direction = "downstream"),
     "upstream_measure"
   )
 })
 
 test_that("frs_check_upstream errors on empty result", {
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     if (grepl("is_upstream", sql)) {
       # Empty result — BLK not found in stream network
       data.frame(is_upstream = logical(0))
@@ -388,7 +388,7 @@ test_that("frs_check_upstream errors on empty result", {
   })
 
   expect_error(
-    frs_network(360873822, 208877, upstream_measure = 838,
+    frs_network("mock", 360873822, 208877, upstream_measure = 838,
       upstream_blk = 999999999, tables = list(
         streams = "whse_basemapping.fwa_stream_networks_sp"
       )),
@@ -398,12 +398,12 @@ test_that("frs_check_upstream errors on empty result", {
 
 test_that("upstream_measure with custom wscode_col", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 208877, upstream_measure = 233564, tables = list(
+  frs_network("mock", 360873822, 208877, upstream_measure = 233564, tables = list(
     obs = list(
       table = "bcfishpass.observations_vw",
       wscode_col = "wscode",
@@ -423,12 +423,12 @@ test_that("upstream_measure with custom wscode_col", {
 
 test_that("frs_network includes guards for FWA streams by default", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030)
+  frs_network("mock", 360873822, 166030)
 
   expect_match(sql_sent, "localcode_ltree IS NOT NULL")
   expect_match(sql_sent, "wscode_ltree <@ '999'")
@@ -436,12 +436,12 @@ test_that("frs_network includes guards for FWA streams by default", {
 
 test_that("frs_network skips guards with include_all = TRUE", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, include_all = TRUE)
+  frs_network("mock", 360873822, 166030, include_all = TRUE)
 
   expect_no_match(sql_sent, "edge_type NOT IN")
   expect_no_match(sql_sent, "wscode_ltree <@ '999'")
@@ -449,12 +449,12 @@ test_that("frs_network skips guards with include_all = TRUE", {
 
 test_that("frs_network includes guards in waterbody CTE", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, tables = list(
+  frs_network("mock", 360873822, 166030, tables = list(
     lakes = "whse_basemapping.fwa_lakes_poly"
   ))
 
@@ -463,12 +463,12 @@ test_that("frs_network includes guards in waterbody CTE", {
 
 test_that("frs_network skips guards for non-FWA tables", {
   sql_sent <- NULL
-  local_mocked_bindings(frs_db_query = function(sql, ...) {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_network(360873822, 166030, tables = list(
+  frs_network("mock", 360873822, 166030, tables = list(
     streams = list(
       table = "bcfishpass.streams_co_vw",
       wscode_col = "wscode",
@@ -490,7 +490,7 @@ test_that("frs_network clip param clips results", {
       crs = 4326
     )
   )
-  local_mocked_bindings(frs_db_query = function(sql, ...) mock_sf)
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) mock_sf)
 
   aoi <- sf::st_sf(
     geom = sf::st_sfc(
@@ -499,7 +499,7 @@ test_that("frs_network clip param clips results", {
     )
   )
 
-  result <- frs_network(360873822, 166030, clip = aoi)
+  result <- frs_network("mock", 360873822, 166030, clip = aoi)
   # Only first polygon intersects, and it should be clipped smaller
   expect_true(nrow(result) == 1L)
 })

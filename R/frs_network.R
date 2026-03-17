@@ -35,7 +35,7 @@
 #' @param clip An `sf` or `sfc` polygon to clip results to (e.g. from
 #'   [frs_watershed_at_measure()]). Default `NULL` (no clipping). Useful for
 #'   waterbody polygons that straddle watershed boundaries. See [frs_clip()].
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return A named list of `sf` data frames (or plain data frames for tables
 #'   without geometry). If only one table is queried, returns the data frame
@@ -47,24 +47,28 @@
 #'
 #' @examples
 #' \dontrun{
+#' conn <- frs_db_conn()
 #' blk <- 360873822
 #'
 #' # Everything upstream of a point
-#' streams <- frs_network(blk, 166030)
+#' streams <- frs_network(conn, blk, 166030)
 #'
 #' # Between two points (subbasin): upstream of Byman minus upstream of Ailport
-#' result <- frs_network(blk, 208877, upstream_measure = 233564, tables = list(
-#'   streams = "whse_basemapping.fwa_stream_networks_sp",
-#'   lakes = "whse_basemapping.fwa_lakes_poly",
-#'   crossings = "bcfishpass.crossings",
-#'   observations = list(
-#'     table = "bcfishpass.observations_vw",
-#'     wscode_col = "wscode",
-#'     localcode_col = "localcode"
-#'   )
-#' ))
+#' result <- frs_network(conn, blk, 208877, upstream_measure = 233564,
+#'   tables = list(
+#'     streams = "whse_basemapping.fwa_stream_networks_sp",
+#'     lakes = "whse_basemapping.fwa_lakes_poly",
+#'     crossings = "bcfishpass.crossings",
+#'     observations = list(
+#'       table = "bcfishpass.observations_vw",
+#'       wscode_col = "wscode",
+#'       localcode_col = "localcode"
+#'     )
+#'   ))
+#' DBI::dbDisconnect(conn)
 #' }
 frs_network <- function(
+    conn,
     blue_line_key,
     downstream_route_measure,
     upstream_measure = NULL,
@@ -72,8 +76,7 @@ frs_network <- function(
     tables = NULL,
     direction = "upstream",
     include_all = FALSE,
-    clip = NULL,
-    ...
+    clip = NULL
 ) {
   if (!is.numeric(blue_line_key) || length(blue_line_key) != 1 || is.na(blue_line_key)) {
     stop("blue_line_key must be a single numeric value")
@@ -107,8 +110,8 @@ frs_network <- function(
       stop("upstream_measure must be greater than downstream_route_measure")
     }
     if (up_blk != blue_line_key) {
-      frs_check_upstream(blue_line_key, downstream_route_measure,
-                         up_blk, upstream_measure, ...)
+      frs_check_upstream(conn, blue_line_key, downstream_route_measure,
+                         up_blk, upstream_measure)
     }
   }
 
@@ -123,14 +126,14 @@ frs_network <- function(
 
   results <- lapply(tables, function(spec) {
     frs_network_one(
+      conn = conn,
       blue_line_key = blue_line_key,
       downstream_route_measure = downstream_route_measure,
       upstream_measure = upstream_measure,
       upstream_blk = up_blk,
       spec = spec,
       direction = direction,
-      include_all = include_all,
-      ...
+      include_all = include_all
     )
   })
 
@@ -147,9 +150,9 @@ frs_network <- function(
 
 
 #' @noRd
-frs_network_one <- function(blue_line_key, downstream_route_measure,
+frs_network_one <- function(conn, blue_line_key, downstream_route_measure,
                             upstream_measure = NULL, upstream_blk = NULL,
-                            spec, direction, include_all = FALSE, ...) {
+                            spec, direction, include_all = FALSE) {
   tbl <- spec$table
   cols <- spec$cols
   wscode_col <- spec$wscode_col
@@ -163,33 +166,32 @@ frs_network_one <- function(blue_line_key, downstream_route_measure,
 
   if (is_waterbody) {
     frs_network_waterbody(
-      blue_line_key, downstream_route_measure,
+      conn, blue_line_key, downstream_route_measure,
       upstream_measure = upstream_measure,
       upstream_blk = up_blk,
       table = tbl, cols = cols, direction = direction,
-      include_all = include_all, ...
+      include_all = include_all
     )
   } else {
     frs_network_direct(
-      blue_line_key, downstream_route_measure,
+      conn, blue_line_key, downstream_route_measure,
       upstream_measure = upstream_measure,
       upstream_blk = up_blk,
       table = tbl, cols = cols,
       wscode_col = wscode_col, localcode_col = localcode_col,
       extra_where = extra_where, direction = direction,
-      include_all = include_all, ...
+      include_all = include_all
     )
   }
 }
 
 
 #' @noRd
-frs_network_direct <- function(blue_line_key, downstream_route_measure,
+frs_network_direct <- function(conn, blue_line_key, downstream_route_measure,
                                upstream_measure = NULL, upstream_blk = NULL,
                                table, cols = NULL, wscode_col = NULL,
                                localcode_col = NULL, extra_where = NULL,
-                               direction = "upstream", include_all = FALSE,
-                               ...) {
+                               direction = "upstream", include_all = FALSE) {
   .frs_validate_identifier(table, "table")
   wscode_col <- if (is.null(wscode_col)) "wscode_ltree" else wscode_col
   localcode_col <- if (is.null(localcode_col)) "localcode_ltree" else localcode_col
@@ -290,15 +292,15 @@ frs_network_direct <- function(blue_line_key, downstream_route_measure,
     )
   }
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }
 
 
 #' @noRd
-frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
+frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
                                   upstream_measure = NULL, upstream_blk = NULL,
                                   table, cols = NULL, direction = "upstream",
-                                  include_all = FALSE, ...) {
+                                  include_all = FALSE) {
   cols <- if (is.null(cols)) frs_default_cols(table) else cols
 
   fwa_fn <- switch(direction,
@@ -395,7 +397,7 @@ frs_network_waterbody <- function(blue_line_key, downstream_route_measure,
     )
   }
 
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }
 
 
@@ -441,7 +443,7 @@ frs_default_cols <- function(table) {
 
 
 #' @noRd
-frs_check_upstream <- function(down_blk, down_drm, up_blk, up_drm, ...) {
+frs_check_upstream <- function(conn, down_blk, down_drm, up_blk, up_drm) {
   sql <- sprintf(
     paste0(
       "WITH ref_down AS (\n",
@@ -469,7 +471,7 @@ frs_check_upstream <- function(down_blk, down_drm, up_blk, up_drm, ...) {
     as.integer(down_blk), down_drm,
     as.integer(up_blk), up_drm
   )
-  result <- frs_db_query(sql, ...)
+  result <- frs_db_query(conn, sql)
   if (nrow(result) == 0 || !isTRUE(result$is_upstream)) {
     stop("upstream point (blk ", up_blk, ") is not upstream of downstream ",
          "point (blk ", down_blk, "); points may not be on the same network")

@@ -5,6 +5,7 @@
 \title{Fetch Modelled Fish Habitat from bcfishpass}
 \usage{
 frs_fish_habitat(
+  conn,
   watershed_group_code = NULL,
   blue_line_key = NULL,
   table = "bcfishpass.streams_vw",
@@ -12,11 +13,12 @@ frs_fish_habitat(
     "downstream_route_measure", "upstream_area_ha", "gnis_name", "stream_order",
     "channel_width", "gradient", "mad_m3s", "watershed_group_code", "wscode",
     "localcode", "geom"),
-  limit = NULL,
-  ...
+  limit = NULL
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{watershed_group_code}{Character. Watershed group code. Default \code{NULL}.}
 
 \item{blue_line_key}{Integer. Blue line key. Default \code{NULL}.}
@@ -28,8 +30,6 @@ frs_fish_habitat(
 the most commonly used habitat model attributes.}
 
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL}.}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of stream segments with bcfishpass habitat model
@@ -42,8 +42,10 @@ barrier, access, and habitat classification columns.
 }
 \examples{
 \dontrun{
-# Habitat model for the Bulkley
-habitat <- frs_fish_habitat(watershed_group_code = "BULK", limit = 100)
+conn <- frs_db_conn()
+habitat <- frs_fish_habitat(conn, watershed_group_code = "BULK",
+  limit = 100)
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{

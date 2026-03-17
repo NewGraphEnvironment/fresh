@@ -17,7 +17,7 @@
 #'   `fwa_stream_networks_sp` with measure derivation and boundary clamping.
 #' @param stream_order_min Integer. Optional. Minimum stream order for snap
 #'   candidates. Ignored when `blue_line_key` is provided. Forces KNN path.
-#' @param ... Additional arguments passed to [frs_db_conn()].
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame with columns: `linear_feature_id`, `gnis_name`,
 #'   `blue_line_key`, `downstream_route_measure`, `distance_to_stream`, and
@@ -29,24 +29,28 @@
 #'
 #' @examples
 #' \dontrun{
+#' conn <- frs_db_conn()
+#'
 #' # Snap to nearest stream (any)
-#' snapped <- frs_point_snap(x = -126.5, y = 54.5)
+#' snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
 #'
 #' # Snap to a specific stream (Bulkley River)
-#' snapped <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+#' snapped <- frs_point_snap(conn, x = -126.5, y = 54.5,
+#'   blue_line_key = 360873822)
 #'
 #' # Snap to order 4+ streams only
-#' snapped <- frs_point_snap(x = -126.5, y = 54.5, stream_order_min = 4)
+#' snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, stream_order_min = 4)
+#' DBI::dbDisconnect(conn)
 #' }
 frs_point_snap <- function(
+    conn,
     x,
     y,
     srid = 4326L,
     tolerance = 5000,
     num_features = 1L,
     blue_line_key = NULL,
-    stream_order_min = NULL,
-    ...
+    stream_order_min = NULL
 ) {
   if (!is.numeric(x) || length(x) != 1 || is.na(x)) {
     stop("x must be a single numeric value")
@@ -78,9 +82,9 @@ frs_point_snap <- function(
 
   if (!is.null(blue_line_key) || !is.null(stream_order_min)) {
     return(frs_point_snap_knn(
-      x = x, y = y, srid = srid, tolerance = tolerance,
+      conn = conn, x = x, y = y, srid = srid, tolerance = tolerance,
       num_features = num_features, blue_line_key = blue_line_key,
-      stream_order_min = stream_order_min, ...
+      stream_order_min = stream_order_min
     ))
   }
 
@@ -92,7 +96,7 @@ frs_point_snap <- function(
     ),
     x, y, as.integer(srid), tolerance, as.integer(num_features)
   )
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }
 
 
@@ -105,8 +109,8 @@ frs_point_snap <- function(
 #'
 #' @noRd
 frs_point_snap_knn <- function(
-    x, y, srid, tolerance, num_features,
-    blue_line_key = NULL, stream_order_min = NULL, ...
+    conn, x, y, srid, tolerance, num_features,
+    blue_line_key = NULL, stream_order_min = NULL
 ) {
   # Build WHERE clauses for stream filtering (includes subsurface guard)
   where_parts <- .frs_snap_guards("s")
@@ -169,5 +173,5 @@ frs_point_snap_knn <- function(
     tolerance,
     as.integer(num_features)
   )
-  frs_db_query(sql, ...)
+  frs_db_query(conn, sql)
 }

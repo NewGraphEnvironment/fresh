@@ -1,12 +1,12 @@
 test_that("frs_waterbody_network builds correct upstream SQL", {
   # Mock frs_db_query to capture the SQL
   sql_sent <- NULL
-  mockery::stub(frs_waterbody_network, "frs_db_query", function(sql, ...) {
+  mockery::stub(frs_waterbody_network, "frs_db_query", function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_waterbody_network(
+  frs_waterbody_network("mock",
     blue_line_key = 360873822,
     downstream_route_measure = 166030
   )
@@ -20,12 +20,12 @@ test_that("frs_waterbody_network builds correct upstream SQL", {
 
 test_that("frs_waterbody_network switches to downstream", {
   sql_sent <- NULL
-  mockery::stub(frs_waterbody_network, "frs_db_query", function(sql, ...) {
+  mockery::stub(frs_waterbody_network, "frs_db_query", function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_waterbody_network(
+  frs_waterbody_network("mock",
     blue_line_key = 360873822,
     downstream_route_measure = 166030,
     direction = "downstream"
@@ -37,12 +37,12 @@ test_that("frs_waterbody_network switches to downstream", {
 
 test_that("frs_waterbody_network accepts custom table and cols", {
   sql_sent <- NULL
-  mockery::stub(frs_waterbody_network, "frs_db_query", function(sql, ...) {
+  mockery::stub(frs_waterbody_network, "frs_db_query", function(conn, sql, ...) {
     sql_sent <<- sql
     data.frame()
   })
 
-  frs_waterbody_network(
+  frs_waterbody_network("mock",
     blue_line_key = 360873822,
     downstream_route_measure = 166030,
     table = "whse_basemapping.fwa_wetlands_poly",
@@ -55,7 +55,7 @@ test_that("frs_waterbody_network accepts custom table and cols", {
 
 test_that("frs_waterbody_network rejects invalid direction", {
   expect_error(
-    frs_waterbody_network(360873822, 166030, direction = "sideways"),
+    frs_waterbody_network("mock", 360873822, 166030, direction = "sideways"),
     "arg"
   )
 })

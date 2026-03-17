@@ -5,6 +5,7 @@
 \title{Fetch FWA Stream Network Segments}
 \usage{
 frs_stream_fetch(
+  conn,
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
@@ -15,11 +16,12 @@ frs_stream_fetch(
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   include_all = FALSE,
-  limit = NULL,
-  ...
+  limit = NULL
 )
 }
 \arguments{
+\item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
+
 \item{watershed_group_code}{Character. Watershed group code (e.g. \code{"BULK"}).
 Default \code{NULL}.}
 
@@ -43,8 +45,6 @@ wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
 these out. Only applied when querying the FWA base table.}
 
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
-
-\item{...}{Additional arguments passed to \code{\link[=frs_db_conn]{frs_db_conn()}}.}
 }
 \value{
 An \code{sf} data frame of stream segments.
@@ -55,17 +55,15 @@ Filter by watershed group code, blue line key, and/or bounding box.
 }
 \examples{
 \dontrun{
+conn <- frs_db_conn()
+
 # All streams in the Bulkley watershed group
-streams <- frs_stream_fetch(watershed_group_code = "BULK")
+streams <- frs_stream_fetch(conn, watershed_group_code = "BULK")
 
 # Streams with order >= 4
-streams <- frs_stream_fetch(watershed_group_code = "BULK", stream_order_min = 4)
-
-# Custom columns and table
-streams <- frs_stream_fetch(
-  watershed_group_code = "BULK",
-  cols = c("blue_line_key", "gnis_name", "stream_order", "geom")
-)
+streams <- frs_stream_fetch(conn, watershed_group_code = "BULK",
+  stream_order_min = 4)
+DBI::dbDisconnect(conn)
 }
 }
 \seealso{
