@@ -59,13 +59,13 @@
 #' message(sum(rearing), " of ", nrow(streams),
 #'         " segments are rearing habitat")
 #'
-#' # Plot both — this is what piped frs_classify calls produce
-#' oldpar <- par(mfrow = c(1, 2))
-#' plot(streams["spawning"], main = "Spawning (gradient 0-2.5%)",
-#'      pal = c("grey80", "steelblue"), key.pos = NULL)
-#' plot(streams["rearing"], main = "Rearing (gradient 0-5%)",
-#'      pal = c("grey80", "darkorange"), key.pos = NULL)
-#' par(oldpar)
+#' # Plot each — this is what piped frs_classify calls produce
+#' plot(streams["spawning"], main = paste(
+#'   "Spawning:", sum(spawning), "of", nrow(streams), "(gradient 0-2.5%)"),
+#'   pal = c("grey80", "steelblue"), key.pos = 1)
+#' plot(streams["rearing"], main = paste(
+#'   "Rearing:", sum(rearing), "of", nrow(streams), "(gradient 0-5%)"),
+#'   pal = c("grey80", "darkorange"), key.pos = 1)
 #'
 #' \dontrun{
 #' # --- Live DB: piped multi-label classification ---
@@ -88,10 +88,10 @@
 #' message("Spawning: ", sum(result$spawning, na.rm = TRUE), " segments")
 #' message("Rearing: ", sum(result$rearing, na.rm = TRUE), " segments")
 #'
-#' par(mfrow = c(1, 2))
-#' plot(result["spawning"], main = "Spawning")
-#' plot(result["rearing"], main = "Rearing")
-#' par(mfrow = c(1, 1))
+#' plot(result["spawning"], main = paste(
+#'   "Spawning:", sum(result$spawning, na.rm = TRUE), "segments"))
+#' plot(result["rearing"], main = paste(
+#'   "Rearing:", sum(result$rearing, na.rm = TRUE), "segments"))
 #'
 #' # Clean up
 #' DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.demo_classify")
