@@ -47,7 +47,7 @@ frs_classify() pipeline."><meta property="og:image" content="https://newgraphenv
     <p>Load species-specific habitat thresholds from a PostgreSQL table or a local
 CSV file. Returns a list of parameter sets, one per species, ready for
 iteration with <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code> or <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">purrr::walk()</a></code> over the <code><a href="frs_break.html">frs_break()</a></code> /
-<code>frs_classify()</code> pipeline.</p>
+<code><a href="frs_classify.html">frs_classify()</a></code> pipeline.</p>
     </div>
 
     <div class="section level2">
@@ -83,7 +83,7 @@ Default <code>"bcfishpass.parameters_habitat_thresholds"</code>.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A named list of parameter sets, keyed by species code. Each element
 is a list with threshold values and a <code>ranges</code> sub-list suitable for
-passing to <code>frs_classify()</code>.</p>
+passing to <code><a href="frs_classify.html">frs_classify()</a></code>.</p>
     </div>
 
     <div class="section level2">

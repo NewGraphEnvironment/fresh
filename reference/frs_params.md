@@ -6,7 +6,9 @@ for iteration with [`lapply()`](https://rdrr.io/r/base/lapply.html) or
 [`purrr::walk()`](https://purrr.tidyverse.org/reference/map.html) over
 the
 [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md)
-/ `frs_classify()` pipeline.
+/
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
+pipeline.
 
 ## Usage
 
@@ -43,7 +45,8 @@ frs_params(
 
 A named list of parameter sets, keyed by species code. Each element is a
 list with threshold values and a `ranges` sub-list suitable for passing
-to `frs_classify()`.
+to
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md).
 
 ## Examples
 

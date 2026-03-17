@@ -10,6 +10,8 @@
   : Find Break Locations on a Stream Network
 - [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md)
   : Validate Breaks Against Upstream Evidence
+- [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
+  : Classify Features by Attribute Ranges, Breaks, or Overrides
 - [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md)
   : Clip Spatial Features to an AOI Polygon
 - [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md)

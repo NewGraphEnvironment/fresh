@@ -4,7 +4,8 @@ Copy rows from a read-only source table into a writable working schema
 table via `CREATE TABLE AS SELECT`. The working copy can then be
 modified by
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
-`frs_classify()`, and `frs_aggregate()`.
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+and `frs_aggregate()`.
 
 ## Usage
 
