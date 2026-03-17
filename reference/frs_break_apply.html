@@ -134,11 +134,14 @@ in <code>table</code>. Default <code>"linear_feature_id"</code> (FWA base table)
 <span class="r-in"><span>  <span class="st">"SELECT gradient, geom FROM working.demo_break"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">before</span><span class="op">[</span><span class="st">"gradient"</span><span class="op">]</span>, main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Before:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">before</span><span class="op">)</span>, <span class="st">"segments"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># 3. Break where gradient &gt; 8% (sampled at 100m intervals)</span></span></span>
+<span class="r-in"><span><span class="co"># 3. Convert to generated columns — gradient auto-recomputes after break</span></span></span>
+<span class="r-in"><span><span class="va">conn</span> <span class="op">|&gt;</span> <span class="fu"><a href="frs_col_generate.html">frs_col_generate</a></span><span class="op">(</span><span class="st">"working.demo_break"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># 4. Break where gradient &gt; 8% (sampled at 100m intervals)</span></span></span>
 <span class="r-in"><span><span class="va">conn</span> <span class="op">|&gt;</span> <span class="fu"><a href="frs_break.html">frs_break</a></span><span class="op">(</span><span class="st">"working.demo_break"</span>,</span></span>
 <span class="r-in"><span>  attribute <span class="op">=</span> <span class="st">"gradient"</span>, threshold <span class="op">=</span> <span class="fl">0.08</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># 4. Plot AFTER — more segments where gradient splits occurred</span></span></span>
+<span class="r-in"><span><span class="co"># 5. Plot AFTER — more segments, gradient recomputed per sub-segment</span></span></span>
 <span class="r-in"><span><span class="va">after</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  <span class="st">"SELECT gradient, geom FROM working.demo_break"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">after</span><span class="op">[</span><span class="st">"gradient"</span><span class="op">]</span>,</span></span>

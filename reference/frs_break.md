@@ -120,6 +120,7 @@ Other habitat:
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
+[`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
 
 ## Examples
@@ -161,11 +162,14 @@ before <- frs_db_query(conn,
 n_before <- nrow(before)
 plot(before["gradient"], main = paste("Before:", n_before, "segments"))
 
-# 3. Break at gradient > 15%
-conn |> frs_break("working.demo_streams",
-  attribute = "gradient", threshold = 0.15)
+# 3. Convert to generated columns — gradient auto-recomputes after break
+conn |> frs_col_generate("working.demo_streams")
 
-# 4. Plot AFTER — more segments where splits occurred
+# 4. Break at gradient > 8%
+conn |> frs_break("working.demo_streams",
+  attribute = "gradient", threshold = 0.08)
+
+# 5. Plot AFTER — more segments, gradient recomputed per sub-segment
 after <- frs_db_query(conn,
   "SELECT gradient, geom FROM working.demo_streams")
 n_after <- nrow(after)
