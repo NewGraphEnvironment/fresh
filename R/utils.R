@@ -256,6 +256,36 @@
 }
 
 
+#' Execute a DDL/DML statement (CREATE, UPDATE, INSERT, DROP, ALTER)
+#'
+#' Complement to [frs_db_query()] which only handles SELECT via
+#' [sf::st_read()]. This wraps [DBI::dbExecute()] for write operations.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param sql Character. SQL statement to execute.
+#' @return The number of rows affected (invisibly).
+#' @noRd
+.frs_db_execute <- function(conn, sql) {
+  DBI::dbExecute(conn, sql)
+}
+
+
+#' Drop a test table from the working schema
+#'
+#' Convenience wrapper for integration test teardown.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param table Character. Schema-qualified table name (e.g.
+#'   `"working.test_extract"`).
+#' @return NULL invisibly.
+#' @noRd
+.frs_test_drop <- function(conn, table) {
+  .frs_validate_identifier(table, "test table")
+  DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", table))
+  invisible(NULL)
+}
+
+
 #' Transform sf result to a target CRS
 #'
 #' @param x An `sf` object.

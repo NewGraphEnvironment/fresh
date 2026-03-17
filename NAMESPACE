@@ -3,6 +3,7 @@
 export(frs_clip)
 export(frs_db_conn)
 export(frs_db_query)
+export(frs_extract)
 export(frs_fish_habitat)
 export(frs_fish_obs)
 export(frs_lake_fetch)
