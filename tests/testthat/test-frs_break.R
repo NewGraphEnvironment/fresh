@@ -188,7 +188,7 @@ test_that("frs_break_apply builds 4 SQL statements with carried columns", {
       sql_log <<- c(sql_log, sql)
       0L
     },
-    .frs_table_columns = function(conn, table) {
+    .frs_table_columns = function(conn, table, exclude_generated = FALSE) {
       c("linear_feature_id", "blue_line_key", "gradient",
         "downstream_route_measure", "upstream_route_measure", "geom")
     }
@@ -212,7 +212,7 @@ test_that("frs_break_apply builds 4 SQL statements with carried columns", {
 test_that("frs_break_apply returns conn invisibly", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) 0L,
-    .frs_table_columns = function(conn, table) {
+    .frs_table_columns = function(conn, table, exclude_generated = FALSE) {
       c("linear_feature_id", "downstream_route_measure",
         "upstream_route_measure", "geom")
     }

@@ -32,6 +32,16 @@ All write functions return `conn` invisibly for consistent `|>` chaining. Table 
 
 - [x] `.frs_db_execute()` — internal helper for DDL/DML in `R/utils.R`
 - [x] `.frs_test_drop()` — integration test teardown helper in `R/utils.R`
+- [x] `.frs_table_columns()` — discover table columns, optionally exclude generated
+
+## Phase 1.5: frs_col_generate() (#45)
+
+Convert static columns to PostgreSQL GENERATED ALWAYS columns derived from geometry ZM values. Gradient, measures, and length auto-recompute when geometry changes (e.g. after frs_break_apply).
+
+- [x] `frs_col_generate(conn, table, geom_col)` — `R/frs_col_generate.R`
+- [x] `frs_break_apply` updated to skip generated columns in INSERT
+- [x] Unit tests: 3 tests (SQL generation, ALTER statements, returns conn)
+- [x] Integration tests: 3 tests (columns are generated, values roundtrip, break produces correct gradient) — 397 total pass
 
 ## Phase 1: frs_extract() (#36)
 

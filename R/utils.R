@@ -274,17 +274,20 @@
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param table Character. Schema-qualified table name.
+#' @param exclude_generated Logical. If `TRUE`, exclude PostgreSQL
+#'   `GENERATED ALWAYS` columns. Default `FALSE`.
 #' @return Character vector of column names.
 #' @noRd
-.frs_table_columns <- function(conn, table) {
+.frs_table_columns <- function(conn, table, exclude_generated = FALSE) {
   tbl_parts <- strsplit(table, "\\.")[[1]]
   tbl_schema <- if (length(tbl_parts) == 2) tbl_parts[1] else "public"
   tbl_name <- tbl_parts[length(tbl_parts)]
+  gen_filter <- if (exclude_generated) " AND is_generated = 'NEVER'" else ""
   sql <- sprintf(
     "SELECT column_name FROM information_schema.columns
-     WHERE table_schema = '%s' AND table_name = '%s'
+     WHERE table_schema = '%s' AND table_name = '%s'%s
      ORDER BY ordinal_position",
-    tbl_schema, tbl_name
+    tbl_schema, tbl_name, gen_filter
   )
   DBI::dbGetQuery(conn, sql)$column_name
 }

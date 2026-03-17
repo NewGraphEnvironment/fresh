@@ -478,41 +478,51 @@ frs_break_apply <- function(conn, table, breaks,
   # Step 3: Insert new segments with attributes carried from parent
   # Discover columns dynamically — carry everything except segment_id,
   # measures, and geom (those come from the split, not the parent)
-  cols_all <- .frs_table_columns(conn, table)
+  # Get writable columns only (excludes GENERATED ALWAYS columns)
+  cols_writable <- .frs_table_columns(conn, table, exclude_generated = TRUE)
 
-  # Columns that come from the split (temp table), not the parent
-  cols_split <- c(sid, "downstream_route_measure", "upstream_route_measure",
-                  "geom")
-  # Columns to carry from parent segment
-  cols_carry <- setdiff(cols_all, cols_split)
+  # Split columns: these come from the temp table, not the parent
+  cols_split_all <- c(sid, "downstream_route_measure",
+                      "upstream_route_measure", "geom")
+  # Only include split columns that are actually writable
+  cols_split <- intersect(cols_split_all, cols_writable)
 
-  # Build the full INSERT with parent join
-  cols_insert <- paste(c(
-    sid, cols_carry, "downstream_route_measure", "upstream_route_measure", "geom"
-  ), collapse = ", ")
+  # Carry columns: everything writable that isn't a split column
+  cols_carry <- setdiff(cols_writable, cols_split_all)
 
-  cols_carry_select <- if (length(cols_carry) > 0) {
-    paste(paste0("s.", cols_carry), collapse = ", ")
-  } else {
-    NULL
+  # Build INSERT column list and SELECT expressions
+  cols_insert_parts <- character(0)
+  select_parts <- character(0)
+
+  # segment_id — new ID from max + row_number
+  if (sid %in% cols_split) {
+    cols_insert_parts <- c(cols_insert_parts, sid)
+    select_parts <- c(select_parts, sprintf(
+      "(SELECT max(%s) FROM %s) + row_number() OVER (
+         ORDER BY t.seg_id, t.downstream_route_measure
+       )", sid, table))
   }
 
-  select_parts <- c(
-    sprintf("(SELECT max(%s) FROM %s) + row_number() OVER (
-         ORDER BY t.seg_id, t.downstream_route_measure
-       )", sid, table),
-    cols_carry_select,
-    "t.downstream_route_measure",
-    "t.upstream_route_measure",
-    "t.geom"
-  )
+  # Carried columns from parent
+  if (length(cols_carry) > 0) {
+    cols_insert_parts <- c(cols_insert_parts, cols_carry)
+    select_parts <- c(select_parts, paste0("s.", cols_carry))
+  }
+
+  # Measures and geom from temp table (only if writable)
+  for (col in c("downstream_route_measure", "upstream_route_measure", "geom")) {
+    if (col %in% cols_split) {
+      cols_insert_parts <- c(cols_insert_parts, col)
+      select_parts <- c(select_parts, paste0("t.", col))
+    }
+  }
 
   sql_insert <- sprintf(
     "INSERT INTO %s (%s)
      SELECT %s
      FROM temp_broken_streams t
      INNER JOIN %s s ON t.seg_id = s.%s",
-    table, cols_insert,
+    table, paste(cols_insert_parts, collapse = ", "),
     paste(select_parts, collapse = ",\n       "),
     table, sid
   )
