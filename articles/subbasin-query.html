@@ -87,15 +87,17 @@ the stream network, not clipped spatially. A future
 <span></span>
 <span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/s2.html" class="external-link">sf_use_s2</a></span><span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
+<span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_conn.html">frs_db_conn</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
 <span><span class="va">blk</span> <span class="op">&lt;-</span> <span class="fl">360873822</span></span>
 <span><span class="va">drm_byman</span> <span class="op">&lt;-</span> <span class="fl">208877</span>     <span class="co"># just upstream of Byman Creek</span></span>
 <span><span class="va">drm_ailport</span> <span class="op">&lt;-</span> <span class="fl">233564</span>   <span class="co"># just upstream of Ailport Creek</span></span>
 <span></span>
 <span><span class="co"># Subbasin polygon (downstream watershed minus upstream watershed)</span></span>
-<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_watershed_at_measure.html">frs_watershed_at_measure</a></span><span class="op">(</span><span class="va">blk</span>, <span class="va">drm_byman</span>, upstream_measure <span class="op">=</span> <span class="va">drm_ailport</span><span class="op">)</span></span>
+<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_watershed_at_measure.html">frs_watershed_at_measure</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">blk</span>, <span class="va">drm_byman</span>, upstream_measure <span class="op">=</span> <span class="va">drm_ailport</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Network features between the two points</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network.html">frs_network</a></span><span class="op">(</span><span class="va">blk</span>, <span class="va">drm_byman</span>, upstream_measure <span class="op">=</span> <span class="va">drm_ailport</span>,</span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_network.html">frs_network</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">blk</span>, <span class="va">drm_byman</span>, upstream_measure <span class="op">=</span> <span class="va">drm_ailport</span>,</span>
 <span>  tables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    streams <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span>
 <span>    co <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -121,7 +123,7 @@ the stream network, not clipped spatially. A future
 <span>  <span class="va">bb</span><span class="op">[</span><span class="st">"xmin"</span><span class="op">]</span>, <span class="va">bb</span><span class="op">[</span><span class="st">"ymin"</span><span class="op">]</span>, <span class="va">bb</span><span class="op">[</span><span class="st">"xmax"</span><span class="op">]</span>, <span class="va">bb</span><span class="op">[</span><span class="st">"ymax"</span><span class="op">]</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">roads</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
+<span><span class="va">roads</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>, <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
 <span>  <span class="st">"SELECT transport_line_type_code, geom</span></span>
 <span><span class="st">   FROM whse_basemapping.transport_line</span></span>
 <span><span class="st">   WHERE transport_line_type_code IN</span></span>
@@ -134,7 +136,7 @@ the stream network, not clipped spatially. A future
 <span><span class="va">highways</span> <span class="op">&lt;-</span> <span class="va">roads</span><span class="op">[</span><span class="va">roads</span><span class="op">$</span><span class="va">transport_line_type_code</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"RF"</span>, <span class="st">"RH1"</span>, <span class="st">"RH2"</span><span class="op">)</span>, <span class="op">]</span></span>
 <span><span class="va">roads_other</span> <span class="op">&lt;-</span> <span class="va">roads</span><span class="op">[</span><span class="op">!</span><span class="va">roads</span><span class="op">$</span><span class="va">transport_line_type_code</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"RF"</span>, <span class="st">"RH1"</span>, <span class="st">"RH2"</span><span class="op">)</span>, <span class="op">]</span></span>
 <span></span>
-<span><span class="va">fsr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
+<span><span class="va">fsr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>, <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
 <span>  <span class="st">"SELECT road_section_name, geom</span></span>
 <span><span class="st">   FROM whse_forest_tenure.ften_road_section_lines_svw</span></span>
 <span><span class="st">   WHERE life_cycle_status_code = 'ACTIVE'</span></span>
@@ -143,7 +145,7 @@ the stream network, not clipped spatially. A future
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">fsr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_collection_extract.html" class="external-link">st_collection_extract</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_binary_ops.html" class="external-link">st_intersection</a></span><span class="op">(</span><span class="va">fsr</span>, <span class="va">aoi</span><span class="op">)</span>, <span class="st">"LINESTRING"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">railway</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
+<span><span class="va">railway</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>, <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
 <span>  <span class="st">"SELECT track_name, geom</span></span>
 <span><span class="st">   FROM whse_basemapping.gba_railway_tracks_sp</span></span>
 <span><span class="st">   WHERE ST_Intersects(geom, %s)"</span>, <span class="va">env</span></span>
@@ -153,10 +155,10 @@ the stream network, not clipped spatially. A future
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="co"># Keymap data: BC outline + Bulkley/Morice watershed groups</span></span>
-<span><span class="va">bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span></span>
+<span><span class="va">bc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>,</span>
 <span>  <span class="st">"SELECT ST_Simplify(geom, 5000) as geom FROM whse_basemapping.fwa_bcboundary"</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">wsg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span></span>
+<span><span class="va">wsg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>,</span>
 <span>  <span class="st">"SELECT watershed_group_code, geom</span></span>
 <span><span class="st">   FROM whse_basemapping.fwa_watershed_groups_poly</span></span>
 <span><span class="st">   WHERE watershed_group_code IN ('BULK', 'MORR')"</span></span>

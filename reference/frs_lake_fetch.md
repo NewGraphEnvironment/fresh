@@ -7,6 +7,7 @@ group code, blue line key, and/or bounding box.
 
 ``` r
 frs_lake_fetch(
+  conn,
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
@@ -14,12 +15,18 @@ frs_lake_fetch(
   table = "whse_basemapping.fwa_lakes_poly",
   cols = c("waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
     "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"),
-  limit = NULL,
-  ...
+  limit = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - watershed_group_code:
 
@@ -52,11 +59,6 @@ frs_lake_fetch(
 
   Integer. Maximum rows to return. Default `NULL` (no limit).
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of lake polygons.
@@ -71,10 +73,10 @@ Other fetch:
 
 ``` r
 if (FALSE) { # \dontrun{
-# All lakes in the Bulkley watershed group
-lakes <- frs_lake_fetch(watershed_group_code = "BULK")
-
-# Lakes larger than 10 ha
-lakes <- frs_lake_fetch(watershed_group_code = "BULK", area_ha_min = 10)
+conn <- frs_db_conn()
+lakes <- frs_lake_fetch(conn, watershed_group_code = "BULK")
+lakes_big <- frs_lake_fetch(conn, watershed_group_code = "BULK",
+  area_ha_min = 10)
+DBI::dbDisconnect(conn)
 } # }
 ```

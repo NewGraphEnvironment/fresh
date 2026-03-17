@@ -18,14 +18,16 @@ library(fresh)
 library(sf)
 #> Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
 
+conn <- frs_db_conn()
+
 blk <- 360873822
 drm <- 166030.4
 
 # Watershed AOI via frs_watershed_at_measure()
-aoi <- frs_watershed_at_measure(blk, drm)
+aoi <- frs_watershed_at_measure(conn, blk, drm)
 
 # Full upstream network: streams, coho habitat, lakes, wetlands — one call
-result <- frs_network(blk, drm, tables = list(
+result <- frs_network(conn, blk, drm, tables = list(
   streams = "whse_basemapping.fwa_stream_networks_sp",
   co = list(
     table = "bcfishpass.streams_co_vw",

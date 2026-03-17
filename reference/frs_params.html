@@ -64,8 +64,9 @@ iteration with <code><a href="https://rdrr.io/r/base/lapply.html" class="externa
 
 
 <dl><dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
-<dd><p>A <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBI::DBIConnection</a> object. Required when reading
-from a database table. Ignored when <code>csv</code> is provided.</p></dd>
+<dd><p>A <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBI::DBIConnection</a> object (from <code><a href="frs_db_conn.html">frs_db_conn()</a></code>).
+Required when reading from a database table. Use <code>NULL</code> when reading
+from a CSV file.</p></dd>
 
 
 <dt id="arg-table">table<a class="anchor" aria-label="anchor" href="#arg-table"></a></dt>

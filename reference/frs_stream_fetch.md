@@ -7,6 +7,7 @@ watershed group code, blue line key, and/or bounding box.
 
 ``` r
 frs_stream_fetch(
+  conn,
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
@@ -17,12 +18,18 @@ frs_stream_fetch(
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   include_all = FALSE,
-  limit = NULL,
-  ...
+  limit = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - watershed_group_code:
 
@@ -62,11 +69,6 @@ frs_stream_fetch(
 
   Integer. Maximum rows to return. Default `NULL` (no limit).
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of stream segments.
@@ -81,16 +83,14 @@ Other fetch:
 
 ``` r
 if (FALSE) { # \dontrun{
+conn <- frs_db_conn()
+
 # All streams in the Bulkley watershed group
-streams <- frs_stream_fetch(watershed_group_code = "BULK")
+streams <- frs_stream_fetch(conn, watershed_group_code = "BULK")
 
 # Streams with order >= 4
-streams <- frs_stream_fetch(watershed_group_code = "BULK", stream_order_min = 4)
-
-# Custom columns and table
-streams <- frs_stream_fetch(
-  watershed_group_code = "BULK",
-  cols = c("blue_line_key", "gnis_name", "stream_order", "geom")
-)
+streams <- frs_stream_fetch(conn, watershed_group_code = "BULK",
+  stream_order_min = 4)
+DBI::dbDisconnect(conn)
 } # }
 ```

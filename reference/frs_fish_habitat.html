@@ -50,6 +50,7 @@ barrier, access, and habitat classification columns.</p>
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_fish_habitat</span><span class="op">(</span></span>
+<span>  <span class="va">conn</span>,</span>
 <span>  watershed_group_code <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  blue_line_key <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"bcfishpass.streams_vw"</span>,</span>
@@ -57,8 +58,7 @@ barrier, access, and habitat classification columns.</p>
 <span>    <span class="st">"downstream_route_measure"</span>, <span class="st">"upstream_area_ha"</span>, <span class="st">"gnis_name"</span>, <span class="st">"stream_order"</span>,</span>
 <span>    <span class="st">"channel_width"</span>, <span class="st">"gradient"</span>, <span class="st">"mad_m3s"</span>, <span class="st">"watershed_group_code"</span>, <span class="st">"wscode"</span>,</span>
 <span>    <span class="st">"localcode"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
-<span>  limit <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  <span class="va">...</span></span>
+<span>  limit <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -66,7 +66,11 @@ barrier, access, and habitat classification columns.</p>
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-watershed-group-code">watershed_group_code<a class="anchor" aria-label="anchor" href="#arg-watershed-group-code"></a></dt>
+<dl><dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
+<dd><p>A <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBI::DBIConnection</a> object (from <code><a href="frs_db_conn.html">frs_db_conn()</a></code>).</p></dd>
+
+
+<dt id="arg-watershed-group-code">watershed_group_code<a class="anchor" aria-label="anchor" href="#arg-watershed-group-code"></a></dt>
 <dd><p>Character. Watershed group code. Default <code>NULL</code>.</p></dd>
 
 
@@ -87,10 +91,6 @@ the most commonly used habitat model attributes.</p></dd>
 <dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>
 <dd><p>Integer. Maximum rows to return. Default <code>NULL</code>.</p></dd>
 
-
-<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional arguments passed to <code><a href="frs_db_conn.html">frs_db_conn()</a></code>.</p></dd>
-
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -106,8 +106,10 @@ columns (barriers, access, gradient, channel width, etc.).</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Habitat model for the Bulkley</span></span></span>
-<span class="r-in"><span><span class="va">habitat</span> <span class="op">&lt;-</span> <span class="fu">frs_fish_habitat</span><span class="op">(</span>watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span>, limit <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_conn.html">frs_db_conn</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">habitat</span> <span class="op">&lt;-</span> <span class="fu">frs_fish_habitat</span><span class="op">(</span><span class="va">conn</span>, watershed_group_code <span class="op">=</span> <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  limit <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

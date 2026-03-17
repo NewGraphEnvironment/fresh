@@ -1,27 +1,27 @@
 # Query FWA PostgreSQL Database
 
-Connects via
-[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md),
-executes a SQL query, disconnects, and returns the result. Uses
+Executes a SQL query on an open connection. Uses
 [`sf::st_read()`](https://r-spatial.github.io/sf/reference/st_read.html)
 so spatial columns are returned as sf geometry.
 
 ## Usage
 
 ``` r
-frs_db_query(query, ...)
+frs_db_query(conn, query)
 ```
 
 ## Arguments
 
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
+
 - query:
 
   Character. SQL query string.
-
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
 
 ## Value
 
@@ -37,6 +37,8 @@ Other database:
 
 ``` r
 if (FALSE) { # \dontrun{
-frs_db_query("SELECT * FROM whse_basemapping.fwa_lakes_poly LIMIT 5")
+conn <- frs_db_conn()
+frs_db_query(conn, "SELECT * FROM whse_basemapping.fwa_lakes_poly LIMIT 5")
+DBI::dbDisconnect(conn)
 } # }
 ```

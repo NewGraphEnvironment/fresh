@@ -7,6 +7,7 @@ watershed group code, blue line key, and/or bounding box.
 
 ``` r
 frs_wetland_fetch(
+  conn,
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
@@ -14,12 +15,18 @@ frs_wetland_fetch(
   table = "whse_basemapping.fwa_wetlands_poly",
   cols = c("waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
     "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"),
-  limit = NULL,
-  ...
+  limit = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - watershed_group_code:
 
@@ -53,11 +60,6 @@ frs_wetland_fetch(
 
   Integer. Maximum rows to return. Default `NULL` (no limit).
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of wetland polygons.
@@ -72,10 +74,10 @@ Other fetch:
 
 ``` r
 if (FALSE) { # \dontrun{
-# All wetlands in the Bulkley watershed group
-wetlands <- frs_wetland_fetch(watershed_group_code = "BULK")
-
-# Wetlands larger than 5 ha
-wetlands <- frs_wetland_fetch(watershed_group_code = "BULK", area_ha_min = 5)
+conn <- frs_db_conn()
+wetlands <- frs_wetland_fetch(conn, watershed_group_code = "BULK")
+wetlands_big <- frs_wetland_fetch(conn, watershed_group_code = "BULK",
+  area_ha_min = 5)
+DBI::dbDisconnect(conn)
 } # }
 ```

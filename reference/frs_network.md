@@ -11,6 +11,7 @@ via the waterbody_key bridge through the stream network.
 
 ``` r
 frs_network(
+  conn,
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
@@ -18,12 +19,18 @@ frs_network(
   tables = NULL,
   direction = "upstream",
   include_all = FALSE,
-  clip = NULL,
-  ...
+  clip = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - blue_line_key:
 
@@ -75,11 +82,6 @@ frs_network(
   straddle watershed boundaries. See
   [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md).
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 A named list of `sf` data frames (or plain data frames for tables
@@ -104,21 +106,24 @@ Other traverse:
 
 ``` r
 if (FALSE) { # \dontrun{
+conn <- frs_db_conn()
 blk <- 360873822
 
 # Everything upstream of a point
-streams <- frs_network(blk, 166030)
+streams <- frs_network(conn, blk, 166030)
 
 # Between two points (subbasin): upstream of Byman minus upstream of Ailport
-result <- frs_network(blk, 208877, upstream_measure = 233564, tables = list(
-  streams = "whse_basemapping.fwa_stream_networks_sp",
-  lakes = "whse_basemapping.fwa_lakes_poly",
-  crossings = "bcfishpass.crossings",
-  observations = list(
-    table = "bcfishpass.observations_vw",
-    wscode_col = "wscode",
-    localcode_col = "localcode"
-  )
-))
+result <- frs_network(conn, blk, 208877, upstream_measure = 233564,
+  tables = list(
+    streams = "whse_basemapping.fwa_stream_networks_sp",
+    lakes = "whse_basemapping.fwa_lakes_poly",
+    crossings = "bcfishpass.crossings",
+    observations = list(
+      table = "bcfishpass.observations_vw",
+      wscode_col = "wscode",
+      localcode_col = "localcode"
+    )
+  ))
+DBI::dbDisconnect(conn)
 } # }
 ```

@@ -9,6 +9,7 @@ watershed group restriction. Filtering happens in SQL for efficiency.
 
 ``` r
 frs_network_prune(
+  conn,
   blue_line_key,
   downstream_route_measure,
   stream_order_min = NULL,
@@ -22,12 +23,18 @@ frs_network_prune(
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   wscode_col = "wscode_ltree",
-  localcode_col = "localcode_ltree",
-  ...
+  localcode_col = "localcode_ltree"
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - blue_line_key:
 
@@ -81,11 +88,6 @@ frs_network_prune(
   Character. Name of the local code ltree column. Default
   `"localcode_ltree"`. Use `"localcode"` for bcfishpass views.
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of filtered upstream stream segments.
@@ -107,8 +109,10 @@ Other prune:
 
 ``` r
 if (FALSE) { # \dontrun{
+conn <- frs_db_conn()
+
 # Upstream network from FWA base table, order >= 3
-pruned <- frs_network_prune(
+pruned <- frs_network_prune(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030,
   stream_order_min = 3,
@@ -117,7 +121,7 @@ pruned <- frs_network_prune(
 
 # Coho rearing/spawning upstream of Neexdzii Kwa confluence
 # NB: rearing/spawning filters drop lake/wetland segments (see @note)
-co_habitat <- frs_network_prune(
+co_habitat <- frs_network_prune(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030.4,
   stream_order_min = 4,
@@ -130,5 +134,6 @@ co_habitat <- frs_network_prune(
   wscode_col = "wscode",
   localcode_col = "localcode"
 )
+DBI::dbDisconnect(conn)
 } # }
 ```

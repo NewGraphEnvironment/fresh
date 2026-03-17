@@ -8,6 +8,7 @@ with barrier, access, and habitat classification columns.
 
 ``` r
 frs_fish_habitat(
+  conn,
   watershed_group_code = NULL,
   blue_line_key = NULL,
   table = "bcfishpass.streams_vw",
@@ -15,12 +16,18 @@ frs_fish_habitat(
     "downstream_route_measure", "upstream_area_ha", "gnis_name", "stream_order",
     "channel_width", "gradient", "mad_m3s", "watershed_group_code", "wscode",
     "localcode", "geom"),
-  limit = NULL,
-  ...
+  limit = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - watershed_group_code:
 
@@ -44,11 +51,6 @@ frs_fish_habitat(
 
   Integer. Maximum rows to return. Default `NULL`.
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of stream segments with bcfishpass habitat model
@@ -63,7 +65,9 @@ Other fish:
 
 ``` r
 if (FALSE) { # \dontrun{
-# Habitat model for the Bulkley
-habitat <- frs_fish_habitat(watershed_group_code = "BULK", limit = 100)
+conn <- frs_db_conn()
+habitat <- frs_fish_habitat(conn, watershed_group_code = "BULK",
+  limit = 100)
+DBI::dbDisconnect(conn)
 } # }
 ```

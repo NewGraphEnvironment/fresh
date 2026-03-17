@@ -10,18 +10,25 @@ filtered to that stream, with measure derivation and boundary clamping
 
 ``` r
 frs_point_snap(
+  conn,
   x,
   y,
   srid = 4326L,
   tolerance = 5000,
   num_features = 1L,
   blue_line_key = NULL,
-  stream_order_min = NULL,
-  ...
+  stream_order_min = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - x:
 
@@ -55,11 +62,6 @@ frs_point_snap(
   Integer. Optional. Minimum stream order for snap candidates. Ignored
   when `blue_line_key` is provided. Forces KNN path.
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame with columns: `linear_feature_id`, `gnis_name`,
@@ -75,13 +77,17 @@ Other index:
 
 ``` r
 if (FALSE) { # \dontrun{
+conn <- frs_db_conn()
+
 # Snap to nearest stream (any)
-snapped <- frs_point_snap(x = -126.5, y = 54.5)
+snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
 
 # Snap to a specific stream (Bulkley River)
-snapped <- frs_point_snap(x = -126.5, y = 54.5, blue_line_key = 360873822)
+snapped <- frs_point_snap(conn, x = -126.5, y = 54.5,
+  blue_line_key = 360873822)
 
 # Snap to order 4+ streams only
-snapped <- frs_point_snap(x = -126.5, y = 54.5, stream_order_min = 4)
+snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, stream_order_min = 4)
+DBI::dbDisconnect(conn)
 } # }
 ```

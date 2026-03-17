@@ -6,10 +6,17 @@ geometry on the stream network. Wraps fwapg `fwa_locatealong()`.
 ## Usage
 
 ``` r
-frs_point_locate(blue_line_key, downstream_route_measure, ...)
+frs_point_locate(conn, blue_line_key, downstream_route_measure)
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - blue_line_key:
 
@@ -18,11 +25,6 @@ frs_point_locate(blue_line_key, downstream_route_measure, ...)
 - downstream_route_measure:
 
   Numeric. Downstream route measure in metres.
-
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
 
 ## Value
 
@@ -37,7 +39,9 @@ Other index:
 
 ``` r
 if (FALSE) { # \dontrun{
-# Get the point at measure 1000 on a stream
-pt <- frs_point_locate(blue_line_key = 360873822, downstream_route_measure = 1000)
+conn <- frs_db_conn()
+pt <- frs_point_locate(conn, blue_line_key = 360873822,
+  downstream_route_measure = 1000)
+DBI::dbDisconnect(conn)
 } # }
 ```

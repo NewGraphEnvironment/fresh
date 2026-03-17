@@ -22,8 +22,10 @@ frs_params(
 
   A
   [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
-  object. Required when reading from a database table. Ignored when
-  `csv` is provided.
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
+  Required when reading from a database table. Use `NULL` when reading
+  from a CSV file.
 
 - table:
 

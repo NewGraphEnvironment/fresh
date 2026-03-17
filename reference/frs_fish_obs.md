@@ -7,6 +7,7 @@ code, watershed group, and/or blue line key.
 
 ``` r
 frs_fish_obs(
+  conn,
   species_code = NULL,
   watershed_group_code = NULL,
   blue_line_key = NULL,
@@ -14,12 +15,18 @@ frs_fish_obs(
   cols = c("fish_observation_point_id", "species_code", "observation_date", "life_stage",
     "activity", "blue_line_key", "downstream_route_measure", "watershed_group_code",
     "wscode_ltree", "localcode_ltree", "geom"),
-  limit = NULL,
-  ...
+  limit = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - species_code:
 
@@ -48,11 +55,6 @@ frs_fish_obs(
 
   Integer. Maximum rows to return. Default `NULL`.
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of fish observation events.
@@ -66,7 +68,9 @@ Other fish:
 
 ``` r
 if (FALSE) { # \dontrun{
-# Chinook observations in the Bulkley
-obs <- frs_fish_obs(species_code = "CH", watershed_group_code = "BULK")
+conn <- frs_db_conn()
+obs <- frs_fish_obs(conn, species_code = "CH",
+  watershed_group_code = "BULK")
+DBI::dbDisconnect(conn)
 } # }
 ```

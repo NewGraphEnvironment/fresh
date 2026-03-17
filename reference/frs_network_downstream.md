@@ -8,6 +8,7 @@ comparison.
 
 ``` r
 frs_network_downstream(
+  conn,
   blue_line_key,
   downstream_route_measure,
   table = "whse_basemapping.fwa_stream_networks_sp",
@@ -17,12 +18,18 @@ frs_network_downstream(
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   wscode_col = "wscode_ltree",
   localcode_col = "localcode_ltree",
-  include_all = FALSE,
-  ...
+  include_all = FALSE
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - blue_line_key:
 
@@ -58,11 +65,6 @@ frs_network_downstream(
   unmapped tributaries (NULL localcode). Default `FALSE` filters these
   out. Only applied when querying the FWA base table.
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of downstream stream segments.
@@ -78,10 +80,11 @@ Other traverse:
 
 ``` r
 if (FALSE) { # \dontrun{
-# Get all streams downstream of a point
-downstream <- frs_network_downstream(
+conn <- frs_db_conn()
+downstream <- frs_network_downstream(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030
 )
+DBI::dbDisconnect(conn)
 } # }
 ```

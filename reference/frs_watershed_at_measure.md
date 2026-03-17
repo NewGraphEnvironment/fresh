@@ -8,15 +8,22 @@ by blue line key and downstream route measure. Wraps the fwapg
 
 ``` r
 frs_watershed_at_measure(
+  conn,
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
-  upstream_blk = NULL,
-  ...
+  upstream_blk = NULL
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - blue_line_key:
 
@@ -38,11 +45,6 @@ frs_watershed_at_measure(
   `blue_line_key` (same stream). Use when the upstream point is on a
   tributary.
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame with a single polygon geometry.
@@ -63,14 +65,18 @@ Other watershed:
 
 ``` r
 if (FALSE) { # \dontrun{
+conn <- frs_db_conn()
+
 # Watershed upstream of a single point
-ws <- frs_watershed_at_measure(360873822, 208877)
+ws <- frs_watershed_at_measure(conn, 360873822, 208877)
 
 # Subbasin between two points on the same stream
-aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
+aoi <- frs_watershed_at_measure(conn, 360873822, 208877,
+  upstream_measure = 233564)
 
 # Subbasin with upstream point on a tributary (different BLK)
-aoi <- frs_watershed_at_measure(360873822, 165115,
+aoi <- frs_watershed_at_measure(conn, 360873822, 165115,
   upstream_measure = 838, upstream_blk = 360886221)
+DBI::dbDisconnect(conn)
 } # }
 ```

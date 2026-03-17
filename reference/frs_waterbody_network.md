@@ -12,17 +12,24 @@ values, then joins to the polygon table.
 
 ``` r
 frs_waterbody_network(
+  conn,
   blue_line_key,
   downstream_route_measure,
   table = "whse_basemapping.fwa_lakes_poly",
   cols = c("waterbody_key", "waterbody_type", "gnis_name_1", "area_ha", "blue_line_key",
     "watershed_group_code", "geom"),
-  direction = "upstream",
-  ...
+  direction = "upstream"
 )
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - blue_line_key:
 
@@ -46,11 +53,6 @@ frs_waterbody_network(
 
   Character. `"upstream"` (default) or `"downstream"`.
 
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
-
 ## Value
 
 An `sf` data frame of waterbody polygons.
@@ -71,24 +73,20 @@ Other traverse:
 
 ``` r
 if (FALSE) { # \dontrun{
+conn <- frs_db_conn()
+
 # Upstream lakes from the Neexdzii Kwa / Wedzin Kwa confluence
-lakes <- frs_waterbody_network(
+lakes <- frs_waterbody_network(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030
 )
 
 # Upstream wetlands
-wetlands <- frs_waterbody_network(
+wetlands <- frs_waterbody_network(conn,
   blue_line_key = 360873822,
   downstream_route_measure = 166030,
   table = "whse_basemapping.fwa_wetlands_poly"
 )
-
-# Downstream lakes
-lakes_ds <- frs_waterbody_network(
-  blue_line_key = 360873822,
-  downstream_route_measure = 166030,
-  direction = "downstream"
-)
+DBI::dbDisconnect(conn)
 } # }
 ```

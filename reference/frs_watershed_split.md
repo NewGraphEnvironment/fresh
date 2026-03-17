@@ -9,10 +9,17 @@ and all smaller (upstream) watersheds.
 ## Usage
 
 ``` r
-frs_watershed_split(points, aoi = NULL, tolerance = 5000, crs = NULL, ...)
+frs_watershed_split(conn, points, aoi = NULL, tolerance = 5000, crs = NULL)
 ```
 
 ## Arguments
+
+- conn:
+
+  A
+  [DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html)
+  object (from
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)).
 
 - points:
 
@@ -37,11 +44,6 @@ frs_watershed_split(points, aoi = NULL, tolerance = 5000, crs = NULL, ...)
   Target CRS for the output (integer EPSG code, character, or
   [`sf::st_crs()`](https://r-spatial.github.io/sf/reference/st_crs.html)
   object). Default `NULL` returns WGS84 (EPSG:4326).
-
-- ...:
-
-  Additional arguments passed to
-  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
 
 ## Value
 
@@ -97,15 +99,17 @@ text(sf::st_coordinates(sf::st_centroid(subbasins_no_aoi)),
 
 
 if (FALSE) { # \dontrun{
-# Live: split a watershed from a CSV of break points
+conn <- frs_db_conn()
 pts <- read.csv(system.file("extdata", "break_points.csv", package = "fresh"))
 
 # Without AOI — full upstream watersheds, pairwise subtracted
-subbasins <- frs_watershed_split(pts)
+subbasins <- frs_watershed_split(conn, pts)
 
 # With AOI — clipped to study area. Include the downstream boundary
 # point in break_points.csv for complete tiling with no gaps.
-aoi <- frs_watershed_at_measure(360873822, 208877, upstream_measure = 233564)
-subbasins <- frs_watershed_split(pts, aoi = aoi)
+aoi <- frs_watershed_at_measure(conn, 360873822, 208877,
+  upstream_measure = 233564)
+subbasins <- frs_watershed_split(conn, pts, aoi = aoi)
+DBI::dbDisconnect(conn)
 } # }
 ```

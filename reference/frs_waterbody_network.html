@@ -62,13 +62,13 @@ the polygon table.</p>
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_waterbody_network</span><span class="op">(</span></span>
+<span>  <span class="va">conn</span>,</span>
 <span>  <span class="va">blue_line_key</span>,</span>
 <span>  <span class="va">downstream_route_measure</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_lakes_poly"</span>,</span>
 <span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"waterbody_key"</span>, <span class="st">"waterbody_type"</span>, <span class="st">"gnis_name_1"</span>, <span class="st">"area_ha"</span>, <span class="st">"blue_line_key"</span>,</span>
 <span>    <span class="st">"watershed_group_code"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span>
-<span>  direction <span class="op">=</span> <span class="st">"upstream"</span>,</span>
-<span>  <span class="va">...</span></span>
+<span>  direction <span class="op">=</span> <span class="st">"upstream"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -76,7 +76,11 @@ the polygon table.</p>
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-blue-line-key">blue_line_key<a class="anchor" aria-label="anchor" href="#arg-blue-line-key"></a></dt>
+<dl><dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
+<dd><p>A <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBI::DBIConnection</a> object (from <code><a href="frs_db_conn.html">frs_db_conn()</a></code>).</p></dd>
+
+
+<dt id="arg-blue-line-key">blue_line_key<a class="anchor" aria-label="anchor" href="#arg-blue-line-key"></a></dt>
 <dd><p>Integer. Blue line key of the reference point.</p></dd>
 
 
@@ -97,10 +101,6 @@ table. Default includes the most commonly used attributes.</p></dd>
 
 <dt id="arg-direction">direction<a class="anchor" aria-label="anchor" href="#arg-direction"></a></dt>
 <dd><p>Character. <code>"upstream"</code> (default) or <code>"downstream"</code>.</p></dd>
-
-
-<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional arguments passed to <code><a href="frs_db_conn.html">frs_db_conn()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -123,25 +123,21 @@ background.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_conn.html">frs_db_conn</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Upstream lakes from the Neexdzii Kwa / Wedzin Kwa confluence</span></span></span>
-<span class="r-in"><span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="fu">frs_waterbody_network</span><span class="op">(</span></span></span>
+<span class="r-in"><span><span class="va">lakes</span> <span class="op">&lt;-</span> <span class="fu">frs_waterbody_network</span><span class="op">(</span><span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  blue_line_key <span class="op">=</span> <span class="fl">360873822</span>,</span></span>
 <span class="r-in"><span>  downstream_route_measure <span class="op">=</span> <span class="fl">166030</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Upstream wetlands</span></span></span>
-<span class="r-in"><span><span class="va">wetlands</span> <span class="op">&lt;-</span> <span class="fu">frs_waterbody_network</span><span class="op">(</span></span></span>
+<span class="r-in"><span><span class="va">wetlands</span> <span class="op">&lt;-</span> <span class="fu">frs_waterbody_network</span><span class="op">(</span><span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  blue_line_key <span class="op">=</span> <span class="fl">360873822</span>,</span></span>
 <span class="r-in"><span>  downstream_route_measure <span class="op">=</span> <span class="fl">166030</span>,</span></span>
 <span class="r-in"><span>  table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_wetlands_poly"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Downstream lakes</span></span></span>
-<span class="r-in"><span><span class="va">lakes_ds</span> <span class="op">&lt;-</span> <span class="fu">frs_waterbody_network</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  blue_line_key <span class="op">=</span> <span class="fl">360873822</span>,</span></span>
-<span class="r-in"><span>  downstream_route_measure <span class="op">=</span> <span class="fl">166030</span>,</span></span>
-<span class="r-in"><span>  direction <span class="op">=</span> <span class="st">"downstream"</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
