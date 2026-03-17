@@ -113,11 +113,14 @@ before <- frs_db_query(conn,
 n_before <- nrow(before)
 plot(before["gradient"], main = paste("Before:", n_before, "segments"))
 
-# 3. Break at gradient > 15\%
-conn |> frs_break("working.demo_streams",
-  attribute = "gradient", threshold = 0.15)
+# 3. Convert to generated columns — gradient auto-recomputes after break
+conn |> frs_col_generate("working.demo_streams")
 
-# 4. Plot AFTER — more segments where splits occurred
+# 4. Break at gradient > 8\%
+conn |> frs_break("working.demo_streams",
+  attribute = "gradient", threshold = 0.08)
+
+# 5. Plot AFTER — more segments, gradient recomputed per sub-segment
 after <- frs_db_query(conn,
   "SELECT gradient, geom FROM working.demo_streams")
 n_after <- nrow(after)
@@ -136,6 +139,7 @@ Other habitat:
 \code{\link{frs_break_apply}()},
 \code{\link{frs_break_find}()},
 \code{\link{frs_break_validate}()},
+\code{\link{frs_col_generate}()},
 \code{\link{frs_extract}()}
 }
 \concept{habitat}

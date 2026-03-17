@@ -65,11 +65,14 @@ before <- frs_db_query(conn,
   "SELECT gradient, geom FROM working.demo_break")
 plot(before["gradient"], main = paste("Before:", nrow(before), "segments"))
 
-# 3. Break where gradient > 8\% (sampled at 100m intervals)
+# 3. Convert to generated columns — gradient auto-recomputes after break
+conn |> frs_col_generate("working.demo_break")
+
+# 4. Break where gradient > 8\% (sampled at 100m intervals)
 conn |> frs_break("working.demo_break",
   attribute = "gradient", threshold = 0.08)
 
-# 4. Plot AFTER — more segments where gradient splits occurred
+# 5. Plot AFTER — more segments, gradient recomputed per sub-segment
 after <- frs_db_query(conn,
   "SELECT gradient, geom FROM working.demo_break")
 plot(after["gradient"],
