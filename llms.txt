@@ -79,8 +79,18 @@ MIT
 
 ## All functions
 
+- [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md)
+  : Break Stream Network at Threshold or Point Locations
+- [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md)
+  : Apply Break Points to Split Stream Geometry
+- [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
+  : Find Break Locations on a Stream Network
+- [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md)
+  : Validate Breaks Against Upstream Evidence
 - [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md)
   : Clip Spatial Features to an AOI Polygon
+- [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md)
+  : Convert Columns to PostgreSQL Generated Columns from Geometry
 - [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
   : Connect to FWA PostgreSQL Database
 - [`frs_db_query()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_query.md)

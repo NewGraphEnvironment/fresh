@@ -44,7 +44,7 @@ by frs_break_apply(), frs_classify(), and frs_aggregate()."><meta property="og:i
     <div class="ref-description section level2">
     <p>Copy rows from a read-only source table into a writable working schema
 table via <code>CREATE TABLE AS SELECT</code>. The working copy can then be modified
-by <code>frs_break_apply()</code>, <code>frs_classify()</code>, and <code>frs_aggregate()</code>.</p>
+by <code><a href="frs_break_apply.html">frs_break_apply()</a></code>, <code>frs_classify()</code>, and <code>frs_aggregate()</code>.</p>
     </div>
 
     <div class="section level2">
@@ -92,29 +92,66 @@ creating. If <code>FALSE</code> (default), error when the table already exists.<
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>conn</code> invisibly, for pipe chaining.</p>
     </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p>Other habitat:
+<code><a href="frs_break.html">frs_break()</a></code>,
+<code><a href="frs_break_apply.html">frs_break_apply()</a></code>,
+<code><a href="frs_break_find.html">frs_break_find()</a></code>,
+<code><a href="frs_break_validate.html">frs_break_validate()</a></code></p></div>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># --- What frs_extract produces (bundled data) ---</span></span></span>
+<span class="r-in"><span><span class="co"># frs_extract copies source table rows into a writable working table.</span></span></span>
+<span class="r-in"><span><span class="co"># Here we show what the extracted data looks like using cached data</span></span></span>
+<span class="r-in"><span><span class="co"># from the Byman-Ailport subbasin (Upper Bulkley River).</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"byman_ailport.rds"</span>, package <span class="op">=</span> <span class="st">"fresh"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">streams</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">$</span><span class="va">streams</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Streams have the columns you'd select: gradient, measures, geometry</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">streams</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] "linear_feature_id"        "blue_line_key"           </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [3] "waterbody_key"            "edge_type"               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [5] "gnis_name"                "stream_order"            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [7] "stream_magnitude"         "gradient"                </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [9] "downstream_route_measure" "upstream_route_measure"  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [11] "length_metre"             "watershed_group_code"    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [13] "wscode_ltree"             "localcode_ltree"         </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [15] "geom"                    </span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">streams</span><span class="op">)</span>  <span class="co"># 2167 segments in this subbasin</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2167</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Plot streams colored by gradient — this is what you'd extract</span></span></span>
+<span class="r-in"><span><span class="co"># to a working table before breaking/classifying</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">streams</span><span class="op">[</span><span class="st">"gradient"</span><span class="op">]</span>, main <span class="op">=</span> <span class="st">"Stream gradient (Byman-Ailport)"</span>,</span></span>
+<span class="r-in"><span>     breaks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.03</span>, <span class="fl">0.05</span>, <span class="fl">0.08</span>, <span class="fl">0.15</span>, <span class="fl">1</span><span class="op">)</span>, key.pos <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="frs_extract-1.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># --- Live DB: extract the same Byman-Ailport area ---</span></span></span>
 <span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_conn.html">frs_db_conn</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">$</span><span class="va">aoi</span>  <span class="co"># sf polygon from bundled data</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Extract coho streams for Bulkley watershed group</span></span></span>
 <span class="r-in"><span><span class="va">conn</span> <span class="op">|&gt;</span> <span class="fu">frs_extract</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  from <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span></span>
-<span class="r-in"><span>  to <span class="op">=</span> <span class="st">"working.streams_co"</span>,</span></span>
-<span class="r-in"><span>  aoi <span class="op">=</span> <span class="st">"BULK"</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Extract specific columns with overwrite</span></span></span>
-<span class="r-in"><span><span class="va">conn</span> <span class="op">|&gt;</span> <span class="fu">frs_extract</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  from <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span></span>
-<span class="r-in"><span>  to <span class="op">=</span> <span class="st">"working.streams_co"</span>,</span></span>
-<span class="r-in"><span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"segmented_stream_id"</span>, <span class="st">"blue_line_key"</span>, <span class="st">"gradient"</span>,</span></span>
-<span class="r-in"><span>           <span class="st">"channel_width"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  aoi <span class="op">=</span> <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  from <span class="op">=</span> <span class="st">"bcfishpass.streams_vw"</span>,</span></span>
+<span class="r-in"><span>  to <span class="op">=</span> <span class="st">"working.demo_streams"</span>,</span></span>
+<span class="r-in"><span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"segmented_stream_id"</span>, <span class="st">"linear_feature_id"</span>, <span class="st">"blue_line_key"</span>,</span></span>
+<span class="r-in"><span>           <span class="st">"gradient"</span>, <span class="st">"channel_width"</span>, <span class="st">"downstream_route_measure"</span>,</span></span>
+<span class="r-in"><span>           <span class="st">"upstream_route_measure"</span>, <span class="st">"geom"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  aoi <span class="op">=</span> <span class="va">aoi</span>,</span></span>
 <span class="r-in"><span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Read back and plot — should match the bundled data above</span></span></span>
+<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"SELECT gradient, geom FROM working.demo_streams"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">result</span><span class="op">[</span><span class="st">"gradient"</span><span class="op">]</span>, main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span>, <span class="st">"segments extracted"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Clean up</span></span></span>
+<span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"DROP TABLE IF EXISTS working.demo_streams"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>

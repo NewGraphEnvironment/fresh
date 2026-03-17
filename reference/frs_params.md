@@ -4,7 +4,9 @@ Load species-specific habitat thresholds from a PostgreSQL table or a
 local CSV file. Returns a list of parameter sets, one per species, ready
 for iteration with [`lapply()`](https://rdrr.io/r/base/lapply.html) or
 [`purrr::walk()`](https://purrr.tidyverse.org/reference/map.html) over
-the `frs_break()` / `frs_classify()` pipeline.
+the
+[`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md)
+/ `frs_classify()` pipeline.
 
 ## Usage
 
