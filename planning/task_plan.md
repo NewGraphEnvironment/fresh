@@ -56,29 +56,12 @@ Find, validate, and apply break points on the stream network. Decomposed into su
 
 ### Sub-functions (all exported):
 
-- [ ] `frs_break_find(conn, table, attribute, threshold, points, aoi)` — find break locations
-  - Three modes: attribute threshold, point table, user sf points
-  - Returns sf points with `blue_line_key`, `downstream_route_measure` columns
-  - Attribute mode: finds segment endpoints where attribute exceeds threshold
-  - Table mode: pulls point features from a DB table (falls, dams, crossings)
-  - Points mode: snaps user-provided sf points via `frs_point_snap()`
-  - `rbind()`-able — all modes return same shape
-  - Returns `conn` invisibly
-- [ ] `frs_break_validate(conn, breaks, evidence_table, where, count_threshold)` — filter against evidence
-  - For each break point, count upstream observations matching `where`
-  - Remove breaks where count >= count_threshold (fish got past = not a real barrier)
-  - Uses ltree upstream query under the hood
-  - Returns `conn` invisibly
-- [ ] `frs_break_apply(conn, table, breaks)` — split geometry at break locations
-  - Operates on working schema table (from `frs_extract()`)
-  - Uses `ST_LocateBetween()` — break measures define new segment boundaries
-  - Shortens original segments, inserts new segments (bcfishpass pattern)
-  - Returns `conn` invisibly
-- [ ] `frs_break(conn, table, attribute, threshold, ...)` — convenience wrapper
-  - Calls find → validate (if evidence params) → apply in sequence
-  - Returns `conn` invisibly
-- [ ] Unit tests for each sub-function
-- [ ] Integration tests against live DB
+- [x] `frs_break_find()` — 3 modes: attribute threshold, point table, sf points
+- [x] `frs_break_validate()` — filter breaks against upstream evidence
+- [x] `frs_break_apply()` — split geometry via `ST_LocateBetween()` (bcfishpass pattern)
+- [x] `frs_break()` — convenience wrapper (find → validate → apply)
+- [x] Unit tests: 19 tests (SQL generation, mode dispatch, validation)
+- [x] Integration tests: 2 tests (find creates breaks, apply splits segments) — 374 total pass
 
 **SQL pattern (from bcfishpass `break_streams`):**
 ```sql

@@ -270,6 +270,26 @@
 }
 
 
+#' Get column names for a schema-qualified table
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param table Character. Schema-qualified table name.
+#' @return Character vector of column names.
+#' @noRd
+.frs_table_columns <- function(conn, table) {
+  tbl_parts <- strsplit(table, "\\.")[[1]]
+  tbl_schema <- if (length(tbl_parts) == 2) tbl_parts[1] else "public"
+  tbl_name <- tbl_parts[length(tbl_parts)]
+  sql <- sprintf(
+    "SELECT column_name FROM information_schema.columns
+     WHERE table_schema = '%s' AND table_name = '%s'
+     ORDER BY ordinal_position",
+    tbl_schema, tbl_name
+  )
+  DBI::dbGetQuery(conn, sql)$column_name
+}
+
+
 #' Drop a test table from the working schema
 #'
 #' Convenience wrapper for integration test teardown.

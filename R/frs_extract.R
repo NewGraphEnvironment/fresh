@@ -26,26 +26,45 @@
 #' @export
 #'
 #' @examples
+#' # --- What frs_extract produces (bundled data) ---
+#' # frs_extract copies source table rows into a writable working table.
+#' # Here we show what the extracted data looks like using cached data
+#' # from the Byman-Ailport subbasin (Upper Bulkley River).
+#'
+#' d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
+#' streams <- d$streams
+#'
+#' # Streams have the columns you'd select: gradient, measures, geometry
+#' names(streams)
+#' nrow(streams)  # 2167 segments in this subbasin
+#'
+#' # Plot streams colored by gradient — this is what you'd extract
+#' # to a working table before breaking/classifying
+#' plot(streams["gradient"], main = "Stream gradient (Byman-Ailport)",
+#'      breaks = c(0, 0.03, 0.05, 0.08, 0.15, 1), key.pos = 1)
+#'
 #' \dontrun{
+#' # --- Live DB: extract the same Byman-Ailport area ---
 #' conn <- frs_db_conn()
+#' aoi <- d$aoi  # sf polygon from bundled data
 #'
-#' # Extract coho streams for Bulkley watershed group
 #' conn |> frs_extract(
-#'   from = "bcfishpass.streams_co_vw",
-#'   to = "working.streams_co",
-#'   aoi = "BULK"
-#' )
-#'
-#' # Extract specific columns with overwrite
-#' conn |> frs_extract(
-#'   from = "bcfishpass.streams_co_vw",
-#'   to = "working.streams_co",
-#'   cols = c("segmented_stream_id", "blue_line_key", "gradient",
-#'            "channel_width", "geom"),
-#'   aoi = "BULK",
+#'   from = "bcfishpass.streams_vw",
+#'   to = "working.demo_streams",
+#'   cols = c("segmented_stream_id", "linear_feature_id", "blue_line_key",
+#'            "gradient", "channel_width", "downstream_route_measure",
+#'            "upstream_route_measure", "geom"),
+#'   aoi = aoi,
 #'   overwrite = TRUE
 #' )
 #'
+#' # Read back and plot — should match the bundled data above
+#' result <- frs_db_query(conn,
+#'   "SELECT gradient, geom FROM working.demo_streams")
+#' plot(result["gradient"], main = paste(nrow(result), "segments extracted"))
+#'
+#' # Clean up
+#' DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.demo_streams")
 #' DBI::dbDisconnect(conn)
 #' }
 frs_extract <- function(conn, from, to, cols = NULL, aoi = NULL,

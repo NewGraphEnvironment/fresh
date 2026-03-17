@@ -78,7 +78,13 @@ test_that("frs_extract returns conn invisibly", {
 })
 
 
-# --- Integration tests (live DB) ---
+# --- Integration tests (live DB, Byman-Ailport AOI) ---
+
+# Load the bundled AOI once for all integration tests
+.test_aoi <- function() {
+  d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
+  d$aoi
+}
 
 test_that("frs_extract creates table in working schema", {
   skip_if_not(.frs_db_available(), "DB not available")
@@ -89,18 +95,14 @@ test_that("frs_extract creates table in working schema", {
   })
 
   result <- frs_extract(conn,
-    from = "bcfishpass.streams_vw",
+    from = "whse_basemapping.fwa_stream_networks_sp",
     to = "working.test_extract",
-    cols = c("segmented_stream_id", "blue_line_key", "gradient",
-             "channel_width", "geom"),
-    aoi = "ZYMO"
+    cols = c("linear_feature_id", "blue_line_key", "gradient", "geom"),
+    aoi = .test_aoi()
   )
-
-  # Returns conn
 
   expect_true(inherits(result, "PqConnection"))
 
-  # Table exists and has rows
   count <- DBI::dbGetQuery(conn,
     "SELECT count(*) AS n FROM working.test_extract")
   expect_true(count$n > 0)
@@ -114,21 +116,19 @@ test_that("frs_extract errors when table exists and overwrite = FALSE", {
     DBI::dbDisconnect(conn)
   })
 
-  # Create it first
   frs_extract(conn,
-    from = "bcfishpass.streams_vw",
+    from = "whse_basemapping.fwa_stream_networks_sp",
     to = "working.test_extract",
-    cols = c("segmented_stream_id", "geom"),
-    aoi = "ZYMO"
+    cols = c("linear_feature_id", "geom"),
+    aoi = .test_aoi()
   )
 
-  # Should error on second attempt
   expect_error(
     frs_extract(conn,
-      from = "bcfishpass.streams_vw",
+      from = "whse_basemapping.fwa_stream_networks_sp",
       to = "working.test_extract",
-      cols = c("segmented_stream_id", "geom"),
-      aoi = "ZYMO"
+      cols = c("linear_feature_id", "geom"),
+      aoi = .test_aoi()
     )
   )
 })
@@ -141,24 +141,21 @@ test_that("frs_extract overwrites when overwrite = TRUE", {
     DBI::dbDisconnect(conn)
   })
 
-  # Create it
   frs_extract(conn,
-    from = "bcfishpass.streams_vw",
+    from = "whse_basemapping.fwa_stream_networks_sp",
     to = "working.test_extract",
-    cols = c("segmented_stream_id", "geom"),
-    aoi = "ZYMO"
+    cols = c("linear_feature_id", "geom"),
+    aoi = .test_aoi()
   )
 
-  # Overwrite should succeed
   frs_extract(conn,
-    from = "bcfishpass.streams_vw",
+    from = "whse_basemapping.fwa_stream_networks_sp",
     to = "working.test_extract",
-    cols = c("segmented_stream_id", "blue_line_key", "geom"),
-    aoi = "ZYMO",
+    cols = c("linear_feature_id", "blue_line_key", "geom"),
+    aoi = .test_aoi(),
     overwrite = TRUE
   )
 
-  # Check new column exists
   cols <- DBI::dbGetQuery(conn,
     "SELECT column_name FROM information_schema.columns
      WHERE table_schema = 'working' AND table_name = 'test_extract'
