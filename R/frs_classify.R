@@ -40,35 +40,58 @@
 #' @export
 #'
 #' @examples
-#' # --- Concept: classify by gradient range (bundled data) ---
+#' # --- Concept: multi-attribute classification (bundled data) ---
 #' d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
 #' streams <- d$streams
 #'
-#' # Which segments have spawning-suitable gradient (0-2.5%)?
-#' suitable <- !is.na(streams$gradient) &
-#'   streams$gradient >= 0 & streams$gradient <= 0.025
-#' streams$spawning <- suitable
-#' message(sum(suitable), " of ", nrow(streams), " segments suitable")
+#' # Classify spawning habitat: gradient 0-2.5% AND stream order >= 3
+#' spawning <- !is.na(streams$gradient) &
+#'   streams$gradient >= 0 & streams$gradient <= 0.025 &
+#'   !is.na(streams$stream_order) & streams$stream_order >= 3
+#' streams$spawning <- spawning
+#' message(sum(spawning), " of ", nrow(streams),
+#'         " segments are spawning habitat")
 #'
-#' plot(streams["spawning"],
-#'      main = "Spawning habitat (gradient 0-2.5%)",
-#'      pal = c("grey80", "steelblue"), key.pos = 1)
+#' # Rearing habitat: different thresholds on the same network
+#' rearing <- !is.na(streams$gradient) &
+#'   streams$gradient >= 0 & streams$gradient <= 0.05
+#' streams$rearing <- rearing
+#' message(sum(rearing), " of ", nrow(streams),
+#'         " segments are rearing habitat")
+#'
+#' # Plot both — this is what piped frs_classify calls produce
+#' oldpar <- par(mfrow = c(1, 2))
+#' plot(streams["spawning"], main = "Spawning (gradient 0-2.5%)",
+#'      pal = c("grey80", "steelblue"), key.pos = NULL)
+#' plot(streams["rearing"], main = "Rearing (gradient 0-5%)",
+#'      pal = c("grey80", "darkorange"), key.pos = NULL)
+#' par(oldpar)
 #'
 #' \dontrun{
-#' # --- Live DB: classify pipeline ---
+#' # --- Live DB: piped multi-label classification ---
 #' conn <- frs_db_conn()
 #' aoi <- d$aoi
 #'
+#' # Extract, generate columns, then classify with multiple labels
 #' conn |>
 #'   frs_extract("whse_basemapping.fwa_stream_networks_sp",
 #'     "working.demo_classify", aoi = aoi, overwrite = TRUE) |>
 #'   frs_col_generate("working.demo_classify") |>
 #'   frs_classify("working.demo_classify", label = "spawning",
-#'     ranges = list(gradient = c(0, 0.025)))
+#'     ranges = list(gradient = c(0, 0.025))) |>
+#'   frs_classify("working.demo_classify", label = "rearing",
+#'     ranges = list(gradient = c(0, 0.05)))
 #'
+#' # Read back and compare
 #' result <- frs_db_query(conn,
-#'   "SELECT spawning, gradient, geom FROM working.demo_classify")
-#' plot(result["spawning"], main = "Classified: spawning habitat")
+#'   "SELECT spawning, rearing, gradient, geom FROM working.demo_classify")
+#' message("Spawning: ", sum(result$spawning, na.rm = TRUE), " segments")
+#' message("Rearing: ", sum(result$rearing, na.rm = TRUE), " segments")
+#'
+#' par(mfrow = c(1, 2))
+#' plot(result["spawning"], main = "Spawning")
+#' plot(result["rearing"], main = "Rearing")
+#' par(mfrow = c(1, 1))
 #'
 #' # Clean up
 #' DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.demo_classify")
