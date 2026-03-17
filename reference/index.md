@@ -8,6 +8,8 @@
   : Connect to FWA PostgreSQL Database
 - [`frs_db_query()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_query.md)
   : Query FWA PostgreSQL Database
+- [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
+  : Stage Data to Working Schema
 - [`frs_fish_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_habitat.md)
   : Fetch Modelled Fish Habitat from bcfishpass
 - [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md)
