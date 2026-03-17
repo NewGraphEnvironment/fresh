@@ -102,14 +102,9 @@ FROM new_measures n JOIN streams s ...
 
 Label features by attribute ranges, break accessibility, manual overrides.
 
-- [ ] `frs_classify(conn, table, ranges, breaks, overrides, label)` — column UPDATE
-  - `ranges = list(gradient = c(0, 0.025), channel_width = c(2, 20))` — all must be in range
-  - `breaks` = break table name → label segments as accessible/not based on network position
-  - `overrides` = table of manual corrections (JOIN + UPDATE)
-  - `label` = column name to add/update (e.g. `"spawning"`, `"accessible"`)
-  - Returns `conn` invisibly
-- [ ] Unit tests: SQL generation
-- [ ] Integration test: classify extracted data, verify column values
+- [x] `frs_classify(conn, table, label, ranges, breaks, overrides, value)` — `R/frs_classify.R`
+- [x] Unit tests: 9 tests (ranges SQL, breaks SQL, overrides SQL, combined, value=FALSE, validation)
+- [x] Integration test: 1 test (ranges adds column, TRUE+NULL grouping) — 417 total pass
 
 **SQL pattern (ranges):**
 ```sql
