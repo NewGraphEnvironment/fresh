@@ -51,8 +51,7 @@ test_that("frs_col_generate returns conn invisibly", {
 # --- Integration tests (live DB, Byman-Ailport AOI) ---
 
 .test_aoi <- function() {
-  d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
-  d$aoi
+  readRDS(system.file("extdata", "test_streamline.rds", package = "fresh"))
 }
 
 test_that("frs_col_generate creates generated columns", {
@@ -159,5 +158,5 @@ test_that("frs_col_generate + frs_break_apply produces correct gradient", {
   # Should have more segments than before
   count <- DBI::dbGetQuery(conn,
     "SELECT count(*) AS n FROM working.test_gen_break")
-  expect_true(count$n > 2000)
+  expect_true(count$n > 15)
 })

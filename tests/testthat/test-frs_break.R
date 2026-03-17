@@ -275,8 +275,7 @@ test_that("frs_break skips validate when no evidence_table", {
 # --- Integration tests (live DB, Byman-Ailport AOI) ---
 
 .test_aoi <- function() {
-  d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
-  d$aoi
+  readRDS(system.file("extdata", "test_streamline.rds", package = "fresh"))
 }
 
 test_that("frs_break_find attribute mode creates breaks table", {

@@ -82,8 +82,7 @@ test_that("frs_extract returns conn invisibly", {
 
 # Load the bundled AOI once for all integration tests
 .test_aoi <- function() {
-  d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
-  d$aoi
+  readRDS(system.file("extdata", "test_streamline.rds", package = "fresh"))
 }
 
 test_that("frs_extract creates table in working schema", {
