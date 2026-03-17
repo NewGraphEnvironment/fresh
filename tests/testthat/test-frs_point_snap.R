@@ -179,78 +179,44 @@ test_that("KNN SQL has boundary clamping", {
   expect_s3_class(result, "sf")
 })
 
-# -- live DB tests ------------------------------------------------------------
+# -- live DB tests (shared connection) ----------------------------------------
 
-test_that("frs_point_snap returns sf with network position", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+test_that("frs_point_snap integration tests", {
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
+  # Basic snap returns sf with network position
   snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
   expect_s3_class(snapped, "sf")
   expect_true(nrow(snapped) == 1)
   expect_true("blue_line_key" %in% names(snapped))
   expect_true("downstream_route_measure" %in% names(snapped))
   expect_true("distance_to_stream" %in% names(snapped))
-})
 
-test_that("frs_point_snap returns multiple candidates", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
-  conn <- frs_db_conn()
-  on.exit(DBI::dbDisconnect(conn))
+  # Multiple candidates
+  multi <- frs_point_snap(conn, x = -126.5, y = 54.5, num_features = 3)
+  expect_true(nrow(multi) <= 3)
 
-  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, num_features = 3)
-  expect_true(nrow(snapped) <= 3)
-})
+  # blue_line_key snaps to specified stream
+  blk_snap <- frs_point_snap(conn, x = -126.5, y = 54.5,
+    blue_line_key = 360873822)
+  expect_equal(blk_snap$blue_line_key, 360873822L)
 
-test_that("blue_line_key snaps to specified stream", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
-  conn <- frs_db_conn()
-  on.exit(DBI::dbDisconnect(conn))
+  # stream_order_min filters small streams
+  order_snap <- frs_point_snap(conn, x = -126.5, y = 54.5,
+    stream_order_min = 4)
+  expect_true(nrow(order_snap) >= 1)
 
-  # Bulkley River near confluence — without blk hint might snap to tributary
-  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, blue_line_key = 360873822)
-  expect_s3_class(snapped, "sf")
-  expect_true(nrow(snapped) == 1)
-  expect_equal(snapped$blue_line_key, 360873822L)
-  expect_true("downstream_route_measure" %in% names(snapped))
-  expect_true("distance_to_stream" %in% names(snapped))
-})
-
-test_that("stream_order_min filters small streams", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
-  conn <- frs_db_conn()
-  on.exit(DBI::dbDisconnect(conn))
-
-  # Order 4+ near Bulkley should still find the river
-  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, stream_order_min = 4)
-  expect_s3_class(snapped, "sf")
-  expect_true(nrow(snapped) >= 1)
-})
-
-test_that("blue_line_key + stream_order_min work together", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
-  conn <- frs_db_conn()
-  on.exit(DBI::dbDisconnect(conn))
-
-  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5,
+  # blue_line_key + stream_order_min work together
+  combo_snap <- frs_point_snap(conn, x = -126.5, y = 54.5,
     blue_line_key = 360873822, stream_order_min = 3)
-  expect_s3_class(snapped, "sf")
-  expect_equal(snapped$blue_line_key, 360873822L)
-})
+  expect_equal(combo_snap$blue_line_key, 360873822L)
 
-test_that("KNN returns consistent measure with fwa_indexpoint", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
-  conn <- frs_db_conn()
-  on.exit(DBI::dbDisconnect(conn))
-
-  # Both paths should find the same stream and similar measure
-  default <- frs_point_snap(conn, x = -126.5, y = 54.5)
+  # KNN returns consistent measure with fwa_indexpoint
   knn <- frs_point_snap(conn, x = -126.5, y = 54.5,
-    blue_line_key = default$blue_line_key)
-
-  expect_equal(knn$blue_line_key, default$blue_line_key)
-  # Measures should be close (within 1 metre due to clamping differences)
+    blue_line_key = snapped$blue_line_key)
+  expect_equal(knn$blue_line_key, snapped$blue_line_key)
   expect_true(abs(knn$downstream_route_measure -
-    default$downstream_route_measure) < 2)
+    snapped$downstream_route_measure) < 2)
 })
