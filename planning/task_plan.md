@@ -128,15 +128,9 @@ WHERE NOT EXISTS (
 
 Summarize features along the network from given points.
 
-- [ ] `frs_aggregate(conn, points, features, metrics, direction, collect)` — network traversal + aggregation
-  - `points` = table of locations (crossings, sites)
-  - `features` = table to aggregate (streams, lakes)
-  - `metrics` = what to compute (`"length_m"` → `ST_Length(geom)`, `"area_ha"`, `"count"`)
-  - `direction` = `"upstream"` (default) or `"downstream"`
-  - `collect = FALSE` → writes result table, `TRUE` → returns data.frame to R
-  - Returns `conn` invisibly (when `collect = FALSE`)
-- [ ] Unit tests
-- [ ] Integration tests
+- [x] `frs_aggregate(conn, points, features, metrics, ...)` — `R/frs_aggregate.R`
+- [x] Unit tests: 7 tests (SQL generation, direction, where filter, .frs_opt)
+- [x] Integration test: 1 test (upstream length from point) — 438 total pass
 
 **SQL pattern:**
 ```sql
