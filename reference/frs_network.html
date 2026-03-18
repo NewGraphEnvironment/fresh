@@ -17,7 +17,7 @@ the waterbody_key bridge through the stream network."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -147,25 +147,74 @@ key (e.g. a tributary) by specifying <code>upstream_blk</code>.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># --- What frs_network returns (bundled data) ---</span></span></span>
+<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"byman_ailport.rds"</span>, package <span class="op">=</span> <span class="st">"fresh"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>  <span class="co"># aoi, streams, co, lakes, roads, highways, fsr, railway</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "aoi"      "streams"  "co"       "lakes"    "roads"    "highways" "fsr"     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [8] "railway" </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">message</a></span><span class="op">(</span><span class="st">"Streams: "</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">streams</span><span class="op">)</span>, <span class="st">" | Lakes: "</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">lakes</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Streams: 2167 | Lakes: 89</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Plot the subbasin — streams colored by gradient, lakes in blue</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">streams</span><span class="op">[</span><span class="st">"gradient"</span><span class="op">]</span>, main <span class="op">=</span> <span class="st">"Byman-Ailport subbasin"</span>, reset <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">lakes</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"#4292C644"</span>, border <span class="op">=</span> <span class="st">"#2171B5"</span>,</span></span>
+<span class="r-in"><span>     add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="frs_network-1.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># --- Live DB: multi-table network query ---</span></span></span>
 <span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_conn.html">frs_db_conn</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">blk</span> <span class="op">&lt;-</span> <span class="fl">360873822</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Everything upstream of a point</span></span></span>
-<span class="r-in"><span><span class="va">streams</span> <span class="op">&lt;-</span> <span class="fu">frs_network</span><span class="op">(</span><span class="va">conn</span>, <span class="va">blk</span>, <span class="fl">166030</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Between two points (subbasin): upstream of Byman minus upstream of Ailport</span></span></span>
+<span class="r-in"><span><span class="co"># Plot 1: ALL upstream waterbodies</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">frs_network</span><span class="op">(</span><span class="va">conn</span>, <span class="va">blk</span>, <span class="fl">208877</span>, upstream_measure <span class="op">=</span> <span class="fl">233564</span>,</span></span>
 <span class="r-in"><span>  tables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>    streams <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span></span>
 <span class="r-in"><span>    lakes <span class="op">=</span> <span class="st">"whse_basemapping.fwa_lakes_poly"</span>,</span></span>
-<span class="r-in"><span>    crossings <span class="op">=</span> <span class="st">"bcfishpass.crossings"</span>,</span></span>
-<span class="r-in"><span>    observations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>      table <span class="op">=</span> <span class="st">"bcfishpass.observations_vw"</span>,</span></span>
-<span class="r-in"><span>      wscode_col <span class="op">=</span> <span class="st">"wscode"</span>,</span></span>
-<span class="r-in"><span>      localcode_col <span class="op">=</span> <span class="st">"localcode"</span></span></span>
-<span class="r-in"><span>    <span class="op">)</span></span></span>
+<span class="r-in"><span>    wetlands <span class="op">=</span> <span class="st">"whse_basemapping.fwa_wetlands_poly"</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">streams</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"steelblue"</span>,</span></span>
+<span class="r-in"><span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"All:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">lakes</span><span class="op">)</span>, <span class="st">"lakes,"</span>,</span></span>
+<span class="r-in"><span>                  <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">wetlands</span><span class="op">)</span>, <span class="st">"wetlands"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">lakes</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"#4292C644"</span>,</span></span>
+<span class="r-in"><span>     border <span class="op">=</span> <span class="st">"#2171B5"</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">wetlands</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"#41AB5D44"</span>,</span></span>
+<span class="r-in"><span>     border <span class="op">=</span> <span class="st">"#238B45"</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Plot 2: only waterbodies on coho habitat streams</span></span></span>
+<span class="r-in"><span><span class="co"># from = bcfishpass table, extra_where filters by habitat columns</span></span></span>
+<span class="r-in"><span><span class="co"># Traversal stays on indexed FWA base table (fast), filter is a cheap join</span></span></span>
+<span class="r-in"><span><span class="va">filtered</span> <span class="op">&lt;-</span> <span class="fu">frs_network</span><span class="op">(</span><span class="va">conn</span>,</span></span>
+<span class="r-in"><span>  blue_line_key <span class="op">=</span> <span class="va">blk</span>,</span></span>
+<span class="r-in"><span>  downstream_route_measure <span class="op">=</span> <span class="fl">208877</span>,</span></span>
+<span class="r-in"><span>  upstream_measure <span class="op">=</span> <span class="fl">233564</span>,</span></span>
+<span class="r-in"><span>  tables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    co <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>      table <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span></span>
+<span class="r-in"><span>      wscode_col <span class="op">=</span> <span class="st">"wscode"</span>,</span></span>
+<span class="r-in"><span>      localcode_col <span class="op">=</span> <span class="st">"localcode"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    lakes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>      table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_lakes_poly"</span>,</span></span>
+<span class="r-in"><span>      from <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span></span>
+<span class="r-in"><span>      extra_where <span class="op">=</span> <span class="st">"spawning &gt; 0 OR rearing &gt; 0"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    wetlands <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>      table <span class="op">=</span> <span class="st">"whse_basemapping.fwa_wetlands_poly"</span>,</span></span>
+<span class="r-in"><span>      from <span class="op">=</span> <span class="st">"bcfishpass.streams_co_vw"</span>,</span></span>
+<span class="r-in"><span>      extra_where <span class="op">=</span> <span class="st">"spawning &gt; 0 OR rearing &gt; 0"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">streams</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"steelblue"</span>,</span></span>
+<span class="r-in"><span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"CO habitat:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">filtered</span><span class="op">$</span><span class="va">lakes</span><span class="op">)</span>, <span class="st">"lakes,"</span>,</span></span>
+<span class="r-in"><span>                  <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">filtered</span><span class="op">$</span><span class="va">wetlands</span><span class="op">)</span>, <span class="st">"wetlands"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">filtered</span><span class="op">$</span><span class="va">lakes</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"#4292C644"</span>,</span></span>
+<span class="r-in"><span>     border <span class="op">=</span> <span class="st">"#2171B5"</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">filtered</span><span class="op">$</span><span class="va">wetlands</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"#41AB5D44"</span>,</span></span>
+<span class="r-in"><span>     border <span class="op">=</span> <span class="st">"#238B45"</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/legend.html" class="external-link">legend</a></span><span class="op">(</span><span class="st">"topright"</span>, legend <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Lakes"</span>, <span class="st">"Wetlands"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>       fill <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#4292C644"</span>, <span class="st">"#41AB5D44"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>       border <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#2171B5"</span>, <span class="st">"#238B45"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
