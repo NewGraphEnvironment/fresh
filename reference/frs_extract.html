@@ -11,7 +11,7 @@ by frs_break_apply(), frs_classify(), and frs_aggregate()."><meta property="og:i
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,7 +79,7 @@ columns (<code>SELECT *</code>).</p></dd>
 <dd><p>AOI specification passed to <code>.frs_resolve_aoi()</code>. One of:</p><ul><li><p><code>NULL</code> — no spatial filter (copy all rows)</p></li>
 <li><p>Character vector — watershed group code(s)</p></li>
 <li><p><code>sf</code>/<code>sfc</code> polygon — spatial intersection</p></li>
-<li><p>Named list — see <code>.frs_resolve_aoi()</code> for details</p></li>
+<li><p>Named list — table+id lookup or blk+measure delineation</p></li>
 </ul></dd>
 
 
@@ -95,10 +95,13 @@ creating. If <code>FALSE</code> (default), error when the table already exists.<
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Other habitat:
+<code><a href="frs_aggregate.html">frs_aggregate()</a></code>,
 <code><a href="frs_break.html">frs_break()</a></code>,
 <code><a href="frs_break_apply.html">frs_break_apply()</a></code>,
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
-<code><a href="frs_break_validate.html">frs_break_validate()</a></code></p></div>
+<code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
+<code><a href="frs_classify.html">frs_classify()</a></code>,
+<code><a href="frs_col_generate.html">frs_col_generate()</a></code></p></div>
     </div>
 
     <div class="section level2">

@@ -9,7 +9,7 @@ frs_break_validate(), then frs_break_apply() in sequence."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -143,6 +143,11 @@ against upstream evidence before applying. Passed to
 <dd><p>Integer. Minimum upstream evidence count to
 remove a break. Default <code>1</code>.</p></dd>
 
+
+<dt id="arg-segment-id">segment_id<a class="anchor" aria-label="anchor" href="#arg-segment-id"></a></dt>
+<dd><p>Character. Column name used as segment identifier.
+Passed to <code><a href="frs_break_apply.html">frs_break_apply()</a></code>. Default <code>"linear_feature_id"</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -151,9 +156,11 @@ remove a break. Default <code>1</code>.</p></dd>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Other habitat:
+<code><a href="frs_aggregate.html">frs_aggregate()</a></code>,
 <code><a href="frs_break_apply.html">frs_break_apply()</a></code>,
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
+<code><a href="frs_classify.html">frs_classify()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code></p></div>
     </div>

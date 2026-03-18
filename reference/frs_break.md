@@ -110,6 +110,12 @@ frs_break(
   Integer. Minimum upstream evidence count to remove a break. Default
   `1`.
 
+- segment_id:
+
+  Character. Column name used as segment identifier. Passed to
+  [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md).
+  Default `"linear_feature_id"`.
+
 ## Value
 
 `conn` invisibly, for pipe chaining.
@@ -117,9 +123,11 @@ frs_break(
 ## See also
 
 Other habitat:
+[`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md),
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
 

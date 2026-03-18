@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,6 +36,17 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.0" id="fresh-030">fresh 0.3.0<a class="anchor" aria-label="anchor" href="#fresh-030"></a></h2>
+<p>Server-side habitat model pipeline — replaces ~34 bcfishpass SQL scripts with 4 composable functions. See the <a href="https://newgraphenvironment.github.io/fresh/reference/">function reference</a> for details.</p>
+<ul><li>Add <code><a href="../reference/frs_extract.html">frs_extract()</a></code> for staging read-only data to writable working schema (<a href="https://github.com/NewGraphEnvironment/fresh/issues/36" class="external-link">#36</a>)</li>
+<li>Add <code><a href="../reference/frs_break.html">frs_break()</a></code> family (<code>find</code>, <code>validate</code>, <code>apply</code>, wrapper) for network geometry splitting via <code>ST_LocateBetween</code> and <code>fwa_slopealonginterval</code> gradient sampling (<a href="https://github.com/NewGraphEnvironment/fresh/issues/38" class="external-link">#38</a>)</li>
+<li>Add <code><a href="../reference/frs_classify.html">frs_classify()</a></code> for labeling features by attribute ranges, break accessibility (via <code>fwa_upstream</code>), and manual overrides — pipeable for multi-label classification (<a href="https://github.com/NewGraphEnvironment/fresh/issues/39" class="external-link">#39</a>)</li>
+<li>Add <code><a href="../reference/frs_aggregate.html">frs_aggregate()</a></code> for network-directed feature summarization from points (<a href="https://github.com/NewGraphEnvironment/fresh/issues/40" class="external-link">#40</a>)</li>
+<li>Add <code><a href="../reference/frs_col_generate.html">frs_col_generate()</a></code> to convert gradient/measures/length to PostgreSQL generated columns — auto-recompute after geometry changes (<a href="https://github.com/NewGraphEnvironment/fresh/issues/45" class="external-link">#45</a>)</li>
+<li>Add <code>.frs_opt()</code> for configurable column names via <code><a href="https://rdrr.io/r/base/options.html" class="external-link">options()</a></code> — foundation for spyda compatibility (<a href="https://github.com/NewGraphEnvironment/fresh/issues/44" class="external-link">#44</a>)</li>
+<li>All write functions return <code>conn</code> invisibly for consistent <code>|&gt;</code> chaining</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="fresh-020">fresh 0.2.0<a class="anchor" aria-label="anchor" href="#fresh-020"></a></h2><p class="text-muted">CRAN release: 2020-05-29</p>
 <ul><li>

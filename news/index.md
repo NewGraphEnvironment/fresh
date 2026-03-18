@@ -1,5 +1,44 @@
 # Changelog
 
+## fresh 0.3.0
+
+Server-side habitat model pipeline — replaces ~34 bcfishpass SQL scripts
+with 4 composable functions. See the [function
+reference](https://newgraphenvironment.github.io/fresh/reference/) for
+details.
+
+- Add
+  [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
+  for staging read-only data to writable working schema
+  ([\#36](https://github.com/NewGraphEnvironment/fresh/issues/36))
+- Add
+  [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md)
+  family (`find`, `validate`, `apply`, wrapper) for network geometry
+  splitting via `ST_LocateBetween` and `fwa_slopealonginterval` gradient
+  sampling
+  ([\#38](https://github.com/NewGraphEnvironment/fresh/issues/38))
+- Add
+  [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
+  for labeling features by attribute ranges, break accessibility (via
+  `fwa_upstream`), and manual overrides — pipeable for multi-label
+  classification
+  ([\#39](https://github.com/NewGraphEnvironment/fresh/issues/39))
+- Add
+  [`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md)
+  for network-directed feature summarization from points
+  ([\#40](https://github.com/NewGraphEnvironment/fresh/issues/40))
+- Add
+  [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md)
+  to convert gradient/measures/length to PostgreSQL generated columns —
+  auto-recompute after geometry changes
+  ([\#45](https://github.com/NewGraphEnvironment/fresh/issues/45))
+- Add `.frs_opt()` for configurable column names via
+  [`options()`](https://rdrr.io/r/base/options.html) — foundation for
+  spyda compatibility
+  ([\#44](https://github.com/NewGraphEnvironment/fresh/issues/44))
+- All write functions return `conn` invisibly for consistent `|>`
+  chaining
+
 ## fresh 0.2.0
 
 CRAN release: 2020-05-29
