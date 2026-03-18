@@ -54,8 +54,10 @@ test_that("frs_classify breaks builds correct SQL", {
 
   expect_length(sql_log, 2)
   expect_match(sql_log[2], "NOT EXISTS")
-  expect_match(sql_log[2], "fwa_downstream")
   expect_match(sql_log[2], "working.breaks")
+  # Same-BLK measure comparison + cross-BLK ltree check
+  expect_match(sql_log[2], "b.downstream_route_measure <= s.downstream_route_measure")
+  expect_match(sql_log[2], "fwa_upstream")
 })
 
 test_that("frs_classify overrides builds correct SQL", {
@@ -93,7 +95,7 @@ test_that("frs_classify combined modes generates 3 updates", {
   expect_length(sql_log, 4)
   expect_match(sql_log[1], "ADD COLUMN")
   expect_match(sql_log[2], "BETWEEN")
-  expect_match(sql_log[3], "fwa_downstream")
+  expect_match(sql_log[3], "fwa_upstream")
   expect_match(sql_log[4], "o.spawning")
 })
 

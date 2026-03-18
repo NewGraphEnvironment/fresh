@@ -1,5 +1,31 @@
 # Internal helpers — not exported
 
+#' Get a configurable column name from options
+#'
+#' Reads `options(fresh.<name>)` with a default for FWA naming.
+#' This is the foundation for #44 (configurable column names for
+#' spyda compatibility). Set options once per session:
+#'
+#' ```
+#' options(fresh.wscode_col = "wscode",
+#'         fresh.localcode_col = "localcode")
+#' ```
+#'
+#' @param name Character. Option suffix (e.g. `"wscode_col"`).
+#' @return Character scalar.
+#' @noRd
+.frs_opt <- function(name) {
+  defaults <- list(
+    wscode_col = "wscode_ltree",
+    localcode_col = "localcode_ltree",
+    blk_col = "blue_line_key",
+    measure_ds_col = "downstream_route_measure",
+    measure_us_col = "upstream_route_measure",
+    segment_id_col = "linear_feature_id"
+  )
+  getOption(paste0("fresh.", name), default = defaults[[name]])
+}
+
 #' Quote a string value for safe SQL interpolation
 #'
 #' Escapes single quotes by doubling them (SQL standard) and wraps in single
