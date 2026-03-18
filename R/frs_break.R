@@ -552,6 +552,8 @@ frs_break_apply <- function(conn, table, breaks,
 #'   [frs_break_validate()].
 #' @param count_threshold Integer. Minimum upstream evidence count to
 #'   remove a break. Default `1`.
+#' @param segment_id Character. Column name used as segment identifier.
+#'   Passed to [frs_break_apply()]. Default `"linear_feature_id"`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'

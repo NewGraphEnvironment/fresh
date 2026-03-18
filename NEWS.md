@@ -1,3 +1,15 @@
+# fresh 0.3.0
+
+Server-side habitat model pipeline — replaces ~34 bcfishpass SQL scripts with 4 composable functions. See the [function reference](https://newgraphenvironment.github.io/fresh/reference/) for details.
+
+- Add `frs_extract()` for staging read-only data to writable working schema ([#36](https://github.com/NewGraphEnvironment/fresh/issues/36))
+- Add `frs_break()` family (`find`, `validate`, `apply`, wrapper) for network geometry splitting via `ST_LocateBetween` and `fwa_slopealonginterval` gradient sampling ([#38](https://github.com/NewGraphEnvironment/fresh/issues/38))
+- Add `frs_classify()` for labeling features by attribute ranges, break accessibility (via `fwa_upstream`), and manual overrides — pipeable for multi-label classification ([#39](https://github.com/NewGraphEnvironment/fresh/issues/39))
+- Add `frs_aggregate()` for network-directed feature summarization from points ([#40](https://github.com/NewGraphEnvironment/fresh/issues/40))
+- Add `frs_col_generate()` to convert gradient/measures/length to PostgreSQL generated columns — auto-recompute after geometry changes ([#45](https://github.com/NewGraphEnvironment/fresh/issues/45))
+- Add `.frs_opt()` for configurable column names via `options()` — foundation for spyda compatibility ([#44](https://github.com/NewGraphEnvironment/fresh/issues/44))
+- All write functions return `conn` invisibly for consistent `|>` chaining
+
 # fresh 0.2.0
 
 - **Breaking:** All DB-using functions now take `conn` as the first required parameter instead of `...` connection args. Create a connection once with `conn <- frs_db_conn()` and pass it to all calls. Enables piping: `conn |> frs_break() |> frs_classify()` ([#35](https://github.com/NewGraphEnvironment/fresh/issues/35))

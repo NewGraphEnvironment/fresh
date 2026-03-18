@@ -15,7 +15,7 @@
 #'   - `NULL` — no spatial filter (copy all rows)
 #'   - Character vector — watershed group code(s)
 #'   - `sf`/`sfc` polygon — spatial intersection
-#'   - Named list — see [.frs_resolve_aoi()] for details
+#'   - Named list — table+id lookup or blk+measure delineation
 #' @param overwrite Logical. If `TRUE`, drop the destination table before
 #'   creating. If `FALSE` (default), error when the table already exists.
 #'

@@ -23,7 +23,7 @@ columns (\verb{SELECT *}).}
 \item \code{NULL} — no spatial filter (copy all rows)
 \item Character vector — watershed group code(s)
 \item \code{sf}/\code{sfc} polygon — spatial intersection
-\item Named list — see \code{\link[=.frs_resolve_aoi]{.frs_resolve_aoi()}} for details
+\item Named list — table+id lookup or blk+measure delineation
 }}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop the destination table before
@@ -82,9 +82,12 @@ DBI::dbDisconnect(conn)
 }
 \seealso{
 Other habitat: 
+\code{\link{frs_aggregate}()},
 \code{\link{frs_break}()},
 \code{\link{frs_break_apply}()},
 \code{\link{frs_break_find}()},
-\code{\link{frs_break_validate}()}
+\code{\link{frs_break_validate}()},
+\code{\link{frs_classify}()},
+\code{\link{frs_col_generate}()}
 }
 \concept{habitat}

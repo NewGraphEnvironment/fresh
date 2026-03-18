@@ -69,6 +69,9 @@ against upstream evidence before applying. Passed to
 
 \item{count_threshold}{Integer. Minimum upstream evidence count to
 remove a break. Default \code{1}.}
+
+\item{segment_id}{Character. Column name used as segment identifier.
+Passed to \code{\link[=frs_break_apply]{frs_break_apply()}}. Default \code{"linear_feature_id"}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -136,9 +139,11 @@ DBI::dbDisconnect(conn)
 }
 \seealso{
 Other habitat: 
+\code{\link{frs_aggregate}()},
 \code{\link{frs_break_apply}()},
 \code{\link{frs_break_find}()},
 \code{\link{frs_break_validate}()},
+\code{\link{frs_classify}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_extract}()}
 }

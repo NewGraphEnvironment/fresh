@@ -1,6 +1,6 @@
 Package: fresh
 Title: FWA-Referenced Spatial Hydrology
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3495-2128")),
@@ -31,7 +31,8 @@ Suggests:
     rmarkdown,
     mockery,
     testthat (>= 3.0.0),
-    tmap (>= 4.0)
+    tmap (>= 4.0),
+    withr
 Config/testthat/edition: 3
 Remotes:
     NewGraphEnvironment/gq
