@@ -1,3 +1,8 @@
+# fresh 0.3.1
+
+- Add `from` and `extra_where` params to waterbody specs in `frs_network()` for filtering waterbodies to those connected to habitat streams ([#49](https://github.com/NewGraphEnvironment/fresh/issues/49))
+- Network traversal table configurable via `.frs_opt("tbl_network")` ([#44](https://github.com/NewGraphEnvironment/fresh/issues/44))
+
 # fresh 0.3.0
 
 Server-side habitat model pipeline — replaces ~34 bcfishpass SQL scripts with 4 composable functions. See the [function reference](https://newgraphenvironment.github.io/fresh/reference/) for details.
