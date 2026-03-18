@@ -35,7 +35,7 @@ test_that("frs_network detects waterbody bridge for lakes", {
     lakes = "whse_basemapping.fwa_lakes_poly"
   ))
 
-  expect_match(sql_sent, "network_wbkeys")
+  expect_match(sql_sent, "wbkeys_network")
   expect_match(sql_sent, "waterbody_key IS NOT NULL")
   expect_match(sql_sent, "fwa_lakes_poly")
 })
@@ -51,7 +51,7 @@ test_that("frs_network detects waterbody bridge for wetlands", {
     wetlands = "whse_basemapping.fwa_wetlands_poly"
   ))
 
-  expect_match(sql_sent, "network_wbkeys")
+  expect_match(sql_sent, "wbkeys_network")
   expect_match(sql_sent, "fwa_wetlands_poly")
 })
 
@@ -68,7 +68,7 @@ test_that("frs_network uses direct query for crossings", {
 
   expect_match(sql_sent, "fwa_upstream")
   expect_match(sql_sent, "bcfishpass.crossings")
-  expect_no_match(sql_sent, "network_wbkeys")
+  expect_no_match(sql_sent, "wbkeys_network")
 })
 
 test_that("frs_network passes direction downstream", {
@@ -287,7 +287,7 @@ test_that("upstream_blk uses different BLK in ref_up for waterbody table", {
     ))
 
   expect_match(sql_sent, "360886221")
-  expect_match(sql_sent, "network_wbkeys")
+  expect_match(sql_sent, "wbkeys_network")
   expect_match(sql_sent, "NOT EXISTS")
 })
 
@@ -323,7 +323,7 @@ test_that("upstream_measure generates between SQL for waterbody table", {
   expect_match(sql_sent, "ref_down")
   expect_match(sql_sent, "ref_up")
   expect_match(sql_sent, "NOT EXISTS")
-  expect_match(sql_sent, "network_wbkeys")
+  expect_match(sql_sent, "wbkeys_network")
 })
 
 test_that("upstream_measure NULL preserves single-ref SQL", {
