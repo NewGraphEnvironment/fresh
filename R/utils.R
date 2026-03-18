@@ -16,6 +16,7 @@
 #' @noRd
 .frs_opt <- function(name) {
   defaults <- list(
+    tbl_network = "whse_basemapping.fwa_stream_networks_sp",
     wscode_col = "wscode_ltree",
     localcode_col = "localcode_ltree",
     blk_col = "blue_line_key",

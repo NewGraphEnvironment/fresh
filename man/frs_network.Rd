@@ -72,25 +72,70 @@ spatial clipping needed. The upstream point can be on a different blue line
 key (e.g. a tributary) by specifying \code{upstream_blk}.
 }
 \examples{
+# --- What frs_network returns (bundled data) ---
+d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
+names(d)  # aoi, streams, co, lakes, roads, highways, fsr, railway
+
+message("Streams: ", nrow(d$streams), " | Lakes: ", nrow(d$lakes))
+
+# Plot the subbasin — streams colored by gradient, lakes in blue
+plot(d$streams["gradient"], main = "Byman-Ailport subbasin", reset = FALSE)
+plot(sf::st_geometry(d$lakes), col = "#4292C644", border = "#2171B5",
+     add = TRUE)
+
 \dontrun{
+# --- Live DB: multi-table network query ---
 conn <- frs_db_conn()
 blk <- 360873822
 
-# Everything upstream of a point
-streams <- frs_network(conn, blk, 166030)
-
-# Between two points (subbasin): upstream of Byman minus upstream of Ailport
+# Plot 1: ALL upstream waterbodies
 result <- frs_network(conn, blk, 208877, upstream_measure = 233564,
   tables = list(
     streams = "whse_basemapping.fwa_stream_networks_sp",
     lakes = "whse_basemapping.fwa_lakes_poly",
-    crossings = "bcfishpass.crossings",
-    observations = list(
-      table = "bcfishpass.observations_vw",
-      wscode_col = "wscode",
-      localcode_col = "localcode"
-    )
+    wetlands = "whse_basemapping.fwa_wetlands_poly"
   ))
+
+plot(sf::st_geometry(result$streams), col = "steelblue",
+     main = paste("All:", nrow(result$lakes), "lakes,",
+                  nrow(result$wetlands), "wetlands"))
+plot(sf::st_geometry(result$lakes), col = "#4292C644",
+     border = "#2171B5", add = TRUE)
+plot(sf::st_geometry(result$wetlands), col = "#41AB5D44",
+     border = "#238B45", add = TRUE)
+
+# Plot 2: only waterbodies on coho habitat streams
+# from = bcfishpass table, extra_where filters by habitat columns
+# Traversal stays on indexed FWA base table (fast), filter is a cheap join
+filtered <- frs_network(conn,
+  blue_line_key = blk,
+  downstream_route_measure = 208877,
+  upstream_measure = 233564,
+  tables = list(
+    co = list(
+      table = "bcfishpass.streams_co_vw",
+      wscode_col = "wscode",
+      localcode_col = "localcode"),
+    lakes = list(
+      table = "whse_basemapping.fwa_lakes_poly",
+      from = "bcfishpass.streams_co_vw",
+      extra_where = "spawning > 0 OR rearing > 0"),
+    wetlands = list(
+      table = "whse_basemapping.fwa_wetlands_poly",
+      from = "bcfishpass.streams_co_vw",
+      extra_where = "spawning > 0 OR rearing > 0")
+  ))
+plot(sf::st_geometry(result$streams), col = "steelblue",
+     main = paste("CO habitat:", nrow(filtered$lakes), "lakes,",
+                  nrow(filtered$wetlands), "wetlands"))
+plot(sf::st_geometry(filtered$lakes), col = "#4292C644",
+     border = "#2171B5", add = TRUE)
+plot(sf::st_geometry(filtered$wetlands), col = "#41AB5D44",
+     border = "#238B45", add = TRUE)
+legend("topright", legend = c("Lakes", "Wetlands"),
+       fill = c("#4292C644", "#41AB5D44"),
+       border = c("#2171B5", "#238B45"))
+
 DBI::dbDisconnect(conn)
 }
 }

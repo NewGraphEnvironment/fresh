@@ -46,25 +46,70 @@
 #' @export
 #'
 #' @examples
+#' # --- What frs_network returns (bundled data) ---
+#' d <- readRDS(system.file("extdata", "byman_ailport.rds", package = "fresh"))
+#' names(d)  # aoi, streams, co, lakes, roads, highways, fsr, railway
+#'
+#' message("Streams: ", nrow(d$streams), " | Lakes: ", nrow(d$lakes))
+#'
+#' # Plot the subbasin — streams colored by gradient, lakes in blue
+#' plot(d$streams["gradient"], main = "Byman-Ailport subbasin", reset = FALSE)
+#' plot(sf::st_geometry(d$lakes), col = "#4292C644", border = "#2171B5",
+#'      add = TRUE)
+#'
 #' \dontrun{
+#' # --- Live DB: multi-table network query ---
 #' conn <- frs_db_conn()
 #' blk <- 360873822
 #'
-#' # Everything upstream of a point
-#' streams <- frs_network(conn, blk, 166030)
-#'
-#' # Between two points (subbasin): upstream of Byman minus upstream of Ailport
+#' # Plot 1: ALL upstream waterbodies
 #' result <- frs_network(conn, blk, 208877, upstream_measure = 233564,
 #'   tables = list(
 #'     streams = "whse_basemapping.fwa_stream_networks_sp",
 #'     lakes = "whse_basemapping.fwa_lakes_poly",
-#'     crossings = "bcfishpass.crossings",
-#'     observations = list(
-#'       table = "bcfishpass.observations_vw",
-#'       wscode_col = "wscode",
-#'       localcode_col = "localcode"
-#'     )
+#'     wetlands = "whse_basemapping.fwa_wetlands_poly"
 #'   ))
+#'
+#' plot(sf::st_geometry(result$streams), col = "steelblue",
+#'      main = paste("All:", nrow(result$lakes), "lakes,",
+#'                   nrow(result$wetlands), "wetlands"))
+#' plot(sf::st_geometry(result$lakes), col = "#4292C644",
+#'      border = "#2171B5", add = TRUE)
+#' plot(sf::st_geometry(result$wetlands), col = "#41AB5D44",
+#'      border = "#238B45", add = TRUE)
+#'
+#' # Plot 2: only waterbodies on coho habitat streams
+#' # from = bcfishpass table, extra_where filters by habitat columns
+#' # Traversal stays on indexed FWA base table (fast), filter is a cheap join
+#' filtered <- frs_network(conn,
+#'   blue_line_key = blk,
+#'   downstream_route_measure = 208877,
+#'   upstream_measure = 233564,
+#'   tables = list(
+#'     co = list(
+#'       table = "bcfishpass.streams_co_vw",
+#'       wscode_col = "wscode",
+#'       localcode_col = "localcode"),
+#'     lakes = list(
+#'       table = "whse_basemapping.fwa_lakes_poly",
+#'       from = "bcfishpass.streams_co_vw",
+#'       extra_where = "spawning > 0 OR rearing > 0"),
+#'     wetlands = list(
+#'       table = "whse_basemapping.fwa_wetlands_poly",
+#'       from = "bcfishpass.streams_co_vw",
+#'       extra_where = "spawning > 0 OR rearing > 0")
+#'   ))
+#' plot(sf::st_geometry(result$streams), col = "steelblue",
+#'      main = paste("CO habitat:", nrow(filtered$lakes), "lakes,",
+#'                   nrow(filtered$wetlands), "wetlands"))
+#' plot(sf::st_geometry(filtered$lakes), col = "#4292C644",
+#'      border = "#2171B5", add = TRUE)
+#' plot(sf::st_geometry(filtered$wetlands), col = "#41AB5D44",
+#'      border = "#238B45", add = TRUE)
+#' legend("topright", legend = c("Lakes", "Wetlands"),
+#'        fill = c("#4292C644", "#41AB5D44"),
+#'        border = c("#2171B5", "#238B45"))
+#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_network <- function(
@@ -124,6 +169,17 @@ frs_network <- function(
     if (is.character(x) && length(x) == 1) list(table = x) else x
   })
 
+  # Find the first stream table (non-waterbody) as default `from` for
+  # waterbody key filtering. Waterbody specs can override via `from`.
+  cols_stream_specs <- Filter(function(s) {
+    !grepl("lakes_poly|wetlands_poly|rivers_poly", s$table)
+  }, tables)
+  default_from <- if (length(cols_stream_specs) > 0) {
+    cols_stream_specs[[1]]$table
+  } else {
+    NULL
+  }
+
   results <- lapply(tables, function(spec) {
     frs_network_one(
       conn = conn,
@@ -133,7 +189,8 @@ frs_network <- function(
       upstream_blk = up_blk,
       spec = spec,
       direction = direction,
-      include_all = include_all
+      include_all = include_all,
+      default_from = default_from
     )
   })
 
@@ -152,7 +209,8 @@ frs_network <- function(
 #' @noRd
 frs_network_one <- function(conn, blue_line_key, downstream_route_measure,
                             upstream_measure = NULL, upstream_blk = NULL,
-                            spec, direction, include_all = FALSE) {
+                            spec, direction, include_all = FALSE,
+                            default_from = NULL) {
   tbl <- spec$table
   cols <- spec$cols
   wscode_col <- spec$wscode_col
@@ -165,12 +223,17 @@ frs_network_one <- function(conn, blue_line_key, downstream_route_measure,
   is_waterbody <- grepl("lakes_poly|wetlands_poly|rivers_poly", tbl)
 
   if (is_waterbody) {
+    # from = table for waterbody key filtering (spec overrides default)
+    wb_from <- if (!is.null(spec$from)) spec$from else default_from
+
     frs_network_waterbody(
       conn, blue_line_key, downstream_route_measure,
       upstream_measure = upstream_measure,
       upstream_blk = up_blk,
       table = tbl, cols = cols, direction = direction,
-      include_all = include_all
+      include_all = include_all,
+      extra_where = extra_where,
+      from = wb_from
     )
   } else {
     frs_network_direct(
@@ -300,7 +363,8 @@ frs_network_direct <- function(conn, blue_line_key, downstream_route_measure,
 frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
                                   upstream_measure = NULL, upstream_blk = NULL,
                                   table, cols = NULL, direction = "upstream",
-                                  include_all = FALSE) {
+                                  include_all = FALSE,
+                                  extra_where = NULL, from = NULL) {
   cols <- if (is.null(cols)) frs_default_cols(table) else cols
 
   fwa_fn <- switch(direction,
@@ -311,13 +375,37 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
   select_cols <- paste(paste0("p.", cols), collapse = ", ")
   blk <- as.integer(blue_line_key)
   up_blk <- if (is.null(upstream_blk)) blk else as.integer(upstream_blk)
-  stream_tbl <- "whse_basemapping.fwa_stream_networks_sp"
 
-  # Guards apply to the stream network CTE (alias "s")
+  # Traversal always on indexed network table (has ltree GiST indexes)
+  network_tbl <- .frs_opt("tbl_network")
+
+  # Guards apply to the network traversal CTE (alias "s")
   guard_sql <- ""
   if (!include_all) {
     guards <- .frs_stream_guards("s")
     guard_sql <- paste0("\n  AND ", paste(guards, collapse = "\n  AND "))
+  }
+
+  # Filter CTE: when from/extra_where specified, filter wbkeys_network
+  # by joining to the from table. Cheap join, no ltree traversal.
+  has_filter <- !is.null(from) && !is.null(extra_where)
+  if (has_filter) {
+    filter_cte <- sprintf(
+      paste0(
+        ",\n",
+        "wbkeys_filtered AS (\n",
+        "  SELECT DISTINCT n.waterbody_key\n",
+        "  FROM wbkeys_network n\n",
+        "  JOIN %s f USING (waterbody_key)\n",
+        "  WHERE %s\n",
+        ")"
+      ),
+      from, extra_where
+    )
+    join_cte <- "wbkeys_filtered"
+  } else {
+    filter_cte <- ""
+    join_cte <- "wbkeys_network"
   }
 
   if (is.null(upstream_measure)) {
@@ -331,7 +419,7 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
         "  ORDER BY downstream_route_measure DESC\n",
         "  LIMIT 1\n",
         "),\n",
-        "network_wbkeys AS (\n",
+        "wbkeys_network AS (\n",
         "  SELECT DISTINCT s.waterbody_key\n",
         "  FROM %s s, ref\n",
         "  WHERE %s(\n",
@@ -339,15 +427,16 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
         "    s.wscode_ltree, s.localcode_ltree\n",
         "  )\n",
         "  AND s.waterbody_key IS NOT NULL%s\n",
-        ")\n",
+        ")%s\n",
         "SELECT %s\n",
         "FROM %s p\n",
-        "JOIN network_wbkeys n ON p.waterbody_key = n.waterbody_key"
+        "JOIN %s n ON p.waterbody_key = n.waterbody_key"
       ),
-      stream_tbl, blk, downstream_route_measure,
-      stream_tbl, fwa_fn,
+      network_tbl, blk, downstream_route_measure,
+      network_tbl, fwa_fn,
       guard_sql,
-      select_cols, table
+      filter_cte,
+      select_cols, table, join_cte
     )
   } else {
     sql <- sprintf(
@@ -368,7 +457,7 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
         "  ORDER BY downstream_route_measure DESC\n",
         "  LIMIT 1\n",
         "),\n",
-        "network_wbkeys AS (\n",
+        "wbkeys_network AS (\n",
         "  SELECT DISTINCT s.waterbody_key\n",
         "  FROM %s s, ref_down\n",
         "  WHERE %s(\n",
@@ -383,17 +472,18 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
         "    )\n",
         "  )\n",
         "  AND s.waterbody_key IS NOT NULL%s\n",
-        ")\n",
+        ")%s\n",
         "SELECT %s\n",
         "FROM %s p\n",
-        "JOIN network_wbkeys n ON p.waterbody_key = n.waterbody_key"
+        "JOIN %s n ON p.waterbody_key = n.waterbody_key"
       ),
-      stream_tbl, blk, downstream_route_measure,
-      stream_tbl, up_blk, upstream_measure,
-      stream_tbl, fwa_fn,
+      network_tbl, blk, downstream_route_measure,
+      network_tbl, up_blk, upstream_measure,
+      network_tbl, fwa_fn,
       fwa_fn,
       guard_sql,
-      select_cols, table
+      filter_cte,
+      select_cols, table, join_cte
     )
   }
 
