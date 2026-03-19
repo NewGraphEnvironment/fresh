@@ -124,6 +124,76 @@ test_that("frs_classify returns conn invisibly", {
   expect_equal(result, "mock_conn")
 })
 
+test_that("frs_classify where param scopes ranges SQL", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_classify("mock", "working.streams", label = "co_lake_rearing",
+               ranges = list(channel_width = c(1.5, 9999)),
+               where = "edge_type IN (1050)")
+
+  expect_length(sql_log, 2)
+  expect_match(sql_log[2], "channel_width BETWEEN")
+  expect_match(sql_log[2], "AND edge_type IN \\(1050\\)")
+})
+
+test_that("frs_classify where param scopes breaks SQL", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_classify("mock", "working.streams", label = "accessible",
+               breaks = "working.breaks",
+               where = "edge_type NOT IN (1050)")
+
+  expect_length(sql_log, 2)
+  expect_match(sql_log[2], "NOT EXISTS")
+  expect_match(sql_log[2], "AND edge_type NOT IN \\(1050\\)")
+})
+
+test_that("frs_classify where param scopes overrides SQL", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_classify("mock", "working.streams", label = "spawning",
+               overrides = "working.known_habitat",
+               where = "edge_type = 1350")
+
+  expect_length(sql_log, 2)
+  expect_match(sql_log[2], "FROM working.known_habitat o")
+  expect_match(sql_log[2], "AND edge_type = 1350")
+})
+
+test_that("frs_classify without where does not add extra AND", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_classify("mock", "working.streams", label = "spawning",
+               ranges = list(gradient = c(0, 0.025)))
+
+  # No "AND edge_type" or similar appended
+  expect_false(grepl("AND edge_type", sql_log[2]))
+})
+
 test_that("frs_classify validates range inputs", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) 0L

@@ -1,96 +1,154 @@
-# Vignette: Coho Habitat Pipeline (Byman-Ailport)
+# Task: Add `to` parameter to frs_network() + Habitat Pipeline Vignette
 
 ## Goal
+Let `frs_network()` write results to working tables on the DB instead of pulling to R. This keeps the entire habitat pipeline on PostgreSQL — no R memory bottleneck when scaling to multiple watershed groups. Then build the habitat pipeline vignette that proves it works end-to-end.
 
-Build a vignette that runs the full habitat model pipeline on the Byman-Ailport subbasin. Proves the workflow at small scale before expanding to full Neexdzii study area in the restoration report repo.
+## Status: planning
 
-## Pipeline
+## Why this matters
+At Byman-Ailport scale (2167 streams) pulling to R is fine. At province scale (many watershed groups), materializing all geometries in R just to write them back to PostgreSQL blows up memory. The DB should do all the heavy work:
 
-```r
-conn <- frs_db_conn()
-params <- frs_params(csv = system.file("testdata", "test_params.csv", package = "fresh"))
-aoi <- d$aoi  # Byman-Ailport from bundled data
-
-# Extract from fwapg (has channel_width, not bcfishpass-dependent)
-options(fresh.wscode_col = "wscode", fresh.localcode_col = "localcode")
-
-conn |>
-  frs_extract("whse_basemapping.fwa_streams_vw", "working.byman_streams",
-    cols = c("linear_feature_id", "blue_line_key", "gnis_name",
-             "stream_order", "downstream_route_measure",
-             "upstream_route_measure", "wscode", "localcode",
-             "gradient", "channel_width", "mad_m3s",
-             "waterbody_key", "geom"),
-    aoi = aoi, overwrite = TRUE) |>
-  frs_col_generate("working.byman_streams") |>
-  frs_break("working.byman_streams",
-    attribute = "gradient", threshold = params$CO$spawn_gradient_max) |>
-  frs_classify("working.byman_streams", label = "accessible",
-    breaks = "working.breaks") |>
-  frs_classify("working.byman_streams", label = "co_spawning",
-    ranges = params$CO$ranges$spawn[c("gradient", "channel_width")]) |>
-  frs_classify("working.byman_streams", label = "co_rearing",
-    ranges = params$CO$ranges$rear[c("gradient", "channel_width")])
-
-# Waterbodies on coho habitat
-frs_network(conn, blk, drm, upstream_measure = drm_up,
-  tables = list(
-    lakes = list(table = "whse_basemapping.fwa_lakes_poly",
-                 from = "working.byman_streams",
-                 extra_where = "co_rearing IS TRUE"),
-    wetlands = list(table = "whse_basemapping.fwa_wetlands_poly",
-                    from = "working.byman_streams",
-                    extra_where = "co_rearing IS TRUE")
-  ))
-
-# Aggregate: habitat upstream of crossings
-frs_aggregate(conn,
-  points = "bcfishpass.crossings",
-  features = "working.byman_streams",
-  metrics = c(
-    total_km = "ROUND(SUM(ST_Length(f.geom))::numeric/1000, 1)",
-    spawning_km = "...",
-    rearing_km = "..."),
-  direction = "upstream")
+```
+frs_network(to = "working.streams") → col_join → col_generate → break → classify → aggregate
 ```
 
-## Vignette sections
+Everything stays in PostgreSQL until the final read. R orchestrates SQL.
 
-1. **Setup** — load params from CSV, connect, set options
-2. **Extract** — stage Byman-Ailport streams from fwa_streams_vw
-3. **Break** — gradient barriers at CO spawn threshold (5.49%)
-4. **Classify** — accessible, co_spawning, co_rearing
-5. **Lake rearing gap** — show bcfishpass scores lake segments as rearing=0, our pipeline can fix this by classifying lake-connected segments independently
-6. **Waterbodies** — filter lakes/wetlands to coho habitat network using from + extra_where
-7. **Aggregate** — habitat lengths upstream of key points
-8. **Scenario comparison** — tweak spawn_gradient_min to 0.5% and 1%, compare with frs_aggregate
-9. **Plots** — before/after, accessible vs blocked, spawning/rearing, waterbodies
+---
 
-## Key points to demonstrate
+## Phase 1: frs_network(to=) implementation ✓
 
-- frs_params loads from CSV — edit locally, no DB changes for scenarios
-- frs_col_generate makes gradient auto-recompute after breaks
-- frs_classify is pipeable — multiple labels in sequence
-- Lake rearing: bcfishpass gap, fresh fixes it
-- Scenario testing: same pipeline, different params, compare outputs
-- This exact pipeline scales to full Neexdzii by swapping the AOI
+### Change to frs_network()
+- Add `to` param (character or NULL, default NULL)
+- Add `overwrite` param (logical, default TRUE — consistent with frs_extract)
+- When `to` is NULL: current behavior unchanged (returns sf or list of sf)
+- When `to` is provided: write to DB table, return `conn` invisibly for piping
+- Error if `clip` and `to` both provided (clipping is R-side spatial op)
 
-## Vignette pattern
+### Multi-table naming convention
+When `tables` has multiple entries and `to` is provided:
+- `to` is a **prefix**: e.g. `to = "working.byman"` → `working.byman_streams`, `working.byman_lakes`
+- Single-table: uses `to` as-is (no suffix)
+- This matches how users think: "put my byman data in working"
 
-- `vignettes/habitat-pipeline.Rmd.orig` = source with live DB queries
-- `vignettes/habitat-pipeline.Rmd` = pre-knitted cached version
-- `params$update_gis` controls live vs cached
-- Cache results to `inst/extdata/` for offline rendering
+### Internal changes
+- `frs_network_direct()`: add `to` param
+  - When NULL: `frs_db_query(conn, sql)` → returns sf (current)
+  - When provided: `.frs_db_execute(conn, "CREATE TABLE <to> AS <sql>")` → returns NULL
+- `frs_network_waterbody()`: same pattern
+- Main `frs_network()`: handle overwrite (DROP IF EXISTS before CREATE)
 
-## Depends on
+### The SQL stays identical
+The ltree traversal, network subtraction, waterbody key bridging — all the same. Only the execution path changes (st_read vs CREATE TABLE AS).
 
-- v0.3.1 (tagged, all functions working)
-- Byman-Ailport bundled data in inst/extdata/
-- test_params.csv in inst/testdata/
-- SSH tunnel to remote DB for live queries
+---
 
-## Downstream
+## Phase 2: Tests for to= ✓
 
-After vignette proves the pipeline:
-- Neexdzii restoration report runs same pipeline at full study area scale
-- Feeds into flooded (floodplain delineation) → drift (land cover change)
+### Unit tests (mocked)
+- to=NULL generates SELECT (current behavior)
+- to="working.test" generates CREATE TABLE AS SELECT
+- Multi-table to="working.prefix" generates suffixed table names
+- to + clip errors
+- overwrite=TRUE generates DROP IF EXISTS
+- Returns conn when to is provided
+
+### Integration tests (live DB)
+- Write single table, verify contents match current sf return
+- Write multi-table, verify both tables exist with correct names
+- Overwrite=TRUE replaces existing table
+- Clean up working tables in on.exit
+
+### Existing tests
+- All 35+ existing frs_network tests use to=NULL (default) — zero changes needed
+
+---
+
+## Phase 3: Update callers in fresh ☐
+
+### data-raw/example_byman_ailport.R
+Current: `frs_network()` → sf → merge channel_width in R
+Target: `frs_network(to=)` → `frs_col_join()` on DB → read back
+
+### roxygen examples in R/frs_network.R
+- Add `to=` example showing pipeline pattern
+- Keep existing sf examples (show both patterns)
+
+### R/frs_clip.R example
+- No change needed (clip and to are incompatible, frs_clip works on sf)
+
+### Vignettes
+- subbasin-query: no change (reads sf for tmap plotting)
+- fwa-network-query: no change (reads sf for analysis)
+- NEW habitat-pipeline: uses to= for full pipeline demo
+
+---
+
+## Phase 4: Habitat pipeline vignette ☐
+
+Uses the full pipeline on DB:
+1. `frs_network(to = "working.byman_streams")` — extract + stay on DB
+2. `frs_col_join()` — channel_width, upstream_area, MAP
+3. `frs_col_generate()` — gradient, measures from geometry
+4. `frs_break()` — CO spawn gradient threshold
+5. `frs_classify()` — accessible, co_spawning, co_rearing, co_lake_rearing (edge_type aware)
+6. `frs_aggregate()` — habitat km upstream of crossings
+7. Scenario comparison — three gradient thresholds
+
+### Lake rearing section
+- bcfishpass scores lake segments rearing=0 (bcfishpass#7)
+- fresh fixes via `frs_classify(where = "edge_type IN (1050)")`
+- Quantify: X km rearing gained
+
+### Cache pattern
+- .Rmd.orig (live) / .Rmd (cached)
+- params$update_gis controls
+- data-raw script generates cache
+
+---
+
+## Phase 5: Downstream packages (separate PRs, future) ☐
+
+These all use to=NULL (default) — no breakage, no change needed:
+- breaks: app_server.R — returns sf for Shiny UI
+- restoration_wedzin_kwa: fwa_extract_flood.R, prioritization_score.R — returns sf
+
+They CAN opt into to= later for scaling, but it's not required.
+
+---
+
+## Blast Radius Summary
+
+### Safe (to=NULL default, zero changes)
+| File | Why |
+|------|-----|
+| fresh tests/testthat/test-frs_network.R (35+) | All use default to=NULL |
+| fresh vignettes/subbasin-query.Rmd | Reads sf for plotting |
+| fresh vignettes/fwa-network-query.Rmd | Reads sf for analysis |
+| breaks R/app_server.R | Returns sf for Shiny |
+| restoration scripts/ (2 files) | Returns sf |
+
+### Needs update
+| File | Change |
+|------|--------|
+| data-raw/example_byman_ailport.R | Use to= + frs_col_join pipeline |
+| R/frs_network.R roxygen | Add to= examples |
+| NEW vignettes/habitat-pipeline.Rmd.orig | Full pipeline demo |
+
+---
+
+## Open Questions
+
+1. **Multi-table naming**: prefix+suffix (`to = "working.byman"` → `working.byman_streams`) — confirm this is right?
+2. **Should `to` accept a named list** for explicit control? e.g. `to = list(streams = "working.s", lakes = "working.l")`
+   - Simpler to just use prefix convention. Named list adds complexity for rare use case.
+3. **frs_network + frs_col_join pipe**: when to= is provided, frs_network returns conn — but frs_col_join needs the table name too. The pipe would be:
+   ```r
+   conn |>
+     frs_network(blk, drm, to = "working.streams") |>
+     frs_col_join("working.streams", ...)
+   ```
+   User specifies table name twice. Acceptable? Alternative: return a list with conn + table names.
+
+## Errors Encountered
+(none yet)

@@ -35,11 +35,22 @@
 #' @param clip An `sf` or `sfc` polygon to clip results to (e.g. from
 #'   [frs_watershed_at_measure()]). Default `NULL` (no clipping). Useful for
 #'   waterbody polygons that straddle watershed boundaries. See [frs_clip()].
+#'   Cannot be used with `to` (clipping is an R-side spatial operation).
+#' @param to Character or `NULL`. When provided, write results to working
+#'   table(s) on the database instead of returning sf objects. For a single
+#'   table, `to` is the exact table name. For multiple tables, `to` is a
+#'   prefix and each table name is appended as a suffix (e.g.
+#'   `to = "working.byman"` with `streams` and `lakes` creates
+#'   `working.byman_streams` and `working.byman_lakes`). Returns `conn`
+#'   invisibly for pipe chaining. See Examples.
+#' @param overwrite Logical. When `to` is provided, drop existing tables
+#'   before writing. Default `TRUE`.
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
-#' @return A named list of `sf` data frames (or plain data frames for tables
-#'   without geometry). If only one table is queried, returns the data frame
-#'   directly.
+#' @return When `to` is `NULL`: a named list of `sf` data frames (or plain
+#'   data frames for tables without geometry). If only one table is queried,
+#'   returns the data frame directly. When `to` is provided: `conn` invisibly,
+#'   for pipe chaining with [frs_col_join()], [frs_col_generate()], etc.
 #'
 #' @family traverse
 #'
@@ -110,6 +121,21 @@
 #'        fill = c("#4292C644", "#41AB5D44"),
 #'        border = c("#2171B5", "#238B45"))
 #'
+#' # --- DB pipeline: write to table, enrich, classify ---
+#' # Stays on PostgreSQL — no R memory bottleneck at scale
+#' conn |>
+#'   frs_network(blk, 208877, upstream_measure = 233564,
+#'     to = "working.demo_pipeline") |>
+#'   frs_col_join("working.demo_pipeline",
+#'     from = "fwa_stream_networks_channel_width",
+#'     cols = c("channel_width", "channel_width_source"),
+#'     by = "linear_feature_id") |>
+#'   frs_col_generate("working.demo_pipeline")
+#'
+#' # Read the result when you need it in R
+#' enriched <- frs_db_query(conn, "SELECT * FROM working.demo_pipeline")
+#' DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.demo_pipeline")
+#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_network <- function(
@@ -121,7 +147,9 @@ frs_network <- function(
     tables = NULL,
     direction = "upstream",
     include_all = FALSE,
-    clip = NULL
+    clip = NULL,
+    to = NULL,
+    overwrite = TRUE
 ) {
   if (!is.numeric(blue_line_key) || length(blue_line_key) != 1 || is.na(blue_line_key)) {
     stop("blue_line_key must be a single numeric value")
@@ -160,6 +188,15 @@ frs_network <- function(
     }
   }
 
+  # Validate to/clip mutual exclusivity
+  if (!is.null(to) && !is.null(clip)) {
+    stop("clip and to cannot both be provided; clip is an R-side spatial ",
+         "operation that requires sf objects", call. = FALSE)
+  }
+  if (!is.null(to)) {
+    .frs_validate_identifier(to, "to table")
+  }
+
   if (is.null(tables)) {
     tables <- list(streams = "whse_basemapping.fwa_stream_networks_sp")
   }
@@ -180,22 +217,47 @@ frs_network <- function(
     NULL
   }
 
-  results <- lapply(tables, function(spec) {
+  # Compute destination table names when writing to DB
+  to_names <- NULL
+  if (!is.null(to)) {
+    if (length(tables) == 1L) {
+      to_names <- to
+    } else {
+      to_names <- paste0(to, "_", names(tables))
+    }
+    names(to_names) <- names(tables)
+
+    # Overwrite: drop existing tables
+    if (overwrite) {
+      for (tbl_name in to_names) {
+        .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", tbl_name))
+      }
+    }
+  }
+
+  results <- lapply(names(tables), function(nm) {
+    dest <- if (!is.null(to_names)) to_names[[nm]] else NULL
     frs_network_one(
       conn = conn,
       blue_line_key = blue_line_key,
       downstream_route_measure = downstream_route_measure,
       upstream_measure = upstream_measure,
       upstream_blk = up_blk,
-      spec = spec,
+      spec = tables[[nm]],
       direction = direction,
       include_all = include_all,
-      default_from = default_from
+      default_from = default_from,
+      to = dest
     )
   })
+  names(results) <- names(tables)
+
+  # When writing to DB, return conn for piping
+  if (!is.null(to)) {
+    return(invisible(conn))
+  }
 
   # Clip to AOI if provided
-
   if (!is.null(clip)) {
     results <- lapply(results, function(res) {
       if (inherits(res, "sf") && nrow(res) > 0L) frs_clip(res, clip) else res
@@ -210,7 +272,7 @@ frs_network <- function(
 frs_network_one <- function(conn, blue_line_key, downstream_route_measure,
                             upstream_measure = NULL, upstream_blk = NULL,
                             spec, direction, include_all = FALSE,
-                            default_from = NULL) {
+                            default_from = NULL, to = NULL) {
   tbl <- spec$table
   cols <- spec$cols
   wscode_col <- spec$wscode_col
@@ -233,7 +295,8 @@ frs_network_one <- function(conn, blue_line_key, downstream_route_measure,
       table = tbl, cols = cols, direction = direction,
       include_all = include_all,
       extra_where = extra_where,
-      from = wb_from
+      from = wb_from,
+      to = to
     )
   } else {
     frs_network_direct(
@@ -243,7 +306,8 @@ frs_network_one <- function(conn, blue_line_key, downstream_route_measure,
       table = tbl, cols = cols,
       wscode_col = wscode_col, localcode_col = localcode_col,
       extra_where = extra_where, direction = direction,
-      include_all = include_all
+      include_all = include_all,
+      to = to
     )
   }
 }
@@ -254,7 +318,8 @@ frs_network_direct <- function(conn, blue_line_key, downstream_route_measure,
                                upstream_measure = NULL, upstream_blk = NULL,
                                table, cols = NULL, wscode_col = NULL,
                                localcode_col = NULL, extra_where = NULL,
-                               direction = "upstream", include_all = FALSE) {
+                               direction = "upstream", include_all = FALSE,
+                               to = NULL) {
   .frs_validate_identifier(table, "table")
   wscode_col <- if (is.null(wscode_col)) "wscode_ltree" else wscode_col
   localcode_col <- if (is.null(localcode_col)) "localcode_ltree" else localcode_col
@@ -355,7 +420,12 @@ frs_network_direct <- function(conn, blue_line_key, downstream_route_measure,
     )
   }
 
-  frs_db_query(conn, sql)
+  if (!is.null(to)) {
+    .frs_db_execute(conn, sprintf("CREATE TABLE %s AS %s", to, sql))
+    invisible(NULL)
+  } else {
+    frs_db_query(conn, sql)
+  }
 }
 
 
@@ -364,7 +434,8 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
                                   upstream_measure = NULL, upstream_blk = NULL,
                                   table, cols = NULL, direction = "upstream",
                                   include_all = FALSE,
-                                  extra_where = NULL, from = NULL) {
+                                  extra_where = NULL, from = NULL,
+                                  to = NULL) {
   cols <- if (is.null(cols)) frs_default_cols(table) else cols
 
   fwa_fn <- switch(direction,
@@ -487,7 +558,12 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
     )
   }
 
-  frs_db_query(conn, sql)
+  if (!is.null(to)) {
+    .frs_db_execute(conn, sprintf("CREATE TABLE %s AS %s", to, sql))
+    invisible(NULL)
+  } else {
+    frs_db_query(conn, sql)
+  }
 }
 
 

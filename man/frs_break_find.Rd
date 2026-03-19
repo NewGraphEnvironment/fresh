@@ -14,8 +14,10 @@ frs_break_find(
   distance = 100L,
   points_table = NULL,
   points = NULL,
+  where = NULL,
   aoi = NULL,
-  overwrite = TRUE
+  overwrite = TRUE,
+  append = FALSE
 )
 }
 \arguments{
@@ -49,11 +51,19 @@ containing existing break points with \code{blue_line_key} and
 \item{points}{An \code{sf} object or \code{NULL}. User-provided points to snap
 to the stream network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
 
+\item{where}{Character or \code{NULL}. SQL predicate to filter rows from
+\code{points_table}. Example: \code{"barrier_ind = TRUE"}. Only used with
+\code{points_table} mode.}
+
 \item{aoi}{AOI specification for filtering (passed to
 \code{.frs_resolve_aoi()}). Only used with \code{points_table} mode.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
+
+\item{append}{Logical. If \code{TRUE}, INSERT INTO existing \code{to} table
+instead of CREATE. Use to combine multiple break sources (e.g.
+gradient breaks + falls barriers). Default \code{FALSE}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -106,9 +116,13 @@ DBI::dbDisconnect(conn)
 }
 \seealso{
 Other habitat: 
+\code{\link{frs_aggregate}()},
 \code{\link{frs_break}()},
 \code{\link{frs_break_apply}()},
 \code{\link{frs_break_validate}()},
+\code{\link{frs_classify}()},
+\code{\link{frs_col_generate}()},
+\code{\link{frs_col_join}()},
 \code{\link{frs_extract}()}
 }
 \concept{habitat}

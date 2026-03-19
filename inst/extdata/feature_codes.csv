@@ -1,0 +1,53 @@
+feature_code,description
+AP09200000,Dump
+AP90300100,Mine - Tailing Pond
+EA26700110,Settling Basin - Sewage
+FA02650000,Boundary (International)
+GA03950000,Canal
+GA08800110,Ditch
+GA24850000,River/Stream - Definite
+GA24850140,River/Stream - Indefinite
+GA24850150,River/Stream - Intermittent
+GB11350110,Flooded Land - Inundated
+GB15300000,Lake - Definite
+GB15300130,Lake - Indefinite
+GB15300140,Lake - Intermittent
+GB24300000,Reservoir - Definite
+GB90100000,Reservoir - Indefinite
+GB90100110,Reservoir - Intermittent
+GC17100000,Marsh
+GC30050000,Swamp
+GE14850000,Island - Definite
+GG05800000,Coastline - Definite
+WA11410000,Flow Connectors - Inferred
+WA17100000,Frequently Flooded Land
+WA21100111,Construction Line - Coastline
+WA23111110,Construction Line - Lakeshore
+WA24111110,Construction Line - Main Flow
+WA24111111,Construction Line - Lake Arm
+WA24111120,Construction Line - Main Connector
+WA24111130,Construction Line - Secondary Flow
+WA24111140,Construction Line - Segment Delimiter
+WA24111150,Construction Line - Secondary
+WA24111160,Construction Line - River Delimiter
+WA24111170,Construction Line - Flow Inferred
+WA24111180,Construction Line - Subsurface Flow
+WA24111190,Construction Line - Flow Connector
+WA24200110,Double-Line Blueline - Right Bank
+WA24200120,Double-Line Blueline - Right
+WA24200130,Double-Line Blueline - Left Bank
+WA24200140,Double-Line Blueline - Left
+WA24220110,Island in River - Right Bank
+WA24220120,Island in River - Right Bank Shared with Wetland
+WA24220130,Island in River - Left Bank
+WA24220140,Island in River - Left Bank Shared with Wetland
+WA25100110,Watershed Boundary - Major
+WA25100120,Watershed Boundary - Minor
+WA25100140,Watershed Boundary - (att) operator modified or added HOL
+GA08450110,Dam - Beaver
+GA23500110,Rapids
+GA90002110,Falls
+GA98450000,Dam
+HB27550000,Sinkhole
+GA10450200,Artificial Waterfall
+GA10450300,Flattened Waterfall

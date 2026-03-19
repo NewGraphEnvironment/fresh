@@ -14,6 +14,7 @@ frs_break(
   distance = 100L,
   points_table = NULL,
   points = NULL,
+  points_where = NULL,
   aoi = NULL,
   overwrite = TRUE,
   evidence_table = NULL,
@@ -52,6 +53,10 @@ containing existing break points with \code{blue_line_key} and
 
 \item{points}{An \code{sf} object or \code{NULL}. User-provided points to snap
 to the stream network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
+
+\item{points_where}{Character or \code{NULL}. SQL predicate to filter rows from
+\code{points_table} (e.g. \code{"barrier_ind = TRUE"}). Passed to
+\code{\link[=frs_break_find]{frs_break_find()}} as \code{where}.}
 
 \item{aoi}{AOI specification for filtering (passed to
 \code{.frs_resolve_aoi()}). Only used with \code{points_table} mode.}
@@ -145,6 +150,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_classify}()},
 \code{\link{frs_col_generate}()},
+\code{\link{frs_col_join}()},
 \code{\link{frs_extract}()}
 }
 \concept{habitat}

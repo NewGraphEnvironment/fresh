@@ -29,10 +29,16 @@
 #'   `downstream_route_measure` columns (e.g. falls, dams, crossings).
 #' @param points An `sf` object or `NULL`. User-provided points to snap
 #'   to the stream network via [frs_point_snap()].
+#' @param where Character or `NULL`. SQL predicate to filter rows from
+#'   `points_table`. Example: `"barrier_ind = TRUE"`. Only used with
+#'   `points_table` mode.
 #' @param aoi AOI specification for filtering (passed to
 #'   `.frs_resolve_aoi()`). Only used with `points_table` mode.
 #' @param overwrite Logical. If `TRUE`, drop `to` before creating.
 #'   Default `TRUE`.
+#' @param append Logical. If `TRUE`, INSERT INTO existing `to` table
+#'   instead of CREATE. Use to combine multiple break sources (e.g.
+#'   gradient breaks + falls barriers). Default `FALSE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -79,7 +85,8 @@ frs_break_find <- function(conn, table, to = "working.breaks",
                            attribute = NULL, threshold = NULL,
                            interval = 100L, distance = 100L,
                            points_table = NULL, points = NULL,
-                           aoi = NULL, overwrite = TRUE) {
+                           where = NULL, aoi = NULL,
+                           overwrite = TRUE, append = FALSE) {
   .frs_validate_identifier(table, "source table")
   .frs_validate_identifier(to, "destination table")
 
@@ -106,7 +113,7 @@ frs_break_find <- function(conn, table, to = "working.breaks",
     .frs_break_find_attribute(conn, table, to, attribute, threshold,
                                interval, distance)
   } else if (has_table) {
-    .frs_break_find_table(conn, table, to, points_table, aoi)
+    .frs_break_find_table(conn, table, to, points_table, where, aoi, append)
   } else {
     .frs_break_find_points(conn, table, to, points)
   }
@@ -172,23 +179,42 @@ frs_break_find <- function(conn, table, to = "working.breaks",
 #' database table (e.g. falls, dams, crossings). Optionally filters by AOI.
 #'
 #' @noRd
-.frs_break_find_table <- function(conn, table, to, points_table, aoi) {
+.frs_break_find_table <- function(conn, table, to, points_table,
+                                   where = NULL, aoi = NULL,
+                                   append = FALSE) {
   .frs_validate_identifier(points_table, "points table")
 
+  clauses <- character(0)
+  if (!is.null(where)) {
+    clauses <- c(clauses, where)
+  }
   aoi_pred <- .frs_resolve_aoi(aoi, conn = conn)
-  where_clause <- if (nzchar(aoi_pred)) {
-    paste(" WHERE", aoi_pred)
+  if (nzchar(aoi_pred)) {
+    clauses <- c(clauses, aoi_pred)
+  }
+
+  where_clause <- if (length(clauses) > 0) {
+    paste(" WHERE", paste(clauses, collapse = " AND "))
   } else {
     ""
   }
 
-  sql <- sprintf(
-    "CREATE TABLE %s AS
-     SELECT DISTINCT blue_line_key,
-       downstream_route_measure
-     FROM %s%s",
-    to, points_table, where_clause
+  select_sql <- sprintf(
+    "SELECT DISTINCT blue_line_key, downstream_route_measure FROM %s%s",
+    points_table, where_clause
   )
+
+  if (append) {
+    # Ensure table exists before inserting
+    .frs_db_execute(conn, sprintf(
+      "CREATE TABLE IF NOT EXISTS %s (
+         blue_line_key integer,
+         downstream_route_measure double precision)", to))
+    sql <- sprintf("INSERT INTO %s (blue_line_key, downstream_route_measure) %s",
+                   to, select_sql)
+  } else {
+    sql <- sprintf("CREATE TABLE %s AS %s", to, select_sql)
+  }
   .frs_db_execute(conn, sql)
 }
 
@@ -544,6 +570,9 @@ frs_break_apply <- function(conn, table, breaks,
 #' [frs_break_validate()], then [frs_break_apply()] in sequence.
 #'
 #' @inheritParams frs_break_find
+#' @param points_where Character or `NULL`. SQL predicate to filter rows from
+#'   `points_table` (e.g. `"barrier_ind = TRUE"`). Passed to
+#'   [frs_break_find()] as `where`.
 #' @param evidence_table Character or `NULL`. If provided, validate breaks
 #'   against upstream evidence before applying. Passed to
 #'   [frs_break_validate()].
@@ -621,6 +650,7 @@ frs_break <- function(conn, table, to = "working.breaks",
                       attribute = NULL, threshold = NULL,
                       interval = 100L, distance = 100L,
                       points_table = NULL, points = NULL,
+                      points_where = NULL,
                       aoi = NULL, overwrite = TRUE,
                       evidence_table = NULL, where = NULL,
                       count_threshold = 1L,
@@ -630,6 +660,7 @@ frs_break <- function(conn, table, to = "working.breaks",
                  attribute = attribute, threshold = threshold,
                  interval = interval, distance = distance,
                  points_table = points_table, points = points,
+                 where = points_where,
                  aoi = aoi, overwrite = overwrite)
 
   # Step 2: Validate (optional)

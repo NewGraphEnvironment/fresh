@@ -17,6 +17,11 @@
 #'   `fwa_stream_networks_sp` with measure derivation and boundary clamping.
 #' @param stream_order_min Integer. Optional. Minimum stream order for snap
 #'   candidates. Ignored when `blue_line_key` is provided. Forces KNN path.
+#' @param exclude_edge_types Integer vector or `NULL`. Edge types to exclude
+#'   from snap candidates. Default `1425L` (subsurface flow — underground
+#'   conduits). Set to `NULL` to snap to all edge types. Only applies to KNN
+#'   path (when `blue_line_key` or `stream_order_min` is provided).
+#'   See [frs_edge_types()] for the full lookup table.
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame with columns: `linear_feature_id`, `gnis_name`,
@@ -50,7 +55,8 @@ frs_point_snap <- function(
     tolerance = 5000,
     num_features = 1L,
     blue_line_key = NULL,
-    stream_order_min = NULL
+    stream_order_min = NULL,
+    exclude_edge_types = 1425L
 ) {
   if (!is.numeric(x) || length(x) != 1 || is.na(x)) {
     stop("x must be a single numeric value")
@@ -84,7 +90,8 @@ frs_point_snap <- function(
     return(frs_point_snap_knn(
       conn = conn, x = x, y = y, srid = srid, tolerance = tolerance,
       num_features = num_features, blue_line_key = blue_line_key,
-      stream_order_min = stream_order_min
+      stream_order_min = stream_order_min,
+      exclude_edge_types = exclude_edge_types
     ))
   }
 
@@ -104,16 +111,17 @@ frs_point_snap <- function(
 #'
 #' Uses KNN (`<->`) to find nearest stream segments, with measure derivation
 #' and boundary clamping following the bcfishpass pattern. Filters out
-#' placeholder streams (999 wscode), subsurface flow (edge_type 1410/1425),
+#' placeholder streams (999 wscode), subsurface flow (edge_type 1425),
 #' and unmapped tributaries (NULL localcode).
 #'
 #' @noRd
 frs_point_snap_knn <- function(
     conn, x, y, srid, tolerance, num_features,
-    blue_line_key = NULL, stream_order_min = NULL
+    blue_line_key = NULL, stream_order_min = NULL,
+    exclude_edge_types = 1425L
 ) {
   # Build WHERE clauses for stream filtering (includes subsurface guard)
-  where_parts <- .frs_snap_guards("s")
+  where_parts <- .frs_snap_guards("s", exclude_edge_types = exclude_edge_types)
   if (!is.null(blue_line_key)) {
     where_parts <- c(where_parts,
       sprintf("s.blue_line_key = %s", as.integer(blue_line_key))

@@ -1,0 +1,12 @@
+species_code,access_gradient_max,spawn_gradient_min,rear_gradient_min
+BT,0.25,0.005,0
+CH,0.15,0.005,0
+CM,0.15,0.005,0
+CO,0.15,0.005,0
+CT,0.25,0.005,0
+DV,0.25,0.005,0
+PK,0.15,0.005,0
+RB,0.25,0.005,0
+SK,0.15,0.005,0
+ST,0.20,0.005,0
+WCT,0.20,0.005,0

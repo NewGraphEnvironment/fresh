@@ -1,4 +1,70 @@
-# Vignette Findings
+# Findings
+
+## frs_network() architecture (from code read)
+
+### Current execution path
+```
+frs_network() → lapply(tables, frs_network_one())
+  ├─ frs_network_direct()    → frs_db_query(conn, sql) → sf
+  └─ frs_network_waterbody() → frs_db_query(conn, sql) → sf
+```
+
+### With to= parameter
+```
+frs_network(to=) → lapply(tables, frs_network_one())
+  ├─ frs_network_direct()    → .frs_db_execute(conn, CREATE TABLE AS sql)
+  └─ frs_network_waterbody() → .frs_db_execute(conn, CREATE TABLE AS sql)
+```
+
+The SQL body is identical — ltree traversal, CTEs, waterbody bridging. Only the final execution changes.
+
+### Internal dispatch
+- `frs_network_one()` routes to `frs_network_direct()` or `frs_network_waterbody()` based on table name pattern (lakes/wetlands/rivers → waterbody)
+- Both currently return sf. With to=, both would return NULL (side effect: table created)
+- Main function handles: overwrite (DROP), naming (prefix + suffix), and return value (conn vs list)
+
+### Return type when to= provided
+- Single table: `conn` invisibly (pipeable)
+- Multi table: also `conn` invisibly (all tables written with suffixed names)
+- User accesses tables by the names they chose
+
+### Clip incompatibility
+`clip` does `frs_clip(sf, polygon)` in R — requires sf. When to= writes to DB, there's no sf to clip. Options:
+- Error if both provided (simplest, chosen)
+- Future: add SQL-level clipping (ST_Intersection) as a TODO
+
+## Caller inventory (46+ usages)
+
+### fresh package
+| Location | Count | Pattern | Needs change? |
+|----------|-------|---------|---------------|
+| R/frs_network.R examples | 2 | sf for plotting | Add to= example |
+| R/frs_clip.R example | 1 | sf for clipping | No (clip + to incompatible) |
+| tests/testthat/ | 35+ | Unit tests, to=NULL | No |
+| vignettes/ | 4 | sf for tmap/analysis | No |
+| data-raw/ | 2 | sf for caching | Yes — use to= pipeline |
+
+### breaks package
+| Location | Count | Pattern | Needs change? |
+|----------|-------|---------|---------------|
+| R/app_server.R | 1 | sf for Shiny reactive | No |
+
+### restoration_wedzin_kwa
+| Location | Count | Pattern | Needs change? |
+|----------|-------|---------|---------------|
+| scripts/fwa_extract_flood.R | 1 | sf → GeoPackage | No (future opt-in) |
+| scripts/prioritization_score.R | 2 | sf → spatial join | No (future opt-in) |
+
+## Channel width lookup tables (from DB inspection)
+
+| Attribute | Table | Join key | Type |
+|-----------|-------|----------|------|
+| channel_width | fwa_stream_networks_channel_width | linear_feature_id | Direct |
+| mad_m3s | fwa_stream_networks_discharge | linear_feature_id | Direct |
+| upstream_area_ha | fwa_watersheds_upstream_area | watershed_feature_id (via lut) | Two-hop |
+| map_upstream | fwa_stream_networks_mean_annual_precip | wscode_ltree + localcode_ltree | Composite |
+
+`frs_col_join()` handles all of these (built and tested in current session).
 
 ## Lake rearing gap (bcfishpass#7)
 
@@ -9,31 +75,20 @@ In BULK watershed group:
 
 bcfishpass coho model scores lake-connected stream segments as `rearing = 0`. Wetland-connected segments DO get scored. This is a known gap — coho use lakes for rearing ecologically.
 
-Fresh can fix this by classifying lake-connected segments independently using channel_width and gradient thresholds, ignoring bcfishpass's rearing score.
+Fresh fixes via `frs_classify(where = "edge_type IN (1050)")` using `frs_edge_types()`.
 
-## Data sources
+## frs_edge_types() (built and tested)
 
-- `whse_basemapping.fwa_streams_vw` — has channel_width + mad_m3s (from fwapg regression), uses `wscode`/`localcode` (no `_ltree` suffix)
-- `whse_basemapping.fwa_stream_networks_sp` — base table with ltree GiST indexes, used for traversal
-- `bcfishpass.streams_co_vw` — has spawning/rearing scores but these have the lake gap
-- Set `options(fresh.wscode_col = "wscode", fresh.localcode_col = "localcode")` for fwa_streams_vw
+CSV at `inst/extdata/edge_types.csv` with 28 FWA edge type codes. Helper `frs_edge_types(category = "lake")` returns code 1050.
 
-## Skeena region specifics
+## frs_classify(where=) (built and tested)
 
-- Channel width is the primary habitat predictor (MAD model not applied)
-- `params$CO$ranges$spawn[c("gradient", "channel_width")]` — drop mad_m3s
-- mad_m3s is NULL on many Skeena streams
+New `where` param scopes which rows get classified. Works with ranges, breaks, and overrides modes.
 
-## Byman-Ailport test area
+## frs_col_join() (built and tested)
 
-- BLK 360873822, drm_byman = 208877, drm_ailport = 233564
-- Bundled data in inst/extdata/byman_ailport.rds
-- ~2167 FWA segments, 89 lakes, 323 wetlands (before filtering)
-- After CO habitat filter: 0 lakes (gap), 69 wetlands
+Generic lookup table enrichment. Detects source column types from information_schema. Handles direct keys, composite keys, named key mapping, and subqueries.
 
-## Scenario testing
+## Cached data (regenerated)
 
-- Baseline: spawn_gradient_min = 0 (bcfishpass default)
-- Scenario A: spawn_gradient_min = 0.005 (0.5%)
-- Scenario B: spawn_gradient_min = 0.01 (1%)
-- Compare via frs_aggregate: habitat km upstream of crossings
+`inst/extdata/byman_ailport.rds` now includes `channel_width` and `channel_width_source` on streams (996 of 2167 segments have values). Data generation script updated to use `conn` parameter throughout.
