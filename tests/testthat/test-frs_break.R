@@ -73,6 +73,41 @@ test_that("frs_break_find table mode adds AOI filter", {
   expect_match(sql_log[2], "WHERE.*BULK")
 })
 
+test_that("frs_break_find table mode adds where filter", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_break_find("mock", "working.streams",
+                 points_table = "bcfishpass.falls_vw",
+                 where = "barrier_ind = TRUE")
+
+  expect_match(sql_log[2], "WHERE.*barrier_ind = TRUE")
+})
+
+test_that("frs_break_find table mode combines where and aoi", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_break_find("mock", "working.streams",
+                 points_table = "bcfishpass.falls_vw",
+                 where = "barrier_ind = TRUE",
+                 aoi = "BULK")
+
+  expect_match(sql_log[2], "barrier_ind = TRUE")
+  expect_match(sql_log[2], "BULK")
+  expect_match(sql_log[2], "AND")
+})
+
 test_that("frs_break_find returns conn invisibly", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) 0L
