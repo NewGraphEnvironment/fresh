@@ -203,7 +203,9 @@ knitr::kable(totals[, c("total_km", "accessible_km", "spawning_km",
 ```{r plot-habitat, fig.cap = "Coho habitat classification within accessible reaches."}
 habitat_labels <- c(CO_SPAWNING = "Spawning", CO_REARING = "Rearing",
   CO_LAKE_REARING = "Lake rearing", ACCESSIBLE = "None", INACCESSIBLE = "None")
-classified$habitat <- factor(habitat_labels[classified$habitat_type],
+hab <- habitat_labels[classified$habitat_type]
+hab[is.na(hab)] <- "None"
+classified$habitat <- factor(hab,
   levels = c("Spawning", "Rearing", "Lake rearing", "None"))
 
 cols_habitat <- c(Spawning = "#129bdb", Rearing = "#ff9f85",
