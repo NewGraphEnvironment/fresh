@@ -54,6 +54,10 @@ containing existing break points with \code{blue_line_key} and
 \item{points}{An \code{sf} object or \code{NULL}. User-provided points to snap
 to the stream network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
 
+\item{points_where}{Character or \code{NULL}. SQL predicate to filter rows from
+\code{points_table} (e.g. \code{"barrier_ind = TRUE"}). Passed to
+\code{\link[=frs_break_find]{frs_break_find()}} as \code{where}.}
+
 \item{aoi}{AOI specification for filtering (passed to
 \code{.frs_resolve_aoi()}). Only used with \code{points_table} mode.}
 

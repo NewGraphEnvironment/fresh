@@ -11,3 +11,5 @@
 ^vignettes/figure$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^data/rag$
+^figure$

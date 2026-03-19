@@ -570,6 +570,9 @@ frs_break_apply <- function(conn, table, breaks,
 #' [frs_break_validate()], then [frs_break_apply()] in sequence.
 #'
 #' @inheritParams frs_break_find
+#' @param points_where Character or `NULL`. SQL predicate to filter rows from
+#'   `points_table` (e.g. `"barrier_ind = TRUE"`). Passed to
+#'   [frs_break_find()] as `where`.
 #' @param evidence_table Character or `NULL`. If provided, validate breaks
 #'   against upstream evidence before applying. Passed to
 #'   [frs_break_validate()].

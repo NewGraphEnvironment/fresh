@@ -34,7 +34,7 @@ frs_edge_types <- function(category = NULL) {
   if (!nzchar(path)) {
     stop("edge_types.csv not found in fresh package", call. = FALSE)
   }
-  d <- read.csv(path, stringsAsFactors = FALSE)
+  d <- utils::read.csv(path, stringsAsFactors = FALSE)
 
   if (!is.null(category)) {
     stopifnot(is.character(category), length(category) == 1)
