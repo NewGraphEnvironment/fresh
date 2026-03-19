@@ -116,10 +116,11 @@
 #' traversal (fwa_upstream/fwa_downstream never return them) but matter
 #' for direct table queries (frs_stream_fetch, frs_point_snap KNN).
 #'
-#' Subsurface flow (edge_type 1410/1425 — underground conduits, culverts)
-#' is NOT filtered by default because these are real network connectivity.
-#' Use [.frs_snap_guards()] for snap-specific filtering that excludes
-#' subsurface segments.
+#' Subsurface flow (edge_type 1425 — underground conduits) and network
+#' connectors (edge_type 1410 — wetland connectivity) are NOT filtered by
+#' default because these are real network connectivity. Use
+#' [.frs_snap_guards()] for snap-specific filtering that excludes
+#' subsurface segments (1425 only by default).
 #'
 #' @param alias Character. Table alias prefix. Default `"s"`.
 #' @param wscode_col Character. Watershed code column name. Default
@@ -141,21 +142,31 @@
 #' Snap-specific filtering guards
 #'
 #' Like [.frs_stream_guards()] but also excludes subsurface flow
-#' (edge_type 1410/1425 — underground conduits). Used by the KNN snap
+#' (edge_type 1425 — underground conduits). Used by the KNN snap
 #' path where snapping to a culvert is not useful.
 #'
+#' Note: edge_type 1410 (network connector) is NOT excluded — these are
+#' real wetland connectivity (204K segments in wetlands). See
+#' NewGraphEnvironment/bcfishpass#8 for discussion.
+#'
 #' @inheritParams .frs_stream_guards
+#' @param exclude_edge_types Integer vector or `NULL`. Edge types to exclude
+#'   from snap candidates. Default `1425` (subsurface flow). Set to `NULL`
+#'   to snap to all edge types.
 #' @return Character vector of SQL predicates.
 #' @noRd
 .frs_snap_guards <- function(alias = "s", wscode_col = "wscode_ltree",
-                             localcode_col = "localcode_ltree") {
-  c(
-    .frs_stream_guards(alias, wscode_col, localcode_col),
-    {
-      prefix <- if (nzchar(alias)) paste0(alias, ".") else ""
-      paste0(prefix, "edge_type NOT IN (1410, 1425)")
-    }
-  )
+                             localcode_col = "localcode_ltree",
+                             exclude_edge_types = 1425L) {
+  guards <- .frs_stream_guards(alias, wscode_col, localcode_col)
+
+  if (!is.null(exclude_edge_types) && length(exclude_edge_types) > 0) {
+    prefix <- if (nzchar(alias)) paste0(alias, ".") else ""
+    codes <- paste(as.integer(exclude_edge_types), collapse = ", ")
+    guards <- c(guards, paste0(prefix, "edge_type NOT IN (", codes, ")"))
+  }
+
+  guards
 }
 
 

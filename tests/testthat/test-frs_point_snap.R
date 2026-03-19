@@ -129,7 +129,7 @@ test_that("KNN path includes stream filtering guards", {
     frs_db_query = function(conn, sql, ...) {
       expect_match(sql, "localcode_ltree IS NOT NULL")
       expect_match(sql, "wscode_ltree <@ '999'")
-      expect_match(sql, "edge_type NOT IN \\(1410, 1425\\)")
+      expect_match(sql, "edge_type NOT IN \\(1425\\)")
       mock_result
     }
   )

@@ -12,7 +12,8 @@ frs_point_snap(
   tolerance = 5000,
   num_features = 1L,
   blue_line_key = NULL,
-  stream_order_min = NULL
+  stream_order_min = NULL,
+  exclude_edge_types = 1425L
 )
 }
 \arguments{
@@ -35,6 +36,12 @@ stream. Bypasses \code{fwa_indexpoint()} and uses KNN against
 
 \item{stream_order_min}{Integer. Optional. Minimum stream order for snap
 candidates. Ignored when \code{blue_line_key} is provided. Forces KNN path.}
+
+\item{exclude_edge_types}{Integer vector or \code{NULL}. Edge types to exclude
+from snap candidates. Default \code{1425L} (subsurface flow — underground
+conduits). Set to \code{NULL} to snap to all edge types. Only applies to KNN
+path (when \code{blue_line_key} or \code{stream_order_min} is provided).
+See \code{\link[=frs_edge_types]{frs_edge_types()}} for the full lookup table.}
 }
 \value{
 An \code{sf} data frame with columns: \code{linear_feature_id}, \code{gnis_name},
