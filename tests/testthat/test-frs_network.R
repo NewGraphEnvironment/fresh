@@ -503,3 +503,134 @@ test_that("frs_network clip param clips results", {
   # Only first polygon intersects, and it should be clipped smaller
   expect_true(nrow(result) == 1L)
 })
+
+
+# --- to= parameter tests ---
+
+test_that("frs_network to= generates CREATE TABLE AS", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  result <- frs_network("mock", 360873822, 166030,
+                        to = "working.test_streams")
+
+  # DROP IF EXISTS + CREATE TABLE AS
+  expect_length(sql_log, 2)
+  expect_match(sql_log[1], "DROP TABLE IF EXISTS working.test_streams")
+  expect_match(sql_log[2], "CREATE TABLE working.test_streams AS")
+  expect_match(sql_log[2], "fwa_upstream")
+  expect_equal(result, "mock")
+})
+
+test_that("frs_network to= with multi-table creates suffixed tables", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  result <- frs_network("mock", 360873822, 166030,
+    to = "working.byman",
+    tables = list(
+      streams = "whse_basemapping.fwa_stream_networks_sp",
+      lakes = "whse_basemapping.fwa_lakes_poly"
+    ))
+
+  # 2 DROP + 2 CREATE
+  expect_length(sql_log, 4)
+  expect_match(sql_log[1], "DROP TABLE IF EXISTS working.byman_streams")
+  expect_match(sql_log[2], "DROP TABLE IF EXISTS working.byman_lakes")
+  expect_match(sql_log[3], "CREATE TABLE working.byman_streams AS")
+  expect_match(sql_log[4], "CREATE TABLE working.byman_lakes AS")
+  expect_equal(result, "mock")
+})
+
+test_that("frs_network to= returns conn invisibly", {
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) 0L
+  )
+
+  result <- frs_network("mock_conn", 360873822, 166030,
+                        to = "working.test")
+  expect_equal(result, "mock_conn")
+})
+
+test_that("frs_network to= with overwrite=FALSE skips DROP", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_network("mock", 360873822, 166030,
+              to = "working.test", overwrite = FALSE)
+
+  # Only CREATE, no DROP
+  expect_length(sql_log, 1)
+  expect_match(sql_log[1], "CREATE TABLE")
+  expect_false(any(grepl("DROP", sql_log)))
+})
+
+test_that("frs_network errors when both clip and to provided", {
+  expect_error(
+    frs_network("mock", 360873822, 166030,
+                clip = sf::st_sfc(sf::st_point(c(0, 0))),
+                to = "working.test"),
+    "clip and to cannot both be provided"
+  )
+})
+
+test_that("frs_network to= with upstream_measure uses network subtraction", {
+  sql_log <- character(0)
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql)
+      0L
+    }
+  )
+
+  frs_network("mock", 360873822, 166030,
+              upstream_measure = 200000,
+              to = "working.test")
+
+  create_sql <- sql_log[length(sql_log)]
+  expect_match(create_sql, "CREATE TABLE working.test AS")
+  expect_match(create_sql, "NOT EXISTS")
+  expect_match(create_sql, "ref_up")
+})
+
+
+# --- Integration test for to= ---
+
+test_that("frs_network to= writes table and matches sf return", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit({
+    .frs_test_drop(conn, "working.test_network_to")
+    DBI::dbDisconnect(conn)
+  })
+
+  blk <- 360873822
+  drm <- 208877
+
+  # Get sf result (current behavior)
+  sf_result <- frs_network(conn, blk, drm)
+
+  # Write to table
+  frs_network(conn, blk, drm, to = "working.test_network_to")
+
+  # Read back and compare
+  db_result <- frs_db_query(conn, "SELECT * FROM working.test_network_to")
+
+  expect_equal(nrow(sf_result), nrow(db_result))
+  expect_true("linear_feature_id" %in% names(db_result))
+})

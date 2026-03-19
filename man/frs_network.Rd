@@ -13,7 +13,9 @@ frs_network(
   tables = NULL,
   direction = "upstream",
   include_all = FALSE,
-  clip = NULL
+  clip = NULL,
+  to = NULL,
+  overwrite = TRUE
 )
 }
 \arguments{
@@ -50,12 +52,25 @@ these out. Only applied when querying the FWA base table.}
 
 \item{clip}{An \code{sf} or \code{sfc} polygon to clip results to (e.g. from
 \code{\link[=frs_watershed_at_measure]{frs_watershed_at_measure()}}). Default \code{NULL} (no clipping). Useful for
-waterbody polygons that straddle watershed boundaries. See \code{\link[=frs_clip]{frs_clip()}}.}
+waterbody polygons that straddle watershed boundaries. See \code{\link[=frs_clip]{frs_clip()}}.
+Cannot be used with \code{to} (clipping is an R-side spatial operation).}
+
+\item{to}{Character or \code{NULL}. When provided, write results to working
+table(s) on the database instead of returning sf objects. For a single
+table, \code{to} is the exact table name. For multiple tables, \code{to} is a
+prefix and each table name is appended as a suffix (e.g.
+\code{to = "working.byman"} with \code{streams} and \code{lakes} creates
+\code{working.byman_streams} and \code{working.byman_lakes}). Returns \code{conn}
+invisibly for pipe chaining. See Examples.}
+
+\item{overwrite}{Logical. When \code{to} is provided, drop existing tables
+before writing. Default \code{TRUE}.}
 }
 \value{
-A named list of \code{sf} data frames (or plain data frames for tables
-without geometry). If only one table is queried, returns the data frame
-directly.
+When \code{to} is \code{NULL}: a named list of \code{sf} data frames (or plain
+data frames for tables without geometry). If only one table is queried,
+returns the data frame directly. When \code{to} is provided: \code{conn} invisibly,
+for pipe chaining with \code{\link[=frs_col_join]{frs_col_join()}}, \code{\link[=frs_col_generate]{frs_col_generate()}}, etc.
 }
 \description{
 Point at any position on the FWA stream network and retrieve features from
@@ -135,6 +150,21 @@ plot(sf::st_geometry(filtered$wetlands), col = "#41AB5D44",
 legend("topright", legend = c("Lakes", "Wetlands"),
        fill = c("#4292C644", "#41AB5D44"),
        border = c("#2171B5", "#238B45"))
+
+# --- DB pipeline: write to table, enrich, classify ---
+# Stays on PostgreSQL — no R memory bottleneck at scale
+conn |>
+  frs_network(blk, 208877, upstream_measure = 233564,
+    to = "working.demo_pipeline") |>
+  frs_col_join("working.demo_pipeline",
+    from = "fwa_stream_networks_channel_width",
+    cols = c("channel_width", "channel_width_source"),
+    by = "linear_feature_id") |>
+  frs_col_generate("working.demo_pipeline")
+
+# Read the result when you need it in R
+enriched <- frs_db_query(conn, "SELECT * FROM working.demo_pipeline")
+DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.demo_pipeline")
 
 DBI::dbDisconnect(conn)
 }
