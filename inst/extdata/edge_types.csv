@@ -1,0 +1,42 @@
+edge_type,description,category
+100,Coastline,coastline
+150,"Construction line, coastline",construction
+1000,"Single line blueline, main flow",stream
+1050,"Single line blueline, main flow through wetland",stream
+1100,"Single line blueline, secondary flow",stream
+1150,"Single line blueline, secondary flow through wetland",stream
+1200,"Construction line, main flow",construction
+1250,"Construction line, double line river, main flow",construction
+1300,"Construction line, secondary flow",construction
+1325,"Construction line, segment delimiter",construction
+1350,"Construction line, double line river, secondary flow",construction
+1375,"Construction line, river delimiter",construction
+1400,"Construction line, other flow/inferred connection",connector
+1410,"Construction line, network connector",connector
+1425,"Construction line, subsurface flow",subsurface
+1450,"Construction line, connection",connector
+1475,"Construction line, lake arm",construction
+1500,Lake shoreline,lake
+1525,Lake shoreline shared with a wetland,lake
+1550,"Construction line, lakeshore",construction
+1600,Island shoreline,island
+1625,Island shoreline shared with a wetland,island
+1700,Wetland shoreline,wetland
+1800,"Double line blueline, right bank",river
+1825,"Double line blueline, right bank shared with wetland",river
+1850,"Double line blueline, left bank",river
+1875,"Double line blueline, left bank shared with wetland",river
+1900,"Island in river, right bank",island
+1925,"Island in river, right bank shared with wetland",island
+1950,"Island in river, left bank",island
+1975,"Island in river, left bank shared with wetland",island
+2000,"Single line, Canal",canal
+2100,"Double line, Canal or Reservoir bank",canal
+2300,"Single-line, Canal, secondary flow",canal
+5000,Major watershed boundary,boundary
+5100,Minor watershed boundary,boundary
+5200,Watershed boundary (manually modified),boundary
+5900,Isolated watershed boundary,boundary
+6000,International/Provincial Boundary,boundary
+6010,"Construction Line, connectors (for streams that leave and re-enter a watershed group)",connector
+6100,"Non-BC International/Provincial Boundary (appears only in extra-jurisdictional data)",boundary
