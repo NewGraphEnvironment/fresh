@@ -12,6 +12,8 @@
   : Find Break Locations on a Stream Network
 - [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md)
   : Validate Breaks Against Upstream Evidence
+- [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md)
+  : Categorize Features by Priority-Ordered Boolean Columns
 - [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
   : Classify Features by Attribute Ranges, Breaks, or Overrides
 - [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md)
