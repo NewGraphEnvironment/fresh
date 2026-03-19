@@ -1,3 +1,16 @@
+# fresh 0.4.0
+
+Coho habitat pipeline — classify habitat on the database at any scale. New vignette proves the workflow on the Byman-Ailport subbasin of the Neexdzii Kwa.
+
+- Add `frs_col_join()` for generic lookup table enrichment — channel width, MAD, upstream area, any key ([#51](https://github.com/NewGraphEnvironment/fresh/issues/51))
+- Add `frs_edge_types()` lookup helper with bundled FWA edge type CSV (41 codes from GeoBC User Guide)
+- Add `to` param to `frs_network()` — write results to DB working tables instead of pulling to R, scales to any number of watershed groups ([#53](https://github.com/NewGraphEnvironment/fresh/issues/53))
+- Add `where` param to `frs_classify()` — scope classification by SQL predicate for edge-type-aware and accessibility-filtered habitat modelling
+- Add `where` and `append` params to `frs_break_find()` table mode — filter points table and combine multiple break sources (gradient + falls) in one breaks table ([#38](https://github.com/NewGraphEnvironment/fresh/issues/38))
+- Add `exclude_edge_types` param to `frs_point_snap()` — only exclude subsurface flow (1425) by default, not wetland connectors (1410) ([#52](https://github.com/NewGraphEnvironment/fresh/issues/52))
+- Bundle bcfishpass habitat parameter CSVs and fresh-specific access gradient thresholds ([#54](https://github.com/NewGraphEnvironment/fresh/issues/54))
+- Add coho habitat pipeline vignette: extract → enrich → break (gradient + falls) → classify (accessible, spawning, rearing, lake rearing) → aggregate → scenario comparison
+
 # fresh 0.3.1
 
 - Add `from` and `extra_where` params to waterbody specs in `frs_network()` for filtering waterbodies to those connected to habitat streams ([#49](https://github.com/NewGraphEnvironment/fresh/issues/49))
