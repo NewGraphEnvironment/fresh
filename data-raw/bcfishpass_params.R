@@ -20,7 +20,7 @@ write.csv(method, "inst/extdata/parameters_habitat_method.csv",
 access <- data.frame(
   species_code = c("BT", "CH", "CM", "CO", "CT", "DV", "PK", "RB", "SK", "ST", "WCT"),
   access_gradient_max = c(0.25, 0.15, 0.15, 0.15, 0.25, 0.25, 0.15, 0.25, 0.15, 0.20, 0.20),
-  spawn_gradient_min = rep(0.005, 11),
+  spawn_gradient_min = rep(0.0025, 11),
   rear_gradient_min = rep(0, 11)
 )
 write.csv(access, "inst/extdata/parameters_fresh.csv",
