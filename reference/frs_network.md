@@ -19,7 +19,9 @@ frs_network(
   tables = NULL,
   direction = "upstream",
   include_all = FALSE,
-  clip = NULL
+  clip = NULL,
+  to = NULL,
+  overwrite = TRUE
 )
 ```
 
@@ -81,12 +83,32 @@ frs_network(
   Default `NULL` (no clipping). Useful for waterbody polygons that
   straddle watershed boundaries. See
   [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md).
+  Cannot be used with `to` (clipping is an R-side spatial operation).
+
+- to:
+
+  Character or `NULL`. When provided, write results to working table(s)
+  on the database instead of returning sf objects. For a single table,
+  `to` is the exact table name. For multiple tables, `to` is a prefix
+  and each table name is appended as a suffix (e.g.
+  `to = "working.byman"` with `streams` and `lakes` creates
+  `working.byman_streams` and `working.byman_lakes`). Returns `conn`
+  invisibly for pipe chaining. See Examples.
+
+- overwrite:
+
+  Logical. When `to` is provided, drop existing tables before writing.
+  Default `TRUE`.
 
 ## Value
 
-A named list of `sf` data frames (or plain data frames for tables
-without geometry). If only one table is queried, returns the data frame
-directly.
+When `to` is `NULL`: a named list of `sf` data frames (or plain data
+frames for tables without geometry). If only one table is queried,
+returns the data frame directly. When `to` is provided: `conn`
+invisibly, for pipe chaining with
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
+[`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
+etc.
 
 ## Details
 
@@ -172,6 +194,21 @@ plot(sf::st_geometry(filtered$wetlands), col = "#41AB5D44",
 legend("topright", legend = c("Lakes", "Wetlands"),
        fill = c("#4292C644", "#41AB5D44"),
        border = c("#2171B5", "#238B45"))
+
+# --- DB pipeline: write to table, enrich, classify ---
+# Stays on PostgreSQL — no R memory bottleneck at scale
+conn |>
+  frs_network(blk, 208877, upstream_measure = 233564,
+    to = "working.demo_pipeline") |>
+  frs_col_join("working.demo_pipeline",
+    from = "fwa_stream_networks_channel_width",
+    cols = c("channel_width", "channel_width_source"),
+    by = "linear_feature_id") |>
+  frs_col_generate("working.demo_pipeline")
+
+# Read the result when you need it in R
+enriched <- frs_db_query(conn, "SELECT * FROM working.demo_pipeline")
+DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.demo_pipeline")
 
 DBI::dbDisconnect(conn)
 } # }

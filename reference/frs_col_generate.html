@@ -15,7 +15,7 @@ recalculation needed."><meta property="og:image" content="https://newgraphenviro
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,6 +27,7 @@ recalculation needed."><meta property="og:image" content="https://newgraphenviro
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fwa-network-query.html">FWA Network Queries</a></li>
+    <li><a class="dropdown-item" href="../articles/habitat-pipeline.html">Classifying Coho Habitat on the Byman-Ailport Subbasin</a></li>
     <li><a class="dropdown-item" href="../articles/subbasin-query.html">Subbasin Network Queries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -104,10 +105,13 @@ FWA stream networks have this by default.</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Other habitat:
+<code><a href="frs_aggregate.html">frs_aggregate()</a></code>,
 <code><a href="frs_break.html">frs_break()</a></code>,
 <code><a href="frs_break_apply.html">frs_break_apply()</a></code>,
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
+<code><a href="frs_classify.html">frs_classify()</a></code>,
+<code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code></p></div>
     </div>
 
@@ -123,13 +127,10 @@ FWA stream networks have this by default.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># FWA streams carry Z (elevation) and M (route measure) on every vertex</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_coordinates.html" class="external-link">st_coordinates</a></span><span class="op">(</span><span class="va">streams</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             X       Y        Z        M L1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 992630.9 1057269 1282.000 162.2097  1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 992618.9 1057269 1282.438 174.1640  1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 992592.1 1057271 1283.517 201.0709  1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 992571.0 1057271 1284.355 222.1792  1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 992563.9 1057267 1284.773 230.1611  1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 992547.4 1057252 1285.328 252.7469  1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             X       Y    Z         M L1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 990484.4 1062687 1270  58.03441  1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 990509.5 1062667 1270  89.87584  1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 990524.9 1062656 1270 108.99646  1</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="co"># --- Live DB: extract, generate, break ---</span></span></span>

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fwa-network-query.html">FWA Network Queries</a></li>
+    <li><a class="dropdown-item" href="../articles/habitat-pipeline.html">Classifying Coho Habitat on the Byman-Ailport Subbasin</a></li>
     <li><a class="dropdown-item" href="../articles/subbasin-query.html">Subbasin Network Queries</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -36,6 +37,18 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.0" id="fresh-040">fresh 0.4.0<a class="anchor" aria-label="anchor" href="#fresh-040"></a></h2>
+<p>Coho habitat pipeline — classify habitat on the database at any scale. New vignette proves the workflow on the Byman-Ailport subbasin of the Neexdzii Kwa.</p>
+<ul><li>Add <code><a href="../reference/frs_col_join.html">frs_col_join()</a></code> for generic lookup table enrichment — channel width, MAD, upstream area, any key (<a href="https://github.com/NewGraphEnvironment/fresh/issues/51" class="external-link">#51</a>)</li>
+<li>Add <code><a href="../reference/frs_edge_types.html">frs_edge_types()</a></code> lookup helper with bundled FWA edge type CSV (41 codes from GeoBC User Guide)</li>
+<li>Add <code>to</code> param to <code><a href="../reference/frs_network.html">frs_network()</a></code> — write results to DB working tables instead of pulling to R, scales to any number of watershed groups (<a href="https://github.com/NewGraphEnvironment/fresh/issues/53" class="external-link">#53</a>)</li>
+<li>Add <code>where</code> param to <code><a href="../reference/frs_classify.html">frs_classify()</a></code> — scope classification by SQL predicate for edge-type-aware and accessibility-filtered habitat modelling</li>
+<li>Add <code>where</code> and <code>append</code> params to <code><a href="../reference/frs_break_find.html">frs_break_find()</a></code> table mode — filter points table and combine multiple break sources (gradient + falls) in one breaks table (<a href="https://github.com/NewGraphEnvironment/fresh/issues/38" class="external-link">#38</a>)</li>
+<li>Add <code>exclude_edge_types</code> param to <code><a href="../reference/frs_point_snap.html">frs_point_snap()</a></code> — only exclude subsurface flow (1425) by default, not wetland connectors (1410) (<a href="https://github.com/NewGraphEnvironment/fresh/issues/52" class="external-link">#52</a>)</li>
+<li>Bundle bcfishpass habitat parameter CSVs and fresh-specific access gradient thresholds (<a href="https://github.com/NewGraphEnvironment/fresh/issues/54" class="external-link">#54</a>)</li>
+<li>Add coho habitat pipeline vignette: extract → enrich → break (gradient + falls) → classify (accessible, spawning, rearing, lake rearing) → aggregate → scenario comparison</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.1" id="fresh-031">fresh 0.3.1<a class="anchor" aria-label="anchor" href="#fresh-031"></a></h2>
 <ul><li>Add <code>from</code> and <code>extra_where</code> params to waterbody specs in <code><a href="../reference/frs_network.html">frs_network()</a></code> for filtering waterbodies to those connected to habitat streams (<a href="https://github.com/NewGraphEnvironment/fresh/issues/49" class="external-link">#49</a>)</li>

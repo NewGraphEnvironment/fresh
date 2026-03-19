@@ -11,7 +11,7 @@ by frs_break_apply(), frs_classify(), and frs_aggregate()."><meta property="og:i
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,6 +23,7 @@ by frs_break_apply(), frs_classify(), and frs_aggregate()."><meta property="og:i
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fwa-network-query.html">FWA Network Queries</a></li>
+    <li><a class="dropdown-item" href="../articles/habitat-pipeline.html">Classifying Coho Habitat on the Byman-Ailport Subbasin</a></li>
     <li><a class="dropdown-item" href="../articles/subbasin-query.html">Subbasin Network Queries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -101,7 +102,8 @@ creating. If <code>FALSE</code> (default), error when the table already exists.<
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
-<code><a href="frs_col_generate.html">frs_col_generate()</a></code></p></div>
+<code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
+<code><a href="frs_col_join.html">frs_col_join()</a></code></p></div>
     </div>
 
     <div class="section level2">
@@ -123,7 +125,8 @@ creating. If <code>FALSE</code> (default), error when the table already exists.<
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [9] "downstream_route_measure" "upstream_route_measure"  </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [11] "length_metre"             "watershed_group_code"    </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [13] "wscode_ltree"             "localcode_ltree"         </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [15] "geom"                    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [15] "channel_width"            "channel_width_source"    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [17] "geom"                    </span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">streams</span><span class="op">)</span>  <span class="co"># 2167 segments in this subbasin</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2167</span>
 <span class="r-in"><span></span></span>

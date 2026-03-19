@@ -9,7 +9,7 @@ frs_break_validate(), then frs_break_apply() in sequence."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -21,6 +21,7 @@ frs_break_validate(), then frs_break_apply() in sequence."><meta property="og:im
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fwa-network-query.html">FWA Network Queries</a></li>
+    <li><a class="dropdown-item" href="../articles/habitat-pipeline.html">Classifying Coho Habitat on the Byman-Ailport Subbasin</a></li>
     <li><a class="dropdown-item" href="../articles/subbasin-query.html">Subbasin Network Queries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -56,6 +57,7 @@ frs_break_validate(), then frs_break_apply() in sequence."><meta property="og:im
 <span>  distance <span class="op">=</span> <span class="fl">100L</span>,</span>
 <span>  points_table <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  points <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  points_where <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  aoi <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  evidence_table <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -117,6 +119,12 @@ containing existing break points with <code>blue_line_key</code> and
 to the stream network via <code><a href="frs_point_snap.html">frs_point_snap()</a></code>.</p></dd>
 
 
+<dt id="arg-points-where">points_where<a class="anchor" aria-label="anchor" href="#arg-points-where"></a></dt>
+<dd><p>Character or <code>NULL</code>. SQL predicate to filter rows from
+<code>points_table</code> (e.g. <code>"barrier_ind = TRUE"</code>). Passed to
+<code><a href="frs_break_find.html">frs_break_find()</a></code> as <code>where</code>.</p></dd>
+
+
 <dt id="arg-aoi">aoi<a class="anchor" aria-label="anchor" href="#arg-aoi"></a></dt>
 <dd><p>AOI specification for filtering (passed to
 <code>.frs_resolve_aoi()</code>). Only used with <code>points_table</code> mode.</p></dd>
@@ -162,6 +170,7 @@ Passed to <code><a href="frs_break_apply.html">frs_break_apply()</a></code>. Def
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
+<code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code></p></div>
     </div>
 

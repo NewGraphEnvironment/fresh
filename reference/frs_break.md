@@ -21,6 +21,7 @@ frs_break(
   distance = 100L,
   points_table = NULL,
   points = NULL,
+  points_where = NULL,
   aoi = NULL,
   overwrite = TRUE,
   evidence_table = NULL,
@@ -84,6 +85,13 @@ frs_break(
   network via
   [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md).
 
+- points_where:
+
+  Character or `NULL`. SQL predicate to filter rows from `points_table`
+  (e.g. `"barrier_ind = TRUE"`). Passed to
+  [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
+  as `where`.
+
 - aoi:
 
   AOI specification for filtering (passed to `.frs_resolve_aoi()`). Only
@@ -129,6 +137,7 @@ Other habitat:
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
 
 ## Examples

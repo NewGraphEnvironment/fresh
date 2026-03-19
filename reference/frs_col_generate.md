@@ -65,10 +65,13 @@ FWA stream networks have this by default.
 ## See also
 
 Other habitat:
+[`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md),
 [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md),
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
 
 ## Examples
@@ -84,13 +87,10 @@ streams <- d$streams
 
 # FWA streams carry Z (elevation) and M (route measure) on every vertex
 head(sf::st_coordinates(streams[1, ]))
-#>             X       Y        Z        M L1
-#> [1,] 992630.9 1057269 1282.000 162.2097  1
-#> [2,] 992618.9 1057269 1282.438 174.1640  1
-#> [3,] 992592.1 1057271 1283.517 201.0709  1
-#> [4,] 992571.0 1057271 1284.355 222.1792  1
-#> [5,] 992563.9 1057267 1284.773 230.1611  1
-#> [6,] 992547.4 1057252 1285.328 252.7469  1
+#>             X       Y    Z         M L1
+#> [1,] 990484.4 1062687 1270  58.03441  1
+#> [2,] 990509.5 1062667 1270  89.87584  1
+#> [3,] 990524.9 1062656 1270 108.99646  1
 
 if (FALSE) { # \dontrun{
 # --- Live DB: extract, generate, break ---

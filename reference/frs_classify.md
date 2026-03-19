@@ -16,6 +16,7 @@ frs_classify(
   ranges = NULL,
   breaks = NULL,
   overrides = NULL,
+  where = NULL,
   value = TRUE
 )
 ```
@@ -57,6 +58,15 @@ frs_classify(
   have a column matching `label` and a join column matching the working
   table (default: `blue_line_key` + `downstream_route_measure`).
 
+- where:
+
+  Character or `NULL`. Optional SQL predicate to scope which rows are
+  classified. Only rows matching `where` are considered; others remain
+  `NULL`. Example: `"edge_type IN (1050)"` to classify only lake
+  segments. Consistent with
+  [`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md)
+  `where` parameter.
+
 - value:
 
   Logical. Value to set when conditions are met. Default `TRUE`. Use
@@ -79,11 +89,13 @@ Pipeable for multi-step labelling — call once per label column:
 ## See also
 
 Other habitat:
+[`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md),
 [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md),
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
 
 ## Examples

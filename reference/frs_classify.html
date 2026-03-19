@@ -13,7 +13,7 @@ At least one of ranges, breaks, or overrides is required."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,6 +25,7 @@ At least one of ranges, breaks, or overrides is required."><meta property="og:im
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fwa-network-query.html">FWA Network Queries</a></li>
+    <li><a class="dropdown-item" href="../articles/habitat-pipeline.html">Classifying Coho Habitat on the Byman-Ailport Subbasin</a></li>
     <li><a class="dropdown-item" href="../articles/subbasin-query.html">Subbasin Network Queries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -59,6 +60,7 @@ At least one of <code>ranges</code>, <code>breaks</code>, or <code>overrides</co
 <span>  ranges <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  breaks <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  overrides <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  where <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  value <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -100,6 +102,13 @@ matching the working table (default: <code>blue_line_key</code> +
 <code>downstream_route_measure</code>).</p></dd>
 
 
+<dt id="arg-where">where<a class="anchor" aria-label="anchor" href="#arg-where"></a></dt>
+<dd><p>Character or <code>NULL</code>. Optional SQL predicate to scope which
+rows are classified. Only rows matching <code>where</code> are considered; others
+remain <code>NULL</code>. Example: <code>"edge_type IN (1050)"</code> to classify only lake
+segments. Consistent with <code><a href="frs_aggregate.html">frs_aggregate()</a></code> <code>where</code> parameter.</p></dd>
+
+
 <dt id="arg-value">value<a class="anchor" aria-label="anchor" href="#arg-value"></a></dt>
 <dd><p>Logical. Value to set when conditions are met. Default
 <code>TRUE</code>. Use <code>FALSE</code> for exclusion labels.</p></dd>
@@ -121,11 +130,13 @@ matching the working table (default: <code>blue_line_key</code> +
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Other habitat:
+<code><a href="frs_aggregate.html">frs_aggregate()</a></code>,
 <code><a href="frs_break.html">frs_break()</a></code>,
 <code><a href="frs_break_apply.html">frs_break_apply()</a></code>,
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
+<code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code></p></div>
     </div>
 

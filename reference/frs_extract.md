@@ -68,7 +68,8 @@ Other habitat:
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
-[`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md)
+[`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md)
 
 ## Examples
 
@@ -90,7 +91,8 @@ names(streams)
 #>  [9] "downstream_route_measure" "upstream_route_measure"  
 #> [11] "length_metre"             "watershed_group_code"    
 #> [13] "wscode_ltree"             "localcode_ltree"         
-#> [15] "geom"                    
+#> [15] "channel_width"            "channel_width_source"    
+#> [17] "geom"                    
 nrow(streams)  # 2167 segments in this subbasin
 #> [1] 2167
 

@@ -18,8 +18,10 @@ frs_break_find(
   distance = 100L,
   points_table = NULL,
   points = NULL,
+  where = NULL,
   aoi = NULL,
-  overwrite = TRUE
+  overwrite = TRUE,
+  append = FALSE
 )
 ```
 
@@ -77,6 +79,11 @@ frs_break_find(
   network via
   [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md).
 
+- where:
+
+  Character or `NULL`. SQL predicate to filter rows from `points_table`.
+  Example: `"barrier_ind = TRUE"`. Only used with `points_table` mode.
+
 - aoi:
 
   AOI specification for filtering (passed to `.frs_resolve_aoi()`). Only
@@ -85,6 +92,12 @@ frs_break_find(
 - overwrite:
 
   Logical. If `TRUE`, drop `to` before creating. Default `TRUE`.
+
+- append:
+
+  Logical. If `TRUE`, INSERT INTO existing `to` table instead of CREATE.
+  Use to combine multiple break sources (e.g. gradient breaks + falls
+  barriers). Default `FALSE`.
 
 ## Value
 
@@ -99,9 +112,13 @@ and `downstream_route_measure` columns, suitable for
 ## See also
 
 Other habitat:
+[`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md),
 [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md),
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+[`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
 
 ## Examples

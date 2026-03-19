@@ -15,7 +15,7 @@ filtered to that stream, with measure derivation and boundary clamping
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,6 +27,7 @@ filtered to that stream, with measure derivation and boundary clamping
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fwa-network-query.html">FWA Network Queries</a></li>
+    <li><a class="dropdown-item" href="../articles/habitat-pipeline.html">Classifying Coho Habitat on the Byman-Ailport Subbasin</a></li>
     <li><a class="dropdown-item" href="../articles/subbasin-query.html">Subbasin Network Queries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -63,7 +64,8 @@ filtered to that stream, with measure derivation and boundary clamping
 <span>  tolerance <span class="op">=</span> <span class="fl">5000</span>,</span>
 <span>  num_features <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  blue_line_key <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  stream_order_min <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  stream_order_min <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  exclude_edge_types <span class="op">=</span> <span class="fl">1425L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -105,6 +107,14 @@ stream. Bypasses <code>fwa_indexpoint()</code> and uses KNN against
 <dt id="arg-stream-order-min">stream_order_min<a class="anchor" aria-label="anchor" href="#arg-stream-order-min"></a></dt>
 <dd><p>Integer. Optional. Minimum stream order for snap
 candidates. Ignored when <code>blue_line_key</code> is provided. Forces KNN path.</p></dd>
+
+
+<dt id="arg-exclude-edge-types">exclude_edge_types<a class="anchor" aria-label="anchor" href="#arg-exclude-edge-types"></a></dt>
+<dd><p>Integer vector or <code>NULL</code>. Edge types to exclude
+from snap candidates. Default <code>1425L</code> (subsurface flow — underground
+conduits). Set to <code>NULL</code> to snap to all edge types. Only applies to KNN
+path (when <code>blue_line_key</code> or <code>stream_order_min</code> is provided).
+See <code><a href="frs_edge_types.html">frs_edge_types()</a></code> for the full lookup table.</p></dd>
 
 </dl></div>
     <div class="section level2">

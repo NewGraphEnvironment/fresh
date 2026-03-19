@@ -17,7 +17,8 @@ frs_point_snap(
   tolerance = 5000,
   num_features = 1L,
   blue_line_key = NULL,
-  stream_order_min = NULL
+  stream_order_min = NULL,
+  exclude_edge_types = 1425L
 )
 ```
 
@@ -61,6 +62,15 @@ frs_point_snap(
 
   Integer. Optional. Minimum stream order for snap candidates. Ignored
   when `blue_line_key` is provided. Forces KNN path.
+
+- exclude_edge_types:
+
+  Integer vector or `NULL`. Edge types to exclude from snap candidates.
+  Default `1425L` (subsurface flow — underground conduits). Set to
+  `NULL` to snap to all edge types. Only applies to KNN path (when
+  `blue_line_key` or `stream_order_min` is provided). See
+  [`frs_edge_types()`](https://newgraphenvironment.github.io/fresh/reference/frs_edge_types.md)
+  for the full lookup table.
 
 ## Value
 

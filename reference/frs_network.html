@@ -17,7 +17,7 @@ the waterbody_key bridge through the stream network."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,6 +29,7 @@ the waterbody_key bridge through the stream network."><meta property="og:image" 
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/fwa-network-query.html">FWA Network Queries</a></li>
+    <li><a class="dropdown-item" href="../articles/habitat-pipeline.html">Classifying Coho Habitat on the Byman-Ailport Subbasin</a></li>
     <li><a class="dropdown-item" href="../articles/subbasin-query.html">Subbasin Network Queries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -67,7 +68,9 @@ the waterbody_key bridge through the stream network.</p>
 <span>  tables <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  direction <span class="op">=</span> <span class="st">"upstream"</span>,</span>
 <span>  include_all <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  clip <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  clip <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  to <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -121,14 +124,31 @@ these out. Only applied when querying the FWA base table.</p></dd>
 <dt id="arg-clip">clip<a class="anchor" aria-label="anchor" href="#arg-clip"></a></dt>
 <dd><p>An <code>sf</code> or <code>sfc</code> polygon to clip results to (e.g. from
 <code><a href="frs_watershed_at_measure.html">frs_watershed_at_measure()</a></code>). Default <code>NULL</code> (no clipping). Useful for
-waterbody polygons that straddle watershed boundaries. See <code><a href="frs_clip.html">frs_clip()</a></code>.</p></dd>
+waterbody polygons that straddle watershed boundaries. See <code><a href="frs_clip.html">frs_clip()</a></code>.
+Cannot be used with <code>to</code> (clipping is an R-side spatial operation).</p></dd>
+
+
+<dt id="arg-to">to<a class="anchor" aria-label="anchor" href="#arg-to"></a></dt>
+<dd><p>Character or <code>NULL</code>. When provided, write results to working
+table(s) on the database instead of returning sf objects. For a single
+table, <code>to</code> is the exact table name. For multiple tables, <code>to</code> is a
+prefix and each table name is appended as a suffix (e.g.
+<code>to = "working.byman"</code> with <code>streams</code> and <code>lakes</code> creates
+<code>working.byman_streams</code> and <code>working.byman_lakes</code>). Returns <code>conn</code>
+invisibly for pipe chaining. See Examples.</p></dd>
+
+
+<dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
+<dd><p>Logical. When <code>to</code> is provided, drop existing tables
+before writing. Default <code>TRUE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A named list of <code>sf</code> data frames (or plain data frames for tables
-without geometry). If only one table is queried, returns the data frame
-directly.</p>
+    <p>When <code>to</code> is <code>NULL</code>: a named list of <code>sf</code> data frames (or plain
+data frames for tables without geometry). If only one table is queried,
+returns the data frame directly. When <code>to</code> is provided: <code>conn</code> invisibly,
+for pipe chaining with <code><a href="frs_col_join.html">frs_col_join()</a></code>, <code><a href="frs_col_generate.html">frs_col_generate()</a></code>, etc.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -214,6 +234,21 @@ key (e.g. a tributary) by specifying <code>upstream_blk</code>.</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/legend.html" class="external-link">legend</a></span><span class="op">(</span><span class="st">"topright"</span>, legend <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Lakes"</span>, <span class="st">"Wetlands"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>       fill <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#4292C644"</span>, <span class="st">"#41AB5D44"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>       border <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#2171B5"</span>, <span class="st">"#238B45"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># --- DB pipeline: write to table, enrich, classify ---</span></span></span>
+<span class="r-in"><span><span class="co"># Stays on PostgreSQL — no R memory bottleneck at scale</span></span></span>
+<span class="r-in"><span><span class="va">conn</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu">frs_network</span><span class="op">(</span><span class="va">blk</span>, <span class="fl">208877</span>, upstream_measure <span class="op">=</span> <span class="fl">233564</span>,</span></span>
+<span class="r-in"><span>    to <span class="op">=</span> <span class="st">"working.demo_pipeline"</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="frs_col_join.html">frs_col_join</a></span><span class="op">(</span><span class="st">"working.demo_pipeline"</span>,</span></span>
+<span class="r-in"><span>    from <span class="op">=</span> <span class="st">"fwa_stream_networks_channel_width"</span>,</span></span>
+<span class="r-in"><span>    cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"channel_width"</span>, <span class="st">"channel_width_source"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    by <span class="op">=</span> <span class="st">"linear_feature_id"</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="frs_col_generate.html">frs_col_generate</a></span><span class="op">(</span><span class="st">"working.demo_pipeline"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Read the result when you need it in R</span></span></span>
+<span class="r-in"><span><span class="va">enriched</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_query.html">frs_db_query</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"SELECT * FROM working.demo_pipeline"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"DROP TABLE IF EXISTS working.demo_pipeline"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>

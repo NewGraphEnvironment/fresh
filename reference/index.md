@@ -18,10 +18,14 @@
   : Clip Spatial Features to an AOI Polygon
 - [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md)
   : Convert Columns to PostgreSQL Generated Columns from Geometry
+- [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md)
+  : Join Columns from a Lookup Table onto a Working Table
 - [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
   : Connect to FWA PostgreSQL Database
 - [`frs_db_query()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_query.md)
   : Query FWA PostgreSQL Database
+- [`frs_edge_types()`](https://newgraphenvironment.github.io/fresh/reference/frs_edge_types.md)
+  : FWA Edge Type Lookup Table
 - [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
   : Stage Data to Working Schema
 - [`frs_fish_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_habitat.md)
