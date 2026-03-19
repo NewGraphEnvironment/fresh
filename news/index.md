@@ -1,5 +1,15 @@
 # Changelog
 
+## fresh 0.4.1
+
+- Add
+  [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md)
+  for priority-ordered boolean-to-category collapse — mapping codes for
+  QGIS, reporting, gq style registry
+  ([\#57](https://github.com/NewGraphEnvironment/fresh/issues/57))
+- Refine habitat pipeline vignette: code below each narrative section
+  with function links, 2x2 scenario grid, access barriers on habitat map
+
 ## fresh 0.4.0
 
 Coho habitat pipeline — classify habitat on the database at any scale.
