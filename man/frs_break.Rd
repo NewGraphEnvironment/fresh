@@ -14,6 +14,7 @@ frs_break(
   distance = 100L,
   points_table = NULL,
   points = NULL,
+  points_where = NULL,
   aoi = NULL,
   overwrite = TRUE,
   evidence_table = NULL,
@@ -145,6 +146,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_classify}()},
 \code{\link{frs_col_generate}()},
+\code{\link{frs_col_join}()},
 \code{\link{frs_extract}()}
 }
 \concept{habitat}

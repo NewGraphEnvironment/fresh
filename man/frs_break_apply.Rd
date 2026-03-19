@@ -93,6 +93,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_classify}()},
 \code{\link{frs_col_generate}()},
+\code{\link{frs_col_join}()},
 \code{\link{frs_extract}()}
 }
 \concept{habitat}
