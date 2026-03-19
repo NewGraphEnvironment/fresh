@@ -11,6 +11,7 @@ frs_classify(
   ranges = NULL,
   breaks = NULL,
   overrides = NULL,
+  where = NULL,
   value = TRUE
 )
 }
@@ -35,6 +36,11 @@ Uses \code{fwa_downstream()} for network position check.}
 corrections. Must have a column matching \code{label} and a join column
 matching the working table (default: \code{blue_line_key} +
 \code{downstream_route_measure}).}
+
+\item{where}{Character or \code{NULL}. Optional SQL predicate to scope which
+rows are classified. Only rows matching \code{where} are considered; others
+remain \code{NULL}. Example: \code{"edge_type IN (1050)"} to classify only lake
+segments. Consistent with \code{\link[=frs_aggregate]{frs_aggregate()}} \code{where} parameter.}
 
 \item{value}{Logical. Value to set when conditions are met. Default
 \code{TRUE}. Use \code{FALSE} for exclusion labels.}
@@ -180,11 +186,13 @@ DBI::dbDisconnect(conn)
 }
 \seealso{
 Other habitat: 
+\code{\link{frs_aggregate}()},
 \code{\link{frs_break}()},
 \code{\link{frs_break_apply}()},
 \code{\link{frs_break_find}()},
 \code{\link{frs_break_validate}()},
 \code{\link{frs_col_generate}()},
+\code{\link{frs_col_join}()},
 \code{\link{frs_extract}()}
 }
 \concept{habitat}

@@ -30,6 +30,10 @@
 #'   corrections. Must have a column matching `label` and a join column
 #'   matching the working table (default: `blue_line_key` +
 #'   `downstream_route_measure`).
+#' @param where Character or `NULL`. Optional SQL predicate to scope which
+#'   rows are classified. Only rows matching `where` are considered; others
+#'   remain `NULL`. Example: `"edge_type IN (1050)"` to classify only lake
+#'   segments. Consistent with [frs_aggregate()] `where` parameter.
 #' @param value Logical. Value to set when conditions are met. Default
 #'   `TRUE`. Use `FALSE` for exclusion labels.
 #'
@@ -160,7 +164,8 @@
 #' }
 frs_classify <- function(conn, table, label,
                          ranges = NULL, breaks = NULL,
-                         overrides = NULL, value = TRUE) {
+                         overrides = NULL, where = NULL,
+                         value = TRUE) {
   .frs_validate_identifier(table, "table")
   .frs_validate_identifier(label, "label column")
 
@@ -182,17 +187,17 @@ frs_classify <- function(conn, table, label,
 
   # Apply ranges classification
   if (has_ranges) {
-    .frs_classify_ranges(conn, table, label, ranges, value)
+    .frs_classify_ranges(conn, table, label, ranges, value, where)
   }
 
   # Apply breaks classification (accessibility)
   if (has_breaks) {
-    .frs_classify_breaks(conn, table, label, breaks, value)
+    .frs_classify_breaks(conn, table, label, breaks, value, where)
   }
 
   # Apply manual overrides
   if (has_overrides) {
-    .frs_classify_overrides(conn, table, label, overrides)
+    .frs_classify_overrides(conn, table, label, overrides, where)
   }
 
   invisible(conn)
@@ -204,7 +209,8 @@ frs_classify <- function(conn, table, label,
 #' Sets `label = value` where all range conditions are met (AND).
 #'
 #' @noRd
-.frs_classify_ranges <- function(conn, table, label, ranges, value) {
+.frs_classify_ranges <- function(conn, table, label, ranges, value,
+                                 where = NULL) {
   stopifnot(is.list(ranges), length(ranges) > 0)
 
   conditions <- vapply(names(ranges), function(col) {
@@ -214,10 +220,15 @@ frs_classify <- function(conn, table, label,
     sprintf("%s BETWEEN %s AND %s", col, r[1], r[2])
   }, character(1))
 
-  where <- paste(conditions, collapse = " AND ")
+  range_clause <- paste(conditions, collapse = " AND ")
+
+  # Append user-supplied where filter
+  if (!is.null(where)) {
+    range_clause <- paste(range_clause, "AND", where)
+  }
 
   sql <- sprintf("UPDATE %s SET %s = %s WHERE %s",
-                 table, label, ifelse(value, "TRUE", "FALSE"), where)
+                 table, label, ifelse(value, "TRUE", "FALSE"), range_clause)
   .frs_db_execute(conn, sql)
 }
 
@@ -230,7 +241,8 @@ frs_classify <- function(conn, table, label,
 #' barriers.
 #'
 #' @noRd
-.frs_classify_breaks <- function(conn, table, label, breaks, value) {
+.frs_classify_breaks <- function(conn, table, label, breaks, value,
+                                 where = NULL) {
   .frs_validate_identifier(breaks, "breaks table")
 
   wsc <- .frs_opt("wscode_col")
@@ -277,6 +289,12 @@ frs_classify <- function(conn, table, label,
     mds, mus,      # measure range check (us)
     wsc, loc       # ltree columns on working table
   )
+
+  # Append user-supplied where filter to scope which rows get classified
+  if (!is.null(where)) {
+    sql <- paste(sql, "AND", where)
+  }
+
   .frs_db_execute(conn, sql)
 }
 
@@ -288,7 +306,8 @@ frs_classify <- function(conn, table, label,
 #' override label value.
 #'
 #' @noRd
-.frs_classify_overrides <- function(conn, table, label, overrides) {
+.frs_classify_overrides <- function(conn, table, label, overrides,
+                                    where = NULL) {
   .frs_validate_identifier(overrides, "overrides table")
 
   sql <- sprintf(
@@ -298,5 +317,11 @@ frs_classify <- function(conn, table, label,
        AND s.downstream_route_measure = o.downstream_route_measure",
     table, label, label, overrides
   )
+
+  # Append user-supplied where filter
+  if (!is.null(where)) {
+    sql <- paste(sql, "AND", where)
+  }
+
   .frs_db_execute(conn, sql)
 }
