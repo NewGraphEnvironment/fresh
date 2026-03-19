@@ -1,3 +1,8 @@
+# fresh 0.4.1
+
+- Add `frs_categorize()` for priority-ordered boolean-to-category collapse — mapping codes for QGIS, reporting, gq style registry ([#57](https://github.com/NewGraphEnvironment/fresh/issues/57))
+- Refine habitat pipeline vignette: code below each narrative section with function links, 2x2 scenario grid, access barriers on habitat map
+
 # fresh 0.4.0
 
 Coho habitat pipeline — classify habitat on the database at any scale. New vignette proves the workflow on the Byman-Ailport subbasin of the Neexdzii Kwa.
