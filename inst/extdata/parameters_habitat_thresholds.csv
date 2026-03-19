@@ -1,0 +1,12 @@
+"species_code","spawn_gradient_max","spawn_channel_width_min","spawn_channel_width_max","spawn_mad_min","spawn_mad_max","rear_gradient_max","rear_channel_width_min","rear_channel_width_max","rear_mad_min","rear_mad_max","rear_lake_ha_min"
+"BT",0.0549,2,9999,NA,NA,0.1049,1.5,9999,NA,NA,NA
+"CH",0.0449,4,9999,0.46,9999,0.0549,1.5,9999,0.28,100,NA
+"CM",0.0649,2.1,9999,0.02312,9999,NA,NA,NA,NA,NA,NA
+"CO",0.0549,2,9999,0.164,9999,0.0549,1.5,9999,0.03,40,NA
+"GR",0.0249,4,9999,NA,NA,0.0349,1.5,9999,NA,NA,NA
+"KO",0.0249,2,9999,NA,NA,NA,1.5,9999,NA,NA,200
+"PK",0.0649,2.1,9999,0.41133,9999,NA,NA,NA,NA,NA,NA
+"RB",0.0549,2,9999,NA,NA,0.0849,1.5,9999,NA,NA,NA
+"SK",0.0249,2,9999,0.175,9999,NA,1.5,9999,NA,NA,200
+"ST",0.0449,4,9999,0.447,9999,0.0849,1.5,9999,0.02,60,NA
+"WCT",0.0549,2,9999,0.164,59.15,0.0849,1.5,9999,0.03,40,NA
