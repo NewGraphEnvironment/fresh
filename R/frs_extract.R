@@ -16,6 +16,10 @@
 #'   - Character vector — watershed group code(s)
 #'   - `sf`/`sfc` polygon — spatial intersection
 #'   - Named list — table+id lookup or blk+measure delineation
+#' @param where Character or `NULL`. SQL predicate to filter rows. When both
+#'   `aoi` and `where` are provided they are ANDed together. Example:
+#'   `"watershed_group_code = 'BULK'"` for a fast column filter on tables
+#'   that carry a watershed group code column.
 #' @param overwrite Logical. If `TRUE`, drop the destination table before
 #'   creating. If `FALSE` (default), error when the table already exists.
 #'
@@ -68,7 +72,7 @@
 #' DBI::dbDisconnect(conn)
 #' }
 frs_extract <- function(conn, from, to, cols = NULL, aoi = NULL,
-                        overwrite = FALSE) {
+                        where = NULL, overwrite = FALSE) {
   .frs_validate_identifier(from, "source table")
   .frs_validate_identifier(to, "destination table")
 
@@ -80,10 +84,16 @@ frs_extract <- function(conn, from, to, cols = NULL, aoi = NULL,
   # Build SELECT clause
   select_clause <- if (is.null(cols)) "*" else paste(cols, collapse = ", ")
 
-  # Build WHERE clause from AOI
+  # Build WHERE clause from AOI and/or where predicate
+  preds <- character(0)
   aoi_pred <- .frs_resolve_aoi(aoi, conn = conn)
-  where_clause <- if (nzchar(aoi_pred)) {
-    paste(" WHERE", aoi_pred)
+  if (nzchar(aoi_pred)) preds <- c(preds, aoi_pred)
+  if (!is.null(where)) {
+    stopifnot(is.character(where), length(where) == 1, nzchar(where))
+    preds <- c(preds, where)
+  }
+  where_clause <- if (length(preds) > 0) {
+    paste(" WHERE", paste(preds, collapse = " AND "))
   } else {
     ""
   }

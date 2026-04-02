@@ -60,4 +60,8 @@ lapply(params, function(p) {
 DBI::dbDisconnect(conn)
 }
 }
+\seealso{
+Other parameters: 
+\code{\link{frs_wsg_species}()}
+}
 \concept{parameters}

@@ -4,7 +4,15 @@
 \alias{frs_extract}
 \title{Stage Data to Working Schema}
 \usage{
-frs_extract(conn, from, to, cols = NULL, aoi = NULL, overwrite = FALSE)
+frs_extract(
+  conn,
+  from,
+  to,
+  cols = NULL,
+  aoi = NULL,
+  where = NULL,
+  overwrite = FALSE
+)
 }
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
@@ -25,6 +33,11 @@ columns (\verb{SELECT *}).}
 \item \code{sf}/\code{sfc} polygon — spatial intersection
 \item Named list — table+id lookup or blk+measure delineation
 }}
+
+\item{where}{Character or \code{NULL}. SQL predicate to filter rows. When both
+\code{aoi} and \code{where} are provided they are ANDed together. Example:
+\code{"watershed_group_code = 'BULK'"} for a fast column filter on tables
+that carry a watershed group code column.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop the destination table before
 creating. If \code{FALSE} (default), error when the table already exists.}
