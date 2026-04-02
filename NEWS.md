@@ -1,3 +1,14 @@
+# fresh 0.6.0
+
+Parallelized multi-WSG habitat pipeline — 2.5x speedup over sequential on BULK.
+
+- Add `frs_habitat()` — orchestrator: run the full habitat pipeline across watershed groups with `furrr` parallelism ([#61](https://github.com/NewGraphEnvironment/fresh/issues/61))
+- Add `frs_habitat_partition()` — generic partition prep (extract, enrich, pre-compute breaks). Accepts any AOI, not just WSG codes
+- Add `frs_habitat_access()` — gradient + falls barrier computation at a threshold, deduplicated across species sharing the same `access_gradient_max`
+- Add `frs_habitat_species()` — classify one species with pre-computed access and habitat breaks
+- Both Phase 1 (partition prep across WSGs) and Phase 2 (species classification) parallelize via `furrr::future_map()` when `workers > 1`
+- Benchmark scripts and logs in `scripts/habitat/`
+
 # fresh 0.5.0
 
 Watershed-group habitat pipeline — run the full pipeline across all species in a WSG.
