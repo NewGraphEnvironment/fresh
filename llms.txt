@@ -111,6 +111,14 @@ MIT
   : Fetch Modelled Fish Habitat from bcfishpass
 - [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md)
   : Fetch Fish Observations
+- [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  : Run Habitat Pipeline for Watershed Groups
+- [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
+  : Compute Access Barriers at a Gradient Threshold
+- [`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md)
+  : Prepare a Partition for Habitat Classification
+- [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)
+  : Classify Habitat for One Species
 - [`frs_lake_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_lake_fetch.md)
   : Fetch FWA Lakes
 - [`frs_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_network.md)

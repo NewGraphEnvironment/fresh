@@ -85,7 +85,11 @@ Other habitat:
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
-[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md)
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md),
+[`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md),
+[`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md),
+[`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)
 
 ## Examples
 
