@@ -53,7 +53,7 @@ params_fresh <- read.csv(system.file("extdata",
 run_species <- function(conn, wsg, species_code, base_tbl, params_sp,
                         fresh_sp) {
   sp <- tolower(species_code)
-  tbl <- paste0("working.", tolower(wsg), "_", sp)
+  tbl <- paste0("working.streams_", sp)
   breaks_tbl <- paste0(tbl, "_breaks_access")
   breaks_hab_tbl <- paste0(tbl, "_breaks_habitat")
 
@@ -70,7 +70,7 @@ run_species <- function(conn, wsg, species_code, base_tbl, params_sp,
   timings$copy_s <- (proc.time() - t0)["elapsed"]
 
   n_segments <- DBI::dbGetQuery(conn,
-    sprintf("SELECT count(*) AS n FROM %s", tbl))$n
+    sprintf("SELECT count(*)::int AS n FROM %s", tbl))$n
   cat("  ", species_code, ": ", n_segments, " segments\n", sep = "")
 
   # -- Access barriers -------------------------------------------------------
@@ -110,8 +110,12 @@ run_species <- function(conn, wsg, species_code, base_tbl, params_sp,
 
   # Rearing (if species has rearing thresholds)
   if (!is.null(params_sp$ranges$rear)) {
+    # Only include ranges that exist for this species (e.g. SK has no
+    # rear gradient — it's lake-based)
+    cols_rear <- intersect(c("gradient", "channel_width"),
+                           names(params_sp$ranges$rear))
     frs_classify(conn, tbl, label = paste0(sp, "_rearing"),
-      ranges = params_sp$ranges$rear[c("gradient", "channel_width")],
+      ranges = params_sp$ranges$rear[cols_rear],
       where = "accessible IS TRUE")
 
     # Lake rearing
@@ -155,10 +159,16 @@ run_wsg <- function(wsg) {
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
-  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  # working schema must exist (CREATE SCHEMA needs database-level privilege)
+  has_working <- DBI::dbGetQuery(conn,
+    "SELECT 1 FROM information_schema.schemata WHERE schema_name = 'working'")
+  if (nrow(has_working) == 0) {
+    stop("working schema does not exist — ask a DB admin to create it",
+         call. = FALSE)
+  }
 
   # -- Extract base network once (raw FWA + channel width join) ---------------
-  base_tbl <- paste0("working.", tolower(wsg), "_base")
+  base_tbl <- "working.streams"
   t0 <- proc.time()
   conn |>
     frs_extract(
@@ -173,7 +183,7 @@ run_wsg <- function(wsg) {
       by = "linear_feature_id")
   extract_s <- (proc.time() - t0)["elapsed"]
   n_base <- DBI::dbGetQuery(conn,
-    sprintf("SELECT count(*) AS n FROM %s", base_tbl))$n
+    sprintf("SELECT count(*)::int AS n FROM %s", base_tbl))$n
   cat("Base network: ", n_base, " segments (", round(extract_s, 1), "s)\n",
       sep = "")
 
