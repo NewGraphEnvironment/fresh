@@ -8,6 +8,7 @@ frs_habitat(
   conn,
   wsg,
   base_tbl = "working.streams",
+  workers = 1L,
   cleanup = TRUE,
   verbose = TRUE
 )
@@ -20,6 +21,11 @@ frs_habitat(
 
 \item{base_tbl}{Character. Name for the base stream network table. Default
 \code{"working.streams"}.}
+
+\item{workers}{Integer. Number of parallel workers for the per-species
+classification step. Default \code{1} (sequential). Values > 1 require
+the \code{furrr} package and use \code{future::plan(multisession)}. Each worker
+opens its own database connection.}
 
 \item{cleanup}{Logical. Drop intermediate tables (base network, break
 tables) when done. Default \code{TRUE}.}

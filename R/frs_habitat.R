@@ -16,6 +16,10 @@
 #'   (e.g. `"BULK"`, `c("BULK", "MORR")`).
 #' @param base_tbl Character. Name for the base stream network table. Default
 #'   `"working.streams"`.
+#' @param workers Integer. Number of parallel workers for the per-species
+#'   classification step. Default `1` (sequential). Values > 1 require
+#'   the `furrr` package and use `future::plan(multisession)`. Each worker
+#'   opens its own database connection.
 #' @param cleanup Logical. Drop intermediate tables (base network, break
 #'   tables) when done. Default `TRUE`.
 #' @param verbose Logical. Print progress and timing. Default `TRUE`.
@@ -42,7 +46,7 @@
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat <- function(conn, wsg, base_tbl = "working.streams",
-                        cleanup = TRUE, verbose = TRUE) {
+                        workers = 1L, cleanup = TRUE, verbose = TRUE) {
   stopifnot(is.character(wsg), length(wsg) > 0)
   .frs_validate_identifier(base_tbl, "base table")
 
@@ -148,42 +152,76 @@ frs_habitat <- function(conn, wsg, base_tbl = "working.streams",
   }
 
   # -- Classify per species ---------------------------------------------------
-  results <- data.frame(
-    species_code = character(),
-    access_threshold = numeric(),
-    habitat_threshold = numeric(),
-    elapsed_s = numeric(),
-    table_name = character(),
-    stringsAsFactors = FALSE
-  )
+  # Build job list: one row per species with its break table names
+  jobs <- lapply(seq_len(nrow(sp_df)), function(i) {
+    list(
+      species_code = sp_df$species_code[i],
+      access_threshold = sp_df$access_gradient[i],
+      habitat_threshold = sp_df$spawn_gradient_max[i],
+      acc_tbl = paste0("working.breaks_access_",
+                       .frs_thr_label(sp_df$access_gradient[i])),
+      hab_tbl = paste0("working.breaks_habitat_",
+                       .frs_thr_label(sp_df$spawn_gradient_max[i])),
+      params_sp = params_all[[sp_df$species_code[i]]],
+      fresh_sp = params_fresh[params_fresh$species_code ==
+                                sp_df$species_code[i], ]
+    )
+  })
 
-  for (i in seq_len(nrow(sp_df))) {
-    sc <- sp_df$species_code[i]
-    acc_thr <- sp_df$access_gradient[i]
-    hab_thr <- sp_df$spawn_gradient_max[i]
-
-    acc_tbl <- paste0("working.breaks_access_", .frs_thr_label(acc_thr))
-    hab_tbl <- paste0("working.breaks_habitat_", .frs_thr_label(hab_thr))
-
+  # Worker function: opens its own connection, classifies, returns timing
+  .run_one_species <- function(job, base_tbl) {
+    worker_conn <- frs_db_conn()
+    on.exit(DBI::dbDisconnect(worker_conn))
     t0 <- proc.time()
-    frs_habitat_species(conn, sc, base_tbl,
-      breaks = acc_tbl,
-      breaks_habitat = hab_tbl,
-      params_sp = params_all[[sc]],
-      fresh_sp = params_fresh[params_fresh$species_code == sc, ])
-    sp_s <- (proc.time() - t0)["elapsed"]
-
-    out_tbl <- paste0("working.streams_", tolower(sc))
-    if (verbose) {
-      cat("  ", sc, ": ", round(sp_s, 1), "s -> ", out_tbl, "\n", sep = "")
-    }
-
-    results <- rbind(results, data.frame(
-      species_code = sc, access_threshold = acc_thr,
-      habitat_threshold = hab_thr,
-      elapsed_s = sp_s, table_name = out_tbl,
+    frs_habitat_species(worker_conn, job$species_code, base_tbl,
+      breaks = job$acc_tbl,
+      breaks_habitat = job$hab_tbl,
+      params_sp = job$params_sp,
+      fresh_sp = job$fresh_sp)
+    elapsed <- (proc.time() - t0)["elapsed"]
+    data.frame(
+      species_code = job$species_code,
+      access_threshold = job$access_threshold,
+      habitat_threshold = job$habitat_threshold,
+      elapsed_s = elapsed,
+      table_name = paste0("working.streams_", tolower(job$species_code)),
       stringsAsFactors = FALSE
-    ))
+    )
+  }
+
+  workers <- as.integer(workers)
+  if (workers > 1L) {
+    if (!requireNamespace("furrr", quietly = TRUE)) {
+      stop("furrr package required for parallel execution (workers > 1)",
+           call. = FALSE)
+    }
+    if (verbose) cat("Classifying ", nrow(sp_df), " species (",
+                     workers, " workers)...\n", sep = "")
+    old_plan <- future::plan(future::multisession, workers = workers)
+    on.exit(future::plan(old_plan), add = TRUE)
+    result_list <- furrr::future_map(jobs, .run_one_species,
+      base_tbl = base_tbl,
+      .options = furrr::furrr_options(
+        seed = TRUE,
+        packages = "fresh"
+      ))
+  } else {
+    result_list <- lapply(jobs, function(job) {
+      res <- .run_one_species(job, base_tbl)
+      if (verbose) {
+        cat("  ", res$species_code, ": ", round(res$elapsed_s, 1),
+            "s -> ", res$table_name, "\n", sep = "")
+      }
+      res
+    })
+  }
+
+  results <- do.call(rbind, result_list)
+  if (verbose && workers > 1L) {
+    for (i in seq_len(nrow(results))) {
+      cat("  ", results$species_code[i], ": ", round(results$elapsed_s[i], 1),
+          "s -> ", results$table_name[i], "\n", sep = "")
+    }
   }
 
   # -- Cleanup ----------------------------------------------------------------
