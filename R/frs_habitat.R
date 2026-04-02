@@ -1,30 +1,27 @@
 #' Run Habitat Pipeline for Watershed Groups
 #'
 #' Orchestrate the full habitat pipeline for all species present in one or
-#' more watershed groups. For each WSG: extracts the base stream network,
-#' computes access barriers once per unique access gradient threshold, and
-#' habitat breaks once per unique spawn gradient threshold. Then flattens
-#' all (WSG, species) pairs and classifies them in parallel via
-#' [furrr::future_map()] when `workers > 1`.
+#' more watershed groups. Calls [frs_habitat_partition()] per WSG to extract
+#' the base network and pre-compute breaks, then flattens all (WSG, species)
+#' pairs and classifies them via [frs_habitat_species()]. Both phases
+#' parallelize with [furrr::future_map()] when `workers > 1`.
 #'
 #' Output tables are WSG-scoped: `working.streams_bulk_co`,
-#' `working.streams_morr_bt`, etc. Each species per WSG gets its own table
-#' because break points create different segment geometries per threshold
-#' group.
+#' `working.streams_morr_bt`, etc.
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param wsg Character. One or more watershed group codes
 #'   (e.g. `"BULK"`, `c("BULK", "MORR")`).
-#' @param workers Integer. Number of parallel workers for the per-species
-#'   classification step. Default `1` (sequential). Values > 1 require
-#'   the `furrr` package and use `future::plan(multisession)`. Each worker
-#'   opens its own database connection.
+#' @param workers Integer. Number of parallel workers. Default `1`
+#'   (sequential). Values > 1 require the `furrr` package. Each worker
+#'   opens its own database connection. Used for both Phase 1 (partition
+#'   prep across WSGs) and Phase 2 (species classification).
 #' @param cleanup Logical. Drop intermediate tables (base network, break
 #'   tables) when done. Default `TRUE`.
 #' @param verbose Logical. Print progress and timing. Default `TRUE`.
 #'
 #' @return A data frame with one row per (WSG, species) pair and columns
-#'   `wsg`, `species_code`, `access_threshold`, `habitat_threshold`,
+#'   `partition`, `species_code`, `access_threshold`, `habitat_threshold`,
 #'   `elapsed_s`, and `table_name`.
 #'
 #' @family habitat
@@ -41,13 +38,6 @@
 #' # Multiple watershed groups, 4 parallel workers
 #' result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
 #'
-#' # Province-wide (local DB recommended)
-#' all_wsg <- frs_wsg_species(unique(
-#'   read.csv(system.file("extdata", "wsg_species_presence.csv",
-#'     package = "fresh"))$watershed_group_code))
-#' result <- frs_habitat(conn, unique(all_wsg$watershed_group_code),
-#'   workers = 8)
-#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat <- function(conn, wsg, workers = 1L,
@@ -62,138 +52,82 @@ frs_habitat <- function(conn, wsg, workers = 1L,
   params_fresh <- utils::read.csv(system.file("extdata",
     "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
 
-  # ==========================================================================
-  # Phase 1: Per-WSG setup (extract base, pre-compute breaks)
-  # ==========================================================================
-  all_jobs <- list()
-  cleanup_tables <- character(0)
-
-  for (w in wsg) {
-    wl <- tolower(w)
-
-    # -- Species for this WSG ------------------------------------------------
+  # -- Build species spec per WSG ---------------------------------------------
+  wsg_specs <- lapply(wsg, function(w) {
     sp_df <- frs_wsg_species(w)
     sp_df <- sp_df[!is.na(sp_df$view), ]
     sp_df <- sp_df[sp_df$species_code %in% names(params_all) &
                    sp_df$species_code %in% params_fresh$species_code, ]
     sp_df <- sp_df[!duplicated(sp_df$species_code), ]
-
-    if (nrow(sp_df) == 0) {
-      if (verbose) cat(w, ": no modelable species, skipping\n")
-      next
-    }
+    if (nrow(sp_df) == 0) return(NULL)
 
     sp_df$access_gradient <- vapply(sp_df$species_code, function(sc) {
       params_fresh[params_fresh$species_code == sc, "access_gradient_max"]
     }, numeric(1))
-
     sp_df$spawn_gradient_max <- vapply(sp_df$species_code, function(sc) {
       params_all[[sc]]$spawn_gradient_max
     }, numeric(1))
 
-    if (verbose) {
-      cat(w, ": ", paste(sp_df$species_code, collapse = ", "), "\n", sep = "")
-    }
+    list(wsg = w, label = tolower(w), aoi = w, species = sp_df,
+         params_all = params_all, params_fresh = params_fresh)
+  })
+  wsg_specs <- Filter(Negate(is.null), wsg_specs)
 
-    # -- Extract base network ------------------------------------------------
-    base_tbl <- paste0("working.streams_", wl)
-    cleanup_tables <- c(cleanup_tables, base_tbl)
-
-    t0 <- proc.time()
-    frs_extract(conn,
-      from = "whse_basemapping.fwa_stream_networks_sp",
-      to = base_tbl,
-      where = paste0("watershed_group_code = ", .frs_quote_string(w)),
-      overwrite = TRUE)
-
-    frs_col_join(conn, base_tbl,
-      from = "fwa_stream_networks_channel_width",
-      cols = c("channel_width", "channel_width_source"),
-      by = "linear_feature_id")
-
-    if (verbose) {
-      n <- DBI::dbGetQuery(conn,
-        sprintf("SELECT count(*)::int AS n FROM %s", base_tbl))$n
-      cat("  Base: ", n, " segments (",
-          round((proc.time() - t0)["elapsed"], 1), "s)\n", sep = "")
-    }
-
-    # -- Access barriers (grouped by threshold) ------------------------------
-    for (thr in sort(unique(sp_df$access_gradient))) {
-      thr_label <- .frs_thr_label(thr)
-      breaks_tbl <- paste0("working.breaks_access_", wl, "_", thr_label)
-
-      # Skip if already computed (same threshold from a previous WSG iteration
-      # won't happen since tables are WSG-scoped, but guard anyway)
-      if (!breaks_tbl %in% cleanup_tables) {
-        cleanup_tables <- c(cleanup_tables, breaks_tbl)
-
-        t0 <- proc.time()
-        frs_habitat_access(conn, base_tbl, threshold = thr,
-          to = breaks_tbl, aoi = w)
-
-        if (verbose) {
-          spp <- sp_df$species_code[sp_df$access_gradient == thr]
-          cat("  Access ", thr * 100, "%: ",
-              round((proc.time() - t0)["elapsed"], 1),
-              "s (", paste(spp, collapse = ", "), ")\n", sep = "")
-        }
-      }
-    }
-
-    # -- Habitat breaks (grouped by spawn_gradient_max) ----------------------
-    for (thr in sort(unique(sp_df$spawn_gradient_max))) {
-      thr_label <- .frs_thr_label(thr)
-      breaks_tbl <- paste0("working.breaks_habitat_", wl, "_", thr_label)
-
-      if (!breaks_tbl %in% cleanup_tables) {
-        cleanup_tables <- c(cleanup_tables, breaks_tbl)
-
-        t0 <- proc.time()
-        frs_break_find(conn, base_tbl,
-          attribute = "gradient", threshold = thr,
-          to = breaks_tbl)
-
-        if (verbose) {
-          spp <- sp_df$species_code[sp_df$spawn_gradient_max == thr]
-          cat("  Habitat ", thr * 100, "%: ",
-              round((proc.time() - t0)["elapsed"], 1),
-              "s (", paste(spp, collapse = ", "), ")\n", sep = "")
-        }
-      }
-    }
-
-    # -- Build jobs for this WSG ---------------------------------------------
-    for (i in seq_len(nrow(sp_df))) {
-      sc <- sp_df$species_code[i]
-      all_jobs[[length(all_jobs) + 1]] <- list(
-        wsg = w,
-        species_code = sc,
-        base_tbl = base_tbl,
-        access_threshold = sp_df$access_gradient[i],
-        habitat_threshold = sp_df$spawn_gradient_max[i],
-        acc_tbl = paste0("working.breaks_access_", wl, "_",
-                         .frs_thr_label(sp_df$access_gradient[i])),
-        hab_tbl = paste0("working.breaks_habitat_", wl, "_",
-                         .frs_thr_label(sp_df$spawn_gradient_max[i])),
-        to = paste0("working.streams_", wl, "_", tolower(sc)),
-        params_sp = params_all[[sc]],
-        fresh_sp = params_fresh[params_fresh$species_code == sc, ]
-      )
-    }
-  }
-
-  if (length(all_jobs) == 0) {
+  if (length(wsg_specs) == 0) {
     stop("No modelable species found for any WSG", call. = FALSE)
   }
 
   if (verbose) {
-    cat("\n", length(all_jobs), " species jobs across ",
-        length(wsg), " WSG(s)\n", sep = "")
+    for (spec in wsg_specs) {
+      cat(spec$wsg, ": ", paste(spec$species$species_code, collapse = ", "),
+          "\n", sep = "")
+    }
   }
 
   # ==========================================================================
-  # Phase 2: Classify all (WSG, species) pairs
+  # Phase 1: Prepare partitions (extract base, pre-compute breaks)
+  # ==========================================================================
+  workers <- as.integer(workers)
+  use_furrr <- workers > 1L
+  if (use_furrr && !requireNamespace("furrr", quietly = TRUE)) {
+    stop("furrr package required for parallel execution (workers > 1)",
+         call. = FALSE)
+  }
+
+  .run_partition <- function(spec) {
+    p_conn <- if (use_furrr) frs_db_conn() else conn
+    if (use_furrr) on.exit(DBI::dbDisconnect(p_conn))
+    frs_habitat_partition(p_conn,
+      aoi = spec$aoi,
+      label = spec$label,
+      species = spec$species,
+      params_all = spec$params_all,
+      params_fresh = spec$params_fresh,
+      verbose = verbose && !use_furrr)
+  }
+
+  if (use_furrr) {
+    if (verbose) cat("\nPhase 1: preparing ", length(wsg_specs),
+                     " partition(s) (", workers, " workers)...\n", sep = "")
+    old_plan <- future::plan(future::multisession, workers = workers)
+    on.exit(future::plan(old_plan), add = TRUE)
+    partitions <- furrr::future_map(wsg_specs, .run_partition,
+      .options = furrr::furrr_options(seed = TRUE, packages = "fresh"))
+  } else {
+    partitions <- lapply(wsg_specs, .run_partition)
+  }
+
+  # Collect all jobs and cleanup tables
+  all_jobs <- unlist(lapply(partitions, `[[`, "jobs"), recursive = FALSE)
+  cleanup_tables <- unlist(lapply(partitions, `[[`, "cleanup_tables"))
+
+  if (verbose) {
+    cat("\n", length(all_jobs), " species jobs across ",
+        length(wsg_specs), " partition(s)\n", sep = "")
+  }
+
+  # ==========================================================================
+  # Phase 2: Classify all (partition, species) pairs
   # ==========================================================================
   .run_one <- function(job) {
     worker_conn <- frs_db_conn()
@@ -207,7 +141,7 @@ frs_habitat <- function(conn, wsg, workers = 1L,
       to = job$to)
     elapsed <- (proc.time() - t0)["elapsed"]
     data.frame(
-      wsg = job$wsg,
+      partition = job$partition,
       species_code = job$species_code,
       access_threshold = job$access_threshold,
       habitat_threshold = job$habitat_threshold,
@@ -217,25 +151,16 @@ frs_habitat <- function(conn, wsg, workers = 1L,
     )
   }
 
-  workers <- as.integer(workers)
-  if (workers > 1L) {
-    if (!requireNamespace("furrr", quietly = TRUE)) {
-      stop("furrr package required for parallel execution (workers > 1)",
-           call. = FALSE)
-    }
-    if (verbose) cat("Classifying (", workers, " workers)...\n", sep = "")
-    old_plan <- future::plan(future::multisession, workers = workers)
-    on.exit(future::plan(old_plan), add = TRUE)
+  if (use_furrr) {
+    if (verbose) cat("Phase 2: classifying (", workers, " workers)...\n",
+                     sep = "")
     result_list <- furrr::future_map(all_jobs, .run_one,
-      .options = furrr::furrr_options(
-        seed = TRUE,
-        packages = "fresh"
-      ))
+      .options = furrr::furrr_options(seed = TRUE, packages = "fresh"))
   } else {
     result_list <- lapply(all_jobs, function(job) {
       res <- .run_one(job)
       if (verbose) {
-        cat("  ", res$wsg, "/", res$species_code, ": ",
+        cat("  ", res$partition, "/", res$species_code, ": ",
             round(res$elapsed_s, 1), "s -> ", res$table_name, "\n", sep = "")
       }
       res
@@ -245,9 +170,9 @@ frs_habitat <- function(conn, wsg, workers = 1L,
   results <- do.call(rbind, result_list)
   rownames(results) <- NULL
 
-  if (verbose && workers > 1L) {
+  if (verbose && use_furrr) {
     for (i in seq_len(nrow(results))) {
-      cat("  ", results$wsg[i], "/", results$species_code[i], ": ",
+      cat("  ", results$partition[i], "/", results$species_code[i], ": ",
           round(results$elapsed_s[i], 1), "s -> ",
           results$table_name[i], "\n", sep = "")
     }
@@ -268,6 +193,169 @@ frs_habitat <- function(conn, wsg, workers = 1L,
   }
 
   invisible(results)
+}
+
+
+#' Prepare a Partition for Habitat Classification
+#'
+#' Extract a stream network subset, enrich with channel width, and
+#' pre-compute access and habitat gradient breaks. Returns a list of
+#' species classification jobs ready for [frs_habitat_species()].
+#'
+#' A partition is any spatial subset of a stream network — a watershed
+#' group, a custom polygon, a study area. The function does not assume
+#' the partition is a BC watershed group; that fish-specific lookup
+#' happens in [frs_habitat()] before calling this function.
+#'
+#' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
+#' @param aoi AOI specification passed to [frs_extract()]. Character
+#'   watershed group code, `sf` polygon, named list, or `NULL`.
+#' @param label Character. Short label for table naming
+#'   (e.g. `"bulk"`, `"study_area"`). Used in table names like
+#'   `working.streams_{label}`, `working.breaks_access_{label}_{thr}`.
+#' @param species Data frame with columns `species_code`,
+#'   `access_gradient`, and `spawn_gradient_max`. One row per species.
+#' @param params_all Named list from [frs_params()].
+#' @param params_fresh Data frame from `parameters_fresh.csv`.
+#' @param source Character. Source table for the stream network. Default
+#'   `"whse_basemapping.fwa_stream_networks_sp"`.
+#' @param verbose Logical. Print progress. Default `TRUE`.
+#'
+#' @return A list with:
+#'   \describe{
+#'     \item{jobs}{List of job specs for [frs_habitat_species()]}
+#'     \item{cleanup_tables}{Character vector of intermediate table names}
+#'   }
+#'
+#' @family habitat
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' conn <- frs_db_conn()
+#' params_all <- frs_params(csv = system.file("extdata",
+#'   "parameters_habitat_thresholds.csv", package = "fresh"))
+#' params_fresh <- read.csv(system.file("extdata",
+#'   "parameters_fresh.csv", package = "fresh"))
+#'
+#' # Prepare BULK partition
+#' species <- data.frame(
+#'   species_code = c("CO", "BT"),
+#'   access_gradient = c(0.15, 0.25),
+#'   spawn_gradient_max = c(0.0549, 0.0549))
+#'
+#' prep <- frs_habitat_partition(conn, aoi = "BULK", label = "bulk",
+#'   species = species, params_all = params_all,
+#'   params_fresh = params_fresh)
+#'
+#' # Run one species from the prepared jobs
+#' job <- prep$jobs[[1]]
+#' frs_habitat_species(conn, job$species_code, job$base_tbl,
+#'   breaks = job$acc_tbl, breaks_habitat = job$hab_tbl,
+#'   params_sp = job$params_sp, fresh_sp = job$fresh_sp,
+#'   to = job$to)
+#'
+#' DBI::dbDisconnect(conn)
+#' }
+frs_habitat_partition <- function(conn, aoi, label, species,
+                                  params_all, params_fresh,
+                                  source = "whse_basemapping.fwa_stream_networks_sp",
+                                  verbose = TRUE) {
+  stopifnot(is.character(label), length(label) == 1)
+  stopifnot(is.data.frame(species), nrow(species) > 0)
+  stopifnot(all(c("species_code", "access_gradient", "spawn_gradient_max")
+                %in% names(species)))
+
+  cleanup_tables <- character(0)
+
+  # -- Extract base network --------------------------------------------------
+  base_tbl <- paste0("working.streams_", label)
+  cleanup_tables <- c(cleanup_tables, base_tbl)
+
+  t0 <- proc.time()
+
+  # Build where clause: character aoi uses column filter, others use spatial
+  if (is.character(aoi) && length(aoi) == 1 &&
+      grepl("^[A-Z]{4}$", aoi)) {
+    # Looks like a WSG code — use fast column filter
+    frs_extract(conn, from = source, to = base_tbl,
+      where = paste0("watershed_group_code = ", .frs_quote_string(aoi)),
+      overwrite = TRUE)
+  } else {
+    frs_extract(conn, from = source, to = base_tbl,
+      aoi = aoi, overwrite = TRUE)
+  }
+
+  frs_col_join(conn, base_tbl,
+    from = "fwa_stream_networks_channel_width",
+    cols = c("channel_width", "channel_width_source"),
+    by = "linear_feature_id")
+
+  if (verbose) {
+    n <- DBI::dbGetQuery(conn,
+      sprintf("SELECT count(*)::int AS n FROM %s", base_tbl))$n
+    cat("  Base: ", n, " segments (",
+        round((proc.time() - t0)["elapsed"], 1), "s)\n", sep = "")
+  }
+
+  # -- Access barriers (grouped by threshold) --------------------------------
+  for (thr in sort(unique(species$access_gradient))) {
+    thr_label <- .frs_thr_label(thr)
+    breaks_tbl <- paste0("working.breaks_access_", label, "_", thr_label)
+    cleanup_tables <- c(cleanup_tables, breaks_tbl)
+
+    t0 <- proc.time()
+    frs_habitat_access(conn, base_tbl, threshold = thr,
+      to = breaks_tbl, aoi = aoi)
+
+    if (verbose) {
+      spp <- species$species_code[species$access_gradient == thr]
+      cat("  Access ", thr * 100, "%: ",
+          round((proc.time() - t0)["elapsed"], 1),
+          "s (", paste(spp, collapse = ", "), ")\n", sep = "")
+    }
+  }
+
+  # -- Habitat breaks (grouped by spawn_gradient_max) ------------------------
+  for (thr in sort(unique(species$spawn_gradient_max))) {
+    thr_label <- .frs_thr_label(thr)
+    breaks_tbl <- paste0("working.breaks_habitat_", label, "_", thr_label)
+    cleanup_tables <- c(cleanup_tables, breaks_tbl)
+
+    t0 <- proc.time()
+    frs_break_find(conn, base_tbl,
+      attribute = "gradient", threshold = thr,
+      to = breaks_tbl)
+
+    if (verbose) {
+      spp <- species$species_code[species$spawn_gradient_max == thr]
+      cat("  Habitat ", thr * 100, "%: ",
+          round((proc.time() - t0)["elapsed"], 1),
+          "s (", paste(spp, collapse = ", "), ")\n", sep = "")
+    }
+  }
+
+  # -- Build jobs ------------------------------------------------------------
+  jobs <- lapply(seq_len(nrow(species)), function(i) {
+    sc <- species$species_code[i]
+    list(
+      partition = label,
+      species_code = sc,
+      base_tbl = base_tbl,
+      access_threshold = species$access_gradient[i],
+      habitat_threshold = species$spawn_gradient_max[i],
+      acc_tbl = paste0("working.breaks_access_", label, "_",
+                       .frs_thr_label(species$access_gradient[i])),
+      hab_tbl = paste0("working.breaks_habitat_", label, "_",
+                       .frs_thr_label(species$spawn_gradient_max[i])),
+      to = paste0("working.streams_", label, "_", tolower(sc)),
+      params_sp = params_all[[sc]],
+      fresh_sp = params_fresh[params_fresh$species_code == sc, ]
+    )
+  })
+
+  list(jobs = jobs, cleanup_tables = cleanup_tables)
 }
 
 
@@ -303,14 +391,9 @@ frs_habitat <- function(conn, wsg, workers = 1L,
 #' \dontrun{
 #' conn <- frs_db_conn()
 #'
-#' # Compute access barriers at 15% gradient (coho/chinook/pink/sockeye)
+#' # Compute access barriers at 15% gradient
 #' frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
 #'   to = "working.breaks_access_bulk_015", aoi = "BULK")
-#'
-#' # Reuse for all species in that group
-#' frs_habitat_species(conn, "CO", "working.streams_bulk",
-#'   breaks = "working.breaks_access_bulk_015",
-#'   to = "working.streams_bulk_co")
 #'
 #' DBI::dbDisconnect(conn)
 #' }
@@ -323,12 +406,10 @@ frs_habitat_access <- function(conn, table, threshold,
   .frs_validate_identifier(to, "destination table")
   stopifnot(is.numeric(threshold), length(threshold) == 1)
 
-  # Gradient barriers
   frs_break_find(conn, table,
     attribute = "gradient", threshold = threshold,
     to = to)
 
-  # Falls barriers (append to same table)
   if (!is.null(falls)) {
     .frs_validate_identifier(falls, "falls table")
     frs_break_find(conn, table,
@@ -348,11 +429,6 @@ frs_habitat_access <- function(conn, table, threshold,
 #' Each species gets its own output table because break points modify segment
 #' geometry.
 #'
-#' Uses parameters from [frs_params()] (habitat thresholds from bcfishpass) and
-#' `parameters_fresh.csv` (access gradients, spawn gradient min). Output table
-#' naming is WSG-scoped: `working.streams_bulk_co`,
-#' `working.streams_morr_bt`, etc.
-#'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param species_code Character. Uppercase species code (e.g. `"CO"`, `"BT"`).
 #' @param base_tbl Character. Schema-qualified base table with the enriched
@@ -361,17 +437,14 @@ frs_habitat_access <- function(conn, table, threshold,
 #'   [frs_habitat_access()].
 #' @param breaks_habitat Character or `NULL`. Schema-qualified habitat gradient
 #'   breaks table. When provided, skips the per-species gradient scan and
-#'   applies this pre-computed table instead. Species that share the same
-#'   `spawn_gradient_max` can reuse the same habitat breaks. Default `NULL`
-#'   computes breaks on the fly.
+#'   applies this pre-computed table instead. Default `NULL` computes on the
+#'   fly.
 #' @param params_sp Named list. Species parameters from [frs_params()]
 #'   (e.g. `frs_params()$CO`).
 #' @param fresh_sp Data frame row. Species row from `parameters_fresh.csv`
 #'   with `access_gradient_max`, `spawn_gradient_min`.
 #' @param to Character or `NULL`. Output table name. Default `NULL` uses
-#'   `working.streams_{sp}` (e.g. `working.streams_co`). For multi-WSG
-#'   runs, [frs_habitat()] passes WSG-scoped names like
-#'   `working.streams_bulk_co`.
+#'   `working.streams_{sp}`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -387,7 +460,6 @@ frs_habitat_access <- function(conn, table, threshold,
 #' fresh <- read.csv(system.file("extdata",
 #'   "parameters_fresh.csv", package = "fresh"))
 #'
-#' # With pre-computed habitat breaks (fast)
 #' frs_habitat_species(conn, "CO", "working.streams_bulk",
 #'   breaks = "working.breaks_access_bulk_015",
 #'   breaks_habitat = "working.breaks_habitat_bulk_00549",
@@ -431,14 +503,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   }
 
   if (is.null(breaks_habitat)) {
-    # Compute on the fly (slow path)
     breaks_hab_tmp <- paste0(to, "_breaks_habitat")
     frs_break(conn, to,
       attribute = "gradient", threshold = spawn_gradient_max,
       to = breaks_hab_tmp)
     .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", breaks_hab_tmp))
   } else {
-    # Apply pre-computed habitat breaks (fast path)
     frs_break_apply(conn, to, breaks = breaks_habitat)
   }
 

@@ -12,10 +12,10 @@ frs_habitat(conn, wsg, workers = 1L, cleanup = TRUE, verbose = TRUE)
 \item{wsg}{Character. One or more watershed group codes
 (e.g. \code{"BULK"}, \code{c("BULK", "MORR")}).}
 
-\item{workers}{Integer. Number of parallel workers for the per-species
-classification step. Default \code{1} (sequential). Values > 1 require
-the \code{furrr} package and use \code{future::plan(multisession)}. Each worker
-opens its own database connection.}
+\item{workers}{Integer. Number of parallel workers. Default \code{1}
+(sequential). Values > 1 require the \code{furrr} package. Each worker
+opens its own database connection. Used for both Phase 1 (partition
+prep across WSGs) and Phase 2 (species classification).}
 
 \item{cleanup}{Logical. Drop intermediate tables (base network, break
 tables) when done. Default \code{TRUE}.}
@@ -24,22 +24,19 @@ tables) when done. Default \code{TRUE}.}
 }
 \value{
 A data frame with one row per (WSG, species) pair and columns
-\code{wsg}, \code{species_code}, \code{access_threshold}, \code{habitat_threshold},
+\code{partition}, \code{species_code}, \code{access_threshold}, \code{habitat_threshold},
 \code{elapsed_s}, and \code{table_name}.
 }
 \description{
 Orchestrate the full habitat pipeline for all species present in one or
-more watershed groups. For each WSG: extracts the base stream network,
-computes access barriers once per unique access gradient threshold, and
-habitat breaks once per unique spawn gradient threshold. Then flattens
-all (WSG, species) pairs and classifies them in parallel via
-\code{\link[furrr:future_map]{furrr::future_map()}} when \code{workers > 1}.
+more watershed groups. Calls \code{\link[=frs_habitat_partition]{frs_habitat_partition()}} per WSG to extract
+the base network and pre-compute breaks, then flattens all (WSG, species)
+pairs and classifies them via \code{\link[=frs_habitat_species]{frs_habitat_species()}}. Both phases
+parallelize with \code{\link[furrr:future_map]{furrr::future_map()}} when \code{workers > 1}.
 }
 \details{
 Output tables are WSG-scoped: \code{working.streams_bulk_co},
-\code{working.streams_morr_bt}, etc. Each species per WSG gets its own table
-because break points create different segment geometries per threshold
-group.
+\code{working.streams_morr_bt}, etc.
 }
 \examples{
 \dontrun{
@@ -50,13 +47,6 @@ result <- frs_habitat(conn, "BULK")
 
 # Multiple watershed groups, 4 parallel workers
 result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
-
-# Province-wide (local DB recommended)
-all_wsg <- frs_wsg_species(unique(
-  read.csv(system.file("extdata", "wsg_species_presence.csv",
-    package = "fresh"))$watershed_group_code))
-result <- frs_habitat(conn, unique(all_wsg$watershed_group_code),
-  workers = 8)
 
 DBI::dbDisconnect(conn)
 }
@@ -74,6 +64,7 @@ Other habitat:
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
 \code{\link{frs_habitat_access}()},
+\code{\link{frs_habitat_partition}()},
 \code{\link{frs_habitat_species}()}
 }
 \concept{habitat}

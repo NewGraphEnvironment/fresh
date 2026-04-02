@@ -49,14 +49,9 @@ redundant computation.
 \dontrun{
 conn <- frs_db_conn()
 
-# Compute access barriers at 15\% gradient (coho/chinook/pink/sockeye)
+# Compute access barriers at 15\% gradient
 frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
   to = "working.breaks_access_bulk_015", aoi = "BULK")
-
-# Reuse for all species in that group
-frs_habitat_species(conn, "CO", "working.streams_bulk",
-  breaks = "working.breaks_access_bulk_015",
-  to = "working.streams_bulk_co")
 
 DBI::dbDisconnect(conn)
 }
@@ -74,6 +69,7 @@ Other habitat:
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
 \code{\link{frs_habitat}()},
+\code{\link{frs_habitat_partition}()},
 \code{\link{frs_habitat_species}()}
 }
 \concept{habitat}

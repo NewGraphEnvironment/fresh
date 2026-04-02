@@ -28,9 +28,8 @@ stream network (from \code{\link[=frs_extract]{frs_extract()}} + \code{\link[=fr
 
 \item{breaks_habitat}{Character or \code{NULL}. Schema-qualified habitat gradient
 breaks table. When provided, skips the per-species gradient scan and
-applies this pre-computed table instead. Species that share the same
-\code{spawn_gradient_max} can reuse the same habitat breaks. Default \code{NULL}
-computes breaks on the fly.}
+applies this pre-computed table instead. Default \code{NULL} computes on the
+fly.}
 
 \item{params_sp}{Named list. Species parameters from \code{\link[=frs_params]{frs_params()}}
 (e.g. \code{frs_params()$CO}).}
@@ -39,9 +38,7 @@ computes breaks on the fly.}
 with \code{access_gradient_max}, \code{spawn_gradient_min}.}
 
 \item{to}{Character or \code{NULL}. Output table name. Default \code{NULL} uses
-\verb{working.streams_\{sp\}} (e.g. \code{working.streams_co}). For multi-WSG
-runs, \code{\link[=frs_habitat]{frs_habitat()}} passes WSG-scoped names like
-\code{working.streams_bulk_co}.}
+\verb{working.streams_\{sp\}}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -52,12 +49,6 @@ classify spawning, rearing, and lake rearing habitat for a single species.
 Each species gets its own output table because break points modify segment
 geometry.
 }
-\details{
-Uses parameters from \code{\link[=frs_params]{frs_params()}} (habitat thresholds from bcfishpass) and
-\code{parameters_fresh.csv} (access gradients, spawn gradient min). Output table
-naming is WSG-scoped: \code{working.streams_bulk_co},
-\code{working.streams_morr_bt}, etc.
-}
 \examples{
 \dontrun{
 conn <- frs_db_conn()
@@ -66,7 +57,6 @@ params <- frs_params(csv = system.file("extdata",
 fresh <- read.csv(system.file("extdata",
   "parameters_fresh.csv", package = "fresh"))
 
-# With pre-computed habitat breaks (fast)
 frs_habitat_species(conn, "CO", "working.streams_bulk",
   breaks = "working.breaks_access_bulk_015",
   breaks_habitat = "working.breaks_habitat_bulk_00549",
@@ -90,6 +80,7 @@ Other habitat:
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
 \code{\link{frs_habitat}()},
-\code{\link{frs_habitat_access}()}
+\code{\link{frs_habitat_access}()},
+\code{\link{frs_habitat_partition}()}
 }
 \concept{habitat}
