@@ -157,14 +157,20 @@ run_wsg <- function(wsg) {
 
   DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
 
-  # -- Extract base network once (bcfishpass.streams_vw has everything) ------
+  # -- Extract base network once (raw FWA + channel width join) ---------------
   base_tbl <- paste0("working.", tolower(wsg), "_base")
   t0 <- proc.time()
-  DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", base_tbl))
-  DBI::dbExecute(conn, sprintf(
-    "CREATE TABLE %s AS SELECT * FROM bcfishpass.streams_vw
-     WHERE watershed_group_code = %s",
-    base_tbl, .frs_quote_string(wsg)))
+  conn |>
+    frs_extract(
+      from = "whse_basemapping.fwa_stream_networks_sp",
+      to = base_tbl,
+      where = paste0("watershed_group_code = ", .frs_quote_string(wsg)),
+      overwrite = TRUE
+    ) |>
+    frs_col_join(base_tbl,
+      from = "fwa_stream_networks_channel_width",
+      cols = c("channel_width", "channel_width_source"),
+      by = "linear_feature_id")
   extract_s <- (proc.time() - t0)["elapsed"]
   n_base <- DBI::dbGetQuery(conn,
     sprintf("SELECT count(*) AS n FROM %s", base_tbl))$n
