@@ -1,0 +1,47 @@
+ℹ Loading fresh
+Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
+Spherical geometry (s2) switched off
+=== frs_habitat benchmark ===
+WSG: ADMS 
+Method: sequential, access+habitat dedup
+Commit: 01a4829 
+Date: 2026-04-02 06:30:54 
+
+Species: BT, CH, CO, RB, SK 
+NOTICE:  table "streams" does not exist, skipping
+
+Base network: 11520 segments (2.4s)
+NOTICE:  table "breaks_access_015" does not exist, skipping
+
+Access 15%: 13.3s (CH, CO, SK)
+NOTICE:  table "breaks_access_025" does not exist, skipping
+
+Access 25%: 11.4s (BT, RB)
+NOTICE:  table "breaks_habitat_00249" does not exist, skipping
+
+Habitat 2.49%: 11.3s (SK)
+NOTICE:  table "breaks_habitat_00449" does not exist, skipping
+
+Habitat 4.49%: 11.2s (CH)
+NOTICE:  table "breaks_habitat_00549" does not exist, skipping
+
+Habitat 5.49%: 10.2s (BT, CO, RB)
+  BT: 18.3s -> working.streams_bt
+  CH: 18.3s -> working.streams_ch
+  CO: 18.7s -> working.streams_co
+  RB: 18.2s -> working.streams_rb
+  SK: 18.8s -> working.streams_sk
+Total: 153.5s
+
+         species_code access_threshold habitat_threshold elapsed_s
+elapsed            BT             0.25            0.0549    18.329
+elapsed1           CH             0.15            0.0449    18.293
+elapsed2           CO             0.15            0.0549    18.674
+elapsed3           RB             0.25            0.0549    18.211
+elapsed4           SK             0.15            0.0249    18.833
+                 table_name
+elapsed  working.streams_bt
+elapsed1 working.streams_ch
+elapsed2 working.streams_co
+elapsed3 working.streams_rb
+elapsed4 working.streams_sk
