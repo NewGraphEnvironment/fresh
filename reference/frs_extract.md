@@ -11,7 +11,15 @@ and
 ## Usage
 
 ``` r
-frs_extract(conn, from, to, cols = NULL, aoi = NULL, overwrite = FALSE)
+frs_extract(
+  conn,
+  from,
+  to,
+  cols = NULL,
+  aoi = NULL,
+  where = NULL,
+  overwrite = FALSE
+)
 ```
 
 ## Arguments
@@ -49,6 +57,13 @@ frs_extract(conn, from, to, cols = NULL, aoi = NULL, overwrite = FALSE)
   - `sf`/`sfc` polygon — spatial intersection
 
   - Named list — table+id lookup or blk+measure delineation
+
+- where:
+
+  Character or `NULL`. SQL predicate to filter rows. When both `aoi` and
+  `where` are provided they are ANDed together. Example:
+  `"watershed_group_code = 'BULK'"` for a fast column filter on tables
+  that carry a watershed group code column.
 
 - overwrite:
 

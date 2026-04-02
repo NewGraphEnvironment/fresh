@@ -62,3 +62,5 @@
   : Split a Watershed into Sub-Basins at Break Points
 - [`frs_wetland_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_wetland_fetch.md)
   : Fetch FWA Wetlands
+- [`frs_wsg_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_species.md)
+  : Species Present in a Watershed Group

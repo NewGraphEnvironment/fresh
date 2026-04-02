@@ -48,6 +48,11 @@ list with threshold values and a `ranges` sub-list suitable for passing
 to
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md).
 
+## See also
+
+Other parameters:
+[`frs_wsg_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_species.md)
+
 ## Examples
 
 ``` r
