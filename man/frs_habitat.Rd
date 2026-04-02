@@ -2,25 +2,15 @@
 % Please edit documentation in R/frs_habitat.R
 \name{frs_habitat}
 \alias{frs_habitat}
-\title{Run Habitat Pipeline for a Watershed Group}
+\title{Run Habitat Pipeline for Watershed Groups}
 \usage{
-frs_habitat(
-  conn,
-  wsg,
-  base_tbl = "working.streams",
-  workers = 1L,
-  cleanup = TRUE,
-  verbose = TRUE
-)
+frs_habitat(conn, wsg, workers = 1L, cleanup = TRUE, verbose = TRUE)
 }
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
 
 \item{wsg}{Character. One or more watershed group codes
 (e.g. \code{"BULK"}, \code{c("BULK", "MORR")}).}
-
-\item{base_tbl}{Character. Name for the base stream network table. Default
-\code{"working.streams"}.}
 
 \item{workers}{Integer. Number of parallel workers for the per-species
 classification step. Default \code{1} (sequential). Values > 1 require
@@ -33,22 +23,23 @@ tables) when done. Default \code{TRUE}.}
 \item{verbose}{Logical. Print progress and timing. Default \code{TRUE}.}
 }
 \value{
-A data frame summarising the run: one row per species with columns
-\code{species_code}, \code{access_threshold}, \code{habitat_threshold}, \code{elapsed_s},
-and \code{table_name}.
+A data frame with one row per (WSG, species) pair and columns
+\code{wsg}, \code{species_code}, \code{access_threshold}, \code{habitat_threshold},
+\code{elapsed_s}, and \code{table_name}.
 }
 \description{
 Orchestrate the full habitat pipeline for all species present in one or
-more watershed groups. Extracts the base stream network once, computes
-access barriers once per unique access gradient threshold, habitat breaks
-once per unique spawn gradient threshold, then classifies habitat per
-species. Both break types are deduplicated across species that share the
-same thresholds.
+more watershed groups. For each WSG: extracts the base stream network,
+computes access barriers once per unique access gradient threshold, and
+habitat breaks once per unique spawn gradient threshold. Then flattens
+all (WSG, species) pairs and classifies them in parallel via
+\code{\link[furrr:future_map]{furrr::future_map()}} when \code{workers > 1}.
 }
 \details{
-Output tables mirror bcfishpass naming: \code{working.streams_co},
-\code{working.streams_bt}, etc. Each species gets its own table because break
-points create different segment geometries per threshold group.
+Output tables are WSG-scoped: \code{working.streams_bulk_co},
+\code{working.streams_morr_bt}, etc. Each species per WSG gets its own table
+because break points create different segment geometries per threshold
+group.
 }
 \examples{
 \dontrun{
@@ -56,10 +47,16 @@ conn <- frs_db_conn()
 
 # Single watershed group
 result <- frs_habitat(conn, "BULK")
-result
 
-# Multiple watershed groups
-result <- frs_habitat(conn, c("BULK", "MORR"))
+# Multiple watershed groups, 4 parallel workers
+result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
+
+# Province-wide (local DB recommended)
+all_wsg <- frs_wsg_species(unique(
+  read.csv(system.file("extdata", "wsg_species_presence.csv",
+    package = "fresh"))$watershed_group_code))
+result <- frs_habitat(conn, unique(all_wsg$watershed_group_code),
+  workers = 8)
 
 DBI::dbDisconnect(conn)
 }

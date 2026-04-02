@@ -39,7 +39,9 @@ computes breaks on the fly.}
 with \code{access_gradient_max}, \code{spawn_gradient_min}.}
 
 \item{to}{Character or \code{NULL}. Output table name. Default \code{NULL} uses
-\verb{working.streams_\{sp\}} (e.g. \code{working.streams_co}).}
+\verb{working.streams_\{sp\}} (e.g. \code{working.streams_co}). For multi-WSG
+runs, \code{\link[=frs_habitat]{frs_habitat()}} passes WSG-scoped names like
+\code{working.streams_bulk_co}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -52,9 +54,9 @@ geometry.
 }
 \details{
 Uses parameters from \code{\link[=frs_params]{frs_params()}} (habitat thresholds from bcfishpass) and
-\code{parameters_fresh.csv} (access gradients, spawn gradient min). The output
-table mirrors bcfishpass naming: \code{working.streams_co}, \code{working.streams_bt},
-etc.
+\code{parameters_fresh.csv} (access gradients, spawn gradient min). Output table
+naming is WSG-scoped: \code{working.streams_bulk_co},
+\code{working.streams_morr_bt}, etc.
 }
 \examples{
 \dontrun{
@@ -64,18 +66,13 @@ params <- frs_params(csv = system.file("extdata",
 fresh <- read.csv(system.file("extdata",
   "parameters_fresh.csv", package = "fresh"))
 
-# With pre-computed habitat breaks (fast — no gradient scan)
-frs_habitat_species(conn, "CO", "working.streams",
-  breaks = "working.breaks_access_015",
-  breaks_habitat = "working.breaks_habitat_00549",
+# With pre-computed habitat breaks (fast)
+frs_habitat_species(conn, "CO", "working.streams_bulk",
+  breaks = "working.breaks_access_bulk_015",
+  breaks_habitat = "working.breaks_habitat_bulk_00549",
   params_sp = params$CO,
-  fresh_sp = fresh[fresh$species_code == "CO", ])
-
-# Without pre-computed habitat breaks (computes on the fly)
-frs_habitat_species(conn, "CO", "working.streams",
-  breaks = "working.breaks_access_015",
-  params_sp = params$CO,
-  fresh_sp = fresh[fresh$species_code == "CO", ])
+  fresh_sp = fresh[fresh$species_code == "CO", ],
+  to = "working.streams_bulk_co")
 
 DBI::dbDisconnect(conn)
 }

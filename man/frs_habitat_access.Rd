@@ -50,14 +50,13 @@ redundant computation.
 conn <- frs_db_conn()
 
 # Compute access barriers at 15\% gradient (coho/chinook/pink/sockeye)
-frs_habitat_access(conn, "working.streams", threshold = 0.15,
-  to = "working.breaks_access_015", aoi = "BULK")
+frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
+  to = "working.breaks_access_bulk_015", aoi = "BULK")
 
 # Reuse for all species in that group
-frs_habitat_species(conn, "CO", "working.streams",
-  breaks = "working.breaks_access_015")
-frs_habitat_species(conn, "CH", "working.streams",
-  breaks = "working.breaks_access_015")
+frs_habitat_species(conn, "CO", "working.streams_bulk",
+  breaks = "working.breaks_access_bulk_015",
+  to = "working.streams_bulk_co")
 
 DBI::dbDisconnect(conn)
 }
