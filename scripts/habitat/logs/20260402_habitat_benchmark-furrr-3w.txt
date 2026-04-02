@@ -1,0 +1,36 @@
+ℹ Loading fresh
+Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
+Spherical geometry (s2) switched off
+=== frs_habitat benchmark ===
+WSG: ADMS 
+Method: furrr (3 workers) 
+Commit: 287d958 
+Date: 2026-04-02 06:39:53 
+
+Species: BT, CH, CO, RB, SK 
+Base network: 11520 segments (2.3s)
+Access 15%: 20.2s (CH, CO, SK)
+Access 25%: 13.8s (BT, RB)
+Habitat 2.49%: 11s (SK)
+Habitat 4.49%: 11.6s (CH)
+Habitat 5.49%: 11.1s (BT, CO, RB)
+Classifying 5 species (3 workers)...
+  BT: 25s -> working.streams_bt
+  CH: 22.7s -> working.streams_ch
+  CO: 22.6s -> working.streams_co
+  RB: 25.1s -> working.streams_rb
+  SK: 23.4s -> working.streams_sk
+Total: 123.3s
+
+         species_code access_threshold habitat_threshold elapsed_s
+elapsed            BT             0.25            0.0549    25.040
+elapsed1           CH             0.15            0.0449    22.746
+elapsed2           CO             0.15            0.0549    22.589
+elapsed3           RB             0.25            0.0549    25.099
+elapsed4           SK             0.15            0.0249    23.415
+                 table_name
+elapsed  working.streams_bt
+elapsed1 working.streams_ch
+elapsed2 working.streams_co
+elapsed3 working.streams_rb
+elapsed4 working.streams_sk

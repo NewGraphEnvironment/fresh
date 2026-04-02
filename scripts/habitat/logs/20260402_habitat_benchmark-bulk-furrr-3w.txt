@@ -1,0 +1,62 @@
+ℹ Loading fresh
+Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
+Spherical geometry (s2) switched off
+=== frs_habitat benchmark ===
+WSG: BULK 
+Method: furrr (3 workers) 
+Commit: 1951cb3 
+Date: 2026-04-02 07:28:46 
+
+BULK: BT, CH, CO, PK, RB, SK, ST
+NOTICE:  table "streams_bulk" does not exist, skipping
+
+  Base: 32472 segments (2.9s)
+NOTICE:  table "breaks_access_bulk_015" does not exist, skipping
+
+  Access 15%: 33.1s (CH, CO, PK, SK)
+NOTICE:  table "breaks_access_bulk_02" does not exist, skipping
+
+  Access 20%: 32.1s (ST)
+NOTICE:  table "breaks_access_bulk_025" does not exist, skipping
+
+  Access 25%: 40.2s (BT, RB)
+NOTICE:  table "breaks_habitat_bulk_00249" does not exist, skipping
+
+  Habitat 2.49%: 32.5s (SK)
+NOTICE:  table "breaks_habitat_bulk_00449" does not exist, skipping
+
+  Habitat 4.49%: 31.2s (CH, ST)
+NOTICE:  table "breaks_habitat_bulk_00549" does not exist, skipping
+
+  Habitat 5.49%: 29.6s (BT, CO, RB)
+NOTICE:  table "breaks_habitat_bulk_00649" does not exist, skipping
+
+  Habitat 6.49%: 28.5s (PK)
+
+7 species jobs across 1 WSG(s)
+Classifying (3 workers)...
+  BULK/BT: 130.5s -> working.streams_bulk_bt
+  BULK/CH: 131.3s -> working.streams_bulk_ch
+  BULK/CO: 128.5s -> working.streams_bulk_co
+  BULK/PK: 129.8s -> working.streams_bulk_pk
+  BULK/RB: 110.6s -> working.streams_bulk_rb
+  BULK/SK: 127.4s -> working.streams_bulk_sk
+  BULK/ST: 127.4s -> working.streams_bulk_st
+Total: 605.2s
+
+   wsg species_code access_threshold habitat_threshold elapsed_s
+1 BULK           BT             0.25            0.0549   130.490
+2 BULK           CH             0.15            0.0449   131.288
+3 BULK           CO             0.15            0.0549   128.492
+4 BULK           PK             0.15            0.0649   129.785
+5 BULK           RB             0.25            0.0549   110.599
+6 BULK           SK             0.15            0.0249   127.369
+7 BULK           ST             0.20            0.0449   127.353
+               table_name
+1 working.streams_bulk_bt
+2 working.streams_bulk_ch
+3 working.streams_bulk_co
+4 working.streams_bulk_pk
+5 working.streams_bulk_rb
+6 working.streams_bulk_sk
+7 working.streams_bulk_st
