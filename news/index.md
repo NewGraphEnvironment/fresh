@@ -1,5 +1,22 @@
 # Changelog
 
+## fresh 0.5.0
+
+Watershed-group habitat pipeline — run the full pipeline across all
+species in a WSG.
+
+- Add `where` parameter to
+  [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
+  for SQL predicate filtering, ANDed with `aoi` when both provided
+  ([\#60](https://github.com/NewGraphEnvironment/fresh/issues/60))
+- Add
+  [`frs_wsg_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_species.md)
+  to look up species presence and bcfishpass view names per watershed
+  group from bundled `wsg_species_presence.csv`
+- Add `data-raw/pipeline_wsg.R` — runs full habitat pipeline per species
+  per WSG with timing (baseline: 20 min for BULK, 7 species, 32K
+  segments)
+
 ## fresh 0.4.1
 
 - Add

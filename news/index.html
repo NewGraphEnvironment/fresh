@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,14 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.5.0" id="fresh-050">fresh 0.5.0<a class="anchor" aria-label="anchor" href="#fresh-050"></a></h2>
+<p>Watershed-group habitat pipeline — run the full pipeline across all species in a WSG.</p>
+<ul><li>Add <code>where</code> parameter to <code><a href="../reference/frs_extract.html">frs_extract()</a></code> for SQL predicate filtering, ANDed with <code>aoi</code> when both provided (<a href="https://github.com/NewGraphEnvironment/fresh/issues/60" class="external-link">#60</a>)</li>
+<li>Add <code><a href="../reference/frs_wsg_species.html">frs_wsg_species()</a></code> to look up species presence and bcfishpass view names per watershed group from bundled <code>wsg_species_presence.csv</code>
+</li>
+<li>Add <code>data-raw/pipeline_wsg.R</code> — runs full habitat pipeline per species per WSG with timing (baseline: 20 min for BULK, 7 species, 32K segments)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.1" id="fresh-041">fresh 0.4.1<a class="anchor" aria-label="anchor" href="#fresh-041"></a></h2>
 <ul><li>Add <code><a href="../reference/frs_categorize.html">frs_categorize()</a></code> for priority-ordered boolean-to-category collapse — mapping codes for QGIS, reporting, gq style registry (<a href="https://github.com/NewGraphEnvironment/fresh/issues/57" class="external-link">#57</a>)</li>
