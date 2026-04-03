@@ -29,7 +29,7 @@ falls <- DBI::dbGetQuery(conn,
 
 DBI::dbDisconnect(conn)
 
-write.csv(falls, "inst/extdata/falls.csv", row.names = FALSE)
+write.csv(falls, "inst/extdata/falls.csv", row.names = FALSE, na = "")
 
 cat("Saved inst/extdata/falls.csv\n")
 cat("  Barrier falls:", nrow(falls), "\n")
