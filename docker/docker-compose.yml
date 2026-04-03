@@ -1,0 +1,68 @@
+# Local fwapg instance for fresh habitat pipeline
+#
+# Usage:
+#   cd docker
+#   docker compose up -d db                   # start PostGIS
+#   docker compose run --rm loader            # load fwapg data + falls
+#   docker compose run --rm loader --bcfishobs  # optional: load fish observations
+#   docker compose down                       # stop
+#   docker compose down -v                    # stop + delete data
+#
+# Connect from R:
+#   conn <- DBI::dbConnect(RPostgres::Postgres(),
+#     host = "localhost", port = 5432,
+#     dbname = "fwapg", user = "postgres", password = "postgres")
+
+services:
+  db:
+    image: imresamu/postgis:17-3.5-bullseye
+    container_name: fresh-db
+    shm_size: 16gb
+    command: >
+      postgres
+        -c default_statistics_target=100
+        -c max_connections=40
+        -c max_locks_per_transaction=64
+        -c checkpoint_timeout=30min
+        -c maintenance_work_mem=1GB
+        -c effective_cache_size=16GB
+        -c work_mem=1GB
+        -c max_wal_size=10GB
+        -c wal_buffers=16MB
+        -c shared_buffers=8GB
+        -c max_parallel_workers_per_gather=4
+        -c max_parallel_workers=8
+        -c max_worker_processes=12
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 1s
+      retries: 5
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fwapg
+
+  loader:
+    build:
+      context: .
+    container_name: fresh-loader
+    volumes:
+      - "${FWAPG_DIR:-../../fwapg}:/home/fwapg:ro"
+      - "${BCFISHOBS_DIR:-../../bcfishobs}:/home/bcfishobs:ro"
+      - "../inst/extdata:/home/fresh/extdata:ro"
+      - "./load.sh:/home/fresh/load.sh:ro"
+    environment:
+      - PGHOST=db
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fwapg
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["bash", "/home/fresh/load.sh"]
