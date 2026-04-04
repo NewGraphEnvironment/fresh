@@ -1,0 +1,32 @@
+## Classify benchmark — ADMS with indexes
+## Date: 2026-04-04
+## DB: local Docker fwapg (port 5432)
+## Branch: fix-working-indexes
+## Issue: #72
+
+## Setup
+# WSG: ADMS (11,520 segments)
+# Break sources: gradient (28,960) + falls (7) + crossings (3,597)
+# Total breaks: 32,564
+# Indexes: blue_line_key, (blue_line_key, downstream_route_measure),
+#          wscode_ltree GIST+BTREE, localcode_ltree GIST+BTREE,
+#          linear_feature_id, watershed_group_code
+
+## Result
+# Classify (single UPDATE with fwa_upstream): 742.1s (~12 min)
+# Accessible: 1,060 / 11,520 segments (9.2%)
+
+## Comparison (from v0.6.0 benchmarks, remote DB, falls only)
+# Phase 2 per species: ~14 min (no indexes, remote DB)
+# With indexes: ~12 min (local Docker) — minimal improvement
+
+## Conclusion
+# Indexes provide marginal improvement (~15%). The bottleneck is the
+# NOT EXISTS query structure with OR between same-BLK and cross-BLK
+# conditions. The fwa_upstream() function call in the cross-BLK
+# subquery dominates — it evaluates ltree containment for every
+# segment × every cross-BLK break.
+#
+# Next steps: restructure classify query (e.g. pre-filter breaks to
+# matching BLKs, split same-BLK and cross-BLK into separate passes,
+# or use materialized ltree indexes on breaks).
