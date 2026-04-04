@@ -88,6 +88,29 @@ else
   echo "  Run data-raw/bcfishpass_falls.R to generate it"
 fi
 
+CROSSINGS_CSV="$EXTDATA_DIR/crossings.csv"
+if [ -f "$CROSSINGS_CSV" ]; then
+  echo "Loading crossings from $CROSSINGS_CSV"
+  $PSQL -c "DROP TABLE IF EXISTS working.crossings"
+  $PSQL -c "CREATE TABLE working.crossings (
+    aggregated_crossings_id text,
+    crossing_source text,
+    barrier_status text,
+    crossing_type_code text,
+    pscis_status text,
+    blue_line_key integer,
+    downstream_route_measure double precision,
+    watershed_group_code character varying(4),
+    gnis_stream_name text,
+    stream_order integer
+  )"
+  $PSQL -c "\copy working.crossings FROM '$CROSSINGS_CSV' delimiter ',' csv header"
+  echo "  Loaded $($PSQL -AtX -c 'SELECT count(*) FROM working.crossings') crossings"
+else
+  echo "WARNING: $CROSSINGS_CSV not found — skipping crossings load"
+  echo "  Run data-raw/bcfishpass_crossings.R to generate it"
+fi
+
 # ---------------------
 # Stage 4 (optional): bcfishobs
 # ---------------------
