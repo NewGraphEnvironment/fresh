@@ -13,7 +13,7 @@ frs_point_snap())."><meta property="og:image" content="https://newgraphenvironme
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,6 +65,9 @@ table (e.g. falls, dams), or user-provided sf points (snapped via
 <span>  points <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  where <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  aoi <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  label <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  label_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  label_map <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  append <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -133,6 +136,24 @@ to the stream network via <code><a href="frs_point_snap.html">frs_point_snap()</
 <code>.frs_resolve_aoi()</code>). Only used with <code>points_table</code> mode.</p></dd>
 
 
+<dt id="arg-label">label<a class="anchor" aria-label="anchor" href="#arg-label"></a></dt>
+<dd><p>Character or <code>NULL</code>. Static label for all break points from
+this source (e.g. <code>"blocked"</code>, <code>"potential"</code>). Only used with
+<code>points_table</code> mode. Ignored if <code>label_col</code> is provided.</p></dd>
+
+
+<dt id="arg-label-col">label_col<a class="anchor" aria-label="anchor" href="#arg-label-col"></a></dt>
+<dd><p>Character or <code>NULL</code>. Column name in <code>points_table</code> to
+read labels from. Values are passed through as-is, or remapped via
+<code>label_map</code>. Only used with <code>points_table</code> mode.</p></dd>
+
+
+<dt id="arg-label-map">label_map<a class="anchor" aria-label="anchor" href="#arg-label-map"></a></dt>
+<dd><p>Named character vector or <code>NULL</code>. Maps values in
+<code>label_col</code> to output labels (e.g. <code>c("BARRIER" = "blocked")</code>).
+Only used with <code>label_col</code>.</p></dd>
+
+
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, drop <code>to</code> before creating.
 Default <code>TRUE</code>.</p></dd>
@@ -140,8 +161,8 @@ Default <code>TRUE</code>.</p></dd>
 
 <dt id="arg-append">append<a class="anchor" aria-label="anchor" href="#arg-append"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, INSERT INTO existing <code>to</code> table
-instead of CREATE. Use to combine multiple break sources (e.g.
-gradient breaks + falls barriers). Default <code>FALSE</code>.</p></dd>
+instead of CREATE. Use to combine multiple break sources. Default
+<code>FALSE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

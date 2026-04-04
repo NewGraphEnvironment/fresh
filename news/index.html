@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.7.0" id="fresh-070">fresh 0.7.0<a class="anchor" aria-label="anchor" href="#fresh-070"></a></h2>
+<p>Local Docker fwapg instance and generic network-referenced classification via <code>break_sources</code>.</p>
+<ul><li>Replace <code>falls</code> parameter with <code>break_sources</code> list across pipeline (<code><a href="../reference/frs_habitat.html">frs_habitat()</a></code>, <code><a href="../reference/frs_habitat_partition.html">frs_habitat_partition()</a></code>, <code><a href="../reference/frs_habitat_access.html">frs_habitat_access()</a></code>) — accepts any number of point tables with <code>label</code>, <code>label_col</code>, and <code>label_map</code> for flexible classification (<a href="https://github.com/NewGraphEnvironment/fresh/issues/70" class="external-link">#70</a>)</li>
+<li>Add <code>label</code> and <code>source</code> columns to breaks table for provenance tracking</li>
+<li>Ship <code>inst/extdata/falls.csv</code> (3,294 barrier falls) and <code>inst/extdata/crossings.csv</code> (533k crossings) with <code>data-raw/</code> refresh scripts</li>
+<li>Add Docker-based local fwapg: containerized PostGIS + loader with GDAL/psql/bcdata (<a href="https://github.com/NewGraphEnvironment/fresh/issues/63" class="external-link">#63</a>)</li>
+<li>Fix Phase 2 sequential mode to reuse <code>conn</code> instead of calling <code><a href="../reference/frs_db_conn.html">frs_db_conn()</a></code>
+</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.6.0" id="fresh-060">fresh 0.6.0<a class="anchor" aria-label="anchor" href="#fresh-060"></a></h2>
 <p>Parallelized multi-WSG habitat pipeline — 2.5x speedup over sequential on BULK.</p>

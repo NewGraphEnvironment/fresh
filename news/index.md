@@ -1,5 +1,28 @@
 # Changelog
 
+## fresh 0.7.0
+
+Local Docker fwapg instance and generic network-referenced
+classification via `break_sources`.
+
+- Replace `falls` parameter with `break_sources` list across pipeline
+  ([`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md),
+  [`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md),
+  [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md))
+  — accepts any number of point tables with `label`, `label_col`, and
+  `label_map` for flexible classification
+  ([\#70](https://github.com/NewGraphEnvironment/fresh/issues/70))
+- Add `label` and `source` columns to breaks table for provenance
+  tracking
+- Ship `inst/extdata/falls.csv` (3,294 barrier falls) and
+  `inst/extdata/crossings.csv` (533k crossings) with `data-raw/` refresh
+  scripts
+- Add Docker-based local fwapg: containerized PostGIS + loader with
+  GDAL/psql/bcdata
+  ([\#63](https://github.com/NewGraphEnvironment/fresh/issues/63))
+- Fix Phase 2 sequential mode to reuse `conn` instead of calling
+  [`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
+
 ## fresh 0.6.0
 
 Parallelized multi-WSG habitat pipeline — 2.5x speedup over sequential

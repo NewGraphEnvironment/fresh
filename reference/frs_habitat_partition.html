@@ -11,7 +11,7 @@ species classification jobs ready for frs_habitat_species()."><meta property="og
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,6 +58,7 @@ species classification jobs ready for <code><a href="frs_habitat_species.html">f
 <span>  <span class="va">params_all</span>,</span>
 <span>  <span class="va">params_fresh</span>,</span>
 <span>  source <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span>
+<span>  break_sources <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -97,6 +98,12 @@ watershed group code, <code>sf</code> polygon, named list, or <code>NULL</code>.
 <dt id="arg-source">source<a class="anchor" aria-label="anchor" href="#arg-source"></a></dt>
 <dd><p>Character. Source table for the stream network. Default
 <code>"whse_basemapping.fwa_stream_networks_sp"</code>.</p></dd>
+
+
+<dt id="arg-break-sources">break_sources<a class="anchor" aria-label="anchor" href="#arg-break-sources"></a></dt>
+<dd><p>List of break source specs passed to
+<code><a href="frs_habitat_access.html">frs_habitat_access()</a></code>, or <code>NULL</code> for gradient-only. See
+<code><a href="frs_habitat_access.html">frs_habitat_access()</a></code> for spec format.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>

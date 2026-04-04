@@ -20,6 +20,9 @@ frs_break_find(
   points = NULL,
   where = NULL,
   aoi = NULL,
+  label = NULL,
+  label_col = NULL,
+  label_map = NULL,
   overwrite = TRUE,
   append = FALSE
 )
@@ -89,6 +92,23 @@ frs_break_find(
   AOI specification for filtering (passed to `.frs_resolve_aoi()`). Only
   used with `points_table` mode.
 
+- label:
+
+  Character or `NULL`. Static label for all break points from this
+  source (e.g. `"blocked"`, `"potential"`). Only used with
+  `points_table` mode. Ignored if `label_col` is provided.
+
+- label_col:
+
+  Character or `NULL`. Column name in `points_table` to read labels
+  from. Values are passed through as-is, or remapped via `label_map`.
+  Only used with `points_table` mode.
+
+- label_map:
+
+  Named character vector or `NULL`. Maps values in `label_col` to output
+  labels (e.g. `c("BARRIER" = "blocked")`). Only used with `label_col`.
+
 - overwrite:
 
   Logical. If `TRUE`, drop `to` before creating. Default `TRUE`.
@@ -96,8 +116,7 @@ frs_break_find(
 - append:
 
   Logical. If `TRUE`, INSERT INTO existing `to` table instead of CREATE.
-  Use to combine multiple break sources (e.g. gradient breaks + falls
-  barriers). Default `FALSE`.
+  Use to combine multiple break sources. Default `FALSE`.
 
 ## Value
 

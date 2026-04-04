@@ -114,7 +114,7 @@ MIT
 - [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
   : Run Habitat Pipeline for Watershed Groups
 - [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
-  : Compute Access Barriers at a Gradient Threshold
+  : Compute Access Breaks at a Gradient Threshold
 - [`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md)
   : Prepare a Partition for Habitat Classification
 - [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)

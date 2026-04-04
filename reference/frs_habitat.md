@@ -13,7 +13,14 @@ when `workers > 1`.
 ## Usage
 
 ``` r
-frs_habitat(conn, wsg, workers = 1L, cleanup = TRUE, verbose = TRUE)
+frs_habitat(
+  conn,
+  wsg,
+  workers = 1L,
+  break_sources = NULL,
+  cleanup = TRUE,
+  verbose = TRUE
+)
 ```
 
 ## Arguments
@@ -36,6 +43,15 @@ frs_habitat(conn, wsg, workers = 1L, cleanup = TRUE, verbose = TRUE)
   \> 1 require the `furrr` package. Each worker opens its own database
   connection. Used for both Phase 1 (partition prep across WSGs) and
   Phase 2 (species classification).
+
+- break_sources:
+
+  List of break source specs passed to
+  [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md),
+  or `NULL` for gradient-only. Each spec is a list with `table`, and
+  optionally `where`, `label`, `label_col`, `label_map`. See
+  [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
+  for details.
 
 - cleanup:
 
@@ -85,6 +101,18 @@ result <- frs_habitat(conn, "BULK")
 
 # Multiple watershed groups, 4 parallel workers
 result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
+
+# With break sources (falls, crossings, etc.)
+result <- frs_habitat(conn, "ADMS", break_sources = list(
+  list(table = "working.falls", where = "barrier_ind = TRUE",
+       label = "blocked"),
+  list(table = "working.pscis",
+       label_col = "barrier_status",
+       label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
+))
+
+# Gradient-only (no external break sources)
+result <- frs_habitat(conn, "ADMS")
 
 DBI::dbDisconnect(conn)
 } # }

@@ -1,10 +1,10 @@
-# Compute Access Barriers at a Gradient Threshold
+# Compute Access Breaks at a Gradient Threshold
 
-Find gradient-based access barriers and barrier falls, write them to a
-breaks table. This is the expensive step in the habitat pipeline —
-`fwa_slopealonginterval()` runs on every blue line key. Species that
-share the same `access_gradient_max` can reuse the same breaks table,
-avoiding redundant computation.
+Find gradient-based access breaks and append break points from external
+sources (e.g. falls, crossings, dams). This is the expensive step in the
+habitat pipeline — `fwa_slopealonginterval()` runs on every blue line
+key. Species that share the same `access_gradient_max` can reuse the
+same breaks table, avoiding redundant computation.
 
 ## Usage
 
@@ -14,9 +14,7 @@ frs_habitat_access(
   table,
   threshold,
   to = "working.breaks_access",
-  falls = "bcfishpass.falls_vw",
-  falls_where = "barrier_ind = TRUE",
-  aoi = NULL
+  break_sources = NULL
 )
 ```
 
@@ -43,22 +41,32 @@ frs_habitat_access(
   Character. Destination table for break points. Default
   `"working.breaks_access"`.
 
-- falls:
+- break_sources:
 
-  Character or `NULL`. Schema-qualified table of falls with
-  `barrier_ind` column. Default `"bcfishpass.falls_vw"`. Set to `NULL`
-  to skip falls barriers.
+  List of break source specs, or `NULL` to skip external sources
+  (gradient-only). Each spec is a list with:
 
-- falls_where:
+  table
 
-  Character. SQL predicate to filter falls. Default
-  `"barrier_ind = TRUE"`.
+  :   Schema-qualified table name with `blue_line_key` and
+      `downstream_route_measure` columns.
 
-- aoi:
+  where
 
-  AOI specification for filtering falls (passed to
-  [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)).
-  Default `NULL`.
+  :   SQL predicate to filter rows (optional).
+
+  label
+
+  :   Static label string for all rows (optional).
+
+  label_col
+
+  :   Column name to read labels from (optional).
+
+  label_map
+
+  :   Named character vector mapping `label_col` values to output labels
+      (optional).
 
 ## Value
 
@@ -87,9 +95,21 @@ Other habitat:
 if (FALSE) { # \dontrun{
 conn <- frs_db_conn()
 
-# Compute access barriers at 15% gradient
+# Gradient-only (no external break sources)
 frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
-  to = "working.breaks_access_bulk_015", aoi = "BULK")
+  to = "working.breaks_access_bulk_015")
+
+# With falls and PSCIS crossings
+frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
+  to = "working.breaks_access_bulk_015",
+  break_sources = list(
+    list(table = "working.falls", where = "barrier_ind = TRUE",
+         label = "blocked"),
+    list(table = "working.pscis",
+         label_col = "barrier_status",
+         label_map = c("BARRIER" = "blocked",
+                       "POTENTIAL" = "potential"))
+  ))
 
 DBI::dbDisconnect(conn)
 } # }

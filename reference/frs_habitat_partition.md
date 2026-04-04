@@ -16,6 +16,7 @@ frs_habitat_partition(
   params_all,
   params_fresh,
   source = "whse_basemapping.fwa_stream_networks_sp",
+  break_sources = NULL,
   verbose = TRUE
 )
 ```
@@ -59,6 +60,14 @@ frs_habitat_partition(
 
   Character. Source table for the stream network. Default
   `"whse_basemapping.fwa_stream_networks_sp"`.
+
+- break_sources:
+
+  List of break source specs passed to
+  [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md),
+  or `NULL` for gradient-only. See
+  [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
+  for spec format.
 
 - verbose:
 
