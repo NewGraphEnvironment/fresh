@@ -16,6 +16,9 @@ frs_break_find(
   points = NULL,
   where = NULL,
   aoi = NULL,
+  label = NULL,
+  label_col = NULL,
+  label_map = NULL,
   overwrite = TRUE,
   append = FALSE
 )
@@ -58,12 +61,24 @@ to the stream network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
 \item{aoi}{AOI specification for filtering (passed to
 \code{.frs_resolve_aoi()}). Only used with \code{points_table} mode.}
 
+\item{label}{Character or \code{NULL}. Static label for all break points from
+this source (e.g. \code{"blocked"}, \code{"potential"}). Only used with
+\code{points_table} mode. Ignored if \code{label_col} is provided.}
+
+\item{label_col}{Character or \code{NULL}. Column name in \code{points_table} to
+read labels from. Values are passed through as-is, or remapped via
+\code{label_map}. Only used with \code{points_table} mode.}
+
+\item{label_map}{Named character vector or \code{NULL}. Maps values in
+\code{label_col} to output labels (e.g. \code{c("BARRIER" = "blocked")}).
+Only used with \code{label_col}.}
+
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
 
 \item{append}{Logical. If \code{TRUE}, INSERT INTO existing \code{to} table
-instead of CREATE. Use to combine multiple break sources (e.g.
-gradient breaks + falls barriers). Default \code{FALSE}.}
+instead of CREATE. Use to combine multiple break sources. Default
+\code{FALSE}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.

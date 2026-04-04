@@ -48,6 +48,11 @@ cp -r "$FWAPG_DIR/load" "$WORK_DIR/load"
 
 cd "$WORK_DIR/db"
 bash create.sh
+
+# Functions missing from create.sh that fresh needs
+$PSQL -f sql/FWA_SlopeAlongInterval.sql
+$PSQL -f sql/FWA_SegmentAlongInterval.sql
+$PSQL -f sql/FWA_StreamProfile.sql
 echo ""
 
 # ---------------------

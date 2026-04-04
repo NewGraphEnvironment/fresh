@@ -2,16 +2,14 @@
 % Please edit documentation in R/frs_habitat.R
 \name{frs_habitat_access}
 \alias{frs_habitat_access}
-\title{Compute Access Barriers at a Gradient Threshold}
+\title{Compute Access Breaks at a Gradient Threshold}
 \usage{
 frs_habitat_access(
   conn,
   table,
   threshold,
   to = "working.breaks_access",
-  falls = "bcfishpass.falls_vw",
-  falls_where = "barrier_ind = TRUE",
-  aoi = NULL
+  break_sources = NULL
 )
 }
 \arguments{
@@ -25,33 +23,47 @@ frs_habitat_access(
 \item{to}{Character. Destination table for break points. Default
 \code{"working.breaks_access"}.}
 
-\item{falls}{Character or \code{NULL}. Schema-qualified table of falls with
-\code{barrier_ind} column. Default \code{"bcfishpass.falls_vw"}. Set to \code{NULL}
-to skip falls barriers.}
-
-\item{falls_where}{Character. SQL predicate to filter falls. Default
-\code{"barrier_ind = TRUE"}.}
-
-\item{aoi}{AOI specification for filtering falls (passed to
-\code{\link[=frs_break_find]{frs_break_find()}}). Default \code{NULL}.}
+\item{break_sources}{List of break source specs, or \code{NULL} to skip
+external sources (gradient-only). Each spec is a list with:
+\describe{
+\item{table}{Schema-qualified table name with \code{blue_line_key} and
+\code{downstream_route_measure} columns.}
+\item{where}{SQL predicate to filter rows (optional).}
+\item{label}{Static label string for all rows (optional).}
+\item{label_col}{Column name to read labels from (optional).}
+\item{label_map}{Named character vector mapping \code{label_col} values
+to output labels (optional).}
+}}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
 }
 \description{
-Find gradient-based access barriers and barrier falls, write them to a
-breaks table. This is the expensive step in the habitat pipeline —
-\code{fwa_slopealonginterval()} runs on every blue line key. Species that share
-the same \code{access_gradient_max} can reuse the same breaks table, avoiding
-redundant computation.
+Find gradient-based access breaks and append break points from external
+sources (e.g. falls, crossings, dams). This is the expensive step in the
+habitat pipeline — \code{fwa_slopealonginterval()} runs on every blue line key.
+Species that share the same \code{access_gradient_max} can reuse the same
+breaks table, avoiding redundant computation.
 }
 \examples{
 \dontrun{
 conn <- frs_db_conn()
 
-# Compute access barriers at 15\% gradient
+# Gradient-only (no external break sources)
 frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
-  to = "working.breaks_access_bulk_015", aoi = "BULK")
+  to = "working.breaks_access_bulk_015")
+
+# With falls and PSCIS crossings
+frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
+  to = "working.breaks_access_bulk_015",
+  break_sources = list(
+    list(table = "working.falls", where = "barrier_ind = TRUE",
+         label = "blocked"),
+    list(table = "working.pscis",
+         label_col = "barrier_status",
+         label_map = c("BARRIER" = "blocked",
+                       "POTENTIAL" = "potential"))
+  ))
 
 DBI::dbDisconnect(conn)
 }

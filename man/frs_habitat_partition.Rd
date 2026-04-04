@@ -12,6 +12,7 @@ frs_habitat_partition(
   params_all,
   params_fresh,
   source = "whse_basemapping.fwa_stream_networks_sp",
+  break_sources = NULL,
   verbose = TRUE
 )
 }
@@ -34,6 +35,10 @@ watershed group code, \code{sf} polygon, named list, or \code{NULL}.}
 
 \item{source}{Character. Source table for the stream network. Default
 \code{"whse_basemapping.fwa_stream_networks_sp"}.}
+
+\item{break_sources}{List of break source specs passed to
+\code{\link[=frs_habitat_access]{frs_habitat_access()}}, or \code{NULL} for gradient-only. See
+\code{\link[=frs_habitat_access]{frs_habitat_access()}} for spec format.}
 
 \item{verbose}{Logical. Print progress. Default \code{TRUE}.}
 }

@@ -16,6 +16,10 @@
 #'   (sequential). Values > 1 require the `furrr` package. Each worker
 #'   opens its own database connection. Used for both Phase 1 (partition
 #'   prep across WSGs) and Phase 2 (species classification).
+#' @param break_sources List of break source specs passed to
+#'   [frs_habitat_access()], or `NULL` for gradient-only. Each spec is a
+#'   list with `table`, and optionally `where`, `label`, `label_col`,
+#'   `label_map`. See [frs_habitat_access()] for details.
 #' @param cleanup Logical. Drop intermediate tables (base network, break
 #'   tables) when done. Default `TRUE`.
 #' @param verbose Logical. Print progress and timing. Default `TRUE`.
@@ -38,9 +42,22 @@
 #' # Multiple watershed groups, 4 parallel workers
 #' result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
 #'
+#' # With break sources (falls, crossings, etc.)
+#' result <- frs_habitat(conn, "ADMS", break_sources = list(
+#'   list(table = "working.falls", where = "barrier_ind = TRUE",
+#'        label = "blocked"),
+#'   list(table = "working.pscis",
+#'        label_col = "barrier_status",
+#'        label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
+#' ))
+#'
+#' # Gradient-only (no external break sources)
+#' result <- frs_habitat(conn, "ADMS")
+#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat <- function(conn, wsg, workers = 1L,
+                        break_sources = NULL,
                         cleanup = TRUE, verbose = TRUE) {
   stopifnot(is.character(wsg), length(wsg) > 0)
 
@@ -69,7 +86,8 @@ frs_habitat <- function(conn, wsg, workers = 1L,
     }, numeric(1))
 
     list(wsg = w, label = tolower(w), aoi = w, species = sp_df,
-         params_all = params_all, params_fresh = params_fresh)
+         params_all = params_all, params_fresh = params_fresh,
+         break_sources = break_sources)
   })
   wsg_specs <- Filter(Negate(is.null), wsg_specs)
 
@@ -103,6 +121,7 @@ frs_habitat <- function(conn, wsg, workers = 1L,
       species = spec$species,
       params_all = spec$params_all,
       params_fresh = spec$params_fresh,
+      break_sources = spec$break_sources,
       verbose = verbose && !use_furrr)
   }
 
@@ -130,8 +149,8 @@ frs_habitat <- function(conn, wsg, workers = 1L,
   # Phase 2: Classify all (partition, species) pairs
   # ==========================================================================
   .run_one <- function(job) {
-    worker_conn <- frs_db_conn()
-    on.exit(DBI::dbDisconnect(worker_conn))
+    worker_conn <- if (use_furrr) frs_db_conn() else conn
+    if (use_furrr) on.exit(DBI::dbDisconnect(worker_conn))
     t0 <- proc.time()
     frs_habitat_species(worker_conn, job$species_code, job$base_tbl,
       breaks = job$acc_tbl,
@@ -219,6 +238,9 @@ frs_habitat <- function(conn, wsg, workers = 1L,
 #' @param params_fresh Data frame from `parameters_fresh.csv`.
 #' @param source Character. Source table for the stream network. Default
 #'   `"whse_basemapping.fwa_stream_networks_sp"`.
+#' @param break_sources List of break source specs passed to
+#'   [frs_habitat_access()], or `NULL` for gradient-only. See
+#'   [frs_habitat_access()] for spec format.
 #' @param verbose Logical. Print progress. Default `TRUE`.
 #'
 #' @return A list with:
@@ -261,6 +283,7 @@ frs_habitat <- function(conn, wsg, workers = 1L,
 frs_habitat_partition <- function(conn, aoi, label, species,
                                   params_all, params_fresh,
                                   source = "whse_basemapping.fwa_stream_networks_sp",
+                                  break_sources = NULL,
                                   verbose = TRUE) {
   stopifnot(is.character(label), length(label) == 1)
   stopifnot(is.data.frame(species), nrow(species) > 0)
@@ -306,8 +329,11 @@ frs_habitat_partition <- function(conn, aoi, label, species,
     cleanup_tables <- c(cleanup_tables, breaks_tbl)
 
     t0 <- proc.time()
+    # For WSG code AOIs, add watershed_group_code filter to each break source
+    # (avoids needing geometry on break source tables)
+    src <- .frs_scope_break_sources(break_sources, aoi)
     frs_habitat_access(conn, base_tbl, threshold = thr,
-      to = breaks_tbl, aoi = aoi)
+      to = breaks_tbl, break_sources = src)
 
     if (verbose) {
       spp <- species$species_code[species$access_gradient == thr]
@@ -359,13 +385,13 @@ frs_habitat_partition <- function(conn, aoi, label, species,
 }
 
 
-#' Compute Access Barriers at a Gradient Threshold
+#' Compute Access Breaks at a Gradient Threshold
 #'
-#' Find gradient-based access barriers and barrier falls, write them to a
-#' breaks table. This is the expensive step in the habitat pipeline —
-#' `fwa_slopealonginterval()` runs on every blue line key. Species that share
-#' the same `access_gradient_max` can reuse the same breaks table, avoiding
-#' redundant computation.
+#' Find gradient-based access breaks and append break points from external
+#' sources (e.g. falls, crossings, dams). This is the expensive step in the
+#' habitat pipeline — `fwa_slopealonginterval()` runs on every blue line key.
+#' Species that share the same `access_gradient_max` can reuse the same
+#' breaks table, avoiding redundant computation.
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param table Character. Working schema table with the stream network
@@ -373,13 +399,17 @@ frs_habitat_partition <- function(conn, aoi, label, species,
 #' @param threshold Numeric. Access gradient threshold (e.g. `0.15` for 15%).
 #' @param to Character. Destination table for break points. Default
 #'   `"working.breaks_access"`.
-#' @param falls Character or `NULL`. Schema-qualified table of falls with
-#'   `barrier_ind` column. Default `"bcfishpass.falls_vw"`. Set to `NULL`
-#'   to skip falls barriers.
-#' @param falls_where Character. SQL predicate to filter falls. Default
-#'   `"barrier_ind = TRUE"`.
-#' @param aoi AOI specification for filtering falls (passed to
-#'   [frs_break_find()]). Default `NULL`.
+#' @param break_sources List of break source specs, or `NULL` to skip
+#'   external sources (gradient-only). Each spec is a list with:
+#'   \describe{
+#'     \item{table}{Schema-qualified table name with `blue_line_key` and
+#'       `downstream_route_measure` columns.}
+#'     \item{where}{SQL predicate to filter rows (optional).}
+#'     \item{label}{Static label string for all rows (optional).}
+#'     \item{label_col}{Column name to read labels from (optional).}
+#'     \item{label_map}{Named character vector mapping `label_col` values
+#'       to output labels (optional).}
+#'   }
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -391,17 +421,27 @@ frs_habitat_partition <- function(conn, aoi, label, species,
 #' \dontrun{
 #' conn <- frs_db_conn()
 #'
-#' # Compute access barriers at 15% gradient
+#' # Gradient-only (no external break sources)
 #' frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
-#'   to = "working.breaks_access_bulk_015", aoi = "BULK")
+#'   to = "working.breaks_access_bulk_015")
+#'
+#' # With falls and PSCIS crossings
+#' frs_habitat_access(conn, "working.streams_bulk", threshold = 0.15,
+#'   to = "working.breaks_access_bulk_015",
+#'   break_sources = list(
+#'     list(table = "working.falls", where = "barrier_ind = TRUE",
+#'          label = "blocked"),
+#'     list(table = "working.pscis",
+#'          label_col = "barrier_status",
+#'          label_map = c("BARRIER" = "blocked",
+#'                        "POTENTIAL" = "potential"))
+#'   ))
 #'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat_access <- function(conn, table, threshold,
                                to = "working.breaks_access",
-                               falls = "bcfishpass.falls_vw",
-                               falls_where = "barrier_ind = TRUE",
-                               aoi = NULL) {
+                               break_sources = NULL) {
   .frs_validate_identifier(table, "source table")
   .frs_validate_identifier(to, "destination table")
   stopifnot(is.numeric(threshold), length(threshold) == 1)
@@ -410,15 +450,49 @@ frs_habitat_access <- function(conn, table, threshold,
     attribute = "gradient", threshold = threshold,
     to = to)
 
-  if (!is.null(falls)) {
-    .frs_validate_identifier(falls, "falls table")
-    frs_break_find(conn, table,
-      points_table = falls,
-      where = falls_where, aoi = aoi,
-      to = to, append = TRUE)
+  if (!is.null(break_sources)) {
+    for (src in break_sources) {
+      .frs_validate_identifier(src$table, "break source table")
+      frs_break_find(conn, table,
+        points_table = src$table,
+        where = src$where,
+        label = src$label,
+        label_col = src$label_col,
+        label_map = src$label_map,
+        to = to, overwrite = FALSE, append = TRUE)
+    }
   }
 
   invisible(conn)
+}
+
+
+#' Scope break sources to a WSG code
+#'
+#' When AOI is a 4-letter WSG code, appends a `watershed_group_code`
+#' filter to each break source's `where` clause. This avoids needing
+#' geometry on break source tables (e.g. CSV-loaded falls).
+#'
+#' @param break_sources List of break source specs, or NULL.
+#' @param aoi AOI specification.
+#' @return Modified break_sources list, or NULL.
+#' @noRd
+.frs_scope_break_sources <- function(break_sources, aoi) {
+  if (is.null(break_sources)) return(NULL)
+  if (!(is.character(aoi) && length(aoi) == 1 && grepl("^[A-Z]{4}$", aoi))) {
+    return(break_sources)
+  }
+
+  wsg_pred <- paste0("watershed_group_code = ", .frs_quote_string(aoi))
+  lapply(break_sources, function(src) {
+    w <- src$where
+    src$where <- if (!is.null(w) && nzchar(w)) {
+      paste(w, "AND", wsg_pred)
+    } else {
+      wsg_pred
+    }
+    src
+  })
 }
 
 
