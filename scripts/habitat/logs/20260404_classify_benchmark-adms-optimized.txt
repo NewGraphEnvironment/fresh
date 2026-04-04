@@ -1,0 +1,29 @@
+## Classify benchmark — ADMS optimized query
+## Date: 2026-04-04
+## DB: local Docker fwapg (port 5432)
+## Branch: optimize-classify
+## Issue: #72
+
+## Setup
+# WSG: ADMS (11,520 segments)
+# Break sources: gradient (28,960) + falls (7) + crossings (3,597)
+# Total breaks: 32,564 (all enriched with ltree codes)
+# Indexes: blue_line_key, (blue_line_key, downstream_route_measure),
+#          wscode_ltree GIST+BTREE, localcode_ltree GIST+BTREE
+
+## Changes
+# 1. Enrich breaks with wscode_ltree + localcode_ltree from FWA base
+#    (one-time UPDATE ... FROM fwa_stream_networks_sp after all breaks combined)
+# 2. Split classify OR into two separate NOT EXISTS with AND
+#    - Same BLK: pure measure comparison (btree index)
+#    - Cross BLK: ltree comparison using enriched codes (GIST index)
+#    No join to fwa_stream_networks_sp (4.9M rows) at classify time
+
+## Result
+# Classify: 0.2s
+# Accessible: 1,060 / 11,520 segments (9.2%) — matches baseline
+
+## Comparison
+# Before (v0.7.0, indexes only): 742.1s
+# After (optimized query):         0.2s
+# Speedup: 3,700x
