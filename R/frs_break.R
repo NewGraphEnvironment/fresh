@@ -34,11 +34,20 @@
 #'   `points_table` mode.
 #' @param aoi AOI specification for filtering (passed to
 #'   `.frs_resolve_aoi()`). Only used with `points_table` mode.
+#' @param label Character or `NULL`. Static label for all break points from
+#'   this source (e.g. `"blocked"`, `"potential"`). Only used with
+#'   `points_table` mode. Ignored if `label_col` is provided.
+#' @param label_col Character or `NULL`. Column name in `points_table` to
+#'   read labels from. Values are passed through as-is, or remapped via
+#'   `label_map`. Only used with `points_table` mode.
+#' @param label_map Named character vector or `NULL`. Maps values in
+#'   `label_col` to output labels (e.g. `c("BARRIER" = "blocked")`).
+#'   Only used with `label_col`.
 #' @param overwrite Logical. If `TRUE`, drop `to` before creating.
 #'   Default `TRUE`.
 #' @param append Logical. If `TRUE`, INSERT INTO existing `to` table
-#'   instead of CREATE. Use to combine multiple break sources (e.g.
-#'   gradient breaks + falls barriers). Default `FALSE`.
+#'   instead of CREATE. Use to combine multiple break sources. Default
+#'   `FALSE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -86,6 +95,8 @@ frs_break_find <- function(conn, table, to = "working.breaks",
                            interval = 100L, distance = 100L,
                            points_table = NULL, points = NULL,
                            where = NULL, aoi = NULL,
+                           label = NULL, label_col = NULL,
+                           label_map = NULL,
                            overwrite = TRUE, append = FALSE) {
   .frs_validate_identifier(table, "source table")
   .frs_validate_identifier(to, "destination table")
@@ -113,7 +124,8 @@ frs_break_find <- function(conn, table, to = "working.breaks",
     .frs_break_find_attribute(conn, table, to, attribute, threshold,
                                interval, distance)
   } else if (has_table) {
-    .frs_break_find_table(conn, table, to, points_table, where, aoi, append)
+    .frs_break_find_table(conn, table, to, points_table, where, aoi,
+                          label, label_col, label_map, append)
   } else {
     .frs_break_find_points(conn, table, to, points)
   }
@@ -159,7 +171,9 @@ frs_break_find <- function(conn, table, to = "working.breaks",
                min(f.downstream_route_measure)::integer) >= %d
      )
      SELECT DISTINCT b.blue_line_key,
-       g.downstream_measure::double precision AS downstream_route_measure
+       g.downstream_measure::double precision AS downstream_route_measure,
+       'gradient' AS label,
+       'attribute' AS source
      FROM blk_ranges b
      CROSS JOIN LATERAL fwa_slopealonginterval(
        b.blue_line_key, %d, %d, b.start_m, b.end_m
@@ -177,10 +191,14 @@ frs_break_find <- function(conn, table, to = "working.breaks",
 #'
 #' Reads `blue_line_key` and `downstream_route_measure` from an existing
 #' database table (e.g. falls, dams, crossings). Optionally filters by AOI.
+#' Supports labeling break points via static `label`, column-driven
+#' `label_col`, or `label_col` + `label_map` for value remapping.
 #'
 #' @noRd
 .frs_break_find_table <- function(conn, table, to, points_table,
                                    where = NULL, aoi = NULL,
+                                   label = NULL, label_col = NULL,
+                                   label_map = NULL,
                                    append = FALSE) {
   .frs_validate_identifier(points_table, "points table")
 
@@ -199,23 +217,66 @@ frs_break_find <- function(conn, table, to = "working.breaks",
     ""
   }
 
+  # Build label expression
+  label_expr <- .frs_label_expr(label, label_col, label_map)
+
   select_sql <- sprintf(
-    "SELECT DISTINCT blue_line_key, downstream_route_measure FROM %s%s",
+    "SELECT DISTINCT blue_line_key, downstream_route_measure, %s, %s AS source FROM %s%s",
+    label_expr,
+    .frs_quote_string(points_table),
     points_table, where_clause
   )
 
+  cols_def <- "(blue_line_key integer,
+     downstream_route_measure double precision,
+     label text,
+     source text)"
+
   if (append) {
-    # Ensure table exists before inserting
     .frs_db_execute(conn, sprintf(
-      "CREATE TABLE IF NOT EXISTS %s (
-         blue_line_key integer,
-         downstream_route_measure double precision)", to))
-    sql <- sprintf("INSERT INTO %s (blue_line_key, downstream_route_measure) %s",
-                   to, select_sql)
+      "CREATE TABLE IF NOT EXISTS %s %s", to, cols_def))
+    sql <- sprintf(
+      "INSERT INTO %s (blue_line_key, downstream_route_measure, label, source) %s",
+      to, select_sql)
   } else {
     sql <- sprintf("CREATE TABLE %s AS %s", to, select_sql)
   }
   .frs_db_execute(conn, sql)
+}
+
+
+#' Build SQL label expression from label spec
+#'
+#' @param label Static label string, or NULL.
+#' @param label_col Column name to read label from, or NULL.
+#' @param label_map Named character vector mapping column values to labels,
+#'   or NULL (pass-through).
+#' @return SQL expression string for the label column.
+#' @noRd
+.frs_label_expr <- function(label = NULL, label_col = NULL,
+                            label_map = NULL) {
+  if (!is.null(label_col)) {
+    .frs_validate_identifier(label_col, "label_col")
+    if (!is.null(label_map)) {
+      # CASE expression mapping values
+      whens <- vapply(names(label_map), function(val) {
+        sprintf("WHEN %s = %s THEN %s",
+                label_col,
+                .frs_quote_string(val),
+                .frs_quote_string(label_map[[val]]))
+      }, character(1))
+      sprintf("CASE %s ELSE %s END AS label",
+              paste(whens, collapse = " "),
+              label_col)
+    } else {
+      # Pass-through: use column values as-is
+      sprintf("%s::text AS label", label_col)
+    }
+  } else if (!is.null(label)) {
+    sprintf("%s AS label", .frs_quote_string(label))
+  } else {
+    "NULL::text AS label"
+  }
 }
 
 
@@ -237,12 +298,12 @@ frs_break_find <- function(conn, table, to = "working.breaks",
   drm <- snapped$downstream_route_measure
 
   values <- paste(
-    sprintf("(%d, %s)", as.integer(blk), as.numeric(drm)),
+    sprintf("(%d, %s, NULL, 'sf')", as.integer(blk), as.numeric(drm)),
     collapse = ", "
   )
 
   sql <- sprintf(
-    "CREATE TABLE %s (blue_line_key integer, downstream_route_measure double precision);
+    "CREATE TABLE %s (blue_line_key integer, downstream_route_measure double precision, label text, source text);
      INSERT INTO %s VALUES %s",
     to, to, values
   )

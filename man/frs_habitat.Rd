@@ -4,7 +4,14 @@
 \alias{frs_habitat}
 \title{Run Habitat Pipeline for Watershed Groups}
 \usage{
-frs_habitat(conn, wsg, workers = 1L, cleanup = TRUE, verbose = TRUE)
+frs_habitat(
+  conn,
+  wsg,
+  workers = 1L,
+  break_sources = NULL,
+  cleanup = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
@@ -16,6 +23,11 @@ frs_habitat(conn, wsg, workers = 1L, cleanup = TRUE, verbose = TRUE)
 (sequential). Values > 1 require the \code{furrr} package. Each worker
 opens its own database connection. Used for both Phase 1 (partition
 prep across WSGs) and Phase 2 (species classification).}
+
+\item{break_sources}{List of break source specs passed to
+\code{\link[=frs_habitat_access]{frs_habitat_access()}}, or \code{NULL} for gradient-only. Each spec is a
+list with \code{table}, and optionally \code{where}, \code{label}, \code{label_col},
+\code{label_map}. See \code{\link[=frs_habitat_access]{frs_habitat_access()}} for details.}
 
 \item{cleanup}{Logical. Drop intermediate tables (base network, break
 tables) when done. Default \code{TRUE}.}
@@ -47,6 +59,18 @@ result <- frs_habitat(conn, "BULK")
 
 # Multiple watershed groups, 4 parallel workers
 result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
+
+# With break sources (falls, crossings, etc.)
+result <- frs_habitat(conn, "ADMS", break_sources = list(
+  list(table = "working.falls", where = "barrier_ind = TRUE",
+       label = "blocked"),
+  list(table = "working.pscis",
+       label_col = "barrier_status",
+       label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
+))
+
+# Gradient-only (no external break sources)
+result <- frs_habitat(conn, "ADMS")
 
 DBI::dbDisconnect(conn)
 }
