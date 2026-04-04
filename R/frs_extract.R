@@ -108,5 +108,7 @@ frs_extract <- function(conn, from, to, cols = NULL, aoi = NULL,
                  to, select_clause, from, where_clause)
   .frs_db_execute(conn, sql)
 
+  .frs_index_working(conn, to)
+
   invisible(conn)
 }

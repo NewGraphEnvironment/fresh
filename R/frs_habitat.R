@@ -463,6 +463,8 @@ frs_habitat_access <- function(conn, table, threshold,
     }
   }
 
+  .frs_index_working(conn, to)
+
   invisible(conn)
 }
 

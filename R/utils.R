@@ -60,6 +60,68 @@
 }
 
 
+#' Add indexes to a working table based on available columns
+#'
+#' Checks which index-worthy columns exist and creates appropriate indexes.
+#' Runs ANALYZE after indexing for up-to-date statistics.
+#'
+#' @param conn DBI connection.
+#' @param table Schema-qualified table name.
+#' @noRd
+.frs_index_working <- function(conn, table) {
+  .frs_validate_identifier(table, "table")
+
+  # Skip indexing for non-DB connections (e.g. mock connections in tests)
+  if (!inherits(conn, "DBIConnection")) return(invisible(NULL))
+
+  # Get columns in this table
+  parts <- strsplit(table, "\\.")[[1]]
+  schema <- if (length(parts) == 2) parts[1] else "public"
+  tbl <- parts[length(parts)]
+
+  cols <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT column_name FROM information_schema.columns
+     WHERE table_schema = %s AND table_name = %s",
+    .frs_quote_string(schema), .frs_quote_string(tbl)
+  ))$column_name
+
+  # Build index statements based on available columns
+  idx <- character(0)
+
+  if ("blue_line_key" %in% cols) {
+    idx <- c(idx, sprintf("CREATE INDEX ON %s (blue_line_key)", table))
+  }
+  if (all(c("blue_line_key", "downstream_route_measure") %in% cols)) {
+    idx <- c(idx, sprintf(
+      "CREATE INDEX ON %s (blue_line_key, downstream_route_measure)", table))
+  }
+  if ("wscode_ltree" %in% cols) {
+    idx <- c(idx, sprintf(
+      "CREATE INDEX ON %s USING gist (wscode_ltree)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX ON %s USING btree (wscode_ltree)", table))
+  }
+  if ("localcode_ltree" %in% cols) {
+    idx <- c(idx, sprintf(
+      "CREATE INDEX ON %s USING gist (localcode_ltree)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX ON %s USING btree (localcode_ltree)", table))
+  }
+  if ("linear_feature_id" %in% cols) {
+    idx <- c(idx, sprintf("CREATE INDEX ON %s (linear_feature_id)", table))
+  }
+  if ("watershed_group_code" %in% cols) {
+    idx <- c(idx, sprintf("CREATE INDEX ON %s (watershed_group_code)", table))
+  }
+
+  for (sql in idx) {
+    .frs_db_execute(conn, sql)
+  }
+
+  .frs_db_execute(conn, sprintf("ANALYZE %s", table))
+}
+
+
 #' Build a SQL WHERE clause from common filter parameters
 #'
 #' @param watershed_group_code Character or NULL.
