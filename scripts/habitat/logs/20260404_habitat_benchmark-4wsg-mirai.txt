@@ -1,0 +1,32 @@
+## Habitat pipeline benchmark — 4 WSGs parallel
+## Date: 2026-04-04
+## DB: local Docker fwapg (port 5432, 32GB shared_buffers, M4 Max Pro)
+## Branch: mirai-parallel
+## Issue: #77
+
+## Setup
+# WSGs: BULK (7 sp), MORR (7 sp), ZYMO (5 sp), KISP (8 sp) = 27 species jobs
+# Break sources: falls (blocked) + crossings (label_col=barrier_status)
+# Workers: 4 (mirai daemons)
+# Optimizations: ltree-enriched breaks, split NOT EXISTS, indexes, habitat breaks
+
+## Results
+# Phase 1 (partition prep, 4 WSGs parallel): ~50s
+# Phase 2 (27 species, 4 workers): ~430s
+# Total: 480s (8 min)
+#
+# Per WSG (avg per species):
+#   BULK: ~51s/species (7 species, largest WSG)
+#   MORR: ~32s/species (7 species)
+#   ZYMO: ~28s/species (5 species)
+#   KISP: ~41s/species (8 species)
+
+## Sequential estimate
+# 27 species × ~40s avg = ~1,080s (18 min) sequential
+# 4 workers = 480s (8 min) — ~2.3x speedup
+# Limited by BULK being the bottleneck partition
+
+## Province estimate (350 WSGs, ~2,450 species jobs)
+# At current rate: ~2,450 × 40s / 4 workers = ~6.8 hours
+# With 8 workers: ~3.4 hours
+# With crew.aws.batch (50 workers): ~33 min
