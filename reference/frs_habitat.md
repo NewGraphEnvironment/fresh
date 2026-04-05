@@ -18,6 +18,7 @@ frs_habitat(
   wsg,
   workers = 1L,
   break_sources = NULL,
+  to_prefix = NULL,
   password = "",
   cleanup = TRUE,
   verbose = TRUE
@@ -53,6 +54,14 @@ frs_habitat(
   optionally `where`, `label`, `label_col`, `label_map`. See
   [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
   for details.
+
+- to_prefix:
+
+  Character or `NULL`. When provided, persist species output tables with
+  this prefix (e.g. `"fresh.streams"` creates `fresh.streams_co`,
+  `fresh.streams_bt`). Existing rows for the same WSG are replaced
+  (delete + insert). Default `NULL` (no persistence, working tables
+  only).
 
 - password:
 
@@ -117,6 +126,14 @@ result <- frs_habitat(conn, "ADMS", break_sources = list(
        label_col = "barrier_status",
        label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
 ))
+
+# Persist to output tables (accumulate across runs)
+result <- frs_habitat(conn, "BULK",
+  to_prefix = "fresh.streams",
+  break_sources = list(
+    list(table = "working.falls", label = "blocked")))
+# Creates: fresh.streams_co, fresh.streams_bt, etc.
+# Re-run with "MORR" — appends to same tables
 
 # Gradient-only (no external break sources)
 result <- frs_habitat(conn, "ADMS")

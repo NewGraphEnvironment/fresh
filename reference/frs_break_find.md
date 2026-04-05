@@ -23,6 +23,8 @@ frs_break_find(
   label = NULL,
   label_col = NULL,
   label_map = NULL,
+  col_blk = "blue_line_key",
+  col_measure = "downstream_route_measure",
   overwrite = TRUE,
   append = FALSE
 )
@@ -108,6 +110,16 @@ frs_break_find(
 
   Named character vector or `NULL`. Maps values in `label_col` to output
   labels (e.g. `c("BARRIER" = "blocked")`). Only used with `label_col`.
+
+- col_blk:
+
+  Character. Column name for the stream identifier in `points_table`.
+  Default `"blue_line_key"`.
+
+- col_measure:
+
+  Character. Column name for the route measure in `points_table`.
+  Default `"downstream_route_measure"`.
 
 - overwrite:
 

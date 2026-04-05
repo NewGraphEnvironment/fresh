@@ -61,6 +61,7 @@ parallelize with <code><a href="https://mirai.r-lib.org/reference/mirai_map.html
 <span>  <span class="va">wsg</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  break_sources <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  to_prefix <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  password <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  cleanup <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -93,6 +94,14 @@ Used for both Phase 1 (partition prep across WSGs) and Phase 2
 <code><a href="frs_habitat_access.html">frs_habitat_access()</a></code>, or <code>NULL</code> for gradient-only. Each spec is a
 list with <code>table</code>, and optionally <code>where</code>, <code>label</code>, <code>label_col</code>,
 <code>label_map</code>. See <code><a href="frs_habitat_access.html">frs_habitat_access()</a></code> for details.</p></dd>
+
+
+<dt id="arg-to-prefix">to_prefix<a class="anchor" aria-label="anchor" href="#arg-to-prefix"></a></dt>
+<dd><p>Character or <code>NULL</code>. When provided, persist species
+output tables with this prefix (e.g. <code>"fresh.streams"</code> creates
+<code>fresh.streams_co</code>, <code>fresh.streams_bt</code>). Existing rows for the
+same WSG are replaced (delete + insert). Default <code>NULL</code> (no
+persistence, working tables only).</p></dd>
 
 
 <dt id="arg-password">password<a class="anchor" aria-label="anchor" href="#arg-password"></a></dt>
@@ -158,6 +167,14 @@ tables) when done. Default <code>TRUE</code>.</p></dd>
 <span class="r-in"><span>       label_col <span class="op">=</span> <span class="st">"barrier_status"</span>,</span></span>
 <span class="r-in"><span>       label_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"BARRIER"</span> <span class="op">=</span> <span class="st">"blocked"</span>, <span class="st">"POTENTIAL"</span> <span class="op">=</span> <span class="st">"potential"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Persist to output tables (accumulate across runs)</span></span></span>
+<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">frs_habitat</span><span class="op">(</span><span class="va">conn</span>, <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  to_prefix <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
+<span class="r-in"><span>  break_sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.falls"</span>, label <span class="op">=</span> <span class="st">"blocked"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Creates: fresh.streams_co, fresh.streams_bt, etc.</span></span></span>
+<span class="r-in"><span><span class="co"># Re-run with "MORR" — appends to same tables</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Gradient-only (no external break sources)</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">frs_habitat</span><span class="op">(</span><span class="va">conn</span>, <span class="st">"ADMS"</span><span class="op">)</span></span></span>
