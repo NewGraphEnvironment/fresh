@@ -42,3 +42,32 @@ frs_db_conn <- function(
     password = password
   )
 }
+
+
+#' Extract connection parameters from an existing connection
+#'
+#' Reads host, port, dbname, user from a live [RPostgres::Postgres()]
+#' connection. Used by [frs_habitat()] to pass connection params to
+#' parallel workers so they can open their own connections without
+#' depending on `PG_*_SHARE` environment variables.
+#'
+#' Password is not available from `DBI::dbGetInfo()` (security). Must
+#' be provided explicitly via `password` param or the connection will
+#' fail for password-authenticated databases.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param password Character. Password for reconnection. Required for
+#'   password-authenticated databases. Not needed for trust auth or
+#'   `.pgpass` file.
+#' @return Named list with `dbname`, `host`, `port`, `user`, `password`.
+#' @noRd
+.frs_conn_params <- function(conn, password = "") {
+  info <- DBI::dbGetInfo(conn)
+  list(
+    dbname = info$dbname,
+    host = info$host,
+    port = info$port,
+    user = info$username,
+    password = password
+  )
+}

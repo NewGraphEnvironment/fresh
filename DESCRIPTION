@@ -26,9 +26,8 @@ Imports:
     sf
 Suggests:
     bookdown,
-    furrr,
-    future,
     gq,
+    mirai,
     knitr,
     rmarkdown,
     mockery,

@@ -9,6 +9,7 @@ frs_habitat(
   wsg,
   workers = 1L,
   break_sources = NULL,
+  password = "",
   cleanup = TRUE,
   verbose = TRUE
 )
@@ -20,14 +21,19 @@ frs_habitat(
 (e.g. \code{"BULK"}, \code{c("BULK", "MORR")}).}
 
 \item{workers}{Integer. Number of parallel workers. Default \code{1}
-(sequential). Values > 1 require the \code{furrr} package. Each worker
-opens its own database connection. Used for both Phase 1 (partition
-prep across WSGs) and Phase 2 (species classification).}
+(sequential). Values > 1 require the \code{mirai} package. Each worker
+opens its own database connection (params extracted from \code{conn}).
+Used for both Phase 1 (partition prep across WSGs) and Phase 2
+(species classification).}
 
 \item{break_sources}{List of break source specs passed to
 \code{\link[=frs_habitat_access]{frs_habitat_access()}}, or \code{NULL} for gradient-only. Each spec is a
 list with \code{table}, and optionally \code{where}, \code{label}, \code{label_col},
 \code{label_map}. See \code{\link[=frs_habitat_access]{frs_habitat_access()}} for details.}
+
+\item{password}{Character. Database password for parallel workers.
+Required when \code{workers > 1} and the database uses password auth.
+Not needed for trust auth or \code{.pgpass}.}
 
 \item{cleanup}{Logical. Drop intermediate tables (base network, break
 tables) when done. Default \code{TRUE}.}
@@ -44,7 +50,7 @@ Orchestrate the full habitat pipeline for all species present in one or
 more watershed groups. Calls \code{\link[=frs_habitat_partition]{frs_habitat_partition()}} per WSG to extract
 the base network and pre-compute breaks, then flattens all (WSG, species)
 pairs and classifies them via \code{\link[=frs_habitat_species]{frs_habitat_species()}}. Both phases
-parallelize with \code{\link[furrr:future_map]{furrr::future_map()}} when \code{workers > 1}.
+parallelize with \code{\link[mirai:mirai_map]{mirai::mirai_map()}} when \code{workers > 1}.
 }
 \details{
 Output tables are WSG-scoped: \code{working.streams_bulk_co},
