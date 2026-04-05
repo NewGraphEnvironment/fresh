@@ -1,0 +1,36 @@
+## Habitat pipeline benchmark — mirai parallel
+## Date: 2026-04-04
+## DB: local Docker fwapg (port 5432, 32GB shared_buffers)
+## Branch: mirai-parallel
+## Issue: #77
+
+## Setup
+# WSGs: ADMS (11,520 segments, 5 species) + ATNA (18,684 segments, 7 species)
+# Break sources: falls (barrier_ind = TRUE, label = "blocked")
+# Workers: 4 (mirai daemons)
+# Optimizations: ltree-enriched breaks, split NOT EXISTS, indexes
+
+## Results
+# Phase 1 (partition prep, parallel): ~25s (2 WSGs on 2 workers)
+# Phase 2 (species classification, parallel): ~71s (12 species on 4 workers)
+# Total: 96s
+#
+# Per species:
+#   ADMS: BT 22s, CH 21s, CO 21s, RB 22s, SK 24s
+#   ATNA: CH 15s, CM 14s, CO 15s, PK 17s, RB 17s, SK 17s, ST 13s
+
+## Comparison
+# v0.6.0 sequential (ADMS only, 5 species, remote DB): 3,755s (63 min)
+# v0.7.0 optimized sequential (ADMS only, 5 species): 86s
+# mirai parallel (ADMS + ATNA, 12 species, 4 workers): 96s
+#
+# Effective throughput:
+#   Old: 1 species / 750s = 0.08 species/min
+#   New: 12 species / 96s = 7.5 species/min
+#   Speedup: ~94x throughput improvement
+
+## Notes
+# - mirai replaces furrr/future — lighter daemons, no serialization overhead
+# - Connection params extracted from user's conn, password passed explicitly
+# - Workers load fresh package via library(fresh) — must be installed
+# - Phase 2 is wall-clock ~71s for 12 species on 4 workers (3 rounds of 4)
