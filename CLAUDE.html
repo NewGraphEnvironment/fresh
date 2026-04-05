@@ -110,7 +110,59 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <strong>Database:</strong> PostgreSQL with fwapg + bcfishpass + bcfishobs</li>
 <li>
 <strong>Connection:</strong> SSH tunnel to remote instance or local; see db-newgraph skill</li>
+</ul></div>
+<div class="section level2">
+<h2 id="naming-conventions">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions"></a></h2>
+<div class="section level3">
+<h3 id="generated-column-names">Generated column names<a class="anchor" aria-label="anchor" href="#generated-column-names"></a></h3>
+<ul><li>
+<code>id_*</code> prefix for fresh-generated identifiers: <code>id_segment</code> (sub-segment after breaking)</li>
+<li>FWA columns kept as-is: <code>linear_feature_id</code>, <code>blue_line_key</code>, <code>downstream_route_measure</code>, <code>wscode_ltree</code>, <code>localcode_ltree</code>
+</li>
+<li>Habitat classification columns are generic (not species-prefixed): <code>accessible</code>, <code>spawning</code>, <code>rearing</code>, <code>lake_rearing</code>. Species is a row value (<code>species_code</code>), not a column name.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="parameter-names">Parameter names<a class="anchor" aria-label="anchor" href="#parameter-names"></a></h3>
+<ul><li>
+<code>to</code>, <code>from</code> — complete DB table names (schema-qualified)</li>
+<li>
+<code>to_prefix</code> — table name prefix, suffixed by the function (e.g. <code>"fresh.streams"</code> → <code>fresh.streams_co</code>)</li>
+<li>
+<code>to_streams</code>, <code>to_habitat</code> — explicit output table names in <code><a href="reference/frs_habitat.html">frs_habitat()</a></code>
+</li>
+<li>
+<code>col_*</code> — column name mappings for flexible table schemas: <code>col_blk</code>, <code>col_measure</code>
+</li>
+<li>
+<code>break_sources</code> — list of break source specs with <code>table</code>, <code>where</code>, <code>label</code>, <code>label_col</code>, <code>label_map</code>, <code>col_blk</code>, <code>col_measure</code>
+</li>
+</ul></div>
+<div class="section level3">
+<h3 id="function-names">Function names<a class="anchor" aria-label="anchor" href="#function-names"></a></h3>
+<ul><li>
+<code>frs_noun_verb</code> pattern: <code>frs_network_segment</code>, <code>frs_point_snap</code>, <code>frs_stream_fetch</code>
+</li>
+<li>Pipeline orchestrators wrap exported building blocks:
+<ul><li>
+<code><a href="reference/frs_habitat.html">frs_habitat()</a></code> wraps <code>frs_network_segment()</code> + <code>frs_habitat_classify()</code>
+</li>
+<li>
+<code>frs_network_segment()</code> wraps <code><a href="reference/frs_extract.html">frs_extract()</a></code> + <code><a href="reference/frs_break_find.html">frs_break_find()</a></code> + <code><a href="reference/frs_break_apply.html">frs_break_apply()</a></code>
+</li>
+<li>
+<code>frs_habitat_classify()</code> wraps <code><a href="reference/frs_classify.html">frs_classify()</a></code> per species</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="output-table-structure">Output table structure<a class="anchor" aria-label="anchor" href="#output-table-structure"></a></h3>
+<ul><li>
+<code>{to_streams}</code> — one row per segment, geometry + base attributes + <code>id_segment</code>
+</li>
+<li>
+<code>{to_habitat}</code> — long format, one row per segment × species. Columns: <code>id_segment</code>, <code>species_code</code>, <code>accessible</code>, <code>spawning</code>, <code>rearing</code>, <code>lake_rearing</code>. No geometry.</li>
+<li>Views per species: <code>{to_streams}_co_vw</code> = join streams + habitat WHERE species_code = ‘CO’</li>
 </ul><!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE --></div>
+</div>
 </div>
 <div class="section level1">
 <h1 id="agent-teams-orchestration">Agent Teams Orchestration<a class="anchor" aria-label="anchor" href="#agent-teams-orchestration"></a></h1>
@@ -885,7 +937,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <strong>Close issues via commits, not <code>gh issue close</code></strong> — see Closing Issues above.</li>
 </ul></div>
 <div class="section level2">
-<h2 id="naming-conventions">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions"></a></h2>
+<h2 id="naming-conventions-1">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions-1"></a></h2>
 <p><strong>Pattern: <code>noun_verb-detail</code></strong> – noun first, verb second across all naming:</p>
 <table class="table"><thead><tr class="header"><th>What</th>
 <th>Example</th>

@@ -74,6 +74,55 @@ Pipeline: fresh (network data) → breaks (sub-basins) → flooded
 - **Connection:** SSH tunnel to remote instance or local; see
   db-newgraph skill
 
+## Naming Conventions
+
+### Generated column names
+
+- `id_*` prefix for fresh-generated identifiers: `id_segment`
+  (sub-segment after breaking)
+- FWA columns kept as-is: `linear_feature_id`, `blue_line_key`,
+  `downstream_route_measure`, `wscode_ltree`, `localcode_ltree`
+- Habitat classification columns are generic (not species-prefixed):
+  `accessible`, `spawning`, `rearing`, `lake_rearing`. Species is a row
+  value (`species_code`), not a column name.
+
+### Parameter names
+
+- `to`, `from` — complete DB table names (schema-qualified)
+- `to_prefix` — table name prefix, suffixed by the function
+  (e.g. `"fresh.streams"` → `fresh.streams_co`)
+- `to_streams`, `to_habitat` — explicit output table names in
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+- `col_*` — column name mappings for flexible table schemas: `col_blk`,
+  `col_measure`
+- `break_sources` — list of break source specs with `table`, `where`,
+  `label`, `label_col`, `label_map`, `col_blk`, `col_measure`
+
+### Function names
+
+- `frs_noun_verb` pattern: `frs_network_segment`, `frs_point_snap`,
+  `frs_stream_fetch`
+- Pipeline orchestrators wrap exported building blocks:
+  - [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+    wraps `frs_network_segment()` + `frs_habitat_classify()`
+  - `frs_network_segment()` wraps
+    [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md) +
+    [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md) +
+    [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md)
+  - `frs_habitat_classify()` wraps
+    [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
+    per species
+
+### Output table structure
+
+- `{to_streams}` — one row per segment, geometry + base attributes +
+  `id_segment`
+- `{to_habitat}` — long format, one row per segment × species. Columns:
+  `id_segment`, `species_code`, `accessible`, `spawning`, `rearing`,
+  `lake_rearing`. No geometry.
+- Views per species: `{to_streams}_co_vw` = join streams + habitat WHERE
+  species_code = ‘CO’
+
 # Agent Teams Orchestration
 
 Checklist for effectively running Claude Code agent teams. Agent teams
