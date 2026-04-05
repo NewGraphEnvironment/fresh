@@ -19,6 +19,8 @@ frs_break_find(
   label = NULL,
   label_col = NULL,
   label_map = NULL,
+  col_blk = "blue_line_key",
+  col_measure = "downstream_route_measure",
   overwrite = TRUE,
   append = FALSE
 )
@@ -72,6 +74,12 @@ read labels from. Values are passed through as-is, or remapped via
 \item{label_map}{Named character vector or \code{NULL}. Maps values in
 \code{label_col} to output labels (e.g. \code{c("BARRIER" = "blocked")}).
 Only used with \code{label_col}.}
+
+\item{col_blk}{Character. Column name for the stream identifier in
+\code{points_table}. Default \code{"blue_line_key"}.}
+
+\item{col_measure}{Character. Column name for the route measure in
+\code{points_table}. Default \code{"downstream_route_measure"}.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
