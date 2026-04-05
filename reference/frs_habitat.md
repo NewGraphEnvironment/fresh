@@ -7,7 +7,7 @@ per WSG to extract the base network and pre-compute breaks, then
 flattens all (WSG, species) pairs and classifies them via
 [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md).
 Both phases parallelize with
-[`furrr::future_map()`](https://furrr.futureverse.org/reference/future_map.html)
+[`mirai::mirai_map()`](https://mirai.r-lib.org/reference/mirai_map.html)
 when `workers > 1`.
 
 ## Usage
@@ -18,6 +18,7 @@ frs_habitat(
   wsg,
   workers = 1L,
   break_sources = NULL,
+  password = "",
   cleanup = TRUE,
   verbose = TRUE
 )
@@ -40,9 +41,9 @@ frs_habitat(
 - workers:
 
   Integer. Number of parallel workers. Default `1` (sequential). Values
-  \> 1 require the `furrr` package. Each worker opens its own database
-  connection. Used for both Phase 1 (partition prep across WSGs) and
-  Phase 2 (species classification).
+  \> 1 require the `mirai` package. Each worker opens its own database
+  connection (params extracted from `conn`). Used for both Phase 1
+  (partition prep across WSGs) and Phase 2 (species classification).
 
 - break_sources:
 
@@ -52,6 +53,12 @@ frs_habitat(
   optionally `where`, `label`, `label_col`, `label_map`. See
   [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
   for details.
+
+- password:
+
+  Character. Database password for parallel workers. Required when
+  `workers > 1` and the database uses password auth. Not needed for
+  trust auth or `.pgpass`.
 
 - cleanup:
 
