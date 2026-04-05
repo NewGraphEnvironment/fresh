@@ -37,7 +37,7 @@ test_that("frs_break_find attribute mode builds correct SQL", {
   expect_length(sql_log, 2)
   expect_match(sql_log[1], "DROP TABLE IF EXISTS working.breaks")
   expect_match(sql_log[2], "CREATE TABLE working.breaks")
-  expect_match(sql_log[2], "fwa_slopealonginterval")
+  expect_match(sql_log[2], "vertex_grades")
   expect_match(sql_log[2], "gradient > 0.05")
 })
 
