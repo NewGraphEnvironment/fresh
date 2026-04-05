@@ -43,6 +43,10 @@
 #' @param label_map Named character vector or `NULL`. Maps values in
 #'   `label_col` to output labels (e.g. `c("BARRIER" = "blocked")`).
 #'   Only used with `label_col`.
+#' @param col_blk Character. Column name for the stream identifier in
+#'   `points_table`. Default `"blue_line_key"`.
+#' @param col_measure Character. Column name for the route measure in
+#'   `points_table`. Default `"downstream_route_measure"`.
 #' @param overwrite Logical. If `TRUE`, drop `to` before creating.
 #'   Default `TRUE`.
 #' @param append Logical. If `TRUE`, INSERT INTO existing `to` table
@@ -97,6 +101,8 @@ frs_break_find <- function(conn, table, to = "working.breaks",
                            where = NULL, aoi = NULL,
                            label = NULL, label_col = NULL,
                            label_map = NULL,
+                           col_blk = "blue_line_key",
+                           col_measure = "downstream_route_measure",
                            overwrite = TRUE, append = FALSE) {
   .frs_validate_identifier(table, "source table")
   .frs_validate_identifier(to, "destination table")
@@ -124,8 +130,9 @@ frs_break_find <- function(conn, table, to = "working.breaks",
     .frs_break_find_attribute(conn, table, to, attribute, threshold,
                                interval, distance)
   } else if (has_table) {
-    .frs_break_find_table(conn, table, to, points_table, where, aoi,
-                          label, label_col, label_map, append)
+    .frs_break_find_table(conn, table, to, points_table, where,
+                          label, label_col, label_map,
+                          col_blk, col_measure, append)
   } else {
     .frs_break_find_points(conn, table, to, points)
   }
@@ -196,32 +203,36 @@ frs_break_find <- function(conn, table, to = "working.breaks",
 #'
 #' @noRd
 .frs_break_find_table <- function(conn, table, to, points_table,
-                                   where = NULL, aoi = NULL,
+                                   where = NULL,
                                    label = NULL, label_col = NULL,
                                    label_map = NULL,
+                                   col_blk = "blue_line_key",
+                                   col_measure = "downstream_route_measure",
                                    append = FALSE) {
   .frs_validate_identifier(points_table, "points table")
+  .frs_validate_identifier(col_blk, "col_blk")
+  .frs_validate_identifier(col_measure, "col_measure")
 
   clauses <- character(0)
+
+  # Scope to BLKs present in the working streams table
+  clauses <- c(clauses, sprintf(
+    "%s IN (SELECT DISTINCT blue_line_key FROM %s)",
+    col_blk, table))
+
   if (!is.null(where)) {
     clauses <- c(clauses, where)
   }
-  aoi_pred <- .frs_resolve_aoi(aoi, conn = conn)
-  if (nzchar(aoi_pred)) {
-    clauses <- c(clauses, aoi_pred)
-  }
 
-  where_clause <- if (length(clauses) > 0) {
-    paste(" WHERE", paste(clauses, collapse = " AND "))
-  } else {
-    ""
-  }
+  where_clause <- paste(" WHERE", paste(clauses, collapse = " AND "))
 
   # Build label expression
   label_expr <- .frs_label_expr(label, label_col, label_map)
 
+  # Alias source columns to standard names
   select_sql <- sprintf(
-    "SELECT DISTINCT blue_line_key, downstream_route_measure, %s, %s AS source FROM %s%s",
+    "SELECT DISTINCT %s AS blue_line_key, %s AS downstream_route_measure, %s, %s AS source FROM %s%s",
+    col_blk, col_measure,
     label_expr,
     .frs_quote_string(points_table),
     points_table, where_clause

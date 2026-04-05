@@ -21,6 +21,11 @@
 #'   [frs_habitat_access()], or `NULL` for gradient-only. Each spec is a
 #'   list with `table`, and optionally `where`, `label`, `label_col`,
 #'   `label_map`. See [frs_habitat_access()] for details.
+#' @param to_prefix Character or `NULL`. When provided, persist species
+#'   output tables with this prefix (e.g. `"fresh.streams"` creates
+#'   `fresh.streams_co`, `fresh.streams_bt`). Existing rows for the
+#'   same WSG are replaced (delete + insert). Default `NULL` (no
+#'   persistence, working tables only).
 #' @param password Character. Database password for parallel workers.
 #'   Required when `workers > 1` and the database uses password auth.
 #'   Not needed for trust auth or `.pgpass`.
@@ -55,6 +60,14 @@
 #'        label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
 #' ))
 #'
+#' # Persist to output tables (accumulate across runs)
+#' result <- frs_habitat(conn, "BULK",
+#'   to_prefix = "fresh.streams",
+#'   break_sources = list(
+#'     list(table = "working.falls", label = "blocked")))
+#' # Creates: fresh.streams_co, fresh.streams_bt, etc.
+#' # Re-run with "MORR" — appends to same tables
+#'
 #' # Gradient-only (no external break sources)
 #' result <- frs_habitat(conn, "ADMS")
 #'
@@ -62,6 +75,7 @@
 #' }
 frs_habitat <- function(conn, wsg, workers = 1L,
                         break_sources = NULL,
+                        to_prefix = NULL,
                         password = "",
                         cleanup = TRUE, verbose = TRUE) {
   stopifnot(is.character(wsg), length(wsg) > 0)
@@ -240,7 +254,38 @@ frs_habitat <- function(conn, wsg, workers = 1L,
   }
 
   # ==========================================================================
-  # Phase 3: Cleanup
+  # Phase 3: Persist to output tables
+  # ==========================================================================
+  if (!is.null(to_prefix)) {
+    .frs_validate_identifier(to_prefix, "to_prefix")
+    for (i in seq_len(nrow(results))) {
+      src <- results$table_name[i]
+      sp <- tolower(results$species_code[i])
+      dest <- paste0(to_prefix, "_", sp)
+      wsg_code <- results$partition[i]
+
+      # Create if not exists (match source schema, no generated columns)
+      .frs_db_execute(conn, sprintf(
+        "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0", dest, src))
+
+      # Delete existing rows for this WSG, then insert
+      .frs_db_execute(conn, sprintf(
+        "DELETE FROM %s WHERE watershed_group_code = %s",
+        dest, .frs_quote_string(toupper(wsg_code))))
+      .frs_db_execute(conn, sprintf(
+        "INSERT INTO %s SELECT * FROM %s", dest, src))
+
+      if (verbose) {
+        n <- DBI::dbGetQuery(conn,
+          sprintf("SELECT count(*)::int AS n FROM %s WHERE watershed_group_code = %s",
+                  dest, .frs_quote_string(toupper(wsg_code))))$n
+        cat("  -> ", dest, " (", n, " rows)\n", sep = "")
+      }
+    }
+  }
+
+  # ==========================================================================
+  # Phase 4: Cleanup
   # ==========================================================================
   if (cleanup) {
     for (tbl in cleanup_tables) {
@@ -371,11 +416,8 @@ frs_habitat_partition <- function(conn, aoi, label, species,
     cleanup_tables <- c(cleanup_tables, breaks_tbl)
 
     t0 <- proc.time()
-    # For WSG code AOIs, add watershed_group_code filter to each break source
-    # (avoids needing geometry on break source tables)
-    src <- .frs_scope_break_sources(break_sources, aoi)
     frs_habitat_access(conn, base_tbl, threshold = thr,
-      to = breaks_tbl, break_sources = src)
+      to = breaks_tbl, break_sources = break_sources)
 
     if (verbose) {
       spp <- species$species_code[species$access_gradient == thr]
@@ -501,6 +543,8 @@ frs_habitat_access <- function(conn, table, threshold,
         label = src$label,
         label_col = src$label_col,
         label_map = src$label_map,
+        col_blk = if (is.null(src$col_blk)) "blue_line_key" else src$col_blk,
+        col_measure = if (is.null(src$col_measure)) "downstream_route_measure" else src$col_measure,
         to = to, overwrite = FALSE, append = TRUE)
     }
   }
@@ -539,35 +583,6 @@ frs_habitat_access <- function(conn, table, threshold,
        AND b.downstream_route_measure >= f.downstream_route_measure
        AND b.downstream_route_measure < f.upstream_route_measure",
     breaks))
-}
-
-
-#' Scope break sources to a WSG code
-#'
-#' When AOI is a 4-letter WSG code, appends a `watershed_group_code`
-#' filter to each break source's `where` clause. This avoids needing
-#' geometry on break source tables (e.g. CSV-loaded falls).
-#'
-#' @param break_sources List of break source specs, or NULL.
-#' @param aoi AOI specification.
-#' @return Modified break_sources list, or NULL.
-#' @noRd
-.frs_scope_break_sources <- function(break_sources, aoi) {
-  if (is.null(break_sources)) return(NULL)
-  if (!(is.character(aoi) && length(aoi) == 1 && grepl("^[A-Z]{4}$", aoi))) {
-    return(break_sources)
-  }
-
-  wsg_pred <- paste0("watershed_group_code = ", .frs_quote_string(aoi))
-  lapply(break_sources, function(src) {
-    w <- src$where
-    src$where <- if (!is.null(w) && nzchar(w)) {
-      paste(w, "AND", wsg_pred)
-    } else {
-      wsg_pred
-    }
-    src
-  })
 }
 
 

@@ -9,6 +9,7 @@ frs_habitat(
   wsg,
   workers = 1L,
   break_sources = NULL,
+  to_prefix = NULL,
   password = "",
   cleanup = TRUE,
   verbose = TRUE
@@ -30,6 +31,12 @@ Used for both Phase 1 (partition prep across WSGs) and Phase 2
 \code{\link[=frs_habitat_access]{frs_habitat_access()}}, or \code{NULL} for gradient-only. Each spec is a
 list with \code{table}, and optionally \code{where}, \code{label}, \code{label_col},
 \code{label_map}. See \code{\link[=frs_habitat_access]{frs_habitat_access()}} for details.}
+
+\item{to_prefix}{Character or \code{NULL}. When provided, persist species
+output tables with this prefix (e.g. \code{"fresh.streams"} creates
+\code{fresh.streams_co}, \code{fresh.streams_bt}). Existing rows for the
+same WSG are replaced (delete + insert). Default \code{NULL} (no
+persistence, working tables only).}
 
 \item{password}{Character. Database password for parallel workers.
 Required when \code{workers > 1} and the database uses password auth.
@@ -74,6 +81,14 @@ result <- frs_habitat(conn, "ADMS", break_sources = list(
        label_col = "barrier_status",
        label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
 ))
+
+# Persist to output tables (accumulate across runs)
+result <- frs_habitat(conn, "BULK",
+  to_prefix = "fresh.streams",
+  break_sources = list(
+    list(table = "working.falls", label = "blocked")))
+# Creates: fresh.streams_co, fresh.streams_bt, etc.
+# Re-run with "MORR" — appends to same tables
 
 # Gradient-only (no external break sources)
 result <- frs_habitat(conn, "ADMS")

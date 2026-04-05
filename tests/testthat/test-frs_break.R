@@ -67,10 +67,9 @@ test_that("frs_break_find table mode adds AOI filter", {
   )
 
   frs_break_find("mock", "working.streams",
-                 points_table = "bcfishpass.falls_events_sp",
-                 aoi = "BULK")
+                 points_table = "bcfishpass.falls_events_sp")
 
-  expect_match(sql_log[2], "WHERE.*BULK")
+  expect_match(sql_log[2], "WHERE.*blue_line_key IN")
 })
 
 test_that("frs_break_find table mode adds where filter", {
@@ -100,11 +99,10 @@ test_that("frs_break_find table mode combines where and aoi", {
 
   frs_break_find("mock", "working.streams",
                  points_table = "bcfishpass.falls_vw",
-                 where = "barrier_ind = TRUE",
-                 aoi = "BULK")
+                 where = "barrier_ind = TRUE")
 
+  expect_match(sql_log[2], "blue_line_key IN")
   expect_match(sql_log[2], "barrier_ind = TRUE")
-  expect_match(sql_log[2], "BULK")
   expect_match(sql_log[2], "AND")
 })
 
