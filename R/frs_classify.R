@@ -252,42 +252,34 @@ frs_classify <- function(conn, table, label,
   mus <- .frs_opt("measure_us_col")
 
   # Segments are accessible if no break is downstream of them.
-  # A segment is BLOCKED (upstream of break) when:
-  # 1. Same BLK: segment measure >= break measure (break is downstream)
-  # 2. Different BLK: fwa_upstream(break_pos, segment) = TRUE
-  #    (segment is upstream of the break on the network)
+  # Split into two separate NOT EXISTS with AND (not OR) so PG can
+  # use indexes on both independently.
+  #
+  # 1. Same BLK: pure measure comparison — instant with btree index
+  # 2. Cross BLK: ltree comparison using enriched wscode/localcode
+  #    on the breaks table — fast with GIST index, no join to
+  #    fwa_stream_networks_sp (4.9M rows)
   sql <- sprintf(
     "UPDATE %s s SET %s = %s
      WHERE NOT EXISTS (
+       -- Same BLK: break is downstream if measure <= segment measure
        SELECT 1 FROM %s b
-       WHERE (
-         -- Same BLK: segment is upstream of break if its measure >= break measure
-         b.%s = s.%s
+       WHERE b.%s = s.%s
          AND b.%s <= s.%s
-       )
-       OR (
-         -- Different BLK: is segment upstream of the break?
-         b.%s != s.%s
-         AND EXISTS (
-           SELECT 1 FROM whse_basemapping.fwa_stream_networks_sp f
-           WHERE f.%s = b.%s
-             AND b.%s >= f.%s
-             AND b.%s < f.%s
-             AND fwa_upstream(
-               f.wscode_ltree, f.localcode_ltree,
-               s.%s, s.%s
-             )
+     )
+     AND NOT EXISTS (
+       -- Cross BLK: break is downstream on the network (ltree)
+       SELECT 1 FROM %s b
+       WHERE b.%s != s.%s
+         AND b.wscode_ltree IS NOT NULL
+         AND fwa_upstream(
+           b.wscode_ltree, b.localcode_ltree,
+           s.%s, s.%s
          )
-       )
      )",
-    table, label, ifelse(value, "TRUE", "FALSE"), breaks,
-    blk, blk,      # same BLK check
-    mds, mds,      # measure comparison
-    blk, blk,      # different BLK check
-    blk, blk,      # join to FWA
-    mds, mds,      # measure range check (ds)
-    mds, mus,      # measure range check (us)
-    wsc, loc       # ltree columns on working table
+    table, label, ifelse(value, "TRUE", "FALSE"),
+    breaks, blk, blk, mds, mds,       # same BLK
+    breaks, blk, blk, wsc, loc        # cross BLK
   )
 
   # Append user-supplied where filter to scope which rows get classified

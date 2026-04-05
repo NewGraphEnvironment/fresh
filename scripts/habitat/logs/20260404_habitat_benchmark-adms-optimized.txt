@@ -1,0 +1,37 @@
+## Habitat pipeline benchmark — ADMS optimized
+## Date: 2026-04-04
+## DB: local Docker fwapg (port 5432)
+## Branch: optimize-classify
+## Issue: #72
+
+## Setup
+# WSG: ADMS (11,520 segments, 5 species: BT, CH, CO, RB, SK)
+# Break sources: gradient + falls (7 ADMS) + crossings (3,597 ADMS)
+# Optimizations: ltree-enriched breaks, split NOT EXISTS query, indexes
+
+## Results
+# Phase 1 (partition prep): 23.3s
+#   Base extract + indexes: 4.2s
+#   Access 15% (gradient + falls + crossings + enrich + index): 5.5s
+#   Access 25%: 4.6s
+#   Habitat breaks (3 thresholds): 9s
+#
+# Phase 2 (species classification): 67.2s
+#   BT: 13.6s, CH: 13.2s, CO: 13.2s, RB: 13.7s, SK: 13.5s
+#
+# Total: 90.6s
+
+## Comparison
+# v0.6.0 remote DB, falls only, no indexes: 88s
+# v0.7.0 local Docker, falls only, no indexes: 88s
+# v0.7.0 local Docker, falls+crossings, unscoped: 5,888s (bug — 533k province breaks)
+# v0.7.0 local Docker, falls+crossings, indexes only: ~840s per species
+# Optimized: 90s total (13s/species)
+
+## Breakdown per species (Phase 2)
+# ~0.5s: copy base table
+# ~3s: frs_col_generate (recompute gradient from geometry)
+# ~0.2s: frs_break_apply (split geometry at breaks)
+# ~0.2s: frs_classify accessible (optimized — was 742s)
+# ~6s: frs_classify spawning/rearing (attribute ranges)
+# ~3s: frs_classify lake rearing + categorize

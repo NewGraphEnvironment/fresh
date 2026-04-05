@@ -463,9 +463,40 @@ frs_habitat_access <- function(conn, table, threshold,
     }
   }
 
+  # Enrich breaks with ltree codes for fast cross-BLK classification
+  .frs_enrich_breaks(conn, to)
+
   .frs_index_working(conn, to)
 
   invisible(conn)
+}
+
+
+#' Enrich breaks table with ltree codes from FWA base network
+#'
+#' Adds `wscode_ltree` and `localcode_ltree` columns by joining each break
+#' point to the FWA stream segment it falls within. These columns enable
+#' fast cross-BLK classification via ltree comparison instead of joining
+#' back to the 4.9M row `fwa_stream_networks_sp` table at classify time.
+#'
+#' @param conn DBI connection.
+#' @param breaks Schema-qualified breaks table name.
+#' @noRd
+.frs_enrich_breaks <- function(conn, breaks) {
+  .frs_db_execute(conn, sprintf(
+    "ALTER TABLE %s ADD COLUMN IF NOT EXISTS wscode_ltree ltree", breaks))
+  .frs_db_execute(conn, sprintf(
+    "ALTER TABLE %s ADD COLUMN IF NOT EXISTS localcode_ltree ltree", breaks))
+
+  .frs_db_execute(conn, sprintf(
+    "UPDATE %s b SET
+       wscode_ltree = f.wscode_ltree,
+       localcode_ltree = f.localcode_ltree
+     FROM whse_basemapping.fwa_stream_networks_sp f
+     WHERE b.blue_line_key = f.blue_line_key
+       AND b.downstream_route_measure >= f.downstream_route_measure
+       AND b.downstream_route_measure < f.upstream_route_measure",
+    breaks))
 }
 
 
