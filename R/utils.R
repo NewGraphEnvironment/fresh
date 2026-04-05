@@ -60,6 +60,26 @@
 }
 
 
+#' Add id_segment column to a working table
+#'
+#' Assigns a unique integer ID to every row. Uses `linear_feature_id`
+#' as the starting value (so original FWA segments keep their ID),
+#' then generates new IDs for any rows added later by
+#' [frs_break_apply()].
+#'
+#' @param conn DBI connection.
+#' @param table Schema-qualified table name.
+#' @noRd
+.frs_add_id_segment <- function(conn, table) {
+  if (!inherits(conn, "DBIConnection")) return(invisible(NULL))
+  .frs_db_execute(conn, sprintf(
+    "ALTER TABLE %s ADD COLUMN IF NOT EXISTS id_segment integer", table))
+  .frs_db_execute(conn, sprintf(
+    "UPDATE %s SET id_segment = linear_feature_id
+     WHERE id_segment IS NULL", table))
+}
+
+
 #' Add indexes to a working table based on available columns
 #'
 #' Checks which index-worthy columns exist and creates appropriate indexes.

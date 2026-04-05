@@ -582,20 +582,20 @@ frs_break_apply <- function(conn, table, breaks,
   # Get writable columns only (excludes GENERATED ALWAYS columns)
   cols_writable <- .frs_table_columns(conn, table, exclude_generated = TRUE)
 
-  # Split columns: these come from the temp table, not the parent
+  # Split columns: segment_id, measures, and geom come from the split
   cols_split_all <- c(sid, "downstream_route_measure",
                       "upstream_route_measure", "geom")
-  # Only include split columns that are actually writable
   cols_split <- intersect(cols_split_all, cols_writable)
 
   # Carry columns: everything writable that isn't a split column
+  # This preserves linear_feature_id (FWA provenance) from parent
   cols_carry <- setdiff(cols_writable, cols_split_all)
 
   # Build INSERT column list and SELECT expressions
   cols_insert_parts <- character(0)
   select_parts <- character(0)
 
-  # segment_id — new ID from max + row_number
+  # segment_id — new unique ID from max + row_number
   if (sid %in% cols_split) {
     cols_insert_parts <- c(cols_insert_parts, sid)
     select_parts <- c(select_parts, sprintf(
@@ -604,7 +604,7 @@ frs_break_apply <- function(conn, table, breaks,
        )", sid, table))
   }
 
-  # Carried columns from parent
+  # Carried columns from parent (includes linear_feature_id for provenance)
   if (length(cols_carry) > 0) {
     cols_insert_parts <- c(cols_insert_parts, cols_carry)
     select_parts <- c(select_parts, paste0("s.", cols_carry))
