@@ -141,54 +141,115 @@ frs_break_find <- function(conn, table, to = "working.breaks",
 }
 
 
-#' Find breaks by attribute threshold via fine-grained slope sampling
+#' Find gradient breaks using island detection
 #'
-#' Uses `fwa_slopealonginterval()` to compute gradient at `interval` metre
-#' resolution along each `blue_line_key` in `table`. Intervals where the
-#' computed gradient exceeds `threshold` become break points.
+#' Computes gradient at every FWA vertex over a `distance` metre
+#' upstream window. Groups consecutive above-threshold vertices into
+#' "islands" (minimum `distance` metres long) and creates one break
+#' at the entry of each island — where gradient first exceeds the
+#' threshold for a sustained section.
 #'
-#' This produces break measures that fall WITHIN existing FWA segments,
-#' so `frs_break_apply()` will actually split geometry.
+#' Adapted from bcfishpass `gradient_barriers_load.sql` island
+#' approach. Entry-only breaks are appropriate for access barriers
+#' (everything upstream of the entry is blocked). For habitat
+#' classification, segments are classified by their own gradient
+#' attribute, not by break presence.
 #'
+#' @param conn DBI connection.
+#' @param table Working streams table (for BLK list).
+#' @param to Output breaks table name.
+#' @param attribute Column name (currently only "gradient" supported).
+#' @param threshold Numeric. Gradient threshold.
+#' @param interval Not used (kept for API compatibility).
+#' @param distance Integer. Upstream window in metres for gradient
+#'   computation AND minimum island length. Default 100.
 #' @noRd
 .frs_break_find_attribute <- function(conn, table, to, attribute, threshold,
                                       interval, distance) {
   .frs_validate_identifier(attribute, "attribute column")
   stopifnot(is.numeric(threshold), length(threshold) == 1)
-  stopifnot(is.numeric(interval), length(interval) == 1)
   stopifnot(is.numeric(distance), length(distance) == 1)
 
-  # Use the working table's BLKs but get valid measure ranges from the
-  # FWA base table (fwa_slopealonginterval is strict about bounds).
-  # Only sample BLKs that appear in our working table.
+  dist <- as.integer(distance)
+
   sql <- sprintf(
     "CREATE TABLE %s AS
      WITH working_blks AS (
        SELECT DISTINCT blue_line_key FROM %s
      ),
-     blk_ranges AS (
+
+     -- Gradient at every vertex over %dm upstream window
+     vertex_grades AS (
        SELECT
-         f.blue_line_key,
-         min(f.downstream_route_measure)::integer AS start_m,
-         floor(max(f.upstream_route_measure))::integer AS end_m
-       FROM whse_basemapping.fwa_stream_networks_sp f
-       WHERE f.blue_line_key IN (SELECT blue_line_key FROM working_blks)
-       GROUP BY f.blue_line_key
-       HAVING (floor(max(f.upstream_route_measure))::integer -
-               min(f.downstream_route_measure)::integer) >= %d
+         sv.blue_line_key,
+         ROUND(sv.downstream_route_measure::numeric, 2) AS downstream_route_measure,
+         ROUND(((ST_Z((ST_Dump(ST_LocateAlong(
+           s2.geom, sv.downstream_route_measure + %d
+         ))).geom) - sv.elevation) / %d)::numeric, 4) AS gradient
+       FROM (
+         SELECT
+           s.blue_line_key,
+           ((ST_LineLocatePoint(s.geom,
+             ST_PointN(s.geom, generate_series(1, ST_NPoints(s.geom) - 1)))
+             * s.length_metre) + s.downstream_route_measure
+           ) AS downstream_route_measure,
+           ST_Z(ST_PointN(s.geom, generate_series(1, ST_NPoints(s.geom) - 1))) AS elevation
+         FROM whse_basemapping.fwa_stream_networks_sp s
+         WHERE s.blue_line_key IN (SELECT blue_line_key FROM working_blks)
+           AND s.edge_type IN (1000,1050,1100,1150,1250,1350,1410,2000,2300)
+       ) sv
+       INNER JOIN whse_basemapping.fwa_stream_networks_sp s2
+         ON sv.blue_line_key = s2.blue_line_key
+         AND sv.downstream_route_measure + %d >= s2.downstream_route_measure
+         AND sv.downstream_route_measure + %d < s2.upstream_route_measure
+       WHERE s2.edge_type != 6010
+     ),
+
+     -- Flag above threshold
+     flagged AS (
+       SELECT blue_line_key, downstream_route_measure,
+         CASE WHEN gradient > %s THEN TRUE ELSE FALSE END AS above
+       FROM vertex_grades
+     ),
+
+     -- Group consecutive above-threshold vertices into islands
+     -- via lag/count window (bcfishpass pattern)
+     islands AS (
+       SELECT
+         blue_line_key,
+         min(downstream_route_measure) AS downstream_route_measure,
+         max(downstream_route_measure) - min(downstream_route_measure) AS island_length
+       FROM (
+         SELECT blue_line_key, downstream_route_measure, above,
+           count(step OR NULL) OVER (
+             PARTITION BY blue_line_key
+             ORDER BY downstream_route_measure
+           ) AS grp
+         FROM (
+           SELECT blue_line_key, downstream_route_measure, above,
+             lag(above) OVER (
+               PARTITION BY blue_line_key
+               ORDER BY downstream_route_measure
+             ) IS DISTINCT FROM above AS step
+           FROM flagged
+         ) sub1
+         WHERE above
+       ) sub2
+       GROUP BY blue_line_key, grp
      )
-     SELECT DISTINCT b.blue_line_key,
-       g.downstream_measure::double precision AS downstream_route_measure,
+
+     -- Entry point of each island >= minimum length
+     SELECT DISTINCT
+       blue_line_key,
+       downstream_route_measure,
        'gradient' AS label,
        'attribute' AS source
-     FROM blk_ranges b
-     CROSS JOIN LATERAL fwa_slopealonginterval(
-       b.blue_line_key, %d, %d, b.start_m, b.end_m
-     ) g
-     WHERE g.%s > %s",
-    to, table, as.integer(interval) + as.integer(distance),
-    as.integer(interval), as.integer(distance),
-    attribute, threshold
+     FROM islands
+     WHERE island_length >= %d",
+    to, table,
+    dist, dist, dist, dist, dist,
+    format(threshold, scientific = FALSE),
+    dist
   )
   .frs_db_execute(conn, sql)
 }
