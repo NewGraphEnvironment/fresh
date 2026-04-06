@@ -112,72 +112,102 @@ frs_habitat_classify <- function(conn, table, to,
     }
   }
 
-  # Classify each species
-  for (sp in species) {
+  # -- Pre-compute accessibility per unique threshold -------------------------
+  # Species sharing the same access_gradient_max get identical accessibility.
+  # Compute once per threshold, store in temp tables, reuse across species.
+  species_params <- lapply(species, function(sp) {
+    ps <- params[[sp]]
+    fp <- params_fresh[params_fresh$species_code == sp, ]
+    if (is.null(ps) || nrow(fp) == 0) return(NULL)
+    list(
+      species_code = sp,
+      access_gradient = fp$access_gradient_max,
+      spawn_gradient_max = ps$spawn_gradient_max,
+      spawn_gradient_min = if (is.null(fp$spawn_gradient_min) ||
+                               is.na(fp$spawn_gradient_min)) 0 else
+        fp$spawn_gradient_min,
+      params_sp = ps)
+  })
+  species_params <- Filter(Negate(is.null), species_params)
+
+  access_thresholds <- sort(unique(vapply(species_params,
+    function(x) x$access_gradient, numeric(1))))
+
+  # Compute accessibility once per threshold
+  access_tables <- list()
+  for (thr in access_thresholds) {
     t0 <- proc.time()
-    params_sp <- params[[sp]]
-    fresh_sp <- params_fresh[params_fresh$species_code == sp, ]
+    thr_key <- as.character(thr)
+    acc_tbl <- paste0(table, "_acc_", gsub("\\.", "", thr_key))
 
-    if (is.null(params_sp) || nrow(fresh_sp) == 0) {
-      if (verbose) cat("  ", sp, ": skipped (no parameters)\n", sep = "")
-      next
+    label_filter <- .frs_access_label_filter(conn, breaks_tbl, thr)
+
+    .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl))
+    .frs_db_execute(conn, sprintf(
+      "CREATE TABLE %s AS
+       SELECT s.id_segment,
+         NOT EXISTS (
+           SELECT 1 FROM %s b
+           WHERE (%s)
+             AND b.blue_line_key = s.blue_line_key
+             AND b.downstream_route_measure <= s.downstream_route_measure
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM %s b
+           WHERE (%s)
+             AND b.blue_line_key != s.blue_line_key
+             AND b.wscode_ltree IS NOT NULL
+             AND fwa_upstream(b.wscode_ltree, b.localcode_ltree,
+                              s.wscode_ltree, s.localcode_ltree)
+         ) AS accessible
+       FROM %s s",
+      acc_tbl, breaks_tbl, label_filter, breaks_tbl, label_filter, table))
+
+    .frs_db_execute(conn, sprintf("CREATE INDEX ON %s (id_segment)", acc_tbl))
+
+    access_tables[[thr_key]] <- acc_tbl
+
+    if (verbose) {
+      n_acc <- DBI::dbGetQuery(conn, sprintf(
+        "SELECT count(*) FILTER (WHERE accessible)::int AS n FROM %s",
+        acc_tbl))$n
+      cat("  Access ", thr * 100, "%%: ", n_acc, " accessible (",
+          round((proc.time() - t0)["elapsed"], 1), "s)\n", sep = "")
     }
+  }
 
-    access_gradient <- fresh_sp$access_gradient_max
-    spawn_gradient_max <- params_sp$spawn_gradient_max
-    spawn_gradient_min <- if (is.null(fresh_sp$spawn_gradient_min) ||
-                             is.na(fresh_sp$spawn_gradient_min)) 0 else
-      fresh_sp$spawn_gradient_min
+  # -- Classify each species using pre-computed accessibility -----------------
+  for (sp_params in species_params) {
+    t0 <- proc.time()
+    sp <- sp_params$species_code
+    thr_key <- as.character(sp_params$access_gradient)
+    acc_tbl <- access_tables[[thr_key]]
+    params_sp <- sp_params$params_sp
 
-    # Build label filter for this species' access threshold
-    # Gradient labels like "gradient_15" block species with access <= 15%
-    # "blocked" (falls, dams) blocks all species
-    label_filter <- .frs_access_label_filter(conn, breaks_tbl, access_gradient)
-
-    # Build accessible condition: no blocking break downstream
-    accessible_cond <- sprintf(
-      "NOT EXISTS (
-         SELECT 1 FROM %s b
-         WHERE (%s)
-           AND b.blue_line_key = s.blue_line_key
-           AND b.downstream_route_measure <= s.downstream_route_measure
-       )
-       AND NOT EXISTS (
-         SELECT 1 FROM %s b
-         WHERE (%s)
-           AND b.blue_line_key != s.blue_line_key
-           AND b.wscode_ltree IS NOT NULL
-           AND fwa_upstream(b.wscode_ltree, b.localcode_ltree,
-                            s.wscode_ltree, s.localcode_ltree)
-       )", breaks_tbl, label_filter, breaks_tbl, label_filter)
-
-    # Spawning: accessible + gradient in range + channel width in range
+    # Spawning
     spawn_cond <- sprintf("s.gradient >= %s AND s.gradient <= %s",
-      .frs_sql_num(spawn_gradient_min),
-      .frs_sql_num(spawn_gradient_max))
+      .frs_sql_num(sp_params$spawn_gradient_min),
+      .frs_sql_num(sp_params$spawn_gradient_max))
     if (!is.null(params_sp$ranges$spawn$channel_width)) {
       cw <- params_sp$ranges$spawn$channel_width
       spawn_cond <- paste0(spawn_cond, sprintf(
         " AND s.channel_width >= %s AND s.channel_width <= %s",
-        .frs_sql_num(cw[1]),
-        .frs_sql_num(cw[2])))
+        .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
     }
 
-    # Rearing: accessible + gradient/channel width in range
+    # Rearing
     rear_cond <- "FALSE"
     if (!is.null(params_sp$ranges$rear)) {
       parts <- character(0)
       if (!is.null(params_sp$ranges$rear$gradient)) {
         g <- params_sp$ranges$rear$gradient
-        parts <- c(parts, sprintf("s.gradient <= %s",
-          .frs_sql_num(g[2])))
+        parts <- c(parts, sprintf("s.gradient <= %s", .frs_sql_num(g[2])))
       }
       if (!is.null(params_sp$ranges$rear$channel_width)) {
         cw <- params_sp$ranges$rear$channel_width
         parts <- c(parts, sprintf(
           "s.channel_width >= %s AND s.channel_width <= %s",
-          .frs_sql_num(cw[1]),
-          .frs_sql_num(cw[2])))
+          .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
       }
       if (length(parts) > 0) rear_cond <- paste(parts, collapse = " AND ")
     }
@@ -190,36 +220,31 @@ frs_habitat_classify <- function(conn, table, to,
         "s.channel_width >= %s AND s.channel_width <= %s
          AND s.waterbody_key IN (
            SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly)",
-        .frs_sql_num(cw[1]),
-        .frs_sql_num(cw[2]))
+        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]))
     }
 
-    # Single INSERT with all classifications computed inline
+    # INSERT joining pre-computed accessibility
     sql <- sprintf(
       "INSERT INTO %s (id_segment, species_code, accessible, spawning, rearing, lake_rearing)
        SELECT
          s.id_segment,
          %s,
-         (%s) AS accessible,
-         CASE WHEN (%s) AND (%s) THEN TRUE ELSE FALSE END,
-         CASE WHEN (%s) AND (%s) THEN TRUE ELSE FALSE END,
-         CASE WHEN (%s) AND (%s) THEN TRUE ELSE FALSE END
-       FROM %s s",
-      to,
-      .frs_quote_string(sp),
-      accessible_cond,
-      accessible_cond, spawn_cond,
-      accessible_cond, rear_cond,
-      accessible_cond, lake_rear_cond,
-      table)
+         a.accessible,
+         CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END,
+         CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END,
+         CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END
+       FROM %s s
+       INNER JOIN %s a ON s.id_segment = a.id_segment",
+      to, .frs_quote_string(sp),
+      spawn_cond, rear_cond, lake_rear_cond,
+      table, acc_tbl)
 
     .frs_db_execute(conn, sql)
 
     if (verbose) {
       elapsed <- round((proc.time() - t0)["elapsed"], 1)
       stats <- DBI::dbGetQuery(conn, sprintf(
-        "SELECT count(*)::int AS total,
-                count(*) FILTER (WHERE accessible)::int AS acc,
+        "SELECT count(*) FILTER (WHERE accessible)::int AS acc,
                 count(*) FILTER (WHERE spawning)::int AS spn,
                 count(*) FILTER (WHERE rearing)::int AS rr
          FROM %s WHERE species_code = %s",
@@ -229,6 +254,11 @@ frs_habitat_classify <- function(conn, table, to,
           stats$spn, " spawning, ",
           stats$rr, " rearing)\n", sep = "")
     }
+  }
+
+  # Clean up accessibility temp tables
+  for (acc_tbl in access_tables) {
+    .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl))
   }
 
   .frs_index_working(conn, to)
