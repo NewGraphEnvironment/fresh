@@ -1,0 +1,28 @@
+## Habitat benchmark — refactored frs_habitat
+## Date: 2026-04-05
+## DB: local Docker fwapg (port 5432, 32GB shared_buffers)
+## Branch: refactor-habitat
+## Issue: #83, #89
+
+## Setup
+# frs_habitat wrapping frs_network_segment + frs_habitat_classify
+# Break sources: falls (blocked) — gradient barriers auto-generated
+# Parallel: 4 mirai workers
+
+## Results
+# ADMS: 16,606 segments, 5 species, 781s (13 min)
+# BULK: 46,419 segments, 7 species, 2,090s (35 min)
+# Total (parallel): 2,091s (35 min)
+
+## Bottleneck
+# frs_habitat_classify NOT EXISTS query runs once per species
+# CO/CH/SK share 15% threshold — 3x redundant work
+# Breaks table label filter unindexed (sequential scan)
+# Fix: #89 — recycle accessibility by threshold group + composite index
+
+## Comparison
+# Old pipeline (v0.7.0, per-species tables): ADMS 87s
+# New unified (sequential): ADMS 183s
+# New unified (parallel, 4 workers): ADMS+BULK 2,091s
+# Province estimate at current rate: ~days
+# Province estimate with #89 fix: ~hours
