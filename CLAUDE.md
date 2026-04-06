@@ -104,12 +104,16 @@ Pipeline: fresh (network data) → breaks (sub-basins) → flooded
   `frs_stream_fetch`
 - Pipeline orchestrators wrap exported building blocks:
   - [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
-    wraps `frs_network_segment()` + `frs_habitat_classify()`
-  - `frs_network_segment()` wraps
+    wraps
+    [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md) +
+    [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  - [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
+    wraps
     [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md) +
     [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md) +
     [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md)
-  - `frs_habitat_classify()` wraps
+  - [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+    wraps
     [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
     per species
 

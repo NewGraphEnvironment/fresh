@@ -115,6 +115,8 @@ MIT
   : Run Habitat Pipeline for Watershed Groups
 - [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
   : Compute Access Breaks at a Gradient Threshold
+- [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  : Classify Habitat for Multiple Species
 - [`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md)
   : Prepare a Partition for Habitat Classification
 - [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)
@@ -127,6 +129,8 @@ MIT
   : Get Stream Segments Downstream of a Network Position
 - [`frs_network_prune()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_prune.md)
   : Get Pruned Upstream Network
+- [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
+  : Segment a Stream Network at Break Points
 - [`frs_network_upstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_upstream.md)
   : Get Stream Segments Upstream of a Network Position
 - [`frs_order_filter()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_filter.md)
