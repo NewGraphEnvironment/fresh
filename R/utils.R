@@ -60,6 +60,19 @@
 }
 
 
+#' Format a numeric value as a locale-safe SQL literal
+#'
+#' Uses `sprintf` which is not affected by `options(OutDec)`,
+#' unlike `format()` or `formatC()`.
+#'
+#' @param x Numeric scalar.
+#' @return Character string safe for SQL interpolation.
+#' @noRd
+.frs_sql_num <- function(x) {
+  sprintf("%.10g", x)
+}
+
+
 #' Add id_segment column to a working table
 #'
 #' Assigns a unique integer ID to every row. Uses `linear_feature_id`
@@ -132,6 +145,15 @@
   }
   if ("watershed_group_code" %in% cols) {
     idx <- c(idx, sprintf("CREATE INDEX ON %s (watershed_group_code)", table))
+  }
+  if ("label" %in% cols) {
+    idx <- c(idx, sprintf("CREATE INDEX ON %s (label)", table))
+  }
+  if ("id_segment" %in% cols) {
+    idx <- c(idx, sprintf("CREATE INDEX ON %s (id_segment)", table))
+  }
+  if ("species_code" %in% cols) {
+    idx <- c(idx, sprintf("CREATE INDEX ON %s (species_code)", table))
   }
 
   for (sql in idx) {
