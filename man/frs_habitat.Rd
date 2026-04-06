@@ -7,9 +7,10 @@
 frs_habitat(
   conn,
   wsg,
-  workers = 1L,
+  to_streams = NULL,
+  to_habitat = NULL,
   break_sources = NULL,
-  to_prefix = NULL,
+  workers = 1L,
   password = "",
   cleanup = TRUE,
   verbose = TRUE
@@ -21,77 +22,63 @@ frs_habitat(
 \item{wsg}{Character. One or more watershed group codes
 (e.g. \code{"BULK"}, \code{c("BULK", "MORR")}).}
 
-\item{workers}{Integer. Number of parallel workers. Default \code{1}
-(sequential). Values > 1 require the \code{mirai} package. Each worker
-opens its own database connection (params extracted from \code{conn}).
-Used for both Phase 1 (partition prep across WSGs) and Phase 2
-(species classification).}
+\item{to_streams}{Character or \code{NULL}. Schema-qualified table for
+persistent stream segments (e.g. \code{"fresh.streams"}). Accumulates
+across runs — existing rows for the same WSG are replaced.}
 
-\item{break_sources}{List of break source specs passed to
-\code{\link[=frs_habitat_access]{frs_habitat_access()}}, or \code{NULL} for gradient-only. Each spec is a
-list with \code{table}, and optionally \code{where}, \code{label}, \code{label_col},
-\code{label_map}. See \code{\link[=frs_habitat_access]{frs_habitat_access()}} for details.}
+\item{to_habitat}{Character or \code{NULL}. Schema-qualified table for
+habitat classifications (e.g. \code{"fresh.streams_habitat"}). Long
+format: one row per segment x species.}
 
-\item{to_prefix}{Character or \code{NULL}. When provided, persist species
-output tables with this prefix (e.g. \code{"fresh.streams"} creates
-\code{fresh.streams_co}, \code{fresh.streams_bt}). Existing rows for the
-same WSG are replaced (delete + insert). Default \code{NULL} (no
-persistence, working tables only).}
+\item{break_sources}{List of additional break source specs (falls,
+crossings, etc.), or \code{NULL}. Gradient access barriers are generated
+automatically from species parameters. See \code{\link[=frs_break_find]{frs_break_find()}} for
+spec format.}
 
-\item{password}{Character. Database password for parallel workers.
-Required when \code{workers > 1} and the database uses password auth.
-Not needed for trust auth or \code{.pgpass}.}
+\item{workers}{Integer. Number of parallel workers. Default \code{1}.
+Values > 1 require the \code{mirai} package.}
 
-\item{cleanup}{Logical. Drop intermediate tables (base network, break
-tables) when done. Default \code{TRUE}.}
+\item{password}{Character. Database password for parallel workers.}
 
-\item{verbose}{Logical. Print progress and timing. Default \code{TRUE}.}
+\item{cleanup}{Logical. Drop working tables when done. Default \code{TRUE}.}
+
+\item{verbose}{Logical. Print progress. Default \code{TRUE}.}
 }
 \value{
-A data frame with one row per (WSG, species) pair and columns
-\code{partition}, \code{species_code}, \code{access_threshold}, \code{habitat_threshold},
-\code{elapsed_s}, and \code{table_name}.
+A data frame with one row per WSG and columns \code{wsg},
+\code{n_segments}, \code{n_species}, \code{elapsed_s}.
 }
 \description{
-Orchestrate the full habitat pipeline for all species present in one or
-more watershed groups. Calls \code{\link[=frs_habitat_partition]{frs_habitat_partition()}} per WSG to extract
-the base network and pre-compute breaks, then flattens all (WSG, species)
-pairs and classifies them via \code{\link[=frs_habitat_species]{frs_habitat_species()}}. Both phases
-parallelize with \code{\link[mirai:mirai_map]{mirai::mirai_map()}} when \code{workers > 1}.
-}
-\details{
-Output tables are WSG-scoped: \code{working.streams_bulk_co},
-\code{working.streams_morr_bt}, etc.
+Orchestrate the full habitat pipeline for one or more watershed groups.
+Per WSG: generates gradient access barriers, segments the network via
+\code{\link[=frs_network_segment]{frs_network_segment()}}, classifies habitat via \code{\link[=frs_habitat_classify]{frs_habitat_classify()}},
+and persists results. Parallelizes across WSGs with
+\code{\link[mirai:mirai_map]{mirai::mirai_map()}} when \code{workers > 1}.
 }
 \examples{
 \dontrun{
 conn <- frs_db_conn()
 
-# Single watershed group
-result <- frs_habitat(conn, "BULK")
-
-# Multiple watershed groups, 4 parallel workers
-result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
-
-# With break sources (falls, crossings, etc.)
-result <- frs_habitat(conn, "ADMS", break_sources = list(
-  list(table = "working.falls", where = "barrier_ind = TRUE",
-       label = "blocked"),
-  list(table = "working.pscis",
-       label_col = "barrier_status",
-       label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
-))
-
-# Persist to output tables (accumulate across runs)
-result <- frs_habitat(conn, "BULK",
-  to_prefix = "fresh.streams",
+# Single WSG — gradient barriers auto-generated from species params
+frs_habitat(conn, "BULK",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat",
   break_sources = list(
-    list(table = "working.falls", label = "blocked")))
-# Creates: fresh.streams_co, fresh.streams_bt, etc.
-# Re-run with "MORR" — appends to same tables
+    list(table = "working.falls", where = "barrier_ind = TRUE",
+         label = "blocked")))
 
-# Gradient-only (no external break sources)
-result <- frs_habitat(conn, "ADMS")
+# Multiple WSGs, parallel — results accumulate in same tables
+frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat",
+  workers = 4, password = "postgres",
+  break_sources = list(
+    list(table = "working.falls", where = "barrier_ind = TRUE",
+         label = "blocked"),
+    list(table = "working.crossings",
+         label_col = "barrier_status",
+         label_map = c("BARRIER" = "blocked",
+                       "POTENTIAL" = "potential"))))
 
 DBI::dbDisconnect(conn)
 }
