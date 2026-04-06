@@ -248,7 +248,7 @@ frs_break_find <- function(conn, table, to = "working.breaks",
      WHERE island_length >= %d",
     to, table,
     dist, dist, dist, dist, dist,
-    format(threshold, scientific = FALSE),
+    .frs_sql_num(threshold),
     dist
   )
   .frs_db_execute(conn, sql)
