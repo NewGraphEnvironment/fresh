@@ -197,7 +197,9 @@ Other habitat:
 \code{\link{frs_extract}()},
 \code{\link{frs_habitat}()},
 \code{\link{frs_habitat_access}()},
+\code{\link{frs_habitat_classify}()},
 \code{\link{frs_habitat_partition}()},
-\code{\link{frs_habitat_species}()}
+\code{\link{frs_habitat_species}()},
+\code{\link{frs_network_segment}()}
 }
 \concept{habitat}
