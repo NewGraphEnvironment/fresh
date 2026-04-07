@@ -148,6 +148,9 @@
   }
   if ("label" %in% cols) {
     idx <- c(idx, sprintf("CREATE INDEX ON %s (label)", table))
+    if ("blue_line_key" %in% cols) {
+      idx <- c(idx, sprintf("CREATE INDEX ON %s (label, blue_line_key)", table))
+    }
   }
   if ("id_segment" %in% cols) {
     idx <- c(idx, sprintf("CREATE INDEX ON %s (id_segment)", table))

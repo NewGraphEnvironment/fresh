@@ -1,41 +1,32 @@
 #' Run Habitat Pipeline for Watershed Groups
 #'
-#' Orchestrate the full habitat pipeline for all species present in one or
-#' more watershed groups. Calls [frs_habitat_partition()] per WSG to extract
-#' the base network and pre-compute breaks, then flattens all (WSG, species)
-#' pairs and classifies them via [frs_habitat_species()]. Both phases
-#' parallelize with [mirai::mirai_map()] when `workers > 1`.
-#'
-#' Output tables are WSG-scoped: `working.streams_bulk_co`,
-#' `working.streams_morr_bt`, etc.
+#' Orchestrate the full habitat pipeline for one or more watershed groups.
+#' Per WSG: generates gradient access barriers, segments the network via
+#' [frs_network_segment()], classifies habitat via [frs_habitat_classify()],
+#' and persists results. Parallelizes across WSGs with
+#' [mirai::mirai_map()] when `workers > 1`.
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param wsg Character. One or more watershed group codes
 #'   (e.g. `"BULK"`, `c("BULK", "MORR")`).
-#' @param workers Integer. Number of parallel workers. Default `1`
-#'   (sequential). Values > 1 require the `mirai` package. Each worker
-#'   opens its own database connection (params extracted from `conn`).
-#'   Used for both Phase 1 (partition prep across WSGs) and Phase 2
-#'   (species classification).
-#' @param break_sources List of break source specs passed to
-#'   [frs_habitat_access()], or `NULL` for gradient-only. Each spec is a
-#'   list with `table`, and optionally `where`, `label`, `label_col`,
-#'   `label_map`. See [frs_habitat_access()] for details.
-#' @param to_prefix Character or `NULL`. When provided, persist species
-#'   output tables with this prefix (e.g. `"fresh.streams"` creates
-#'   `fresh.streams_co`, `fresh.streams_bt`). Existing rows for the
-#'   same WSG are replaced (delete + insert). Default `NULL` (no
-#'   persistence, working tables only).
+#' @param to_streams Character or `NULL`. Schema-qualified table for
+#'   persistent stream segments (e.g. `"fresh.streams"`). Accumulates
+#'   across runs — existing rows for the same WSG are replaced.
+#' @param to_habitat Character or `NULL`. Schema-qualified table for
+#'   habitat classifications (e.g. `"fresh.streams_habitat"`). Long
+#'   format: one row per segment x species.
+#' @param break_sources List of additional break source specs (falls,
+#'   crossings, etc.), or `NULL`. Gradient access barriers are generated
+#'   automatically from species parameters. See [frs_break_find()] for
+#'   spec format.
+#' @param workers Integer. Number of parallel workers. Default `1`.
+#'   Values > 1 require the `mirai` package.
 #' @param password Character. Database password for parallel workers.
-#'   Required when `workers > 1` and the database uses password auth.
-#'   Not needed for trust auth or `.pgpass`.
-#' @param cleanup Logical. Drop intermediate tables (base network, break
-#'   tables) when done. Default `TRUE`.
-#' @param verbose Logical. Print progress and timing. Default `TRUE`.
+#' @param cleanup Logical. Drop working tables when done. Default `TRUE`.
+#' @param verbose Logical. Print progress. Default `TRUE`.
 #'
-#' @return A data frame with one row per (WSG, species) pair and columns
-#'   `partition`, `species_code`, `access_threshold`, `habitat_threshold`,
-#'   `elapsed_s`, and `table_name`.
+#' @return A data frame with one row per WSG and columns `wsg`,
+#'   `n_segments`, `n_species`, `elapsed_s`.
 #'
 #' @family habitat
 #'
@@ -45,37 +36,33 @@
 #' \dontrun{
 #' conn <- frs_db_conn()
 #'
-#' # Single watershed group
-#' result <- frs_habitat(conn, "BULK")
-#'
-#' # Multiple watershed groups, 4 parallel workers
-#' result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
-#'
-#' # With break sources (falls, crossings, etc.)
-#' result <- frs_habitat(conn, "ADMS", break_sources = list(
-#'   list(table = "working.falls", where = "barrier_ind = TRUE",
-#'        label = "blocked"),
-#'   list(table = "working.pscis",
-#'        label_col = "barrier_status",
-#'        label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
-#' ))
-#'
-#' # Persist to output tables (accumulate across runs)
-#' result <- frs_habitat(conn, "BULK",
-#'   to_prefix = "fresh.streams",
+#' # Single WSG — gradient barriers auto-generated from species params
+#' frs_habitat(conn, "BULK",
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat",
 #'   break_sources = list(
-#'     list(table = "working.falls", label = "blocked")))
-#' # Creates: fresh.streams_co, fresh.streams_bt, etc.
-#' # Re-run with "MORR" — appends to same tables
+#'     list(table = "working.falls", where = "barrier_ind = TRUE",
+#'          label = "blocked")))
 #'
-#' # Gradient-only (no external break sources)
-#' result <- frs_habitat(conn, "ADMS")
+#' # Multiple WSGs, parallel — results accumulate in same tables
+#' frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat",
+#'   workers = 4, password = "postgres",
+#'   break_sources = list(
+#'     list(table = "working.falls", where = "barrier_ind = TRUE",
+#'          label = "blocked"),
+#'     list(table = "working.crossings",
+#'          label_col = "barrier_status",
+#'          label_map = c("BARRIER" = "blocked",
+#'                        "POTENTIAL" = "potential"))))
 #'
 #' DBI::dbDisconnect(conn)
 #' }
-frs_habitat <- function(conn, wsg, workers = 1L,
+frs_habitat <- function(conn, wsg,
+                        to_streams = NULL, to_habitat = NULL,
                         break_sources = NULL,
-                        to_prefix = NULL,
+                        workers = 1L,
                         password = "",
                         cleanup = TRUE, verbose = TRUE) {
   stopifnot(is.character(wsg), length(wsg) > 0)
@@ -88,7 +75,7 @@ frs_habitat <- function(conn, wsg, workers = 1L,
   params_fresh <- utils::read.csv(system.file("extdata",
     "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
 
-  # -- Build species spec per WSG ---------------------------------------------
+  # -- Build species list per WSG ---------------------------------------------
   wsg_specs <- lapply(wsg, function(w) {
     sp_df <- frs_wsg_species(w)
     sp_df <- sp_df[!is.na(sp_df$view), ]
@@ -96,17 +83,7 @@ frs_habitat <- function(conn, wsg, workers = 1L,
                    sp_df$species_code %in% params_fresh$species_code, ]
     sp_df <- sp_df[!duplicated(sp_df$species_code), ]
     if (nrow(sp_df) == 0) return(NULL)
-
-    sp_df$access_gradient <- vapply(sp_df$species_code, function(sc) {
-      params_fresh[params_fresh$species_code == sc, "access_gradient_max"]
-    }, numeric(1))
-    sp_df$spawn_gradient_max <- vapply(sp_df$species_code, function(sc) {
-      params_all[[sc]]$spawn_gradient_max
-    }, numeric(1))
-
-    list(wsg = w, label = tolower(w), aoi = w, species = sp_df,
-         params_all = params_all, params_fresh = params_fresh,
-         break_sources = break_sources)
+    list(wsg = w, species = sp_df$species_code)
   })
   wsg_specs <- Filter(Negate(is.null), wsg_specs)
 
@@ -116,127 +93,229 @@ frs_habitat <- function(conn, wsg, workers = 1L,
 
   if (verbose) {
     for (spec in wsg_specs) {
-      cat(spec$wsg, ": ", paste(spec$species$species_code, collapse = ", "),
-          "\n", sep = "")
+      cat(spec$wsg, ": ", paste(spec$species, collapse = ", "), "\n", sep = "")
     }
   }
 
-  # ==========================================================================
-  # Phase 1: Prepare partitions (extract base, pre-compute breaks)
-  # ==========================================================================
+  # -- Parallel setup ---------------------------------------------------------
   workers <- as.integer(workers)
   use_parallel <- workers > 1L
   if (use_parallel && !requireNamespace("mirai", quietly = TRUE)) {
     stop("mirai package required for parallel execution (workers > 1)",
          call. = FALSE)
   }
-
-  # Extract connection params from user's conn for worker reconnection
   conn_params <- if (use_parallel) .frs_conn_params(conn, password) else NULL
 
+  # -- Per-WSG worker function ------------------------------------------------
+  .run_wsg <- function(spec, conn_params, break_sources, params_all,
+                       params_fresh, to_streams, to_habitat, verbose) {
+    # Connect (parallel) or reuse (sequential)
+    if (!is.null(conn_params)) {
+      library(fresh)
+      w_conn <- do.call(DBI::dbConnect,
+        c(list(drv = RPostgres::Postgres()), conn_params))
+      on.exit(DBI::dbDisconnect(w_conn))
+    } else {
+      w_conn <- conn
+    }
+
+    wsg_code <- spec$wsg
+    species <- spec$species
+    t0 <- proc.time()
+
+    # 1. Determine unique access thresholds for this WSG's species
+    access_thresholds <- sort(unique(
+      params_fresh$access_gradient_max[
+        params_fresh$species_code %in% species]))
+
+    # 2. Generate gradient barriers at each threshold
+    streams_tbl <- paste0("working.streams_", tolower(wsg_code))
+
+    # Need a temp extract for barrier detection
+    frs_extract(w_conn,
+      from = "whse_basemapping.fwa_stream_networks_sp",
+      to = paste0(streams_tbl, "_tmp"),
+      where = paste0("watershed_group_code = ",
+                     .frs_quote_string(wsg_code)),
+      overwrite = TRUE)
+
+    all_sources <- if (!is.null(break_sources)) break_sources else list()
+    barrier_tables <- character(0)
+
+    for (thr in access_thresholds) {
+      thr_tbl <- sprintf("working.barriers_%s_%d",
+                         tolower(wsg_code), as.integer(thr * 100))
+      frs_break_find(w_conn, paste0(streams_tbl, "_tmp"),
+        attribute = "gradient", threshold = thr,
+        to = thr_tbl)
+      all_sources <- c(all_sources, list(list(
+        table = thr_tbl,
+        label = sprintf("gradient_%d", as.integer(thr * 100)))))
+      barrier_tables <- c(barrier_tables, thr_tbl)
+    }
+
+    .frs_db_execute(w_conn, sprintf(
+      "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_tmp")))
+
+    # 3. Segment network
+    frs_network_segment(w_conn, aoi = wsg_code,
+      to = streams_tbl,
+      break_sources = all_sources,
+      verbose = verbose && is.null(conn_params))
+
+    n_seg <- DBI::dbGetQuery(w_conn,
+      sprintf("SELECT count(*)::int AS n FROM %s", streams_tbl))$n
+
+    # 4. Classify habitat
+    habitat_tbl <- if (!is.null(to_habitat)) {
+      to_habitat
+    } else {
+      paste0(streams_tbl, "_habitat")
+    }
+
+    frs_habitat_classify(w_conn,
+      table = streams_tbl,
+      to = habitat_tbl,
+      species = species,
+      params = params_all,
+      params_fresh = params_fresh,
+      verbose = verbose && is.null(conn_params))
+
+    # 5. Persist streams (if to_streams provided)
+    if (!is.null(to_streams)) {
+      .frs_db_execute(w_conn, sprintf(
+        "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
+        to_streams, streams_tbl))
+      .frs_db_execute(w_conn, sprintf(
+        "DELETE FROM %s WHERE watershed_group_code = %s",
+        to_streams, .frs_quote_string(wsg_code)))
+      .frs_db_execute(w_conn, sprintf(
+        "INSERT INTO %s SELECT * FROM %s",
+        to_streams, streams_tbl))
+    }
+
+    # 6. Cleanup working tables
+    .frs_db_execute(w_conn, sprintf(
+      "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_breaks")))
+    for (tbl in barrier_tables) {
+      .frs_db_execute(w_conn, sprintf("DROP TABLE IF EXISTS %s", tbl))
+    }
+    if (!is.null(to_streams)) {
+      .frs_db_execute(w_conn, sprintf("DROP TABLE IF EXISTS %s", streams_tbl))
+    }
+
+    elapsed <- (proc.time() - t0)["elapsed"]
+    data.frame(wsg = wsg_code, n_segments = n_seg,
+               n_species = length(species), elapsed_s = elapsed,
+               stringsAsFactors = FALSE)
+  }
+
+  # -- Run per WSG ------------------------------------------------------------
   if (use_parallel) {
-    if (verbose) cat("\nPhase 1: preparing ", length(wsg_specs),
-                     " partition(s) (", workers, " workers)...\n", sep = "")
+    if (verbose) cat("\nRunning ", length(wsg_specs), " WSG(s) on ",
+                     workers, " workers...\n", sep = "")
     mirai::daemons(workers)
     on.exit(mirai::daemons(0), add = TRUE)
-    partitions <- mirai::mirai_map(wsg_specs, function(spec) {
+
+    result_list <- mirai::mirai_map(wsg_specs, function(spec) {
       library(fresh)
-      p_conn <- do.call(DBI::dbConnect,
+      w_conn <- do.call(DBI::dbConnect,
         c(list(drv = RPostgres::Postgres()), conn_params))
-      on.exit(DBI::dbDisconnect(p_conn))
-      frs_habitat_partition(p_conn,
-        aoi = spec$aoi, label = spec$label,
-        species = spec$species, params_all = spec$params_all,
-        params_fresh = spec$params_fresh,
-        break_sources = spec$break_sources, verbose = FALSE)
-    }, conn_params = conn_params)[]
-  } else {
-    partitions <- lapply(wsg_specs, function(spec) {
-      frs_habitat_partition(conn,
-        aoi = spec$aoi, label = spec$label,
-        species = spec$species, params_all = spec$params_all,
-        params_fresh = spec$params_fresh,
-        break_sources = spec$break_sources, verbose = verbose)
-    })
-  }
+      on.exit(DBI::dbDisconnect(w_conn))
 
-  # Check for worker errors
-  if (use_parallel) {
-    errs <- vapply(partitions, inherits, logical(1), "miraiError")
-    if (any(errs)) {
-      msgs <- vapply(which(errs), function(i) {
-        paste0(wsg_specs[[i]]$wsg, ": ", conditionMessage(partitions[[i]]))
-      }, character(1))
-      stop("Partition failed:\n  ", paste(msgs, collapse = "\n  "),
-           call. = FALSE)
-    }
-  }
+      wsg_code <- spec$wsg
+      species <- spec$species
+      t0 <- proc.time()
 
-  # Collect all jobs and cleanup tables
-  all_jobs <- unlist(lapply(partitions, `[[`, "jobs"), recursive = FALSE)
-  cleanup_tables <- unlist(lapply(partitions, `[[`, "cleanup_tables"))
+      access_thresholds <- sort(unique(
+        params_fresh$access_gradient_max[
+          params_fresh$species_code %in% species]))
 
-  if (verbose) {
-    cat("\n", length(all_jobs), " species jobs across ",
-        length(wsg_specs), " partition(s)\n", sep = "")
-  }
+      streams_tbl <- paste0("working.streams_", tolower(wsg_code))
 
-  # ==========================================================================
-  # Phase 2: Classify all (partition, species) pairs
-  # ==========================================================================
-  .run_species <- function(job) {
-    library(fresh)
-    worker_conn <- do.call(DBI::dbConnect,
-      c(list(drv = RPostgres::Postgres()), conn_params))
-    on.exit(DBI::dbDisconnect(worker_conn))
-    t0 <- proc.time()
-    frs_habitat_species(worker_conn, job$species_code, job$base_tbl,
-      breaks = job$acc_tbl, breaks_habitat = job$hab_tbl,
-      params_sp = job$params_sp, fresh_sp = job$fresh_sp,
-      to = job$to)
-    elapsed <- (proc.time() - t0)["elapsed"]
-    data.frame(partition = job$partition, species_code = job$species_code,
-      access_threshold = job$access_threshold,
-      habitat_threshold = job$habitat_threshold,
-      elapsed_s = elapsed, table_name = job$to,
-      stringsAsFactors = FALSE)
-  }
+      frs_extract(w_conn,
+        from = "whse_basemapping.fwa_stream_networks_sp",
+        to = paste0(streams_tbl, "_tmp"),
+        where = paste0("watershed_group_code = '", wsg_code, "'"),
+        overwrite = TRUE)
 
-  .run_species_local <- function(job) {
-    t0 <- proc.time()
-    frs_habitat_species(conn, job$species_code, job$base_tbl,
-      breaks = job$acc_tbl, breaks_habitat = job$hab_tbl,
-      params_sp = job$params_sp, fresh_sp = job$fresh_sp,
-      to = job$to)
-    elapsed <- (proc.time() - t0)["elapsed"]
-    data.frame(partition = job$partition, species_code = job$species_code,
-      access_threshold = job$access_threshold,
-      habitat_threshold = job$habitat_threshold,
-      elapsed_s = elapsed, table_name = job$to,
-      stringsAsFactors = FALSE)
-  }
+      all_sources <- if (!is.null(break_sources)) break_sources else list()
+      barrier_tables <- character(0)
+      for (thr in access_thresholds) {
+        thr_tbl <- sprintf("working.barriers_%s_%d",
+                           tolower(wsg_code), as.integer(thr * 100))
+        frs_break_find(w_conn, paste0(streams_tbl, "_tmp"),
+          attribute = "gradient", threshold = thr, to = thr_tbl)
+        all_sources <- c(all_sources, list(list(
+          table = thr_tbl,
+          label = sprintf("gradient_%d", as.integer(thr * 100)))))
+        barrier_tables <- c(barrier_tables, thr_tbl)
+      }
 
-  if (use_parallel) {
-    if (verbose) cat("Phase 2: classifying (", workers, " workers)...\n",
-                     sep = "")
-    result_list <- mirai::mirai_map(all_jobs, .run_species,
-      conn_params = conn_params)[]
-    # Check for worker errors
+      DBI::dbExecute(w_conn, sprintf(
+        "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_tmp")))
+
+      frs_network_segment(w_conn, aoi = wsg_code,
+        to = streams_tbl, break_sources = all_sources, verbose = FALSE)
+
+      n_seg <- DBI::dbGetQuery(w_conn,
+        sprintf("SELECT count(*)::int AS n FROM %s", streams_tbl))$n
+
+      habitat_tbl <- if (!is.null(to_habitat)) to_habitat else
+        paste0(streams_tbl, "_habitat")
+
+      frs_habitat_classify(w_conn, table = streams_tbl, to = habitat_tbl,
+        species = species, params = params_all, params_fresh = params_fresh,
+        verbose = FALSE)
+
+      if (!is.null(to_streams)) {
+        DBI::dbExecute(w_conn, sprintf(
+          "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
+          to_streams, streams_tbl))
+        DBI::dbExecute(w_conn, sprintf(
+          "DELETE FROM %s WHERE watershed_group_code = '%s'",
+          to_streams, wsg_code))
+        DBI::dbExecute(w_conn, sprintf(
+          "INSERT INTO %s SELECT * FROM %s", to_streams, streams_tbl))
+      }
+
+      DBI::dbExecute(w_conn, sprintf(
+        "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_breaks")))
+      for (tbl in barrier_tables) {
+        DBI::dbExecute(w_conn, sprintf("DROP TABLE IF EXISTS %s", tbl))
+      }
+      if (!is.null(to_streams)) {
+        DBI::dbExecute(w_conn, sprintf("DROP TABLE IF EXISTS %s", streams_tbl))
+      }
+
+      elapsed <- (proc.time() - t0)["elapsed"]
+      data.frame(wsg = wsg_code, n_segments = n_seg,
+                 n_species = length(species), elapsed_s = elapsed,
+                 stringsAsFactors = FALSE)
+    },
+      conn_params = conn_params, break_sources = break_sources,
+      params_all = params_all, params_fresh = params_fresh,
+      to_streams = to_streams, to_habitat = to_habitat,
+      verbose = verbose)[]
+
     errs <- vapply(result_list, inherits, logical(1), "miraiError")
     if (any(errs)) {
       msgs <- vapply(which(errs), function(i) {
-        paste0(all_jobs[[i]]$partition, "/", all_jobs[[i]]$species_code,
-               ": ", conditionMessage(result_list[[i]]))
+        paste0(wsg_specs[[i]]$wsg, ": ", conditionMessage(result_list[[i]]))
       }, character(1))
-      stop("Species classification failed:\n  ",
-           paste(msgs, collapse = "\n  "), call. = FALSE)
+      stop("Pipeline failed:\n  ", paste(msgs, collapse = "\n  "),
+           call. = FALSE)
     }
   } else {
-    result_list <- lapply(all_jobs, function(job) {
-      res <- .run_species_local(job)
+    result_list <- lapply(wsg_specs, function(spec) {
+      res <- .run_wsg(spec, conn_params = NULL,
+        break_sources = break_sources,
+        params_all = params_all, params_fresh = params_fresh,
+        to_streams = to_streams, to_habitat = to_habitat,
+        verbose = verbose)
       if (verbose) {
-        cat("  ", res$partition, "/", res$species_code, ": ",
-            round(res$elapsed_s, 1), "s -> ", res$table_name, "\n", sep = "")
+        cat("  ", res$wsg, ": ", res$n_segments, " segs, ",
+            res$n_species, " spp, ", round(res$elapsed_s, 1), "s\n", sep = "")
       }
       res
     })
@@ -247,49 +326,9 @@ frs_habitat <- function(conn, wsg, workers = 1L,
 
   if (verbose && use_parallel) {
     for (i in seq_len(nrow(results))) {
-      cat("  ", results$partition[i], "/", results$species_code[i], ": ",
-          round(results$elapsed_s[i], 1), "s -> ",
-          results$table_name[i], "\n", sep = "")
-    }
-  }
-
-  # ==========================================================================
-  # Phase 3: Persist to output tables
-  # ==========================================================================
-  if (!is.null(to_prefix)) {
-    .frs_validate_identifier(to_prefix, "to_prefix")
-    for (i in seq_len(nrow(results))) {
-      src <- results$table_name[i]
-      sp <- tolower(results$species_code[i])
-      dest <- paste0(to_prefix, "_", sp)
-      wsg_code <- results$partition[i]
-
-      # Create if not exists (match source schema, no generated columns)
-      .frs_db_execute(conn, sprintf(
-        "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0", dest, src))
-
-      # Delete existing rows for this WSG, then insert
-      .frs_db_execute(conn, sprintf(
-        "DELETE FROM %s WHERE watershed_group_code = %s",
-        dest, .frs_quote_string(toupper(wsg_code))))
-      .frs_db_execute(conn, sprintf(
-        "INSERT INTO %s SELECT * FROM %s", dest, src))
-
-      if (verbose) {
-        n <- DBI::dbGetQuery(conn,
-          sprintf("SELECT count(*)::int AS n FROM %s WHERE watershed_group_code = %s",
-                  dest, .frs_quote_string(toupper(wsg_code))))$n
-        cat("  -> ", dest, " (", n, " rows)\n", sep = "")
-      }
-    }
-  }
-
-  # ==========================================================================
-  # Phase 4: Cleanup
-  # ==========================================================================
-  if (cleanup) {
-    for (tbl in cleanup_tables) {
-      .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", tbl))
+      cat("  ", results$wsg[i], ": ", results$n_segments[i], " segs, ",
+          results$n_species[i], " spp, ", round(results$elapsed_s[i], 1),
+          "s\n", sep = "")
     }
   }
 

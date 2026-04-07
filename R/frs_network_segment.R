@@ -160,8 +160,9 @@ frs_network_segment <- function(conn, aoi, to,
       }
     }
 
-    # Enrich breaks with ltree for classify
+    # Enrich breaks with ltree for classify + index
     .frs_enrich_breaks(conn, breaks_tbl)
+    .frs_index_working(conn, breaks_tbl)
 
     # Apply breaks to geometry
     t1 <- proc.time()
