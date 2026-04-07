@@ -1,3 +1,32 @@
+# fresh 0.8.0
+
+Unified pipeline, domain-agnostic network segmentation, and major performance improvements.
+
+## New functions
+- `frs_network_segment()` — domain-agnostic network segmentation. Extracts, enriches, breaks at any point sources, assigns `id_segment`. One table, one copy of geometry.
+- `frs_habitat_classify()` — long-format habitat classification. One row per segment x species with `accessible`, `spawning`, `rearing`, `lake_rearing`. Species-specific accessibility via break label filtering.
+- `frs_feature_find()` — locate any point features on the network (crossings, observations, stations). Replaces `frs_break_find()` points/table modes.
+- `frs_feature_index()` — index upstream/downstream relationships between segments and features. Stores feature ID arrays per segment.
+
+## Pipeline changes
+- `frs_habitat()` rewritten to wrap `frs_network_segment()` + `frs_habitat_classify()`. Auto-generates gradient barriers per WSG from species parameters.
+- `to_streams` + `to_habitat` params replace `to_prefix` for persistent output tables.
+- mirai replaces furrr for parallel execution — lighter daemons, foundation for crew.aws.batch.
+- `frs_break_find()` slimmed to gradient-only (island detection). Point/table modes moved to `frs_feature_find()`.
+
+## Performance
+- Island-based gradient barriers: 85% fewer barriers than interval method ([#86](https://github.com/NewGraphEnvironment/fresh/issues/86))
+- Accessibility recycled by threshold group: 5 queries → 2 for species sharing thresholds ([#89](https://github.com/NewGraphEnvironment/fresh/issues/89))
+- Classify growth penalty fixed: constant time DELETE by `watershed_group_code` ([#91](https://github.com/NewGraphEnvironment/fresh/issues/91))
+- Breaks table indexed with ltree GIST for cross-BLK queries: 15x speedup
+- Province-wide: 229 WSGs, 5.98M segments completed
+
+## Other
+- `id_segment` for unique sub-segment identity after breaking ([#82](https://github.com/NewGraphEnvironment/fresh/issues/82))
+- `col_blk` + `col_measure` on break sources for configurable column names ([#80](https://github.com/NewGraphEnvironment/fresh/issues/80))
+- `.frs_sql_num()` for locale-safe numeric SQL literals
+- Docker-based local fwapg tuned for M4 Max Pro (128GB/16 cores)
+
 # fresh 0.7.0
 
 Local Docker fwapg instance and generic network-referenced classification via `break_sources`.
