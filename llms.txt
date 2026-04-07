@@ -75,16 +75,15 @@ vignettes and function reference.
 
 ## Ecosystem
 
-| Package                                                   | Role                                                                      |
-|-----------------------------------------------------------|---------------------------------------------------------------------------|
-| **fresh**                                                 | Network segmentation + habitat classification (this package)              |
-| [link](https://github.com/NewGraphEnvironment/link)       | Crossing connectivity interpretation — scoring, overrides, prioritization |
-| [breaks](https://github.com/NewGraphEnvironment/breaks)   | Delineate sub-basins from break points on stream networks                 |
-| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks                |
-| [drift](https://github.com/NewGraphEnvironment/drift)     | Track land cover change within floodplains over time                      |
+| Package                                                   | Role                                                                               |
+|-----------------------------------------------------------|------------------------------------------------------------------------------------|
+| **fresh**                                                 | Network segmentation, habitat classification, sub-basin delineation (this package) |
+| [link](https://github.com/NewGraphEnvironment/link)       | Crossing connectivity interpretation — scoring, overrides, prioritization          |
+| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks                         |
+| [drift](https://github.com/NewGraphEnvironment/drift)     | Track land cover change within floodplains over time                               |
 
-Pipeline: fresh (network data) → breaks (sub-basins) → flooded
-(floodplains) → drift (land cover change)
+Pipeline: fresh (network + habitat) → flooded (floodplains) → drift
+(land cover change)
 
 ## License
 
