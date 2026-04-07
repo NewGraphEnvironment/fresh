@@ -9,7 +9,7 @@
 - [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md)
   : Apply Break Points to Split Stream Geometry
 - [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
-  : Find Break Locations on a Stream Network
+  : Find Gradient Break Locations on a Stream Network
 - [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md)
   : Validate Breaks Against Upstream Evidence
 - [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md)
@@ -30,6 +30,10 @@
   : FWA Edge Type Lookup Table
 - [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
   : Stage Data to Working Schema
+- [`frs_feature_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_find.md)
+  : Find Features on a Stream Network
+- [`frs_feature_index()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_index.md)
+  : Index Upstream/Downstream Features for Stream Segments
 - [`frs_fish_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_habitat.md)
   : Fetch Modelled Fish Habitat from bcfishpass
 - [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md)

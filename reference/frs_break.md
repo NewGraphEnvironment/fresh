@@ -52,38 +52,22 @@ frs_break(
 
 - attribute:
 
-  Character or `NULL`. Column name for threshold-based breaks. Currently
-  only `"gradient"` is supported — uses `fwa_slopealonginterval()` to
-  compute slope at fine resolution and find where it exceeds
-  `threshold`.
+  Character. Column name for threshold-based breaks. Currently only
+  `"gradient"` is supported.
 
 - threshold:
 
-  Numeric or `NULL`. Threshold value — intervals where computed
-  `attribute > threshold` generate a break point.
+  Numeric. Threshold value — sustained sections where gradient exceeds
+  this produce a break point at the entry.
 
 - interval:
 
-  Integer. Sampling interval in metres for attribute mode. Default
-  `100`. Smaller values find more precise break locations but take
-  longer.
+  Integer. Not used (kept for compatibility). Default `100`.
 
 - distance:
 
-  Integer. Upstream distance in metres over which to compute slope for
-  attribute mode. Default `100`. Should generally equal `interval`.
-
-- points_table:
-
-  Character or `NULL`. Schema-qualified table name containing existing
-  break points with `blue_line_key` and `downstream_route_measure`
-  columns (e.g. falls, dams, crossings).
-
-- points:
-
-  An `sf` object or `NULL`. User-provided points to snap to the stream
-  network via
-  [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md).
+  Integer. Upstream window in metres for gradient computation AND
+  minimum island length. Default `100`.
 
 - points_where:
 
@@ -91,11 +75,6 @@ frs_break(
   (e.g. `"barrier_ind = TRUE"`). Passed to
   [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
   as `where`.
-
-- aoi:
-
-  AOI specification for filtering (passed to `.frs_resolve_aoi()`). Only
-  used with `points_table` mode.
 
 - overwrite:
 
@@ -140,6 +119,8 @@ Other habitat:
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
 [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md),
+[`frs_feature_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_find.md),
+[`frs_feature_index()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_index.md),
 [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md),
 [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md),
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),

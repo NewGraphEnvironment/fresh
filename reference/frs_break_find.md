@@ -1,9 +1,9 @@
-# Find Break Locations on a Stream Network
+# Find Gradient Break Locations on a Stream Network
 
-Identify break points where the stream network should be split. Supports
-three modes: attribute threshold (e.g. gradient \> 0.05), existing point
-table (e.g. falls, dams), or user-provided sf points (snapped via
-[`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)).
+Detect where stream gradient exceeds a threshold for a sustained
+distance (island detection). Produces break points at the entry of each
+steep section, suitable for
+[`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md).
 
 ## Usage
 
@@ -16,17 +16,7 @@ frs_break_find(
   threshold = NULL,
   interval = 100L,
   distance = 100L,
-  points_table = NULL,
-  points = NULL,
-  where = NULL,
-  aoi = NULL,
-  label = NULL,
-  label_col = NULL,
-  label_map = NULL,
-  col_blk = "blue_line_key",
-  col_measure = "downstream_route_measure",
-  overwrite = TRUE,
-  append = FALSE
+  overwrite = TRUE
 )
 ```
 
@@ -51,84 +41,26 @@ frs_break_find(
 
 - attribute:
 
-  Character or `NULL`. Column name for threshold-based breaks. Currently
-  only `"gradient"` is supported — uses `fwa_slopealonginterval()` to
-  compute slope at fine resolution and find where it exceeds
-  `threshold`.
+  Character. Column name for threshold-based breaks. Currently only
+  `"gradient"` is supported.
 
 - threshold:
 
-  Numeric or `NULL`. Threshold value — intervals where computed
-  `attribute > threshold` generate a break point.
+  Numeric. Threshold value — sustained sections where gradient exceeds
+  this produce a break point at the entry.
 
 - interval:
 
-  Integer. Sampling interval in metres for attribute mode. Default
-  `100`. Smaller values find more precise break locations but take
-  longer.
+  Integer. Not used (kept for compatibility). Default `100`.
 
 - distance:
 
-  Integer. Upstream distance in metres over which to compute slope for
-  attribute mode. Default `100`. Should generally equal `interval`.
-
-- points_table:
-
-  Character or `NULL`. Schema-qualified table name containing existing
-  break points with `blue_line_key` and `downstream_route_measure`
-  columns (e.g. falls, dams, crossings).
-
-- points:
-
-  An `sf` object or `NULL`. User-provided points to snap to the stream
-  network via
-  [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md).
-
-- where:
-
-  Character or `NULL`. SQL predicate to filter rows from `points_table`.
-  Example: `"barrier_ind = TRUE"`. Only used with `points_table` mode.
-
-- aoi:
-
-  AOI specification for filtering (passed to `.frs_resolve_aoi()`). Only
-  used with `points_table` mode.
-
-- label:
-
-  Character or `NULL`. Static label for all break points from this
-  source (e.g. `"blocked"`, `"potential"`). Only used with
-  `points_table` mode. Ignored if `label_col` is provided.
-
-- label_col:
-
-  Character or `NULL`. Column name in `points_table` to read labels
-  from. Values are passed through as-is, or remapped via `label_map`.
-  Only used with `points_table` mode.
-
-- label_map:
-
-  Named character vector or `NULL`. Maps values in `label_col` to output
-  labels (e.g. `c("BARRIER" = "blocked")`). Only used with `label_col`.
-
-- col_blk:
-
-  Character. Column name for the stream identifier in `points_table`.
-  Default `"blue_line_key"`.
-
-- col_measure:
-
-  Character. Column name for the route measure in `points_table`.
-  Default `"downstream_route_measure"`.
+  Integer. Upstream window in metres for gradient computation AND
+  minimum island length. Default `100`.
 
 - overwrite:
 
   Logical. If `TRUE`, drop `to` before creating. Default `TRUE`.
-
-- append:
-
-  Logical. If `TRUE`, INSERT INTO existing `to` table instead of CREATE.
-  Use to combine multiple break sources. Default `FALSE`.
 
 ## Value
 
@@ -136,9 +68,10 @@ frs_break_find(
 
 ## Details
 
-All modes produce the same output shape: a table with `blue_line_key`
-and `downstream_route_measure` columns, suitable for
-[`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md).
+For locating point features on the network (crossings, falls,
+observations), use
+[`frs_feature_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_find.md)
+instead.
 
 ## See also
 
@@ -152,6 +85,8 @@ Other habitat:
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
 [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md),
+[`frs_feature_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_find.md),
+[`frs_feature_index()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_index.md),
 [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md),
 [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md),
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),
@@ -191,10 +126,6 @@ conn <- frs_db_conn()
 conn |>
   frs_extract("bcfishpass.streams_vw", "working.streams", aoi = "BULK") |>
   frs_break_find("working.streams", attribute = "gradient", threshold = 0.05)
-
-# Table mode: break at known falls locations
-conn |> frs_break_find("working.streams",
-  points_table = "whse_basemapping.fwa_obstructions_sp")
 
 DBI::dbDisconnect(conn)
 } # }

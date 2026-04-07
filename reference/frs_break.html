@@ -86,48 +86,28 @@ Default <code>"working.breaks"</code>.</p></dd>
 
 
 <dt id="arg-attribute">attribute<a class="anchor" aria-label="anchor" href="#arg-attribute"></a></dt>
-<dd><p>Character or <code>NULL</code>. Column name for threshold-based breaks.
-Currently only <code>"gradient"</code> is supported — uses <code>fwa_slopealonginterval()</code>
-to compute slope at fine resolution and find where it exceeds <code>threshold</code>.</p></dd>
+<dd><p>Character. Column name for threshold-based breaks.
+Currently only <code>"gradient"</code> is supported.</p></dd>
 
 
 <dt id="arg-threshold">threshold<a class="anchor" aria-label="anchor" href="#arg-threshold"></a></dt>
-<dd><p>Numeric or <code>NULL</code>. Threshold value — intervals where
-computed <code>attribute &gt; threshold</code> generate a break point.</p></dd>
+<dd><p>Numeric. Threshold value — sustained sections where
+gradient exceeds this produce a break point at the entry.</p></dd>
 
 
 <dt id="arg-interval">interval<a class="anchor" aria-label="anchor" href="#arg-interval"></a></dt>
-<dd><p>Integer. Sampling interval in metres for attribute mode.
-Default <code>100</code>. Smaller values find more precise break locations but
-take longer.</p></dd>
+<dd><p>Integer. Not used (kept for compatibility). Default <code>100</code>.</p></dd>
 
 
 <dt id="arg-distance">distance<a class="anchor" aria-label="anchor" href="#arg-distance"></a></dt>
-<dd><p>Integer. Upstream distance in metres over which to compute
-slope for attribute mode. Default <code>100</code>. Should generally equal
-<code>interval</code>.</p></dd>
-
-
-<dt id="arg-points-table">points_table<a class="anchor" aria-label="anchor" href="#arg-points-table"></a></dt>
-<dd><p>Character or <code>NULL</code>. Schema-qualified table name
-containing existing break points with <code>blue_line_key</code> and
-<code>downstream_route_measure</code> columns (e.g. falls, dams, crossings).</p></dd>
-
-
-<dt id="arg-points">points<a class="anchor" aria-label="anchor" href="#arg-points"></a></dt>
-<dd><p>An <code>sf</code> object or <code>NULL</code>. User-provided points to snap
-to the stream network via <code><a href="frs_point_snap.html">frs_point_snap()</a></code>.</p></dd>
+<dd><p>Integer. Upstream window in metres for gradient
+computation AND minimum island length. Default <code>100</code>.</p></dd>
 
 
 <dt id="arg-points-where">points_where<a class="anchor" aria-label="anchor" href="#arg-points-where"></a></dt>
 <dd><p>Character or <code>NULL</code>. SQL predicate to filter rows from
 <code>points_table</code> (e.g. <code>"barrier_ind = TRUE"</code>). Passed to
 <code><a href="frs_break_find.html">frs_break_find()</a></code> as <code>where</code>.</p></dd>
-
-
-<dt id="arg-aoi">aoi<a class="anchor" aria-label="anchor" href="#arg-aoi"></a></dt>
-<dd><p>AOI specification for filtering (passed to
-<code>.frs_resolve_aoi()</code>). Only used with <code>points_table</code> mode.</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
@@ -173,6 +153,8 @@ Passed to <code><a href="frs_break_apply.html">frs_break_apply()</a></code>. Def
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
 <code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code>,
+<code><a href="frs_feature_find.html">frs_feature_find()</a></code>,
+<code><a href="frs_feature_index.html">frs_feature_index()</a></code>,
 <code><a href="frs_habitat.html">frs_habitat()</a></code>,
 <code><a href="frs_habitat_access.html">frs_habitat_access()</a></code>,
 <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code>,
