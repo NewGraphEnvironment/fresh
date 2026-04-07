@@ -1,12 +1,11 @@
 # Run Habitat Pipeline for Watershed Groups
 
-Orchestrate the full habitat pipeline for all species present in one or
-more watershed groups. Calls
-[`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md)
-per WSG to extract the base network and pre-compute breaks, then
-flattens all (WSG, species) pairs and classifies them via
-[`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md).
-Both phases parallelize with
+Orchestrate the full habitat pipeline for one or more watershed groups.
+Per WSG: generates gradient access barriers, segments the network via
+[`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md),
+classifies habitat via
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),
+and persists results. Parallelizes across WSGs with
 [`mirai::mirai_map()`](https://mirai.r-lib.org/reference/mirai_map.html)
 when `workers > 1`.
 
@@ -16,9 +15,10 @@ when `workers > 1`.
 frs_habitat(
   conn,
   wsg,
-  workers = 1L,
+  to_streams = NULL,
+  to_habitat = NULL,
   break_sources = NULL,
-  to_prefix = NULL,
+  workers = 1L,
   password = "",
   cleanup = TRUE,
   verbose = TRUE
@@ -39,55 +39,47 @@ frs_habitat(
   Character. One or more watershed group codes (e.g. `"BULK"`,
   `c("BULK", "MORR")`).
 
-- workers:
+- to_streams:
 
-  Integer. Number of parallel workers. Default `1` (sequential). Values
-  \> 1 require the `mirai` package. Each worker opens its own database
-  connection (params extracted from `conn`). Used for both Phase 1
-  (partition prep across WSGs) and Phase 2 (species classification).
+  Character or `NULL`. Schema-qualified table for persistent stream
+  segments (e.g. `"fresh.streams"`). Accumulates across runs — existing
+  rows for the same WSG are replaced.
+
+- to_habitat:
+
+  Character or `NULL`. Schema-qualified table for habitat
+  classifications (e.g. `"fresh.streams_habitat"`). Long format: one row
+  per segment x species.
 
 - break_sources:
 
-  List of break source specs passed to
-  [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md),
-  or `NULL` for gradient-only. Each spec is a list with `table`, and
-  optionally `where`, `label`, `label_col`, `label_map`. See
-  [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
-  for details.
+  List of additional break source specs (falls, crossings, etc.), or
+  `NULL`. Gradient access barriers are generated automatically from
+  species parameters. See
+  [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
+  for spec format.
 
-- to_prefix:
+- workers:
 
-  Character or `NULL`. When provided, persist species output tables with
-  this prefix (e.g. `"fresh.streams"` creates `fresh.streams_co`,
-  `fresh.streams_bt`). Existing rows for the same WSG are replaced
-  (delete + insert). Default `NULL` (no persistence, working tables
-  only).
+  Integer. Number of parallel workers. Default `1`. Values \> 1 require
+  the `mirai` package.
 
 - password:
 
-  Character. Database password for parallel workers. Required when
-  `workers > 1` and the database uses password auth. Not needed for
-  trust auth or `.pgpass`.
+  Character. Database password for parallel workers.
 
 - cleanup:
 
-  Logical. Drop intermediate tables (base network, break tables) when
-  done. Default `TRUE`.
+  Logical. Drop working tables when done. Default `TRUE`.
 
 - verbose:
 
-  Logical. Print progress and timing. Default `TRUE`.
+  Logical. Print progress. Default `TRUE`.
 
 ## Value
 
-A data frame with one row per (WSG, species) pair and columns
-`partition`, `species_code`, `access_threshold`, `habitat_threshold`,
-`elapsed_s`, and `table_name`.
-
-## Details
-
-Output tables are WSG-scoped: `working.streams_bulk_co`,
-`working.streams_morr_bt`, etc.
+A data frame with one row per WSG and columns `wsg`, `n_segments`,
+`n_species`, `elapsed_s`.
 
 ## See also
 
@@ -114,31 +106,26 @@ Other habitat:
 if (FALSE) { # \dontrun{
 conn <- frs_db_conn()
 
-# Single watershed group
-result <- frs_habitat(conn, "BULK")
-
-# Multiple watershed groups, 4 parallel workers
-result <- frs_habitat(conn, c("BULK", "MORR"), workers = 4)
-
-# With break sources (falls, crossings, etc.)
-result <- frs_habitat(conn, "ADMS", break_sources = list(
-  list(table = "working.falls", where = "barrier_ind = TRUE",
-       label = "blocked"),
-  list(table = "working.pscis",
-       label_col = "barrier_status",
-       label_map = c("BARRIER" = "blocked", "POTENTIAL" = "potential"))
-))
-
-# Persist to output tables (accumulate across runs)
-result <- frs_habitat(conn, "BULK",
-  to_prefix = "fresh.streams",
+# Single WSG — gradient barriers auto-generated from species params
+frs_habitat(conn, "BULK",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat",
   break_sources = list(
-    list(table = "working.falls", label = "blocked")))
-# Creates: fresh.streams_co, fresh.streams_bt, etc.
-# Re-run with "MORR" — appends to same tables
+    list(table = "working.falls", where = "barrier_ind = TRUE",
+         label = "blocked")))
 
-# Gradient-only (no external break sources)
-result <- frs_habitat(conn, "ADMS")
+# Multiple WSGs, parallel — results accumulate in same tables
+frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat",
+  workers = 4, password = "postgres",
+  break_sources = list(
+    list(table = "working.falls", where = "barrier_ind = TRUE",
+         label = "blocked"),
+    list(table = "working.crossings",
+         label_col = "barrier_status",
+         label_map = c("BARRIER" = "blocked",
+                       "POTENTIAL" = "potential"))))
 
 DBI::dbDisconnect(conn)
 } # }
