@@ -140,7 +140,7 @@ frs_network_segment <- function(conn, aoi, to,
       .frs_validate_identifier(src$table, "break source table")
       t1 <- proc.time()
 
-      frs_break_find(conn, to,
+      frs_feature_find(conn, to,
         points_table = src$table,
         where = src$where,
         label = src$label,

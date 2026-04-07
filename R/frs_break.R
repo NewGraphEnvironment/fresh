@@ -1,57 +1,26 @@
-#' Find Break Locations on a Stream Network
+#' Find Gradient Break Locations on a Stream Network
 #'
-#' Identify break points where the stream network should be split. Supports
-#' three modes: attribute threshold (e.g. gradient > 0.05), existing point
-#' table (e.g. falls, dams), or user-provided sf points (snapped via
-#' [frs_point_snap()]).
+#' Detect where stream gradient exceeds a threshold for a sustained
+#' distance (island detection). Produces break points at the entry of
+#' each steep section, suitable for [frs_break_apply()].
 #'
-#' All modes produce the same output shape: a table with `blue_line_key` and
-#' `downstream_route_measure` columns, suitable for [frs_break_apply()].
+#' For locating point features on the network (crossings, falls,
+#' observations), use [frs_feature_find()] instead.
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param table Character. Working schema table to find breaks on
 #'   (from [frs_extract()]).
 #' @param to Character. Destination table for break points.
 #'   Default `"working.breaks"`.
-#' @param attribute Character or `NULL`. Column name for threshold-based breaks.
-#'   Currently only `"gradient"` is supported — uses `fwa_slopealonginterval()`
-#'   to compute slope at fine resolution and find where it exceeds `threshold`.
-#' @param threshold Numeric or `NULL`. Threshold value — intervals where
-#'   computed `attribute > threshold` generate a break point.
-#' @param interval Integer. Sampling interval in metres for attribute mode.
-#'   Default `100`. Smaller values find more precise break locations but
-#'   take longer.
-#' @param distance Integer. Upstream distance in metres over which to compute
-#'   slope for attribute mode. Default `100`. Should generally equal
-#'   `interval`.
-#' @param points_table Character or `NULL`. Schema-qualified table name
-#'   containing existing break points with `blue_line_key` and
-#'   `downstream_route_measure` columns (e.g. falls, dams, crossings).
-#' @param points An `sf` object or `NULL`. User-provided points to snap
-#'   to the stream network via [frs_point_snap()].
-#' @param where Character or `NULL`. SQL predicate to filter rows from
-#'   `points_table`. Example: `"barrier_ind = TRUE"`. Only used with
-#'   `points_table` mode.
-#' @param aoi AOI specification for filtering (passed to
-#'   `.frs_resolve_aoi()`). Only used with `points_table` mode.
-#' @param label Character or `NULL`. Static label for all break points from
-#'   this source (e.g. `"blocked"`, `"potential"`). Only used with
-#'   `points_table` mode. Ignored if `label_col` is provided.
-#' @param label_col Character or `NULL`. Column name in `points_table` to
-#'   read labels from. Values are passed through as-is, or remapped via
-#'   `label_map`. Only used with `points_table` mode.
-#' @param label_map Named character vector or `NULL`. Maps values in
-#'   `label_col` to output labels (e.g. `c("BARRIER" = "blocked")`).
-#'   Only used with `label_col`.
-#' @param col_blk Character. Column name for the stream identifier in
-#'   `points_table`. Default `"blue_line_key"`.
-#' @param col_measure Character. Column name for the route measure in
-#'   `points_table`. Default `"downstream_route_measure"`.
+#' @param attribute Character. Column name for threshold-based breaks.
+#'   Currently only `"gradient"` is supported.
+#' @param threshold Numeric. Threshold value — sustained sections where
+#'   gradient exceeds this produce a break point at the entry.
+#' @param interval Integer. Not used (kept for compatibility). Default `100`.
+#' @param distance Integer. Upstream window in metres for gradient
+#'   computation AND minimum island length. Default `100`.
 #' @param overwrite Logical. If `TRUE`, drop `to` before creating.
 #'   Default `TRUE`.
-#' @param append Logical. If `TRUE`, INSERT INTO existing `to` table
-#'   instead of CREATE. Use to combine multiple break sources. Default
-#'   `FALSE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -88,54 +57,25 @@
 #'   frs_extract("bcfishpass.streams_vw", "working.streams", aoi = "BULK") |>
 #'   frs_break_find("working.streams", attribute = "gradient", threshold = 0.05)
 #'
-#' # Table mode: break at known falls locations
-#' conn |> frs_break_find("working.streams",
-#'   points_table = "whse_basemapping.fwa_obstructions_sp")
-#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_break_find <- function(conn, table, to = "working.breaks",
                            attribute = NULL, threshold = NULL,
                            interval = 100L, distance = 100L,
-                           points_table = NULL, points = NULL,
-                           where = NULL, aoi = NULL,
-                           label = NULL, label_col = NULL,
-                           label_map = NULL,
-                           col_blk = "blue_line_key",
-                           col_measure = "downstream_route_measure",
-                           overwrite = TRUE, append = FALSE) {
+                           overwrite = TRUE) {
   .frs_validate_identifier(table, "source table")
   .frs_validate_identifier(to, "destination table")
 
-  # Detect mode
-  has_attr <- !is.null(attribute) && !is.null(threshold)
-  has_table <- !is.null(points_table)
-  has_points <- !is.null(points)
-  n_modes <- sum(has_attr, has_table, has_points)
-
-  if (n_modes == 0) {
-    stop("Provide one of: attribute+threshold, points_table, or points",
-         call. = FALSE)
-  }
-  if (n_modes > 1) {
-    stop("Provide only one of: attribute+threshold, points_table, or points",
-         call. = FALSE)
+  if (is.null(attribute) || is.null(threshold)) {
+    stop("attribute and threshold are required", call. = FALSE)
   }
 
   if (overwrite) {
     .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", to))
   }
 
-  if (has_attr) {
-    .frs_break_find_attribute(conn, table, to, attribute, threshold,
-                               interval, distance)
-  } else if (has_table) {
-    .frs_break_find_table(conn, table, to, points_table, where,
-                          label, label_col, label_map,
-                          col_blk, col_measure, append)
-  } else {
-    .frs_break_find_points(conn, table, to, points)
-  }
+  .frs_break_find_attribute(conn, table, to, attribute, threshold,
+                             interval, distance)
 
   invisible(conn)
 }
@@ -255,66 +195,6 @@ frs_break_find <- function(conn, table, to = "working.breaks",
 }
 
 
-#' Find breaks from an existing point table
-#'
-#' Reads `blue_line_key` and `downstream_route_measure` from an existing
-#' database table (e.g. falls, dams, crossings). Optionally filters by AOI.
-#' Supports labeling break points via static `label`, column-driven
-#' `label_col`, or `label_col` + `label_map` for value remapping.
-#'
-#' @noRd
-.frs_break_find_table <- function(conn, table, to, points_table,
-                                   where = NULL,
-                                   label = NULL, label_col = NULL,
-                                   label_map = NULL,
-                                   col_blk = "blue_line_key",
-                                   col_measure = "downstream_route_measure",
-                                   append = FALSE) {
-  .frs_validate_identifier(points_table, "points table")
-  .frs_validate_identifier(col_blk, "col_blk")
-  .frs_validate_identifier(col_measure, "col_measure")
-
-  clauses <- character(0)
-
-  # Scope to BLKs present in the working streams table
-  clauses <- c(clauses, sprintf(
-    "%s IN (SELECT DISTINCT blue_line_key FROM %s)",
-    col_blk, table))
-
-  if (!is.null(where)) {
-    clauses <- c(clauses, where)
-  }
-
-  where_clause <- paste(" WHERE", paste(clauses, collapse = " AND "))
-
-  # Build label expression
-  label_expr <- .frs_label_expr(label, label_col, label_map)
-
-  # Alias source columns to standard names
-  select_sql <- sprintf(
-    "SELECT DISTINCT %s AS blue_line_key, %s AS downstream_route_measure, %s, %s AS source FROM %s%s",
-    col_blk, col_measure,
-    label_expr,
-    .frs_quote_string(points_table),
-    points_table, where_clause
-  )
-
-  cols_def <- "(blue_line_key integer,
-     downstream_route_measure double precision,
-     label text,
-     source text)"
-
-  if (append) {
-    .frs_db_execute(conn, sprintf(
-      "CREATE TABLE IF NOT EXISTS %s %s", to, cols_def))
-    sql <- sprintf(
-      "INSERT INTO %s (blue_line_key, downstream_route_measure, label, source) %s",
-      to, select_sql)
-  } else {
-    sql <- sprintf("CREATE TABLE %s AS %s", to, select_sql)
-  }
-  .frs_db_execute(conn, sql)
-}
 
 
 #' Build SQL label expression from label spec
@@ -349,37 +229,6 @@ frs_break_find <- function(conn, table, to = "working.breaks",
   } else {
     "NULL::text AS label"
   }
-}
-
-
-#' Find breaks from user-provided sf points
-#'
-#' Snaps user points to the stream network via [frs_point_snap()] and
-#' extracts `blue_line_key` + `downstream_route_measure`.
-#'
-#' @noRd
-.frs_break_find_points <- function(conn, table, to, points) {
-  if (!inherits(points, "sf")) {
-    stop("points must be an sf object", call. = FALSE)
-  }
-
-  snapped <- frs_point_snap(conn, points)
-
-  # Write snapped points to the breaks table
-  blk <- snapped$blue_line_key
-  drm <- snapped$downstream_route_measure
-
-  values <- paste(
-    sprintf("(%d, %s, NULL, 'sf')", as.integer(blk), as.numeric(drm)),
-    collapse = ", "
-  )
-
-  sql <- sprintf(
-    "CREATE TABLE %s (blue_line_key integer, downstream_route_measure double precision, label text, source text);
-     INSERT INTO %s VALUES %s",
-    to, to, values
-  )
-  .frs_db_execute(conn, sql)
 }
 
 
