@@ -91,10 +91,16 @@ frs_habitat_classify <- function(conn, table, to,
       "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
   }
 
+  # Get WSG codes from streams table (for idempotent delete)
+  wsg_codes <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT DISTINCT watershed_group_code FROM %s", table
+  ))$watershed_group_code
+
   # Create output table if not exists
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s (
        id_segment integer,
+       watershed_group_code character varying(4),
        species_code text,
        accessible boolean,
        spawning boolean,
@@ -102,13 +108,12 @@ frs_habitat_classify <- function(conn, table, to,
        lake_rearing boolean
      )", to))
 
-  # Delete existing rows for these species + segments (idempotent)
+  # Delete existing rows for these WSGs — fast column filter, no subquery
   if (overwrite) {
-    for (sp in species) {
+    for (wsg in wsg_codes) {
       .frs_db_execute(conn, sprintf(
-        "DELETE FROM %s WHERE species_code = %s
-         AND id_segment IN (SELECT id_segment FROM %s)",
-        to, .frs_quote_string(sp), table))
+        "DELETE FROM %s WHERE watershed_group_code = %s",
+        to, .frs_quote_string(wsg)))
     }
   }
 
@@ -225,9 +230,10 @@ frs_habitat_classify <- function(conn, table, to,
 
     # INSERT joining pre-computed accessibility
     sql <- sprintf(
-      "INSERT INTO %s (id_segment, species_code, accessible, spawning, rearing, lake_rearing)
+      "INSERT INTO %s (id_segment, watershed_group_code, species_code, accessible, spawning, rearing, lake_rearing)
        SELECT
          s.id_segment,
+         s.watershed_group_code,
          %s,
          a.accessible,
          CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END,
