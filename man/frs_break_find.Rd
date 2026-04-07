@@ -2,7 +2,7 @@
 % Please edit documentation in R/frs_break.R
 \name{frs_break_find}
 \alias{frs_break_find}
-\title{Find Break Locations on a Stream Network}
+\title{Find Gradient Break Locations on a Stream Network}
 \usage{
 frs_break_find(
   conn,
@@ -12,17 +12,7 @@ frs_break_find(
   threshold = NULL,
   interval = 100L,
   distance = 100L,
-  points_table = NULL,
-  points = NULL,
-  where = NULL,
-  aoi = NULL,
-  label = NULL,
-  label_col = NULL,
-  label_map = NULL,
-  col_blk = "blue_line_key",
-  col_measure = "downstream_route_measure",
-  overwrite = TRUE,
-  append = FALSE
+  overwrite = TRUE
 )
 }
 \arguments{
@@ -34,72 +24,31 @@ frs_break_find(
 \item{to}{Character. Destination table for break points.
 Default \code{"working.breaks"}.}
 
-\item{attribute}{Character or \code{NULL}. Column name for threshold-based breaks.
-Currently only \code{"gradient"} is supported — uses \code{fwa_slopealonginterval()}
-to compute slope at fine resolution and find where it exceeds \code{threshold}.}
+\item{attribute}{Character. Column name for threshold-based breaks.
+Currently only \code{"gradient"} is supported.}
 
-\item{threshold}{Numeric or \code{NULL}. Threshold value — intervals where
-computed \code{attribute > threshold} generate a break point.}
+\item{threshold}{Numeric. Threshold value — sustained sections where
+gradient exceeds this produce a break point at the entry.}
 
-\item{interval}{Integer. Sampling interval in metres for attribute mode.
-Default \code{100}. Smaller values find more precise break locations but
-take longer.}
+\item{interval}{Integer. Not used (kept for compatibility). Default \code{100}.}
 
-\item{distance}{Integer. Upstream distance in metres over which to compute
-slope for attribute mode. Default \code{100}. Should generally equal
-\code{interval}.}
-
-\item{points_table}{Character or \code{NULL}. Schema-qualified table name
-containing existing break points with \code{blue_line_key} and
-\code{downstream_route_measure} columns (e.g. falls, dams, crossings).}
-
-\item{points}{An \code{sf} object or \code{NULL}. User-provided points to snap
-to the stream network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
-
-\item{where}{Character or \code{NULL}. SQL predicate to filter rows from
-\code{points_table}. Example: \code{"barrier_ind = TRUE"}. Only used with
-\code{points_table} mode.}
-
-\item{aoi}{AOI specification for filtering (passed to
-\code{.frs_resolve_aoi()}). Only used with \code{points_table} mode.}
-
-\item{label}{Character or \code{NULL}. Static label for all break points from
-this source (e.g. \code{"blocked"}, \code{"potential"}). Only used with
-\code{points_table} mode. Ignored if \code{label_col} is provided.}
-
-\item{label_col}{Character or \code{NULL}. Column name in \code{points_table} to
-read labels from. Values are passed through as-is, or remapped via
-\code{label_map}. Only used with \code{points_table} mode.}
-
-\item{label_map}{Named character vector or \code{NULL}. Maps values in
-\code{label_col} to output labels (e.g. \code{c("BARRIER" = "blocked")}).
-Only used with \code{label_col}.}
-
-\item{col_blk}{Character. Column name for the stream identifier in
-\code{points_table}. Default \code{"blue_line_key"}.}
-
-\item{col_measure}{Character. Column name for the route measure in
-\code{points_table}. Default \code{"downstream_route_measure"}.}
+\item{distance}{Integer. Upstream window in metres for gradient
+computation AND minimum island length. Default \code{100}.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
-
-\item{append}{Logical. If \code{TRUE}, INSERT INTO existing \code{to} table
-instead of CREATE. Use to combine multiple break sources. Default
-\code{FALSE}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
 }
 \description{
-Identify break points where the stream network should be split. Supports
-three modes: attribute threshold (e.g. gradient > 0.05), existing point
-table (e.g. falls, dams), or user-provided sf points (snapped via
-\code{\link[=frs_point_snap]{frs_point_snap()}}).
+Detect where stream gradient exceeds a threshold for a sustained
+distance (island detection). Produces break points at the entry of
+each steep section, suitable for \code{\link[=frs_break_apply]{frs_break_apply()}}.
 }
 \details{
-All modes produce the same output shape: a table with \code{blue_line_key} and
-\code{downstream_route_measure} columns, suitable for \code{\link[=frs_break_apply]{frs_break_apply()}}.
+For locating point features on the network (crossings, falls,
+observations), use \code{\link[=frs_feature_find]{frs_feature_find()}} instead.
 }
 \examples{
 # --- Where breaks occur (bundled data) ---
@@ -130,10 +79,6 @@ conn |>
   frs_extract("bcfishpass.streams_vw", "working.streams", aoi = "BULK") |>
   frs_break_find("working.streams", attribute = "gradient", threshold = 0.05)
 
-# Table mode: break at known falls locations
-conn |> frs_break_find("working.streams",
-  points_table = "whse_basemapping.fwa_obstructions_sp")
-
 DBI::dbDisconnect(conn)
 }
 }
@@ -148,6 +93,8 @@ Other habitat:
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
+\code{\link{frs_feature_find}()},
+\code{\link{frs_feature_index}()},
 \code{\link{frs_habitat}()},
 \code{\link{frs_habitat_access}()},
 \code{\link{frs_habitat_classify}()},

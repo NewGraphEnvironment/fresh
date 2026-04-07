@@ -32,34 +32,20 @@ frs_break(
 \item{to}{Character. Destination table for break points.
 Default \code{"working.breaks"}.}
 
-\item{attribute}{Character or \code{NULL}. Column name for threshold-based breaks.
-Currently only \code{"gradient"} is supported — uses \code{fwa_slopealonginterval()}
-to compute slope at fine resolution and find where it exceeds \code{threshold}.}
+\item{attribute}{Character. Column name for threshold-based breaks.
+Currently only \code{"gradient"} is supported.}
 
-\item{threshold}{Numeric or \code{NULL}. Threshold value — intervals where
-computed \code{attribute > threshold} generate a break point.}
+\item{threshold}{Numeric. Threshold value — sustained sections where
+gradient exceeds this produce a break point at the entry.}
 
-\item{interval}{Integer. Sampling interval in metres for attribute mode.
-Default \code{100}. Smaller values find more precise break locations but
-take longer.}
+\item{interval}{Integer. Not used (kept for compatibility). Default \code{100}.}
 
-\item{distance}{Integer. Upstream distance in metres over which to compute
-slope for attribute mode. Default \code{100}. Should generally equal
-\code{interval}.}
-
-\item{points_table}{Character or \code{NULL}. Schema-qualified table name
-containing existing break points with \code{blue_line_key} and
-\code{downstream_route_measure} columns (e.g. falls, dams, crossings).}
-
-\item{points}{An \code{sf} object or \code{NULL}. User-provided points to snap
-to the stream network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
+\item{distance}{Integer. Upstream window in metres for gradient
+computation AND minimum island length. Default \code{100}.}
 
 \item{points_where}{Character or \code{NULL}. SQL predicate to filter rows from
 \code{points_table} (e.g. \code{"barrier_ind = TRUE"}). Passed to
 \code{\link[=frs_break_find]{frs_break_find()}} as \code{where}.}
-
-\item{aoi}{AOI specification for filtering (passed to
-\code{.frs_resolve_aoi()}). Only used with \code{points_table} mode.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
@@ -153,6 +139,8 @@ Other habitat:
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
+\code{\link{frs_feature_find}()},
+\code{\link{frs_feature_index}()},
 \code{\link{frs_habitat}()},
 \code{\link{frs_habitat_access}()},
 \code{\link{frs_habitat_classify}()},

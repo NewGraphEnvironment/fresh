@@ -1,15 +1,9 @@
 # --- Unit tests: frs_break_find ---
 
-test_that("frs_break_find requires exactly one mode", {
+test_that("frs_break_find requires attribute and threshold", {
   expect_error(
     frs_break_find("mock", "working.streams"),
-    "Provide one of"
-  )
-  expect_error(
-    frs_break_find("mock", "working.streams",
-                   attribute = "gradient", threshold = 0.05,
-                   points_table = "some.table"),
-    "Provide only one"
+    "attribute and threshold are required"
   )
 })
 
@@ -41,7 +35,7 @@ test_that("frs_break_find attribute mode builds correct SQL", {
   expect_match(sql_log[2], "gradient > 0.05")
 })
 
-test_that("frs_break_find table mode builds correct SQL", {
+test_that("frs_feature_find table mode builds correct SQL", {
   sql_log <- character(0)
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
@@ -50,14 +44,14 @@ test_that("frs_break_find table mode builds correct SQL", {
     }
   )
 
-  frs_break_find("mock", "working.streams",
-                 points_table = "bcfishpass.falls_events_sp")
+  frs_feature_find("mock", "working.streams",
+                   points_table = "bcfishpass.falls_events_sp")
 
   expect_match(sql_log[2], "FROM bcfishpass.falls_events_sp")
   expect_match(sql_log[2], "blue_line_key")
 })
 
-test_that("frs_break_find table mode adds AOI filter", {
+test_that("frs_feature_find adds BLK filter", {
   sql_log <- character(0)
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
@@ -66,13 +60,13 @@ test_that("frs_break_find table mode adds AOI filter", {
     }
   )
 
-  frs_break_find("mock", "working.streams",
-                 points_table = "bcfishpass.falls_events_sp")
+  frs_feature_find("mock", "working.streams",
+                   points_table = "bcfishpass.falls_events_sp")
 
   expect_match(sql_log[2], "WHERE.*blue_line_key IN")
 })
 
-test_that("frs_break_find table mode adds where filter", {
+test_that("frs_feature_find adds where filter", {
   sql_log <- character(0)
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
@@ -81,14 +75,14 @@ test_that("frs_break_find table mode adds where filter", {
     }
   )
 
-  frs_break_find("mock", "working.streams",
-                 points_table = "bcfishpass.falls_vw",
-                 where = "barrier_ind = TRUE")
+  frs_feature_find("mock", "working.streams",
+                   points_table = "bcfishpass.falls_vw",
+                   where = "barrier_ind = TRUE")
 
   expect_match(sql_log[2], "WHERE.*barrier_ind = TRUE")
 })
 
-test_that("frs_break_find table mode combines where and aoi", {
+test_that("frs_feature_find combines where and BLK filter", {
   sql_log <- character(0)
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
@@ -97,9 +91,9 @@ test_that("frs_break_find table mode combines where and aoi", {
     }
   )
 
-  frs_break_find("mock", "working.streams",
-                 points_table = "bcfishpass.falls_vw",
-                 where = "barrier_ind = TRUE")
+  frs_feature_find("mock", "working.streams",
+                   points_table = "bcfishpass.falls_vw",
+                   where = "barrier_ind = TRUE")
 
   expect_match(sql_log[2], "blue_line_key IN")
   expect_match(sql_log[2], "barrier_ind = TRUE")
@@ -116,14 +110,14 @@ test_that("frs_break_find returns conn invisibly", {
   expect_equal(result, "mock_conn")
 })
 
-test_that("frs_break_find points mode rejects non-sf", {
+test_that("frs_feature_find points mode rejects non-sf", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) 0L
   )
 
   expect_error(
-    frs_break_find("mock", "working.streams",
-                   points = data.frame(x = 1, y = 2)),
+    frs_feature_find("mock", "working.streams",
+                     points = data.frame(x = 1, y = 2)),
     "sf object"
   )
 })
