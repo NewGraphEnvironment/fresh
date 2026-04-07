@@ -1,9 +1,9 @@
 # fresh: FWA-Referenced Spatial Hydrology
 
-Stream network-aware spatial operations via direct SQL against fwapg and
-bcfishpass. Snap points to streams, delineate watersheds, query fish
-observations, and fetch network-referenced lakes, wetlands, and streams
-from the BC Freshwater Atlas. Requires PostgreSQL with fwapg,
+Stream network-aware spatial operations via direct SQL against fwapg.
+Segment networks at break points, classify habitat by species, aggregate
+upstream features, and query network-referenced lakes, wetlands, and
+streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg.
 bcfishpass, and bcfishobs.
 
 ## See also

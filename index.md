@@ -3,10 +3,8 @@
 > FWA-Referenced Spatial Hydrology
 
 Stream network-aware spatial operations via direct SQL against
-[fwapg](https://github.com/smnorris/fwapg) and
-[bcfishpass](https://github.com/smnorris/bcfishpass). Snap points to
-streams, delineate watersheds, query fish observations, and fetch
-network-referenced features from the BC Freshwater Atlas.
+[fwapg](https://github.com/smnorris/fwapg). Segment networks, classify
+habitat, aggregate upstream features, and query the BC Freshwater Atlas.
 
 ## Installation
 
@@ -16,57 +14,74 @@ pak::pak("NewGraphEnvironment/fresh")
 
 ## Prerequisites
 
-`fresh` requires PostgreSQL with the following extensions loaded:
+PostgreSQL with [fwapg](https://github.com/smnorris/fwapg) loaded. A
+local Docker setup is included:
 
-- [fwapg](https://github.com/smnorris/fwapg) — BC Freshwater Atlas in
-  PostgreSQL
-- [bcfishpass](https://github.com/smnorris/bcfishpass) — fish passage
-  and habitat modelling
-- [bcfishobs](https://github.com/smnorris/bcfishobs) — fish observation
-  data
+``` bash
+cd docker
+docker compose up -d db
+docker compose run --rm loader
+```
 
-Connection is configured via `PG_*_SHARE` environment variables
-(`PG_HOST_SHARE`, `PG_PORT_SHARE`, `PG_DB_SHARE`, `PG_USER_SHARE`) or
-passed directly to
-[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md).
+See `docker/README.md` for details. Connection via
+[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
+or direct
+[`DBI::dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html).
 
 ## Example
 
-Query all network features between two points on the same blue line key
-using watershed code subtraction — no spatial clipping needed:
+Segment a stream network at gradient barriers and classify habitat for
+multiple species:
 
 ``` r
 library(fresh)
 
-result <- frs_network(
-  blue_line_key = 360873822,
-  downstream_route_measure = 208877,
-  upstream_measure = 233564,
-  tables = list(
-    streams = "whse_basemapping.fwa_stream_networks_sp",
-    lakes   = "whse_basemapping.fwa_lakes_poly",
-    fish_obs = "bcfishobs.fiss_fish_obsrvtn_events_vw",
-    falls   = "bcfishpass.falls_vw"
-  )
-)
+conn <- DBI::dbConnect(RPostgres::Postgres(),
+  host = "localhost", port = 5432,
+  dbname = "fwapg", user = "postgres", password = "postgres")
+
+# 1. Generate gradient access barriers
+frs_break_find(conn, "working.tmp",
+  attribute = "gradient", threshold = 0.15,
+  to = "working.barriers_15")
+
+# 2. Segment network at barriers + falls
+frs_network_segment(conn, aoi = "BULK",
+  to = "fresh.streams",
+  break_sources = list(
+    list(table = "working.barriers_15", label = "gradient_15"),
+    list(table = "working.falls", label = "blocked")))
+
+# 3. Classify habitat per species
+frs_habitat_classify(conn,
+  table = "fresh.streams",
+  to = "fresh.streams_habitat",
+  species = c("CO", "BT", "ST"))
 ```
 
-See the [subbasin
-vignette](https://newgraphenvironment.github.io/fresh/articles/subbasin-query.html)
-for a full worked example with map output.
+Or use the orchestrator for multi-WSG runs:
+
+``` r
+frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat",
+  workers = 4, password = "postgres",
+  break_sources = list(
+    list(table = "working.falls", label = "blocked")))
+```
+
+See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for
+vignettes and function reference.
 
 ## Ecosystem
 
-fresh is one piece of a larger watershed analysis workflow:
-
-| Package                                                   | Role                                                                                                       |
-|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
-| **fresh**                                                 | FWA-referenced spatial hydrology (this package)                                                            |
-| [breaks](https://github.com/NewGraphEnvironment/breaks)   | Delineate sub-basins from break points on stream networks                                                  |
-| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks                                                 |
-| [drift](https://github.com/NewGraphEnvironment/drift)     | Track land cover change within floodplains over time                                                       |
-| [fly](https://github.com/NewGraphEnvironment/fly)         | Estimate airphoto footprints and select optimal coverage for a study area                                  |
-| [diggs](https://github.com/NewGraphEnvironment/diggs)     | Interactive explorer for [fly](https://github.com/NewGraphEnvironment/fly) airphoto selections (Shiny app) |
+| Package                                                   | Role                                                                      |
+|-----------------------------------------------------------|---------------------------------------------------------------------------|
+| **fresh**                                                 | Network segmentation + habitat classification (this package)              |
+| [link](https://github.com/NewGraphEnvironment/link)       | Crossing connectivity interpretation — scoring, overrides, prioritization |
+| [breaks](https://github.com/NewGraphEnvironment/breaks)   | Delineate sub-basins from break points on stream networks                 |
+| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks                |
+| [drift](https://github.com/NewGraphEnvironment/drift)     | Track land cover change within floodplains over time                      |
 
 Pipeline: fresh (network data) → breaks (sub-basins) → flooded
 (floodplains) → drift (land cover change)

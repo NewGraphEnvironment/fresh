@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,49 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.8.0" id="fresh-080">fresh 0.8.0<a class="anchor" aria-label="anchor" href="#fresh-080"></a></h2>
+<p>Unified pipeline, domain-agnostic network segmentation, and major performance improvements.</p>
+<div class="section level3">
+<h3 id="new-functions-0-8-0">New functions<a class="anchor" aria-label="anchor" href="#new-functions-0-8-0"></a></h3>
+<ul><li>
+<code><a href="../reference/frs_network_segment.html">frs_network_segment()</a></code> — domain-agnostic network segmentation. Extracts, enriches, breaks at any point sources, assigns <code>id_segment</code>. One table, one copy of geometry.</li>
+<li>
+<code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> — long-format habitat classification. One row per segment x species with <code>accessible</code>, <code>spawning</code>, <code>rearing</code>, <code>lake_rearing</code>. Species-specific accessibility via break label filtering.</li>
+<li>
+<code><a href="../reference/frs_feature_find.html">frs_feature_find()</a></code> — locate any point features on the network (crossings, observations, stations). Replaces <code><a href="../reference/frs_break_find.html">frs_break_find()</a></code> points/table modes.</li>
+<li>
+<code><a href="../reference/frs_feature_index.html">frs_feature_index()</a></code> — index upstream/downstream relationships between segments and features. Stores feature ID arrays per segment.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="pipeline-changes-0-8-0">Pipeline changes<a class="anchor" aria-label="anchor" href="#pipeline-changes-0-8-0"></a></h3>
+<ul><li>
+<code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> rewritten to wrap <code><a href="../reference/frs_network_segment.html">frs_network_segment()</a></code> + <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>. Auto-generates gradient barriers per WSG from species parameters.</li>
+<li>
+<code>to_streams</code> + <code>to_habitat</code> params replace <code>to_prefix</code> for persistent output tables.</li>
+<li>mirai replaces furrr for parallel execution — lighter daemons, foundation for crew.aws.batch.</li>
+<li>
+<code><a href="../reference/frs_break_find.html">frs_break_find()</a></code> slimmed to gradient-only (island detection). Point/table modes moved to <code><a href="../reference/frs_feature_find.html">frs_feature_find()</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-0-8-0">Performance<a class="anchor" aria-label="anchor" href="#performance-0-8-0"></a></h3>
+<ul><li>Island-based gradient barriers: 85% fewer barriers than interval method (<a href="https://github.com/NewGraphEnvironment/fresh/issues/86" class="external-link">#86</a>)</li>
+<li>Accessibility recycled by threshold group: 5 queries → 2 for species sharing thresholds (<a href="https://github.com/NewGraphEnvironment/fresh/issues/89" class="external-link">#89</a>)</li>
+<li>Classify growth penalty fixed: constant time DELETE by <code>watershed_group_code</code> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/91" class="external-link">#91</a>)</li>
+<li>Breaks table indexed with ltree GIST for cross-BLK queries: 15x speedup</li>
+<li>Province-wide: 229 WSGs, 5.98M segments completed</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-0-8-0">Other<a class="anchor" aria-label="anchor" href="#other-0-8-0"></a></h3>
+<ul><li>
+<code>id_segment</code> for unique sub-segment identity after breaking (<a href="https://github.com/NewGraphEnvironment/fresh/issues/82" class="external-link">#82</a>)</li>
+<li>
+<code>col_blk</code> + <code>col_measure</code> on break sources for configurable column names (<a href="https://github.com/NewGraphEnvironment/fresh/issues/80" class="external-link">#80</a>)</li>
+<li>
+<code>.frs_sql_num()</code> for locale-safe numeric SQL literals</li>
+<li>Docker-based local fwapg tuned for M4 Max Pro (128GB/16 cores)</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.7.0" id="fresh-070">fresh 0.7.0<a class="anchor" aria-label="anchor" href="#fresh-070"></a></h2>
 <p>Local Docker fwapg instance and generic network-referenced classification via <code>break_sources</code>.</p>

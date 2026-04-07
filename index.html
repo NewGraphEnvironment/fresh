@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="FWA-Referenced Spatial Hydrology">
-<meta name="description" content="Stream network-aware spatial operations via direct SQL against fwapg and bcfishpass. Snap points to streams, delineate watersheds, query fish observations, and fetch network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg, bcfishpass, and bcfishobs.">
-<meta property="og:description" content="Stream network-aware spatial operations via direct SQL against fwapg and bcfishpass. Snap points to streams, delineate watersheds, query fish observations, and fetch network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg, bcfishpass, and bcfishobs.">
+<meta name="description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg. bcfishpass, and bcfishobs.">
+<meta property="og:description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg. bcfishpass, and bcfishobs.">
 <meta property="og:image" content="https://newgraphenvironment.github.io/fresh/logo.png">
 </head>
 <body>
@@ -23,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,7 +63,7 @@
 <blockquote>
 <p>FWA-Referenced Spatial Hydrology</p>
 </blockquote>
-<p>Stream network-aware spatial operations via direct SQL against <a href="https://github.com/smnorris/fwapg" class="external-link">fwapg</a> and <a href="https://github.com/smnorris/bcfishpass" class="external-link">bcfishpass</a>. Snap points to streams, delineate watersheds, query fish observations, and fetch network-referenced features from the BC Freshwater Atlas.</p>
+<p>Stream network-aware spatial operations via direct SQL against <a href="https://github.com/smnorris/fwapg" class="external-link">fwapg</a>. Segment networks, classify habitat, aggregate upstream features, and query the BC Freshwater Atlas.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -73,41 +73,53 @@
 <div class="section level2">
 <h2 id="prerequisites">Prerequisites<a class="anchor" aria-label="anchor" href="#prerequisites"></a>
 </h2>
-<p><code>fresh</code> requires PostgreSQL with the following extensions loaded:</p>
-<ul>
-<li>
-<a href="https://github.com/smnorris/fwapg" class="external-link">fwapg</a> — BC Freshwater Atlas in PostgreSQL</li>
-<li>
-<a href="https://github.com/smnorris/bcfishpass" class="external-link">bcfishpass</a> — fish passage and habitat modelling</li>
-<li>
-<a href="https://github.com/smnorris/bcfishobs" class="external-link">bcfishobs</a> — fish observation data</li>
-</ul>
-<p>Connection is configured via <code>PG_*_SHARE</code> environment variables (<code>PG_HOST_SHARE</code>, <code>PG_PORT_SHARE</code>, <code>PG_DB_SHARE</code>, <code>PG_USER_SHARE</code>) or passed directly to <code><a href="reference/frs_db_conn.html">frs_db_conn()</a></code>.</p>
+<p>PostgreSQL with <a href="https://github.com/smnorris/fwapg" class="external-link">fwapg</a> loaded. A local Docker setup is included:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="bu">cd</span> docker</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">-d</span> db</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="ex">docker</span> compose run <span class="at">--rm</span> loader</span></code></pre></div>
+<p>See <code>docker/README.md</code> for details. Connection via <code><a href="reference/frs_db_conn.html">frs_db_conn()</a></code> or direct <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
-<p>Query all network features between two points on the same blue line key using watershed code subtraction — no spatial clipping needed:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<p>Segment a stream network at gradient barriers and classify habitat for multiple species:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/NewGraphEnvironment/fresh" class="external-link">fresh</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/frs_network.html">frs_network</a></span><span class="op">(</span></span>
-<span>  blue_line_key <span class="op">=</span> <span class="fl">360873822</span>,</span>
-<span>  downstream_route_measure <span class="op">=</span> <span class="fl">208877</span>,</span>
-<span>  upstream_measure <span class="op">=</span> <span class="fl">233564</span>,</span>
-<span>  tables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    streams <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span>
-<span>    lakes   <span class="op">=</span> <span class="st">"whse_basemapping.fwa_lakes_poly"</span>,</span>
-<span>    fish_obs <span class="op">=</span> <span class="st">"bcfishobs.fiss_fish_obsrvtn_events_vw"</span>,</span>
-<span>    falls   <span class="op">=</span> <span class="st">"bcfishpass.falls_vw"</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>See the <a href="https://newgraphenvironment.github.io/fresh/articles/subbasin-query.html">subbasin vignette</a> for a full worked example with map output.</p>
+<span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu">RPostgres</span><span class="fu">::</span><span class="fu"><a href="https://rpostgres.r-dbi.org/reference/Postgres.html" class="external-link">Postgres</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  host <span class="op">=</span> <span class="st">"localhost"</span>, port <span class="op">=</span> <span class="fl">5432</span>,</span>
+<span>  dbname <span class="op">=</span> <span class="st">"fwapg"</span>, user <span class="op">=</span> <span class="st">"postgres"</span>, password <span class="op">=</span> <span class="st">"postgres"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 1. Generate gradient access barriers</span></span>
+<span><span class="fu"><a href="reference/frs_break_find.html">frs_break_find</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"working.tmp"</span>,</span>
+<span>  attribute <span class="op">=</span> <span class="st">"gradient"</span>, threshold <span class="op">=</span> <span class="fl">0.15</span>,</span>
+<span>  to <span class="op">=</span> <span class="st">"working.barriers_15"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 2. Segment network at barriers + falls</span></span>
+<span><span class="fu"><a href="reference/frs_network_segment.html">frs_network_segment</a></span><span class="op">(</span><span class="va">conn</span>, aoi <span class="op">=</span> <span class="st">"BULK"</span>,</span>
+<span>  to <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span>
+<span>  break_sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.barriers_15"</span>, label <span class="op">=</span> <span class="st">"gradient_15"</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.falls"</span>, label <span class="op">=</span> <span class="st">"blocked"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 3. Classify habitat per species</span></span>
+<span><span class="fu"><a href="reference/frs_habitat_classify.html">frs_habitat_classify</a></span><span class="op">(</span><span class="va">conn</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span>
+<span>  to <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span>
+<span>  species <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"CO"</span>, <span class="st">"BT"</span>, <span class="st">"ST"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>Or use the orchestrator for multi-WSG runs:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/frs_habitat.html">frs_habitat</a></span><span class="op">(</span><span class="va">conn</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"BULK"</span>, <span class="st">"MORR"</span>, <span class="st">"ZYMO"</span><span class="op">)</span>,</span>
+<span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span>
+<span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span>
+<span>  workers <span class="op">=</span> <span class="fl">4</span>, password <span class="op">=</span> <span class="st">"postgres"</span>,</span>
+<span>  break_sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.falls"</span>, label <span class="op">=</span> <span class="st">"blocked"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>See the <a href="https://newgraphenvironment.github.io/fresh/">pkgdown site</a> for vignettes and function reference.</p>
 </div>
 <div class="section level2">
 <h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a>
 </h2>
-<p>fresh is one piece of a larger watershed analysis workflow:</p>
 <table class="table">
 <colgroup>
 <col width="60%">
@@ -120,27 +132,23 @@
 <tbody>
 <tr class="odd">
 <td><strong>fresh</strong></td>
-<td>FWA-referenced spatial hydrology (this package)</td>
+<td>Network segmentation + habitat classification (this package)</td>
 </tr>
 <tr class="even">
+<td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>
+<td>Crossing connectivity interpretation — scoring, overrides, prioritization</td>
+</tr>
+<tr class="odd">
 <td><a href="https://github.com/NewGraphEnvironment/breaks" class="external-link">breaks</a></td>
 <td>Delineate sub-basins from break points on stream networks</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
 <td>Delineate floodplain extents from DEMs and stream networks</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
 <td>Track land cover change within floodplains over time</td>
-</tr>
-<tr class="odd">
-<td><a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a></td>
-<td>Estimate airphoto footprints and select optimal coverage for a study area</td>
-</tr>
-<tr class="even">
-<td><a href="https://github.com/NewGraphEnvironment/diggs" class="external-link">diggs</a></td>
-<td>Interactive explorer for <a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a> airphoto selections (Shiny app)</td>
 </tr>
 </tbody>
 </table>
