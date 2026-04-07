@@ -69,13 +69,12 @@ See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for vignett
 
 | Package | Role |
 |---------|------|
-| **fresh** | Network segmentation + habitat classification (this package) |
+| **fresh** | Network segmentation, habitat classification, sub-basin delineation (this package) |
 | [link](https://github.com/NewGraphEnvironment/link) | Crossing connectivity interpretation — scoring, overrides, prioritization |
-| [breaks](https://github.com/NewGraphEnvironment/breaks) | Delineate sub-basins from break points on stream networks |
 | [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks |
 | [drift](https://github.com/NewGraphEnvironment/drift) | Track land cover change within floodplains over time |
 
-Pipeline: fresh (network data) &rarr; breaks (sub-basins) &rarr; flooded (floodplains) &rarr; drift (land cover change)
+Pipeline: fresh (network + habitat) &rarr; flooded (floodplains) &rarr; drift (land cover change)
 
 ## License
 
