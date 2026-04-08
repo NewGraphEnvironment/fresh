@@ -1,3 +1,16 @@
+# fresh 0.9.0
+
+Flexible AOI, configurable access gating, and feature indexing.
+
+- `frs_habitat()` accepts any AOI — sf polygons, WHERE clauses, ltree filters — not just WSG codes. Add `species` and `label` params for custom runs ([#96](https://github.com/NewGraphEnvironment/fresh/issues/96))
+- `gate` parameter on `frs_habitat_classify()` — set `FALSE` to classify raw habitat potential without access restrictions ([#98](https://github.com/NewGraphEnvironment/fresh/issues/98))
+- `blocking_labels` parameter — configurable which labels restrict access. Default `"blocked"`. Set `c("blocked", "potential")` for conservative analysis. Only `"blocked"` and `gradient_N` block by default; everything else passes through
+- `frs_feature_find()` — locate any point features on the network (crossings, observations, stations) with `col_id` for feature identity ([#92](https://github.com/NewGraphEnvironment/fresh/issues/92))
+- `frs_feature_index()` — index upstream/downstream relationships between segments and features as ID arrays ([#93](https://github.com/NewGraphEnvironment/fresh/issues/93))
+- `frs_break_find()` slimmed to gradient-only. Point/table modes moved to `frs_feature_find()`
+- Province-wide run completed: 229 WSGs, 5.98M segments
+- Classify growth penalty fixed: constant-time DELETE by `watershed_group_code` ([#91](https://github.com/NewGraphEnvironment/fresh/issues/91))
+
 # fresh 0.8.0
 
 Unified pipeline, domain-agnostic network segmentation, and major performance improvements.
