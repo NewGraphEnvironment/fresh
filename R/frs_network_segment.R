@@ -107,10 +107,16 @@ frs_network_segment <- function(conn, aoi, to,
   }
 
   if (is.character(aoi) && length(aoi) == 1 && grepl("^[A-Z]{4}$", aoi)) {
+    # WSG code — fast column filter
     frs_extract(conn, from = source, to = to,
       where = paste0("watershed_group_code = ", .frs_quote_string(aoi)),
       overwrite = FALSE)
+  } else if (is.character(aoi) && length(aoi) == 1 && !grepl("^[A-Z]{4}$", aoi)) {
+    # WHERE clause string (e.g. ltree filter, column predicate)
+    frs_extract(conn, from = source, to = to,
+      where = aoi, overwrite = FALSE)
   } else {
+    # sf polygon, named list, or other AOI type
     frs_extract(conn, from = source, to = to,
       aoi = aoi, overwrite = FALSE)
   }
