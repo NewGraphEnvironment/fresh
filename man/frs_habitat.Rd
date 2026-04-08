@@ -13,6 +13,7 @@ frs_habitat(
   to_streams = NULL,
   to_habitat = NULL,
   break_sources = NULL,
+  gate = TRUE,
   workers = 1L,
   password = "",
   cleanup = TRUE,

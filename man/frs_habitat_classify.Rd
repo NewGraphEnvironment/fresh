@@ -11,6 +11,7 @@ frs_habitat_classify(
   species,
   params = NULL,
   params_fresh = NULL,
+  gate = TRUE,
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -32,6 +33,11 @@ bundled CSV.}
 
 \item{params_fresh}{Data frame from \code{parameters_fresh.csv}. Default
 reads from bundled CSV.}
+
+\item{gate}{Logical. If \code{TRUE} (default), breaks restrict
+classification — segments downstream of blocking breaks are marked
+inaccessible. If \code{FALSE}, all segments are classified regardless of
+breaks (raw habitat potential).}
 
 \item{overwrite}{Logical. If \code{TRUE}, replace existing rows for
 these species in the output table. Default \code{TRUE}.}
