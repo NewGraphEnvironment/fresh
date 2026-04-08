@@ -216,6 +216,19 @@ frs_habitat_classify <- function(conn, table, to,
     acc_tbl <- access_tables[[thr_key]]
     params_sp <- sp_params$params_sp
 
+    # Edge type filter helper
+    edge_filter <- function(types_str) {
+      if (is.null(types_str) || is.na(types_str) || !nzchar(types_str)) {
+        return(NULL)
+      }
+      cats <- trimws(strsplit(types_str, ",")[[1]])
+      codes <- unlist(lapply(cats, function(cat) {
+        frs_edge_types(category = cat)$edge_type
+      }))
+      if (length(codes) == 0) return(NULL)
+      sprintf("s.edge_type IN (%s)", paste(codes, collapse = ", "))
+    }
+
     # Spawning
     spawn_cond <- sprintf("s.gradient >= %s AND s.gradient <= %s",
       .frs_sql_num(sp_params$spawn_gradient_min),
@@ -225,6 +238,10 @@ frs_habitat_classify <- function(conn, table, to,
       spawn_cond <- paste0(spawn_cond, sprintf(
         " AND s.channel_width >= %s AND s.channel_width <= %s",
         .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
+    }
+    spawn_et <- edge_filter(params_sp$spawn_edge_types)
+    if (!is.null(spawn_et)) {
+      spawn_cond <- paste(spawn_cond, "AND", spawn_et)
     }
 
     # Rearing
@@ -241,6 +258,8 @@ frs_habitat_classify <- function(conn, table, to,
           "s.channel_width >= %s AND s.channel_width <= %s",
           .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
       }
+      rear_et <- edge_filter(params_sp$rear_edge_types)
+      if (!is.null(rear_et)) parts <- c(parts, rear_et)
       if (length(parts) > 0) rear_cond <- paste(parts, collapse = " AND ")
     }
 
