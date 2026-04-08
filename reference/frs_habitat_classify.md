@@ -15,7 +15,7 @@ frs_habitat_classify(
   params = NULL,
   params_fresh = NULL,
   gate = TRUE,
-  blocking_labels = "blocked",
+  label_block = "blocked",
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -62,7 +62,7 @@ frs_habitat_classify(
   `FALSE`, all segments are classified regardless of breaks (raw habitat
   potential).
 
-- blocking_labels:
+- label_block:
 
   Character vector. Labels that always block access. Default
   `"blocked"`. Gradient labels (`gradient_15`, etc.) are always
