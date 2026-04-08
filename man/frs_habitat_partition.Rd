@@ -9,7 +9,7 @@ frs_habitat_partition(
   aoi,
   label,
   species,
-  params_all,
+  params,
   params_fresh,
   source = "whse_basemapping.fwa_stream_networks_sp",
   break_sources = NULL,
@@ -29,7 +29,7 @@ watershed group code, \code{sf} polygon, named list, or \code{NULL}.}
 \item{species}{Data frame with columns \code{species_code},
 \code{access_gradient}, and \code{spawn_gradient_max}. One row per species.}
 
-\item{params_all}{Named list from \code{\link[=frs_params]{frs_params()}}.}
+\item{params}{Named list from \code{\link[=frs_params]{frs_params()}}.}
 
 \item{params_fresh}{Data frame from \code{parameters_fresh.csv}.}
 
@@ -63,7 +63,7 @@ happens in \code{\link[=frs_habitat]{frs_habitat()}} before calling this functio
 \examples{
 \dontrun{
 conn <- frs_db_conn()
-params_all <- frs_params(csv = system.file("extdata",
+params <- frs_params(csv = system.file("extdata",
   "parameters_habitat_thresholds.csv", package = "fresh"))
 params_fresh <- read.csv(system.file("extdata",
   "parameters_fresh.csv", package = "fresh"))
@@ -75,7 +75,7 @@ species <- data.frame(
   spawn_gradient_max = c(0.0549, 0.0549))
 
 prep <- frs_habitat_partition(conn, aoi = "BULK", label = "bulk",
-  species = species, params_all = params_all,
+  species = species, params = params,
   params_fresh = params_fresh)
 
 # Run one species from the prepared jobs

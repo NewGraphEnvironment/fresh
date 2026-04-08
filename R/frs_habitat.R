@@ -32,6 +32,10 @@
 #' @param break_sources List of additional break source specs (falls,
 #'   crossings, etc.), or `NULL`. Gradient access barriers are generated
 #'   automatically from species parameters.
+#' @param params Named list from [frs_params()], or `NULL` to use
+#'   bundled `parameters_habitat_thresholds.csv`.
+#' @param params_fresh Data frame from `parameters_fresh.csv`, or
+#'   `NULL` to use bundled default.
 #' @param workers Integer. Number of parallel workers. Default `1`.
 #'   Values > 1 require the `mirai` package. Only used in WSG mode.
 #' @param password Character. Database password for parallel workers.
@@ -79,6 +83,16 @@
 #'   break_sources = list(
 #'     list(table = "working.falls", label = "blocked")))
 #'
+#' # Custom parameters — project-specific thresholds override bundled
+#' # defaults. Use when species have different gradient/channel width
+#' # ranges for your study area, or when adding species not in the
+#' # default parameter set.
+#' frs_habitat(conn, "BULK",
+#'   params = frs_params(csv = "path/to/my_thresholds.csv"),
+#'   params_fresh = read.csv("path/to/my_fresh_params.csv"),
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat <- function(conn, wsg = NULL,
@@ -87,6 +101,8 @@ frs_habitat <- function(conn, wsg = NULL,
                         break_sources = NULL,
                         gate = TRUE,
                         label_block = "blocked",
+                        params = NULL,
+                        params_fresh = NULL,
                         workers = 1L,
                         password = "",
                         cleanup = TRUE, verbose = TRUE) {
@@ -94,10 +110,14 @@ frs_habitat <- function(conn, wsg = NULL,
   t_total <- proc.time()
 
   # -- Load parameters --------------------------------------------------------
-  params_all <- frs_params(csv = system.file("extdata",
-    "parameters_habitat_thresholds.csv", package = "fresh"))
-  params_fresh <- utils::read.csv(system.file("extdata",
-    "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
+  if (is.null(params)) {
+    params <- frs_params(csv = system.file("extdata",
+      "parameters_habitat_thresholds.csv", package = "fresh"))
+  }
+  if (is.null(params_fresh)) {
+    params_fresh <- utils::read.csv(system.file("extdata",
+      "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
+  }
 
   # -- Build job specs ---------------------------------------------------------
   if (!is.null(wsg)) {
@@ -110,7 +130,7 @@ frs_habitat <- function(conn, wsg = NULL,
       } else {
         sp_df <- frs_wsg_species(w)
         sp_df <- sp_df[!is.na(sp_df$view), ]
-        sp_df <- sp_df[sp_df$species_code %in% names(params_all) &
+        sp_df <- sp_df[sp_df$species_code %in% names(params) &
                        sp_df$species_code %in% params_fresh$species_code, ]
         sp_df <- sp_df[!duplicated(sp_df$species_code), ]
         sp_df$species_code
@@ -137,7 +157,7 @@ frs_habitat <- function(conn, wsg = NULL,
     }
 
     # Validate species against params
-    valid_sp <- intersect(species, names(params_all))
+    valid_sp <- intersect(species, names(params))
     valid_sp <- intersect(valid_sp, params_fresh$species_code)
     if (length(valid_sp) == 0) {
       stop("No valid species codes found in parameters", call. = FALSE)
@@ -172,7 +192,7 @@ frs_habitat <- function(conn, wsg = NULL,
   conn_params <- if (use_parallel) .frs_conn_params(conn, password) else NULL
 
   # -- Per-job worker function -------------------------------------------------
-  .run_job <- function(spec, conn_params, break_sources, params_all,
+  .run_job <- function(spec, conn_params, break_sources, params,
                        params_fresh, to_streams, to_habitat, verbose) {
     # Connect (parallel) or reuse (sequential)
     if (!is.null(conn_params)) {
@@ -260,7 +280,7 @@ frs_habitat <- function(conn, wsg = NULL,
       table = streams_tbl,
       to = habitat_tbl,
       species = species,
-      params = params_all,
+      params = params,
       params_fresh = params_fresh,
       gate = gate, label_block = label_block,
       verbose = verbose && is.null(conn_params))
@@ -370,7 +390,7 @@ frs_habitat <- function(conn, wsg = NULL,
         paste0(streams_tbl, "_habitat")
 
       frs_habitat_classify(w_conn, table = streams_tbl, to = habitat_tbl,
-        species = species, params = params_all, params_fresh = params_fresh,
+        species = species, params = params, params_fresh = params_fresh,
         gate = gate, label_block = label_block, verbose = FALSE)
 
       if (!is.null(to_streams)) {
@@ -405,7 +425,7 @@ frs_habitat <- function(conn, wsg = NULL,
                  stringsAsFactors = FALSE)
     },
       conn_params = conn_params, break_sources = break_sources,
-      params_all = params_all, params_fresh = params_fresh,
+      params = params, params_fresh = params_fresh,
       to_streams = to_streams, to_habitat = to_habitat,
       gate = gate, label_block = label_block,
       verbose = verbose)[]
@@ -422,7 +442,7 @@ frs_habitat <- function(conn, wsg = NULL,
     result_list <- lapply(wsg_specs, function(spec) {
       res <- .run_job(spec, conn_params = NULL,
         break_sources = break_sources,
-        params_all = params_all, params_fresh = params_fresh,
+        params = params, params_fresh = params_fresh,
         to_streams = to_streams, to_habitat = to_habitat,
         verbose = verbose)
       if (verbose) {
@@ -472,7 +492,7 @@ frs_habitat <- function(conn, wsg = NULL,
 #'   `working.streams_{label}`, `working.breaks_access_{label}_{thr}`.
 #' @param species Data frame with columns `species_code`,
 #'   `access_gradient`, and `spawn_gradient_max`. One row per species.
-#' @param params_all Named list from [frs_params()].
+#' @param params Named list from [frs_params()].
 #' @param params_fresh Data frame from `parameters_fresh.csv`.
 #' @param source Character. Source table for the stream network. Default
 #'   `"whse_basemapping.fwa_stream_networks_sp"`.
@@ -494,7 +514,7 @@ frs_habitat <- function(conn, wsg = NULL,
 #' @examples
 #' \dontrun{
 #' conn <- frs_db_conn()
-#' params_all <- frs_params(csv = system.file("extdata",
+#' params <- frs_params(csv = system.file("extdata",
 #'   "parameters_habitat_thresholds.csv", package = "fresh"))
 #' params_fresh <- read.csv(system.file("extdata",
 #'   "parameters_fresh.csv", package = "fresh"))
@@ -506,7 +526,7 @@ frs_habitat <- function(conn, wsg = NULL,
 #'   spawn_gradient_max = c(0.0549, 0.0549))
 #'
 #' prep <- frs_habitat_partition(conn, aoi = "BULK", label = "bulk",
-#'   species = species, params_all = params_all,
+#'   species = species, params = params,
 #'   params_fresh = params_fresh)
 #'
 #' # Run one species from the prepared jobs
@@ -519,7 +539,7 @@ frs_habitat <- function(conn, wsg = NULL,
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat_partition <- function(conn, aoi, label, species,
-                                  params_all, params_fresh,
+                                  params, params_fresh,
                                   source = "whse_basemapping.fwa_stream_networks_sp",
                                   break_sources = NULL,
                                   verbose = TRUE) {
@@ -611,7 +631,7 @@ frs_habitat_partition <- function(conn, aoi, label, species,
       hab_tbl = paste0("working.breaks_habitat_", label, "_",
                        .frs_thr_label(species$spawn_gradient_max[i])),
       to = paste0("working.streams_", label, "_", tolower(sc)),
-      params_sp = params_all[[sc]],
+      params_sp = params[[sc]],
       fresh_sp = params_fresh[params_fresh$species_code == sc, ]
     )
   })
