@@ -1,32 +1,45 @@
-#' Run Habitat Pipeline for Watershed Groups
+#' Run Habitat Pipeline
 #'
-#' Orchestrate the full habitat pipeline for one or more watershed groups.
-#' Per WSG: generates gradient access barriers, segments the network via
-#' [frs_network_segment()], classifies habitat via [frs_habitat_classify()],
-#' and persists results. Parallelizes across WSGs with
-#' [mirai::mirai_map()] when `workers > 1`.
+#' Orchestrate the full habitat pipeline: generate gradient access
+#' barriers, segment the network via [frs_network_segment()], classify
+#' habitat via [frs_habitat_classify()], and persist results.
+#'
+#' Supports three modes:
+#' - **WSG mode** (`wsg`): one or more watershed group codes. Species
+#'   auto-detected. Parallelizes across WSGs.
+#' - **Custom AOI** (`aoi` + `species`): any spatial extent with explicit
+#'   species. For sub-basins, territories, or cross-WSG study areas.
+#' - **WSG + custom AOI** (`wsg` + `aoi`): WSG for species lookup and
+#'   table naming, custom AOI for spatial extent.
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
-#' @param wsg Character. One or more watershed group codes
-#'   (e.g. `"BULK"`, `c("BULK", "MORR")`).
+#' @param wsg Character or `NULL`. One or more watershed group codes.
+#'   When provided, species are auto-detected via [frs_wsg_species()].
+#' @param aoi AOI specification or `NULL`. Overrides the spatial extent.
+#'   Accepts anything [frs_extract()] handles: `sf` polygon, character
+#'   WSG code, WHERE clause string, or named list. When `NULL` with
+#'   `wsg`, uses the WSG polygon.
+#' @param species Character or `NULL`. Species codes to classify
+#'   (e.g. `c("CO", "BT")`). When `NULL` with `wsg`, auto-detected.
+#'   Required when `wsg` is `NULL`.
+#' @param label Character or `NULL`. Short label for working table names.
+#'   Auto-generated from `wsg` when available. Required when `wsg` is
+#'   `NULL` and `aoi` is provided.
 #' @param to_streams Character or `NULL`. Schema-qualified table for
-#'   persistent stream segments (e.g. `"fresh.streams"`). Accumulates
-#'   across runs — existing rows for the same WSG are replaced.
+#'   persistent stream segments. Accumulates across runs.
 #' @param to_habitat Character or `NULL`. Schema-qualified table for
-#'   habitat classifications (e.g. `"fresh.streams_habitat"`). Long
-#'   format: one row per segment x species.
+#'   habitat classifications. Long format: one row per segment x species.
 #' @param break_sources List of additional break source specs (falls,
 #'   crossings, etc.), or `NULL`. Gradient access barriers are generated
-#'   automatically from species parameters. See [frs_break_find()] for
-#'   spec format.
+#'   automatically from species parameters.
 #' @param workers Integer. Number of parallel workers. Default `1`.
-#'   Values > 1 require the `mirai` package.
+#'   Values > 1 require the `mirai` package. Only used in WSG mode.
 #' @param password Character. Database password for parallel workers.
 #' @param cleanup Logical. Drop working tables when done. Default `TRUE`.
 #' @param verbose Logical. Print progress. Default `TRUE`.
 #'
-#' @return A data frame with one row per WSG and columns `wsg`,
-#'   `n_segments`, `n_species`, `elapsed_s`.
+#' @return A data frame with columns `label`, `n_segments`, `n_species`,
+#'   `elapsed_s`.
 #'
 #' @family habitat
 #'
@@ -36,7 +49,7 @@
 #' \dontrun{
 #' conn <- frs_db_conn()
 #'
-#' # Single WSG — gradient barriers auto-generated from species params
+#' # WSG mode — species auto-detected
 #' frs_habitat(conn, "BULK",
 #'   to_streams = "fresh.streams",
 #'   to_habitat = "fresh.streams_habitat",
@@ -44,28 +57,37 @@
 #'     list(table = "working.falls", where = "barrier_ind = TRUE",
 #'          label = "blocked")))
 #'
-#' # Multiple WSGs, parallel — results accumulate in same tables
+#' # Custom AOI — sub-basin via ltree filter
+#' frs_habitat(conn,
+#'   aoi = "wscode_ltree <@ '100.190442.999098'::ltree",
+#'   species = c("BT", "CO"),
+#'   label = "richfield",
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
+#' # WSG + custom AOI — WSG for species, polygon for extent
+#' frs_habitat(conn, "ADMS",
+#'   aoi = my_study_area_polygon,
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
+#' # Multiple WSGs, parallel
 #' frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
 #'   to_streams = "fresh.streams",
 #'   to_habitat = "fresh.streams_habitat",
 #'   workers = 4, password = "postgres",
 #'   break_sources = list(
-#'     list(table = "working.falls", where = "barrier_ind = TRUE",
-#'          label = "blocked"),
-#'     list(table = "working.crossings",
-#'          label_col = "barrier_status",
-#'          label_map = c("BARRIER" = "blocked",
-#'                        "POTENTIAL" = "potential"))))
+#'     list(table = "working.falls", label = "blocked")))
 #'
 #' DBI::dbDisconnect(conn)
 #' }
-frs_habitat <- function(conn, wsg,
+frs_habitat <- function(conn, wsg = NULL,
+                        aoi = NULL, species = NULL, label = NULL,
                         to_streams = NULL, to_habitat = NULL,
                         break_sources = NULL,
                         workers = 1L,
                         password = "",
                         cleanup = TRUE, verbose = TRUE) {
-  stopifnot(is.character(wsg), length(wsg) > 0)
 
   t_total <- proc.time()
 
@@ -75,20 +97,61 @@ frs_habitat <- function(conn, wsg,
   params_fresh <- utils::read.csv(system.file("extdata",
     "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
 
-  # -- Build species list per WSG ---------------------------------------------
-  wsg_specs <- lapply(wsg, function(w) {
-    sp_df <- frs_wsg_species(w)
-    sp_df <- sp_df[!is.na(sp_df$view), ]
-    sp_df <- sp_df[sp_df$species_code %in% names(params_all) &
-                   sp_df$species_code %in% params_fresh$species_code, ]
-    sp_df <- sp_df[!duplicated(sp_df$species_code), ]
-    if (nrow(sp_df) == 0) return(NULL)
-    list(wsg = w, species = sp_df$species_code)
-  })
-  wsg_specs <- Filter(Negate(is.null), wsg_specs)
+  # -- Build job specs ---------------------------------------------------------
+  if (!is.null(wsg)) {
+    stopifnot(is.character(wsg), length(wsg) > 0)
+
+    wsg_specs <- lapply(wsg, function(w) {
+      # Species: explicit or auto-detect from WSG
+      sp <- if (!is.null(species)) {
+        species
+      } else {
+        sp_df <- frs_wsg_species(w)
+        sp_df <- sp_df[!is.na(sp_df$view), ]
+        sp_df <- sp_df[sp_df$species_code %in% names(params_all) &
+                       sp_df$species_code %in% params_fresh$species_code, ]
+        sp_df <- sp_df[!duplicated(sp_df$species_code), ]
+        sp_df$species_code
+      }
+      if (length(sp) == 0) return(NULL)
+
+      # AOI: explicit or WSG code
+      job_aoi <- if (!is.null(aoi)) aoi else w
+      job_label <- tolower(w)
+
+      list(label = job_label, aoi = job_aoi, species = sp, wsg = w)
+    })
+    wsg_specs <- Filter(Negate(is.null), wsg_specs)
+  } else {
+    # Custom AOI mode — no WSG
+    if (is.null(species)) {
+      stop("species is required when wsg is not provided", call. = FALSE)
+    }
+    if (is.null(aoi)) {
+      stop("aoi is required when wsg is not provided", call. = FALSE)
+    }
+    if (is.null(label)) {
+      stop("label is required when wsg is not provided", call. = FALSE)
+    }
+
+    # Validate species against params
+    valid_sp <- intersect(species, names(params_all))
+    valid_sp <- intersect(valid_sp, params_fresh$species_code)
+    if (length(valid_sp) == 0) {
+      stop("No valid species codes found in parameters", call. = FALSE)
+    }
+    missing <- setdiff(species, valid_sp)
+    if (length(missing) > 0) {
+      warning("Species not in parameters (skipped): ",
+              paste(missing, collapse = ", "), call. = FALSE)
+    }
+
+    wsg_specs <- list(list(label = label, aoi = aoi,
+                           species = valid_sp, wsg = NULL))
+  }
 
   if (length(wsg_specs) == 0) {
-    stop("No modelable species found for any WSG", call. = FALSE)
+    stop("No modelable species found", call. = FALSE)
   }
 
   if (verbose) {
@@ -106,8 +169,8 @@ frs_habitat <- function(conn, wsg,
   }
   conn_params <- if (use_parallel) .frs_conn_params(conn, password) else NULL
 
-  # -- Per-WSG worker function ------------------------------------------------
-  .run_wsg <- function(spec, conn_params, break_sources, params_all,
+  # -- Per-job worker function -------------------------------------------------
+  .run_job <- function(spec, conn_params, break_sources, params_all,
                        params_fresh, to_streams, to_habitat, verbose) {
     # Connect (parallel) or reuse (sequential)
     if (!is.null(conn_params)) {
@@ -119,33 +182,52 @@ frs_habitat <- function(conn, wsg,
       w_conn <- conn
     }
 
-    wsg_code <- spec$wsg
+    job_label <- spec$label
+    job_aoi <- spec$aoi
     species <- spec$species
+    wsg_code <- spec$wsg  # NULL for custom AOI mode
     t0 <- proc.time()
 
-    # 1. Determine unique access thresholds for this WSG's species
+    # 1. Determine unique access thresholds for this job's species
     access_thresholds <- sort(unique(
       params_fresh$access_gradient_max[
         params_fresh$species_code %in% species]))
 
     # 2. Generate gradient barriers at each threshold
-    streams_tbl <- paste0("working.streams_", tolower(wsg_code))
+    streams_tbl <- paste0("working.streams_", job_label)
 
-    # Need a temp extract for barrier detection
-    frs_extract(w_conn,
-      from = "whse_basemapping.fwa_stream_networks_sp",
-      to = paste0(streams_tbl, "_tmp"),
-      where = paste0("watershed_group_code = ",
-                     .frs_quote_string(wsg_code)),
-      overwrite = TRUE)
+    # Temp extract for barrier detection — use AOI
+    tmp_tbl <- paste0(streams_tbl, "_tmp")
+    if (is.character(job_aoi) && length(job_aoi) == 1 &&
+        grepl("^[A-Z]{4}$", job_aoi)) {
+      frs_extract(w_conn,
+        from = "whse_basemapping.fwa_stream_networks_sp",
+        to = tmp_tbl,
+        where = paste0("watershed_group_code = ",
+                       .frs_quote_string(job_aoi)),
+        overwrite = TRUE)
+    } else if (is.character(job_aoi) && length(job_aoi) == 1) {
+      # WHERE clause string (e.g. ltree filter)
+      frs_extract(w_conn,
+        from = "whse_basemapping.fwa_stream_networks_sp",
+        to = tmp_tbl,
+        where = job_aoi,
+        overwrite = TRUE)
+    } else {
+      frs_extract(w_conn,
+        from = "whse_basemapping.fwa_stream_networks_sp",
+        to = tmp_tbl,
+        aoi = job_aoi,
+        overwrite = TRUE)
+    }
 
     all_sources <- if (!is.null(break_sources)) break_sources else list()
     barrier_tables <- character(0)
 
     for (thr in access_thresholds) {
       thr_tbl <- sprintf("working.barriers_%s_%d",
-                         tolower(wsg_code), as.integer(thr * 100))
-      frs_break_find(w_conn, paste0(streams_tbl, "_tmp"),
+                         job_label, as.integer(thr * 100))
+      frs_break_find(w_conn, tmp_tbl,
         attribute = "gradient", threshold = thr,
         to = thr_tbl)
       all_sources <- c(all_sources, list(list(
@@ -154,11 +236,10 @@ frs_habitat <- function(conn, wsg,
       barrier_tables <- c(barrier_tables, thr_tbl)
     }
 
-    .frs_db_execute(w_conn, sprintf(
-      "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_tmp")))
+    .frs_db_execute(w_conn, sprintf("DROP TABLE IF EXISTS %s", tmp_tbl))
 
     # 3. Segment network
-    frs_network_segment(w_conn, aoi = wsg_code,
+    frs_network_segment(w_conn, aoi = job_aoi,
       to = streams_tbl,
       break_sources = all_sources,
       verbose = verbose && is.null(conn_params))
@@ -186,9 +267,16 @@ frs_habitat <- function(conn, wsg,
       .frs_db_execute(w_conn, sprintf(
         "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
         to_streams, streams_tbl))
-      .frs_db_execute(w_conn, sprintf(
-        "DELETE FROM %s WHERE watershed_group_code = %s",
-        to_streams, .frs_quote_string(wsg_code)))
+      # Partition delete: by WSG if available, otherwise by id_segment
+      if (!is.null(wsg_code)) {
+        .frs_db_execute(w_conn, sprintf(
+          "DELETE FROM %s WHERE watershed_group_code = %s",
+          to_streams, .frs_quote_string(wsg_code)))
+      } else {
+        .frs_db_execute(w_conn, sprintf(
+          "DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
+          to_streams, streams_tbl))
+      }
       .frs_db_execute(w_conn, sprintf(
         "INSERT INTO %s SELECT * FROM %s",
         to_streams, streams_tbl))
@@ -205,14 +293,14 @@ frs_habitat <- function(conn, wsg,
     }
 
     elapsed <- (proc.time() - t0)["elapsed"]
-    data.frame(wsg = wsg_code, n_segments = n_seg,
+    data.frame(label = job_label, n_segments = n_seg,
                n_species = length(species), elapsed_s = elapsed,
                stringsAsFactors = FALSE)
   }
 
-  # -- Run per WSG ------------------------------------------------------------
+  # -- Run jobs ---------------------------------------------------------------
   if (use_parallel) {
-    if (verbose) cat("\nRunning ", length(wsg_specs), " WSG(s) on ",
+    if (verbose) cat("\nRunning ", length(wsg_specs), " job(s) on ",
                      workers, " workers...\n", sep = "")
     mirai::daemons(workers)
     on.exit(mirai::daemons(0), add = TRUE)
@@ -223,28 +311,43 @@ frs_habitat <- function(conn, wsg,
         c(list(drv = RPostgres::Postgres()), conn_params))
       on.exit(DBI::dbDisconnect(w_conn))
 
-      wsg_code <- spec$wsg
+      job_label <- spec$label
+      job_aoi <- spec$aoi
       species <- spec$species
+      wsg_code <- spec$wsg
       t0 <- proc.time()
 
       access_thresholds <- sort(unique(
         params_fresh$access_gradient_max[
           params_fresh$species_code %in% species]))
 
-      streams_tbl <- paste0("working.streams_", tolower(wsg_code))
+      streams_tbl <- paste0("working.streams_", job_label)
+      tmp_tbl <- paste0(streams_tbl, "_tmp")
 
-      frs_extract(w_conn,
-        from = "whse_basemapping.fwa_stream_networks_sp",
-        to = paste0(streams_tbl, "_tmp"),
-        where = paste0("watershed_group_code = '", wsg_code, "'"),
-        overwrite = TRUE)
+      # Extract for barrier detection
+      if (is.character(job_aoi) && length(job_aoi) == 1 &&
+          grepl("^[A-Z]{4}$", job_aoi)) {
+        frs_extract(w_conn,
+          from = "whse_basemapping.fwa_stream_networks_sp",
+          to = tmp_tbl,
+          where = paste0("watershed_group_code = '", job_aoi, "'"),
+          overwrite = TRUE)
+      } else if (is.character(job_aoi) && length(job_aoi) == 1) {
+        frs_extract(w_conn,
+          from = "whse_basemapping.fwa_stream_networks_sp",
+          to = tmp_tbl, where = job_aoi, overwrite = TRUE)
+      } else {
+        frs_extract(w_conn,
+          from = "whse_basemapping.fwa_stream_networks_sp",
+          to = tmp_tbl, aoi = job_aoi, overwrite = TRUE)
+      }
 
       all_sources <- if (!is.null(break_sources)) break_sources else list()
       barrier_tables <- character(0)
       for (thr in access_thresholds) {
         thr_tbl <- sprintf("working.barriers_%s_%d",
-                           tolower(wsg_code), as.integer(thr * 100))
-        frs_break_find(w_conn, paste0(streams_tbl, "_tmp"),
+                           job_label, as.integer(thr * 100))
+        frs_break_find(w_conn, tmp_tbl,
           attribute = "gradient", threshold = thr, to = thr_tbl)
         all_sources <- c(all_sources, list(list(
           table = thr_tbl,
@@ -252,10 +355,9 @@ frs_habitat <- function(conn, wsg,
         barrier_tables <- c(barrier_tables, thr_tbl)
       }
 
-      DBI::dbExecute(w_conn, sprintf(
-        "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_tmp")))
+      DBI::dbExecute(w_conn, sprintf("DROP TABLE IF EXISTS %s", tmp_tbl))
 
-      frs_network_segment(w_conn, aoi = wsg_code,
+      frs_network_segment(w_conn, aoi = job_aoi,
         to = streams_tbl, break_sources = all_sources, verbose = FALSE)
 
       n_seg <- DBI::dbGetQuery(w_conn,
@@ -272,9 +374,15 @@ frs_habitat <- function(conn, wsg,
         DBI::dbExecute(w_conn, sprintf(
           "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
           to_streams, streams_tbl))
-        DBI::dbExecute(w_conn, sprintf(
-          "DELETE FROM %s WHERE watershed_group_code = '%s'",
-          to_streams, wsg_code))
+        if (!is.null(wsg_code)) {
+          DBI::dbExecute(w_conn, sprintf(
+            "DELETE FROM %s WHERE watershed_group_code = '%s'",
+            to_streams, wsg_code))
+        } else {
+          DBI::dbExecute(w_conn, sprintf(
+            "DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
+            to_streams, streams_tbl))
+        }
         DBI::dbExecute(w_conn, sprintf(
           "INSERT INTO %s SELECT * FROM %s", to_streams, streams_tbl))
       }
@@ -289,7 +397,7 @@ frs_habitat <- function(conn, wsg,
       }
 
       elapsed <- (proc.time() - t0)["elapsed"]
-      data.frame(wsg = wsg_code, n_segments = n_seg,
+      data.frame(label = job_label, n_segments = n_seg,
                  n_species = length(species), elapsed_s = elapsed,
                  stringsAsFactors = FALSE)
     },
@@ -301,20 +409,20 @@ frs_habitat <- function(conn, wsg,
     errs <- vapply(result_list, inherits, logical(1), "miraiError")
     if (any(errs)) {
       msgs <- vapply(which(errs), function(i) {
-        paste0(wsg_specs[[i]]$wsg, ": ", conditionMessage(result_list[[i]]))
+        paste0(wsg_specs[[i]]$label, ": ", conditionMessage(result_list[[i]]))
       }, character(1))
       stop("Pipeline failed:\n  ", paste(msgs, collapse = "\n  "),
            call. = FALSE)
     }
   } else {
     result_list <- lapply(wsg_specs, function(spec) {
-      res <- .run_wsg(spec, conn_params = NULL,
+      res <- .run_job(spec, conn_params = NULL,
         break_sources = break_sources,
         params_all = params_all, params_fresh = params_fresh,
         to_streams = to_streams, to_habitat = to_habitat,
         verbose = verbose)
       if (verbose) {
-        cat("  ", res$wsg, ": ", res$n_segments, " segs, ",
+        cat("  ", res$label, ": ", res$n_segments, " segs, ",
             res$n_species, " spp, ", round(res$elapsed_s, 1), "s\n", sep = "")
       }
       res
@@ -326,7 +434,7 @@ frs_habitat <- function(conn, wsg,
 
   if (verbose && use_parallel) {
     for (i in seq_len(nrow(results))) {
-      cat("  ", results$wsg[i], ": ", results$n_segments[i], " segs, ",
+      cat("  ", results$label[i], ": ", results$n_segments[i], " segs, ",
           results$n_species[i], " spp, ", round(results$elapsed_s[i], 1),
           "s\n", sep = "")
     }

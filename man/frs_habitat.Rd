@@ -2,11 +2,14 @@
 % Please edit documentation in R/frs_habitat.R
 \name{frs_habitat}
 \alias{frs_habitat}
-\title{Run Habitat Pipeline for Watershed Groups}
+\title{Run Habitat Pipeline}
 \usage{
 frs_habitat(
   conn,
-  wsg,
+  wsg = NULL,
+  aoi = NULL,
+  species = NULL,
+  label = NULL,
   to_streams = NULL,
   to_habitat = NULL,
   break_sources = NULL,
@@ -19,24 +22,34 @@ frs_habitat(
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
 
-\item{wsg}{Character. One or more watershed group codes
-(e.g. \code{"BULK"}, \code{c("BULK", "MORR")}).}
+\item{wsg}{Character or \code{NULL}. One or more watershed group codes.
+When provided, species are auto-detected via \code{\link[=frs_wsg_species]{frs_wsg_species()}}.}
+
+\item{aoi}{AOI specification or \code{NULL}. Overrides the spatial extent.
+Accepts anything \code{\link[=frs_extract]{frs_extract()}} handles: \code{sf} polygon, character
+WSG code, WHERE clause string, or named list. When \code{NULL} with
+\code{wsg}, uses the WSG polygon.}
+
+\item{species}{Character or \code{NULL}. Species codes to classify
+(e.g. \code{c("CO", "BT")}). When \code{NULL} with \code{wsg}, auto-detected.
+Required when \code{wsg} is \code{NULL}.}
+
+\item{label}{Character or \code{NULL}. Short label for working table names.
+Auto-generated from \code{wsg} when available. Required when \code{wsg} is
+\code{NULL} and \code{aoi} is provided.}
 
 \item{to_streams}{Character or \code{NULL}. Schema-qualified table for
-persistent stream segments (e.g. \code{"fresh.streams"}). Accumulates
-across runs — existing rows for the same WSG are replaced.}
+persistent stream segments. Accumulates across runs.}
 
 \item{to_habitat}{Character or \code{NULL}. Schema-qualified table for
-habitat classifications (e.g. \code{"fresh.streams_habitat"}). Long
-format: one row per segment x species.}
+habitat classifications. Long format: one row per segment x species.}
 
 \item{break_sources}{List of additional break source specs (falls,
 crossings, etc.), or \code{NULL}. Gradient access barriers are generated
-automatically from species parameters. See \code{\link[=frs_break_find]{frs_break_find()}} for
-spec format.}
+automatically from species parameters.}
 
 \item{workers}{Integer. Number of parallel workers. Default \code{1}.
-Values > 1 require the \code{mirai} package.}
+Values > 1 require the \code{mirai} package. Only used in WSG mode.}
 
 \item{password}{Character. Database password for parallel workers.}
 
@@ -45,21 +58,30 @@ Values > 1 require the \code{mirai} package.}
 \item{verbose}{Logical. Print progress. Default \code{TRUE}.}
 }
 \value{
-A data frame with one row per WSG and columns \code{wsg},
-\code{n_segments}, \code{n_species}, \code{elapsed_s}.
+A data frame with columns \code{label}, \code{n_segments}, \code{n_species},
+\code{elapsed_s}.
 }
 \description{
-Orchestrate the full habitat pipeline for one or more watershed groups.
-Per WSG: generates gradient access barriers, segments the network via
-\code{\link[=frs_network_segment]{frs_network_segment()}}, classifies habitat via \code{\link[=frs_habitat_classify]{frs_habitat_classify()}},
-and persists results. Parallelizes across WSGs with
-\code{\link[mirai:mirai_map]{mirai::mirai_map()}} when \code{workers > 1}.
+Orchestrate the full habitat pipeline: generate gradient access
+barriers, segment the network via \code{\link[=frs_network_segment]{frs_network_segment()}}, classify
+habitat via \code{\link[=frs_habitat_classify]{frs_habitat_classify()}}, and persist results.
+}
+\details{
+Supports three modes:
+\itemize{
+\item \strong{WSG mode} (\code{wsg}): one or more watershed group codes. Species
+auto-detected. Parallelizes across WSGs.
+\item \strong{Custom AOI} (\code{aoi} + \code{species}): any spatial extent with explicit
+species. For sub-basins, territories, or cross-WSG study areas.
+\item \strong{WSG + custom AOI} (\code{wsg} + \code{aoi}): WSG for species lookup and
+table naming, custom AOI for spatial extent.
+}
 }
 \examples{
 \dontrun{
 conn <- frs_db_conn()
 
-# Single WSG — gradient barriers auto-generated from species params
+# WSG mode — species auto-detected
 frs_habitat(conn, "BULK",
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat",
@@ -67,18 +89,27 @@ frs_habitat(conn, "BULK",
     list(table = "working.falls", where = "barrier_ind = TRUE",
          label = "blocked")))
 
-# Multiple WSGs, parallel — results accumulate in same tables
+# Custom AOI — sub-basin via ltree filter
+frs_habitat(conn,
+  aoi = "wscode_ltree <@ '100.190442.999098'::ltree",
+  species = c("BT", "CO"),
+  label = "richfield",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# WSG + custom AOI — WSG for species, polygon for extent
+frs_habitat(conn, "ADMS",
+  aoi = my_study_area_polygon,
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# Multiple WSGs, parallel
 frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat",
   workers = 4, password = "postgres",
   break_sources = list(
-    list(table = "working.falls", where = "barrier_ind = TRUE",
-         label = "blocked"),
-    list(table = "working.crossings",
-         label_col = "barrier_status",
-         label_map = c("BARRIER" = "blocked",
-                       "POTENTIAL" = "potential"))))
+    list(table = "working.falls", label = "blocked")))
 
 DBI::dbDisconnect(conn)
 }
