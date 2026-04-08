@@ -83,6 +83,16 @@
 #'   break_sources = list(
 #'     list(table = "working.falls", label = "blocked")))
 #'
+#' # Custom parameters — project-specific thresholds override bundled
+#' # defaults. Use when species have different gradient/channel width
+#' # ranges for your study area, or when adding species not in the
+#' # default parameter set.
+#' frs_habitat(conn, "BULK",
+#'   params = frs_params(csv = "path/to/my_thresholds.csv"),
+#'   params_fresh = read.csv("path/to/my_fresh_params.csv"),
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat <- function(conn, wsg = NULL,
