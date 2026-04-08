@@ -85,6 +85,8 @@ frs_habitat <- function(conn, wsg = NULL,
                         aoi = NULL, species = NULL, label = NULL,
                         to_streams = NULL, to_habitat = NULL,
                         break_sources = NULL,
+                        gate = TRUE,
+                        blocking_labels = "blocked",
                         workers = 1L,
                         password = "",
                         cleanup = TRUE, verbose = TRUE) {
@@ -260,6 +262,7 @@ frs_habitat <- function(conn, wsg = NULL,
       species = species,
       params = params_all,
       params_fresh = params_fresh,
+      gate = gate, blocking_labels = blocking_labels,
       verbose = verbose && is.null(conn_params))
 
     # 5. Persist streams (if to_streams provided)
@@ -368,7 +371,7 @@ frs_habitat <- function(conn, wsg = NULL,
 
       frs_habitat_classify(w_conn, table = streams_tbl, to = habitat_tbl,
         species = species, params = params_all, params_fresh = params_fresh,
-        verbose = FALSE)
+        gate = gate, blocking_labels = blocking_labels, verbose = FALSE)
 
       if (!is.null(to_streams)) {
         DBI::dbExecute(w_conn, sprintf(
@@ -404,6 +407,7 @@ frs_habitat <- function(conn, wsg = NULL,
       conn_params = conn_params, break_sources = break_sources,
       params_all = params_all, params_fresh = params_fresh,
       to_streams = to_streams, to_habitat = to_habitat,
+      gate = gate, blocking_labels = blocking_labels,
       verbose = verbose)[]
 
     errs <- vapply(result_list, inherits, logical(1), "miraiError")

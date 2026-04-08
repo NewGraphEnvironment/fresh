@@ -20,6 +20,14 @@
 #'   bundled CSV.
 #' @param params_fresh Data frame from `parameters_fresh.csv`. Default
 #'   reads from bundled CSV.
+#' @param gate Logical. If `TRUE` (default), breaks restrict
+#'   classification — segments downstream of blocking breaks are marked
+#'   inaccessible. If `FALSE`, all segments are classified regardless of
+#'   breaks (raw habitat potential).
+#' @param blocking_labels Character vector. Labels that always block
+#'   access. Default `"blocked"`. Gradient labels (`gradient_15`, etc.)
+#'   are always threshold-aware regardless of this parameter. Set to
+#'   `c("blocked", "potential")` for conservative analysis.
 #' @param overwrite Logical. If `TRUE`, replace existing rows for
 #'   these species in the output table. Default `TRUE`.
 #' @param verbose Logical. Print progress. Default `TRUE`.
@@ -73,11 +81,14 @@ frs_habitat_classify <- function(conn, table, to,
                                  species,
                                  params = NULL,
                                  params_fresh = NULL,
+                                 gate = TRUE,
+                                 blocking_labels = "blocked",
                                  overwrite = TRUE,
                                  verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
   .frs_validate_identifier(to, "output table")
   stopifnot(is.character(species), length(species) > 0)
+  stopifnot(is.logical(gate), length(gate) == 1)
 
   breaks_tbl <- paste0(table, "_breaks")
 
@@ -138,35 +149,50 @@ frs_habitat_classify <- function(conn, table, to,
   access_thresholds <- sort(unique(vapply(species_params,
     function(x) x$access_gradient, numeric(1))))
 
-  # Compute accessibility once per threshold
+  # Compute accessibility once per threshold (or skip if gate = FALSE)
   access_tables <- list()
-  for (thr in access_thresholds) {
-    t0 <- proc.time()
-    thr_key <- as.character(thr)
-    acc_tbl <- paste0(table, "_acc_", gsub("\\.", "", thr_key))
 
-    label_filter <- .frs_access_label_filter(conn, breaks_tbl, thr)
-
+  if (!gate) {
+    # Ungated: all segments accessible — classify based on attributes alone
+    acc_tbl <- paste0(table, "_acc_all")
     .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl))
     .frs_db_execute(conn, sprintf(
-      "CREATE TABLE %s AS
-       SELECT s.id_segment,
-         NOT EXISTS (
-           SELECT 1 FROM %s b
-           WHERE (%s)
-             AND b.blue_line_key = s.blue_line_key
-             AND b.downstream_route_measure <= s.downstream_route_measure
-         )
-         AND NOT EXISTS (
-           SELECT 1 FROM %s b
-           WHERE (%s)
-             AND b.blue_line_key != s.blue_line_key
-             AND b.wscode_ltree IS NOT NULL
-             AND fwa_upstream(b.wscode_ltree, b.localcode_ltree,
-                              s.wscode_ltree, s.localcode_ltree)
-         ) AS accessible
-       FROM %s s",
-      acc_tbl, breaks_tbl, label_filter, breaks_tbl, label_filter, table))
+      "CREATE TABLE %s AS SELECT id_segment, TRUE AS accessible FROM %s",
+      acc_tbl, table))
+    .frs_db_execute(conn, sprintf("CREATE INDEX ON %s (id_segment)", acc_tbl))
+    for (thr in access_thresholds) {
+      access_tables[[as.character(thr)]] <- acc_tbl
+    }
+    if (verbose) cat("  Ungated: all segments accessible\n")
+  } else {
+    for (thr in access_thresholds) {
+      t0 <- proc.time()
+      thr_key <- as.character(thr)
+      acc_tbl <- paste0(table, "_acc_", gsub("\\.", "", thr_key))
+
+      label_filter <- .frs_access_label_filter(conn, breaks_tbl, thr,
+                                                blocking_labels)
+
+      .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl))
+      .frs_db_execute(conn, sprintf(
+        "CREATE TABLE %s AS
+         SELECT s.id_segment,
+           NOT EXISTS (
+             SELECT 1 FROM %s b
+             WHERE (%s)
+               AND b.blue_line_key = s.blue_line_key
+               AND b.downstream_route_measure <= s.downstream_route_measure
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM %s b
+             WHERE (%s)
+               AND b.blue_line_key != s.blue_line_key
+               AND b.wscode_ltree IS NOT NULL
+               AND fwa_upstream(b.wscode_ltree, b.localcode_ltree,
+                                s.wscode_ltree, s.localcode_ltree)
+           ) AS accessible
+         FROM %s s",
+        acc_tbl, breaks_tbl, label_filter, breaks_tbl, label_filter, table))
 
     .frs_db_execute(conn, sprintf("CREATE INDEX ON %s (id_segment)", acc_tbl))
 
@@ -180,6 +206,7 @@ frs_habitat_classify <- function(conn, table, to,
           round((proc.time() - t0)["elapsed"], 1), "s)\n", sep = "")
     }
   }
+  }  # end gate if/else
 
   # -- Classify each species using pre-computed accessibility -----------------
   for (sp_params in species_params) {
@@ -286,22 +313,25 @@ frs_habitat_classify <- function(conn, table, to,
 #' @param access_gradient Numeric. Species access gradient max.
 #' @return SQL predicate string for filtering breaks.
 #' @noRd
-.frs_access_label_filter <- function(conn, breaks_tbl, access_gradient) {
+.frs_access_label_filter <- function(conn, breaks_tbl, access_gradient,
+                                     blocking_labels = "blocked") {
   # Get distinct labels from breaks table
   labels <- DBI::dbGetQuery(conn, sprintf(
     "SELECT DISTINCT label FROM %s", breaks_tbl))$label
 
   # Determine which labels block this species
+  # Two patterns:
+  #   blocking_labels — user-configured labels that always block
+  #   "gradient_N" — blocks species with access threshold <= N%
+  # Everything else does not block
   blocking <- vapply(labels, function(lbl) {
     if (is.na(lbl)) return(FALSE)
-    # Parse gradient labels: "gradient_15" → 0.15
+    if (lbl %in% blocking_labels) return(TRUE)
     m <- regmatches(lbl, regexec("^gradient_(\\d+)$", lbl))[[1]]
     if (length(m) == 2) {
-      grad_pct <- as.numeric(m[2]) / 100
-      return(grad_pct >= access_gradient)
+      return(as.numeric(m[2]) / 100 >= access_gradient)
     }
-    # Non-gradient labels (blocked, potential, etc.) always block
-    TRUE
+    FALSE
   }, logical(1))
 
   blocking_labels <- labels[blocking]
