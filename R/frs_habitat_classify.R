@@ -24,6 +24,10 @@
 #'   classification — segments downstream of blocking breaks are marked
 #'   inaccessible. If `FALSE`, all segments are classified regardless of
 #'   breaks (raw habitat potential).
+#' @param blocking_labels Character vector. Labels that always block
+#'   access. Default `"blocked"`. Gradient labels (`gradient_15`, etc.)
+#'   are always threshold-aware regardless of this parameter. Set to
+#'   `c("blocked", "potential")` for conservative analysis.
 #' @param overwrite Logical. If `TRUE`, replace existing rows for
 #'   these species in the output table. Default `TRUE`.
 #' @param verbose Logical. Print progress. Default `TRUE`.
@@ -78,6 +82,7 @@ frs_habitat_classify <- function(conn, table, to,
                                  params = NULL,
                                  params_fresh = NULL,
                                  gate = TRUE,
+                                 blocking_labels = "blocked",
                                  overwrite = TRUE,
                                  verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
@@ -165,7 +170,8 @@ frs_habitat_classify <- function(conn, table, to,
       thr_key <- as.character(thr)
       acc_tbl <- paste0(table, "_acc_", gsub("\\.", "", thr_key))
 
-      label_filter <- .frs_access_label_filter(conn, breaks_tbl, thr)
+      label_filter <- .frs_access_label_filter(conn, breaks_tbl, thr,
+                                                blocking_labels)
 
       .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl))
       .frs_db_execute(conn, sprintf(
@@ -307,19 +313,20 @@ frs_habitat_classify <- function(conn, table, to,
 #' @param access_gradient Numeric. Species access gradient max.
 #' @return SQL predicate string for filtering breaks.
 #' @noRd
-.frs_access_label_filter <- function(conn, breaks_tbl, access_gradient) {
+.frs_access_label_filter <- function(conn, breaks_tbl, access_gradient,
+                                     blocking_labels = "blocked") {
   # Get distinct labels from breaks table
   labels <- DBI::dbGetQuery(conn, sprintf(
     "SELECT DISTINCT label FROM %s", breaks_tbl))$label
 
   # Determine which labels block this species
-  # Only two patterns block:
-  #   "blocked" — explicit block label
+  # Two patterns:
+  #   blocking_labels — user-configured labels that always block
   #   "gradient_N" — blocks species with access threshold <= N%
-  # Everything else (passable, potential, observed, custom labels) does not block
+  # Everything else does not block
   blocking <- vapply(labels, function(lbl) {
     if (is.na(lbl)) return(FALSE)
-    if (identical(lbl, "blocked")) return(TRUE)
+    if (lbl %in% blocking_labels) return(TRUE)
     m <- regmatches(lbl, regexec("^gradient_(\\d+)$", lbl))[[1]]
     if (length(m) == 2) {
       return(as.numeric(m[2]) / 100 >= access_gradient)

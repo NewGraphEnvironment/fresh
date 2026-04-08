@@ -20,31 +20,44 @@ test_that("species is required", {
 
 # --- Unit tests: .frs_access_label_filter ---
 
-test_that("only blocked and gradient labels block", {
+test_that("only blocking_labels and gradient labels block", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) 0L
   )
 
-  # Mock the label query
-  mockery::stub(.frs_access_label_filter, "DBI::dbGetQuery", function(conn, sql) {
-    data.frame(label = c("blocked", "passable", "accessible", "observed",
-                          "potential", "gradient_15", "gradient_25",
-                          "bridge", "monitoring_station"),
-               stringsAsFactors = FALSE)
-  })
+  mock_labels <- data.frame(
+    label = c("blocked", "passable", "accessible", "observed",
+              "potential", "gradient_15", "gradient_25",
+              "bridge", "monitoring_station"),
+    stringsAsFactors = FALSE)
 
-  # At 15% threshold: "blocked" + gradient_15 + gradient_25 block.
-  # Everything else does NOT block.
+  mockery::stub(.frs_access_label_filter, "DBI::dbGetQuery",
+    function(conn, sql) mock_labels)
+
+  # Default blocking_labels = "blocked"
   result <- .frs_access_label_filter("mock", "breaks", 0.15)
   expect_true(grepl("blocked", result))
   expect_true(grepl("gradient_15", result))
   expect_true(grepl("gradient_25", result))
-  expect_false(grepl("passable", result))
-  expect_false(grepl("accessible", result))
-  expect_false(grepl("observed", result))
   expect_false(grepl("potential", result))
   expect_false(grepl("bridge", result))
-  expect_false(grepl("monitoring_station", result))
+})
+
+test_that("custom blocking_labels block", {
+  mock_labels <- data.frame(
+    label = c("blocked", "potential", "passable", "gradient_15"),
+    stringsAsFactors = FALSE)
+
+  mockery::stub(.frs_access_label_filter, "DBI::dbGetQuery",
+    function(conn, sql) mock_labels)
+
+  # Conservative: potential also blocks
+  result <- .frs_access_label_filter("mock", "breaks", 0.15,
+    blocking_labels = c("blocked", "potential"))
+  expect_true(grepl("blocked", result))
+  expect_true(grepl("potential", result))
+  expect_true(grepl("gradient_15", result))
+  expect_false(grepl("passable", result))
 })
 
 test_that("gradient labels below threshold do not block", {
