@@ -15,6 +15,8 @@ frs_habitat(
   break_sources = NULL,
   gate = TRUE,
   label_block = "blocked",
+  params = NULL,
+  params_fresh = NULL,
   workers = 1L,
   password = "",
   cleanup = TRUE,
@@ -49,6 +51,12 @@ habitat classifications. Long format: one row per segment x species.}
 \item{break_sources}{List of additional break source specs (falls,
 crossings, etc.), or \code{NULL}. Gradient access barriers are generated
 automatically from species parameters.}
+
+\item{params}{Named list from \code{\link[=frs_params]{frs_params()}}, or \code{NULL} to use
+bundled \code{parameters_habitat_thresholds.csv}.}
+
+\item{params_fresh}{Data frame from \code{parameters_fresh.csv}, or
+\code{NULL} to use bundled default.}
 
 \item{workers}{Integer. Number of parallel workers. Default \code{1}.
 Values > 1 require the \code{mirai} package. Only used in WSG mode.}
