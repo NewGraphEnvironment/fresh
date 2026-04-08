@@ -1,20 +1,21 @@
-# Run Habitat Pipeline for Watershed Groups
+# Run Habitat Pipeline
 
-Orchestrate the full habitat pipeline for one or more watershed groups.
-Per WSG: generates gradient access barriers, segments the network via
+Orchestrate the full habitat pipeline: generate gradient access
+barriers, segment the network via
 [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md),
-classifies habitat via
+classify habitat via
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),
-and persists results. Parallelizes across WSGs with
-[`mirai::mirai_map()`](https://mirai.r-lib.org/reference/mirai_map.html)
-when `workers > 1`.
+and persist results.
 
 ## Usage
 
 ``` r
 frs_habitat(
   conn,
-  wsg,
+  wsg = NULL,
+  aoi = NULL,
+  species = NULL,
+  label = NULL,
   to_streams = NULL,
   to_habitat = NULL,
   break_sources = NULL,
@@ -36,33 +37,49 @@ frs_habitat(
 
 - wsg:
 
-  Character. One or more watershed group codes (e.g. `"BULK"`,
-  `c("BULK", "MORR")`).
+  Character or `NULL`. One or more watershed group codes. When provided,
+  species are auto-detected via
+  [`frs_wsg_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_species.md).
+
+- aoi:
+
+  AOI specification or `NULL`. Overrides the spatial extent. Accepts
+  anything
+  [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
+  handles: `sf` polygon, character WSG code, WHERE clause string, or
+  named list. When `NULL` with `wsg`, uses the WSG polygon.
+
+- species:
+
+  Character or `NULL`. Species codes to classify (e.g. `c("CO", "BT")`).
+  When `NULL` with `wsg`, auto-detected. Required when `wsg` is `NULL`.
+
+- label:
+
+  Character or `NULL`. Short label for working table names.
+  Auto-generated from `wsg` when available. Required when `wsg` is
+  `NULL` and `aoi` is provided.
 
 - to_streams:
 
   Character or `NULL`. Schema-qualified table for persistent stream
-  segments (e.g. `"fresh.streams"`). Accumulates across runs — existing
-  rows for the same WSG are replaced.
+  segments. Accumulates across runs.
 
 - to_habitat:
 
   Character or `NULL`. Schema-qualified table for habitat
-  classifications (e.g. `"fresh.streams_habitat"`). Long format: one row
-  per segment x species.
+  classifications. Long format: one row per segment x species.
 
 - break_sources:
 
   List of additional break source specs (falls, crossings, etc.), or
   `NULL`. Gradient access barriers are generated automatically from
-  species parameters. See
-  [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
-  for spec format.
+  species parameters.
 
 - workers:
 
   Integer. Number of parallel workers. Default `1`. Values \> 1 require
-  the `mirai` package.
+  the `mirai` package. Only used in WSG mode.
 
 - password:
 
@@ -78,8 +95,21 @@ frs_habitat(
 
 ## Value
 
-A data frame with one row per WSG and columns `wsg`, `n_segments`,
-`n_species`, `elapsed_s`.
+A data frame with columns `label`, `n_segments`, `n_species`,
+`elapsed_s`.
+
+## Details
+
+Supports three modes:
+
+- **WSG mode** (`wsg`): one or more watershed group codes. Species
+  auto-detected. Parallelizes across WSGs.
+
+- **Custom AOI** (`aoi` + `species`): any spatial extent with explicit
+  species. For sub-basins, territories, or cross-WSG study areas.
+
+- **WSG + custom AOI** (`wsg` + `aoi`): WSG for species lookup and table
+  naming, custom AOI for spatial extent.
 
 ## See also
 
@@ -108,7 +138,7 @@ Other habitat:
 if (FALSE) { # \dontrun{
 conn <- frs_db_conn()
 
-# Single WSG — gradient barriers auto-generated from species params
+# WSG mode — species auto-detected
 frs_habitat(conn, "BULK",
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat",
@@ -116,18 +146,27 @@ frs_habitat(conn, "BULK",
     list(table = "working.falls", where = "barrier_ind = TRUE",
          label = "blocked")))
 
-# Multiple WSGs, parallel — results accumulate in same tables
+# Custom AOI — sub-basin via ltree filter
+frs_habitat(conn,
+  aoi = "wscode_ltree <@ '100.190442.999098'::ltree",
+  species = c("BT", "CO"),
+  label = "richfield",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# WSG + custom AOI — WSG for species, polygon for extent
+frs_habitat(conn, "ADMS",
+  aoi = my_study_area_polygon,
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# Multiple WSGs, parallel
 frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat",
   workers = 4, password = "postgres",
   break_sources = list(
-    list(table = "working.falls", where = "barrier_ind = TRUE",
-         label = "blocked"),
-    list(table = "working.crossings",
-         label_col = "barrier_status",
-         label_map = c("BARRIER" = "blocked",
-                       "POTENTIAL" = "potential"))))
+    list(table = "working.falls", label = "blocked")))
 
 DBI::dbDisconnect(conn)
 } # }

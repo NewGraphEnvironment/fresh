@@ -39,7 +39,7 @@
 - [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md)
   : Fetch Fish Observations
 - [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
-  : Run Habitat Pipeline for Watershed Groups
+  : Run Habitat Pipeline
 - [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)
   : Compute Access Breaks at a Gradient Threshold
 - [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
