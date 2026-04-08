@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,25 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.9.0" id="fresh-090">fresh 0.9.0<a class="anchor" aria-label="anchor" href="#fresh-090"></a></h2>
+<p>Flexible AOI, configurable access gating, and feature indexing.</p>
+<ul><li>
+<code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> accepts any AOI — sf polygons, WHERE clauses, ltree filters — not just WSG codes. Add <code>species</code> and <code>label</code> params for custom runs (<a href="https://github.com/NewGraphEnvironment/fresh/issues/96" class="external-link">#96</a>)</li>
+<li>
+<code>gate</code> parameter on <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> — set <code>FALSE</code> to classify raw habitat potential without access restrictions (<a href="https://github.com/NewGraphEnvironment/fresh/issues/98" class="external-link">#98</a>)</li>
+<li>
+<code>blocking_labels</code> parameter — configurable which labels restrict access. Default <code>"blocked"</code>. Set <code>c("blocked", "potential")</code> for conservative analysis. Only <code>"blocked"</code> and <code>gradient_N</code> block by default; everything else passes through</li>
+<li>
+<code><a href="../reference/frs_feature_find.html">frs_feature_find()</a></code> — locate any point features on the network (crossings, observations, stations) with <code>col_id</code> for feature identity (<a href="https://github.com/NewGraphEnvironment/fresh/issues/92" class="external-link">#92</a>)</li>
+<li>
+<code><a href="../reference/frs_feature_index.html">frs_feature_index()</a></code> — index upstream/downstream relationships between segments and features as ID arrays (<a href="https://github.com/NewGraphEnvironment/fresh/issues/93" class="external-link">#93</a>)</li>
+<li>
+<code><a href="../reference/frs_break_find.html">frs_break_find()</a></code> slimmed to gradient-only. Point/table modes moved to <code><a href="../reference/frs_feature_find.html">frs_feature_find()</a></code>
+</li>
+<li>Province-wide run completed: 229 WSGs, 5.98M segments</li>
+<li>Classify growth penalty fixed: constant-time DELETE by <code>watershed_group_code</code> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/91" class="external-link">#91</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.8.0" id="fresh-080">fresh 0.8.0<a class="anchor" aria-label="anchor" href="#fresh-080"></a></h2>
 <p>Unified pipeline, domain-agnostic network segmentation, and major performance improvements.</p>
