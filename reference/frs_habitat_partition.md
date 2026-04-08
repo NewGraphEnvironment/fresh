@@ -13,7 +13,7 @@ frs_habitat_partition(
   aoi,
   label,
   species,
-  params_all,
+  params,
   params_fresh,
   source = "whse_basemapping.fwa_stream_networks_sp",
   break_sources = NULL,
@@ -47,7 +47,7 @@ frs_habitat_partition(
   Data frame with columns `species_code`, `access_gradient`, and
   `spawn_gradient_max`. One row per species.
 
-- params_all:
+- params:
 
   Named list from
   [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md).
@@ -120,7 +120,7 @@ Other habitat:
 ``` r
 if (FALSE) { # \dontrun{
 conn <- frs_db_conn()
-params_all <- frs_params(csv = system.file("extdata",
+params <- frs_params(csv = system.file("extdata",
   "parameters_habitat_thresholds.csv", package = "fresh"))
 params_fresh <- read.csv(system.file("extdata",
   "parameters_fresh.csv", package = "fresh"))
@@ -132,7 +132,7 @@ species <- data.frame(
   spawn_gradient_max = c(0.0549, 0.0549))
 
 prep <- frs_habitat_partition(conn, aoi = "BULK", label = "bulk",
-  species = species, params_all = params_all,
+  species = species, params = params,
   params_fresh = params_fresh)
 
 # Run one species from the prepared jobs

@@ -21,6 +21,8 @@ frs_habitat(
   break_sources = NULL,
   gate = TRUE,
   label_block = "blocked",
+  params = NULL,
+  params_fresh = NULL,
   workers = 1L,
   password = "",
   cleanup = TRUE,
@@ -77,6 +79,17 @@ frs_habitat(
   List of additional break source specs (falls, crossings, etc.), or
   `NULL`. Gradient access barriers are generated automatically from
   species parameters.
+
+- params:
+
+  Named list from
+  [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md),
+  or `NULL` to use bundled `parameters_habitat_thresholds.csv`.
+
+- params_fresh:
+
+  Data frame from `parameters_fresh.csv`, or `NULL` to use bundled
+  default.
 
 - workers:
 
@@ -169,6 +182,16 @@ frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
   workers = 4, password = "postgres",
   break_sources = list(
     list(table = "working.falls", label = "blocked")))
+
+# Custom parameters — project-specific thresholds override bundled
+# defaults. Use when species have different gradient/channel width
+# ranges for your study area, or when adding species not in the
+# default parameter set.
+frs_habitat(conn, "BULK",
+  params = frs_params(csv = "path/to/my_thresholds.csv"),
+  params_fresh = read.csv("path/to/my_fresh_params.csv"),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
 
 DBI::dbDisconnect(conn)
 } # }

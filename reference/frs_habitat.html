@@ -61,6 +61,8 @@ habitat via <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a>
 <span>  break_sources <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  gate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  label_block <span class="op">=</span> <span class="st">"blocked"</span>,</span>
+<span>  params <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  params_fresh <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  password <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  cleanup <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -114,6 +116,16 @@ habitat classifications. Long format: one row per segment x species.</p></dd>
 <dd><p>List of additional break source specs (falls,
 crossings, etc.), or <code>NULL</code>. Gradient access barriers are generated
 automatically from species parameters.</p></dd>
+
+
+<dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
+<dd><p>Named list from <code><a href="frs_params.html">frs_params()</a></code>, or <code>NULL</code> to use
+bundled <code>parameters_habitat_thresholds.csv</code>.</p></dd>
+
+
+<dt id="arg-params-fresh">params_fresh<a class="anchor" aria-label="anchor" href="#arg-params-fresh"></a></dt>
+<dd><p>Data frame from <code>parameters_fresh.csv</code>, or
+<code>NULL</code> to use bundled default.</p></dd>
 
 
 <dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>
@@ -203,6 +215,16 @@ table naming, custom AOI for spatial extent.</p></li>
 <span class="r-in"><span>  workers <span class="op">=</span> <span class="fl">4</span>, password <span class="op">=</span> <span class="st">"postgres"</span>,</span></span>
 <span class="r-in"><span>  break_sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.falls"</span>, label <span class="op">=</span> <span class="st">"blocked"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Custom parameters — project-specific thresholds override bundled</span></span></span>
+<span class="r-in"><span><span class="co"># defaults. Use when species have different gradient/channel width</span></span></span>
+<span class="r-in"><span><span class="co"># ranges for your study area, or when adding species not in the</span></span></span>
+<span class="r-in"><span><span class="co"># default parameter set.</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat</span><span class="op">(</span><span class="va">conn</span>, <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  params <span class="op">=</span> <span class="fu"><a href="frs_params.html">frs_params</a></span><span class="op">(</span>csv <span class="op">=</span> <span class="st">"path/to/my_thresholds.csv"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  params_fresh <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"path/to/my_fresh_params.csv"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
+<span class="r-in"><span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
