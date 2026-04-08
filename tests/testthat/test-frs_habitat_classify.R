@@ -20,7 +20,7 @@ test_that("species is required", {
 
 # --- Unit tests: .frs_access_label_filter ---
 
-test_that("only blocking_labels and gradient labels block", {
+test_that("only label_block and gradient labels block", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) 0L
   )
@@ -34,7 +34,7 @@ test_that("only blocking_labels and gradient labels block", {
   mockery::stub(.frs_access_label_filter, "DBI::dbGetQuery",
     function(conn, sql) mock_labels)
 
-  # Default blocking_labels = "blocked"
+  # Default label_block = "blocked"
   result <- .frs_access_label_filter("mock", "breaks", 0.15)
   expect_true(grepl("blocked", result))
   expect_true(grepl("gradient_15", result))
@@ -43,7 +43,7 @@ test_that("only blocking_labels and gradient labels block", {
   expect_false(grepl("bridge", result))
 })
 
-test_that("custom blocking_labels block", {
+test_that("custom label_block block", {
   mock_labels <- data.frame(
     label = c("blocked", "potential", "passable", "gradient_15"),
     stringsAsFactors = FALSE)
@@ -53,7 +53,7 @@ test_that("custom blocking_labels block", {
 
   # Conservative: potential also blocks
   result <- .frs_access_label_filter("mock", "breaks", 0.15,
-    blocking_labels = c("blocked", "potential"))
+    label_block = c("blocked", "potential"))
   expect_true(grepl("blocked", result))
   expect_true(grepl("potential", result))
   expect_true(grepl("gradient_15", result))

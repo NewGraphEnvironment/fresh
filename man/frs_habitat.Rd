@@ -14,7 +14,7 @@ frs_habitat(
   to_habitat = NULL,
   break_sources = NULL,
   gate = TRUE,
-  blocking_labels = "blocked",
+  label_block = "blocked",
   workers = 1L,
   password = "",
   cleanup = TRUE,

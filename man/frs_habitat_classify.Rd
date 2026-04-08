@@ -12,7 +12,7 @@ frs_habitat_classify(
   params = NULL,
   params_fresh = NULL,
   gate = TRUE,
-  blocking_labels = "blocked",
+  label_block = "blocked",
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -40,7 +40,7 @@ classification — segments downstream of blocking breaks are marked
 inaccessible. If \code{FALSE}, all segments are classified regardless of
 breaks (raw habitat potential).}
 
-\item{blocking_labels}{Character vector. Labels that always block
+\item{label_block}{Character vector. Labels that always block
 access. Default \code{"blocked"}. Gradient labels (\code{gradient_15}, etc.)
 are always threshold-aware regardless of this parameter. Set to
 \code{c("blocked", "potential")} for conservative analysis.}
