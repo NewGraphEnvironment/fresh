@@ -14,6 +14,8 @@ frs_habitat_classify(
   species,
   params = NULL,
   params_fresh = NULL,
+  gate = TRUE,
+  blocking_labels = "blocked",
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -52,6 +54,20 @@ frs_habitat_classify(
 
   Data frame from `parameters_fresh.csv`. Default reads from bundled
   CSV.
+
+- gate:
+
+  Logical. If `TRUE` (default), breaks restrict classification —
+  segments downstream of blocking breaks are marked inaccessible. If
+  `FALSE`, all segments are classified regardless of breaks (raw habitat
+  potential).
+
+- blocking_labels:
+
+  Character vector. Labels that always block access. Default
+  `"blocked"`. Gradient labels (`gradient_15`, etc.) are always
+  threshold-aware regardless of this parameter. Set to
+  `c("blocked", "potential")` for conservative analysis.
 
 - overwrite:
 

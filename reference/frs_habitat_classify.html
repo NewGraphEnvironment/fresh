@@ -60,6 +60,8 @@ booleans.</p>
 <span>  <span class="va">species</span>,</span>
 <span>  params <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  params_fresh <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  gate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  blocking_labels <span class="op">=</span> <span class="st">"blocked"</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -96,6 +98,20 @@ bundled CSV.</p></dd>
 <dt id="arg-params-fresh">params_fresh<a class="anchor" aria-label="anchor" href="#arg-params-fresh"></a></dt>
 <dd><p>Data frame from <code>parameters_fresh.csv</code>. Default
 reads from bundled CSV.</p></dd>
+
+
+<dt id="arg-gate">gate<a class="anchor" aria-label="anchor" href="#arg-gate"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (default), breaks restrict
+classification — segments downstream of blocking breaks are marked
+inaccessible. If <code>FALSE</code>, all segments are classified regardless of
+breaks (raw habitat potential).</p></dd>
+
+
+<dt id="arg-blocking-labels">blocking_labels<a class="anchor" aria-label="anchor" href="#arg-blocking-labels"></a></dt>
+<dd><p>Character vector. Labels that always block
+access. Default <code>"blocked"</code>. Gradient labels (<code>gradient_15</code>, etc.)
+are always threshold-aware regardless of this parameter. Set to
+<code>c("blocked", "potential")</code> for conservative analysis.</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
