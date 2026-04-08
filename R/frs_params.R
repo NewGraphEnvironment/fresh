@@ -73,8 +73,9 @@ frs_params <- function(conn = NULL,
   params <- lapply(species_list, function(row) {
     row <- as.list(row)
 
-    # Convert numeric fields
-    num_fields <- setdiff(names(row), "species_code")
+    # Convert numeric fields (skip character columns like edge_types)
+    char_fields <- c("species_code", "spawn_edge_types", "rear_edge_types")
+    num_fields <- setdiff(names(row), char_fields)
     for (f in num_fields) {
       row[[f]] <- as.numeric(row[[f]])
     }
