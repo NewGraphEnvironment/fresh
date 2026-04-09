@@ -1,3 +1,12 @@
+# fresh 0.11.1
+
+Gradient barrier label format precision fix.
+
+- New `gradient_NNNN` label format — 4-digit zero-padded basis points (threshold × 10000) preserves precision for fractional thresholds. `0.05` → `gradient_0500`, `0.0549` → `gradient_0549`, `0.15` → `gradient_1500`. Resolution: 1 basis point ([#110](https://github.com/NewGraphEnvironment/fresh/issues/110))
+- Fixes silent precision loss in 0.11.0 where `as.integer(thr * 100)` collapsed `0.05` and `0.0549` both to `gradient_5`, causing distinct biological thresholds to share a single break
+- New `.frs_validate_gradient_thresholds()` errors on out-of-range, excess precision, NA, or label-collision inputs (catches the bug class going forward)
+- Parser `.frs_access_label_filter()` accepts BOTH new format and legacy `gradient_N` for backward compat with user-supplied labels via `frs_break_find(label = "gradient_15")`
+
 # fresh 0.11.0
 
 Sub-segment gradient resolution via auto-derived breaks.
