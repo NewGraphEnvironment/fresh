@@ -18,6 +18,8 @@
   : Classify Features by Attribute Ranges, Breaks, or Overrides
 - [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md)
   : Clip Spatial Features to an AOI Polygon
+- [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md)
+  : Validate Cluster Connectivity on Stream Network
 - [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md)
   : Convert Columns to PostgreSQL Generated Columns from Geometry
 - [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md)
