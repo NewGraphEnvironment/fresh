@@ -40,19 +40,19 @@
 
 <div id="fresh" class="section level1">
 
-<p>FWA-Referenced Spatial Hydrology. Stream network-aware spatial operations via direct SQL against fwapg and bcfishpass. Snap points to streams, delineate watersheds, query fish observations, and fetch network-referenced features from the BC Freshwater Atlas.</p>
+<p>Freshwater Referenced Spatial Hydrology. A composable stream network modelling engine. Query and extract stream networks, classify habitat by gradient and channel width, segment networks at barriers and break points, aggregate features upstream or downstream, and run multi-species habitat modelling with parallel workers.</p>
 <div class="section level2">
 <h2 id="repository-context">Repository Context<a class="anchor" aria-label="anchor" href="#repository-context"></a></h2>
-<p><strong>Repository:</strong> NewGraphEnvironment/fresh <strong>Primary Language:</strong> R (package) <strong>Version:</strong> 0.1.0 <strong>License:</strong> MIT</p>
+<p><strong>Repository:</strong> NewGraphEnvironment/fresh <strong>Primary Language:</strong> R (package) <strong>Version:</strong> 0.9.0 <strong>License:</strong> MIT</p>
 </div>
 <div class="section level2">
 <h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a></h2>
 <table class="table"><colgroup><col width="60%"><col width="40%"></colgroup><thead><tr class="header"><th>Package</th>
 <th>Role</th>
 </tr></thead><tbody><tr class="odd"><td><strong>fresh</strong></td>
-<td>FWA-referenced spatial hydrology (this package)</td>
-</tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/breaks" class="external-link">breaks</a></td>
-<td>Delineate sub-basins from break points on stream networks</td>
+<td>Stream network modelling engine (this package)</td>
+</tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>
+<td>Crossing connectivity interpretation — scoring, overrides, prioritization</td>
 </tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
 <td>Delineate floodplain extents from DEMs and stream networks</td>
 </tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
@@ -61,7 +61,7 @@
 <td>Estimate airphoto footprints and select optimal coverage for a study area</td>
 </tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/diggs" class="external-link">diggs</a></td>
 <td>Interactive explorer for fly airphoto selections (Shiny app)</td>
-</tr></tbody></table><p>Pipeline: fresh (network data) → breaks (sub-basins) → flooded (floodplains) → drift (land cover change)</p>
+</tr></tbody></table><p>Pipeline: fresh (network data) → flooded (floodplains) → drift (land cover change)</p>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
@@ -69,35 +69,54 @@
   fresh-package.R            — package-level doc, imports
   frs_db_conn.R              — DB connection via PG_*_SHARE env vars
   frs_db_query.R             — execute SQL, return sf
+  frs_habitat.R              — orchestrator: multi-WSG/AOI habitat pipeline
+  frs_habitat_classify.R     — long-format habitat classification per species
+  frs_network_segment.R      — domain-agnostic network segmentation
+  frs_feature_find.R         — locate point features on network
+  frs_feature_index.R        — upstream/downstream relationship indexing
+  frs_break.R                — gradient break detection (island method)
+  frs_classify.R             — segment classification by attributes/breaks
+  frs_extract.R              — extract streams to working table
+  frs_col_join.R             — join attributes (channel width, discharge)
+  frs_col_generate.R         — recompute gradient from geometry
   frs_network.R              — unified multi-table network traversal
   frs_network_upstream.R     — upstream network query (ltree)
   frs_network_downstream.R   — downstream network query (ltree)
-  frs_network_prune.R        — prune network to measure range
-  frs_waterbody_network.R    — lakes/wetlands by waterbody key
   frs_point_snap.R           — snap points to nearest stream
   frs_point_locate.R         — locate point on stream network
   frs_stream_fetch.R         — fetch stream segments
   frs_lake_fetch.R           — fetch lakes
   frs_wetland_fetch.R        — fetch wetlands
-  frs_fish_obs.R             — fish observation queries
-  frs_fish_habitat.R         — habitat model queries
-  frs_order_filter.R         — filter by stream order
+  frs_params.R               — load species habitat parameters
+  frs_wsg_species.R          — species presence per watershed group
+  frs_edge_types.R           — FWA edge type lookup
   utils.R                    — internal helpers
-tests/testthat/              — unit tests for each function
-inst/extdata/                — cached vignette data (subbasin_data.rds)
-data-raw/                    — hex sticker generation
+tests/testthat/              — unit tests
+inst/extdata/                — bundled CSVs (falls, crossings, params, species)
+data-raw/                    — data refresh scripts
+docker/                      — local fwapg Docker setup
 vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code></pre>
 </div>
 <div class="section level2">
 <h2 id="key-patterns">Key Patterns<a class="anchor" aria-label="anchor" href="#key-patterns"></a></h2>
-<ul><li>All exported functions prefixed <code>frs_</code>, named noun-first: <code><a href="reference/frs_stream_fetch.html">frs_stream_fetch()</a></code>, <code><a href="reference/frs_point_snap.html">frs_point_snap()</a></code>, etc.</li>
-<li>
-<code><a href="reference/frs_network.html">frs_network()</a></code> is the main workhorse — unified multi-table traversal with network subtraction via <code>upstream_measure</code>
+<ul><li>All exported functions prefixed <code>frs_</code>, named noun-first: <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code>, <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>, <code><a href="reference/frs_feature_find.html">frs_feature_find()</a></code>
 </li>
-<li>Direct SQL via DBI/RPostgres against fwapg/bcfishpass PostgreSQL</li>
+<li>
+<code><a href="reference/frs_habitat.html">frs_habitat()</a></code> is the main orchestrator — wraps <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code> + <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> with mirai parallel workers</li>
+<li>
+<code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code> is domain-agnostic — segments any network at any break points</li>
+<li>
+<code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> produces long-format output: one row per segment × species, joined to geometry via <code>id_segment</code>
+</li>
+<li>
+<code>break_sources</code> with <code>label</code>, <code>label_col</code>, <code>label_map</code> for flexible network-referenced classification</li>
+<li>
+<code>label_block</code> controls which labels restrict access (default <code>"blocked"</code>, configurable)</li>
+<li>
+<code>gate = FALSE</code> skips accessibility for raw habitat potential</li>
+<li>Direct SQL via DBI/RPostgres against fwapg PostgreSQL</li>
 <li>Returns sf objects for spatial results</li>
-<li>Requires PostgreSQL with fwapg, bcfishpass, and bcfishobs extensions</li>
-<li>Smart defaults: functions detect context (e.g. auto-detect species from bcfishpass)</li>
+<li>Requires PostgreSQL with fwapg only (bcfishpass/bcfishobs optional)</li>
 <li>Vignette data cached in <code>inst/extdata/</code> with <code>update_gis</code> YAML param (FALSE = cached, TRUE = live DB)</li>
 </ul></div>
 <div class="section level2">
@@ -105,11 +124,11 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <ul><li>
 <strong>Runtime:</strong> DBI, RPostgres, sf</li>
 <li>
-<strong>Suggests:</strong> tmap (&gt;= 4.0), gq, bookdown, knitr, rmarkdown</li>
+<strong>Suggests:</strong> mirai, tmap (&gt;= 4.0), gq, bookdown, knitr, rmarkdown</li>
 <li>
-<strong>Database:</strong> PostgreSQL with fwapg + bcfishpass + bcfishobs</li>
+<strong>Database:</strong> PostgreSQL with fwapg (local Docker or remote tunnel)</li>
 <li>
-<strong>Connection:</strong> SSH tunnel to remote instance or local; see db-newgraph skill</li>
+<strong>Connection:</strong> Local Docker on port 5432 or SSH tunnel on 63333; see db-newgraph skill</li>
 </ul></div>
 <div class="section level2">
 <h2 id="naming-conventions">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions"></a></h2>
@@ -165,94 +184,28 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 </div>
 </div>
 <div class="section level1">
-<h1 id="agent-teams-orchestration">Agent Teams Orchestration<a class="anchor" aria-label="anchor" href="#agent-teams-orchestration"></a></h1>
-<p>Checklist for effectively running Claude Code agent teams. Agent teams coordinate multiple Claude Code instances working in parallel with shared tasks and inter-agent messaging.</p>
+<h1 id="agent-teams">Agent Teams<a class="anchor" aria-label="anchor" href="#agent-teams"></a></h1>
+<p>When to use Claude Code agent teams vs subagents, and key constraints.</p>
 <p><strong>Source:</strong> <a href="https://code.claude.com/docs/en/agent-teams" class="external-link">code.claude.com/docs/en/agent-teams</a></p>
-<p><strong>Status:</strong> Experimental. Disabled by default.</p>
-<div class="section level2">
-<h2 id="before-you-start">Before You Start<a class="anchor" aria-label="anchor" href="#before-you-start"></a></h2>
-<ul class="task-list"><li>
-<p><label><input type="checkbox"><strong>Enable the feature flag</strong> in <code>settings.json</code> or environment:</label></p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">{</span> <span class="dt">"env"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"</span><span class="fu">:</span> <span class="st">"1"</span> <span class="fu">}</span> <span class="fu">}</span></span></code></pre></div>
-</li>
-<li><p><label><input type="checkbox"><strong>Choose display mode</strong> — <code>in-process</code> (default, any terminal) or split panes (requires tmux or iTerm2). Set <code>teammateMode</code> in <code>settings.json</code> or pass <code>--teammate-mode</code>.</label></p></li>
-<li><p><label><input type="checkbox"><strong>Install tmux</strong> if using split panes (<code>brew install tmux</code>). Not supported in VS Code terminal, Windows Terminal, or Ghostty.</label></p></li>
-<li><p><label><input type="checkbox"><strong>Pre-approve common permissions</strong> in your permission settings before spawning teammates — permission prompts bubble up to the lead and create friction.</label></p></li>
-</ul></div>
 <div class="section level2">
 <h2 id="when-to-use-teams-vs-subagents">When to Use Teams (vs. Subagents)<a class="anchor" aria-label="anchor" href="#when-to-use-teams-vs-subagents"></a></h2>
 <p>Use agent teams when teammates need to <strong>talk to each other</strong> — research debates, competing hypotheses, cross-layer coordination. Use subagents when you just need focused workers that report back results.</p>
-<p><strong>Good fit:</strong> parallel code review (security + performance + tests), investigating competing bug hypotheses, new modules that don’t share files, research from multiple angles.</p>
+<p><strong>Good fit:</strong> parallel code review, investigating competing bug hypotheses, new modules that don’t share files, research from multiple angles.</p>
 <p><strong>Bad fit:</strong> sequential tasks, edits to the same file, simple work where coordination overhead exceeds benefit.</p>
 </div>
 <div class="section level2">
-<h2 id="starting-a-team">Starting a Team<a class="anchor" aria-label="anchor" href="#starting-a-team"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox"><strong>Give enough context in the spawn prompt</strong> — teammates don’t inherit the lead’s conversation history. Include file paths, architecture context, and specific focus areas.</label></li>
-<li><label><input type="checkbox"><strong>Size tasks right</strong> — too small = overhead wasted, too large = risk of divergence. Aim for self-contained units with clear deliverables. 5-6 tasks per teammate keeps everyone productive.</label></li>
-<li><label><input type="checkbox"><strong>Specify models explicitly</strong> if you want cost control (e.g., “Use Sonnet for each teammate”).</label></li>
-<li><label><input type="checkbox"><strong>Ensure teammates own different files</strong> — two teammates editing the same file leads to overwrites.</label></li>
-</ul></div>
-<div class="section level2">
-<h2 id="during-execution">During Execution<a class="anchor" aria-label="anchor" href="#during-execution"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox"><strong>Use delegate mode</strong> (Shift+Tab) to prevent the lead from implementing tasks itself instead of waiting for teammates.</label></li>
-<li><label><input type="checkbox"><strong>Monitor and steer</strong> — check progress, redirect approaches that aren’t working. Don’t let a team run unattended too long.</label></li>
-<li><label><input type="checkbox"><strong>Message teammates directly</strong> — Shift+Up/Down in in-process mode, click pane in split mode. Give additional instructions or ask follow-ups.</label></li>
-<li><label><input type="checkbox"><strong>If the lead starts coding instead of delegating</strong>, tell it: “Wait for your teammates to complete their tasks before proceeding.”</label></li>
-</ul></div>
-<div class="section level2">
-<h2 id="quality-gates">Quality Gates<a class="anchor" aria-label="anchor" href="#quality-gates"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox"><strong>Require plan approval</strong> for risky work — teammates plan in read-only mode until the lead approves. Give criteria: “only approve plans that include test coverage.”</label></li>
-<li>
-<label><input type="checkbox"><strong>Use hooks</strong> for automated enforcement:</label>
+<h2 id="key-rules">Key Rules<a class="anchor" aria-label="anchor" href="#key-rules"></a></h2>
 <ul><li>
-<code>TeammateIdle</code> — exit code 2 sends feedback and keeps the teammate working</li>
+<strong>Give enough context in the spawn prompt</strong> — teammates don’t inherit the lead’s conversation history</li>
 <li>
-<code>TaskCompleted</code> — exit code 2 prevents completion and sends feedback</li>
-</ul></li>
+<strong>Ensure teammates own different files</strong> — two teammates editing the same file leads to overwrites</li>
+<li>
+<strong>Shut down all teammates before cleanup</strong> — cleanup fails if teammates are still running</li>
+<li>
+<strong>Always clean up via the lead</strong> — teammates should never run cleanup</li>
+<li>
+<strong>No session resumption</strong> — after <code>/resume</code>, spawn new teammates</li>
 </ul></div>
-<div class="section level2">
-<h2 id="cleanup-critical">Cleanup (Critical)<a class="anchor" aria-label="anchor" href="#cleanup-critical"></a></h2>
-<ul class="task-list"><li><p><label><input type="checkbox"><strong>Shut down all teammates first</strong> — ask the lead: “Ask the researcher teammate to shut down.” Teammates finish their current action before stopping.</label></p></li>
-<li><p><label><input type="checkbox"><strong>Then clean up the team</strong> — tell the lead: “Clean up the team.” This removes shared resources. Cleanup fails if teammates are still running.</label></p></li>
-<li><p><label><input type="checkbox"><strong>Always clean up via the lead</strong> — teammates should never run cleanup (their team context may not resolve correctly).</label></p></li>
-<li>
-<p><label><input type="checkbox"><strong>Check for orphaned tmux sessions</strong> after cleanup:</label></p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">tmux</span> ls</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">tmux</span> kill-session <span class="at">-t</span> <span class="op">&lt;</span>session-name<span class="op">&gt;</span></span></code></pre></div>
-</li>
-</ul></div>
-<div class="section level2">
-<h2 id="known-limitations">Known Limitations<a class="anchor" aria-label="anchor" href="#known-limitations"></a></h2>
-<ul><li>
-<strong>No session resumption</strong> — <code>/resume</code> and <code>/rewind</code> don’t restore in-process teammates. After resuming, tell the lead to spawn new teammates.</li>
-<li>
-<strong>Task status can lag</strong> — teammates sometimes fail to mark tasks complete, blocking dependents. Manually check and update if stuck.</li>
-<li>
-<strong>One team per session</strong> — clean up before starting a new team.</li>
-<li>
-<strong>No nested teams</strong> — only the lead can manage the team.</li>
-<li>
-<strong>Lead is fixed</strong> — can’t promote a teammate or transfer leadership.</li>
-<li>
-<strong>Permissions set at spawn</strong> — all teammates inherit the lead’s mode. Change individually after spawning if needed.</li>
-</ul></div>
-<div class="section level2">
-<h2 id="quick-reference">Quick Reference<a class="anchor" aria-label="anchor" href="#quick-reference"></a></h2>
-<table class="table"><thead><tr class="header"><th>Action</th>
-<th>How</th>
-</tr></thead><tbody><tr class="odd"><td>Cycle teammates</td>
-<td>Shift+Up/Down</td>
-</tr><tr class="even"><td>View teammate session</td>
-<td>Enter on selected teammate</td>
-</tr><tr class="odd"><td>Interrupt teammate</td>
-<td>Escape while viewing</td>
-</tr><tr class="even"><td>Toggle task list</td>
-<td>Ctrl+T</td>
-</tr><tr class="odd"><td>Enable delegate mode</td>
-<td>Shift+Tab</td>
-</tr><tr class="even"><td>Force in-process mode</td>
-<td><code>claude --teammate-mode in-process</code></td>
-</tr></tbody></table></div>
 </div>
 <div class="section level1">
 <h1 id="bookdown-conventions">Bookdown Conventions<a class="anchor" aria-label="anchor" href="#bookdown-conventions"></a></h1>
@@ -297,7 +250,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level2">
 <h2 id="setup-chunk-pattern">Setup Chunk Pattern<a class="anchor" aria-label="anchor" href="#setup-chunk-pattern"></a></h2>
 <p>Every <code>index.Rmd</code> follows this setup sequence. Order matters.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Gitbook vs PDF switch</span></span>
 <span><span class="va">gitbook_on</span> <span class="op">&lt;-</span> <span class="cn">TRUE</span></span>
 <span></span>
@@ -316,7 +269,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">'scripts/staticimports.R'</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">'scripts/functions.R'</span><span class="op">)</span></span></code></pre></div>
 <p>Responsive settings by output format:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Gitbook</span></span>
 <span><span class="va">photo_width</span> <span class="op">&lt;-</span> <span class="st">"100%"</span>; <span class="va">font_set</span> <span class="op">&lt;-</span> <span class="fl">11</span></span>
 <span></span>
@@ -326,12 +279,12 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level2">
 <h2 id="yaml-parameters">YAML Parameters<a class="anchor" aria-label="anchor" href="#yaml-parameters"></a></h2>
 <p>Parameters live in <code>index.Rmd</code> frontmatter (not a separate file). Child repos override by editing these values.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">params</span><span class="kw">:</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="at">  </span><span class="fu">repo_url</span><span class="kw">:</span><span class="at"> </span><span class="st">'https://github.com/NewGraphEnvironment/repo_name'</span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="at">  </span><span class="fu">report_url</span><span class="kw">:</span><span class="at"> </span><span class="st">'https://www.newgraphenvironment.com/repo_name/'</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="at">  </span><span class="fu">update_packages</span><span class="kw">:</span><span class="at"> </span><span class="ch">FALSE</span></span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="at">  </span><span class="fu">update_bib</span><span class="kw">:</span><span class="at"> </span><span class="ch">TRUE</span></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="at">  </span><span class="fu">gitbook_on</span><span class="kw">:</span><span class="at"> </span><span class="ch">TRUE</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">params</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="at">  </span><span class="fu">repo_url</span><span class="kw">:</span><span class="at"> </span><span class="st">'https://github.com/NewGraphEnvironment/repo_name'</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="at">  </span><span class="fu">report_url</span><span class="kw">:</span><span class="at"> </span><span class="st">'https://www.newgraphenvironment.com/repo_name/'</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="at">  </span><span class="fu">update_packages</span><span class="kw">:</span><span class="at"> </span><span class="ch">FALSE</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="at">  </span><span class="fu">update_bib</span><span class="kw">:</span><span class="at"> </span><span class="ch">TRUE</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="at">  </span><span class="fu">gitbook_on</span><span class="kw">:</span><span class="at"> </span><span class="ch">TRUE</span></span></code></pre></div>
 <p>Fish passage repos add project-specific params (<code>project_region</code>, <code>model_species</code>, <code>wsg_code</code>, update flags for forms). These are project-specific — don’t add them to the general template.</p>
 </div>
 <div class="section level2">
@@ -367,41 +320,41 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <h2 id="table-caption-workaround">Table Caption Workaround<a class="anchor" aria-label="anchor" href="#table-caption-workaround"></a></h2>
 <p>Interactive tables (DT) can’t use standard bookdown captions. Use the <code>my_tab_caption()</code> function from <code>staticimports.R</code>.</p>
 <p><strong>Pattern:</strong> Separate <code>-cap</code> chunk from table chunk.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># Caption chunk — must use results="asis"</span></span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>{r tab<span class="sc">-</span>sites<span class="sc">-</span>sum<span class="sc">-</span>cap, results<span class="ot">=</span><span class="st">"asis"</span>}</span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>my_caption <span class="ot">&lt;-</span> <span class="st">"Summary of fish passage assessment procedures."</span></span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="fu">my_tab_caption</span>()</span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Table chunk — renders the DT</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>{r tab<span class="sc">-</span>sites<span class="sc">-</span>sum}</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">my_dt_table</span>(<span class="at">page_length =</span> <span class="dv">20</span>, <span class="at">cols_freeze_left =</span> <span class="dv">0</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Caption chunk — must use results="asis"</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>{r tab<span class="sc">-</span>sites<span class="sc">-</span>sum<span class="sc">-</span>cap, results<span class="ot">=</span><span class="st">"asis"</span>}</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>my_caption <span class="ot">&lt;-</span> <span class="st">"Summary of fish passage assessment procedures."</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">my_tab_caption</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Table chunk — renders the DT</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>{r tab<span class="sc">-</span>sites<span class="sc">-</span>sum}</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">my_dt_table</span>(<span class="at">page_length =</span> <span class="dv">20</span>, <span class="at">cols_freeze_left =</span> <span class="dv">0</span>)</span></code></pre></div>
 <p><code>my_tab_caption()</code> auto-grabs the chunk label via <code>knitr::opts_current$get()$label</code> and wraps it in HTML caption tags that bookdown can cross-reference.</p>
 </div>
 <div class="section level2">
 <h2 id="photo-layout">Photo Layout<a class="anchor" aria-label="anchor" href="#photo-layout"></a></h2>
 <p>Separate prep chunk (find the file) from display chunk (render it).</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Prep — find the photo</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>{r photo<span class="dv">-196332-01</span><span class="sc">-</span>prep}</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>my_photo1 <span class="ot">&lt;-</span> fpr<span class="sc">::</span><span class="fu">fpr_photo_pull_by_str</span>(<span class="at">str_to_pull =</span> <span class="st">'ds_typical_1_'</span>)</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>my_caption1 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">'Typical habitat downstream of PSCIS crossing '</span>, my_site, <span class="st">'.'</span>)</span></code></pre></div>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="co"># Gitbook — full width</span></span>
-<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>{r photo<span class="dv">-196332-01</span>, fig.cap<span class="ot">=</span>my_caption1, out.width<span class="ot">=</span>photo_width, eval<span class="ot">=</span>gitbook_on}</span>
-<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo1)</span></code></pre></div>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># PDF — side by side with 1% spacer</span></span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>{r photo<span class="dv">-196332</span><span class="sc">-</span>d01, fig.show<span class="ot">=</span><span class="st">"hold"</span>, out.width<span class="ot">=</span><span class="fu">c</span>(<span class="st">"49.5%"</span>,<span class="st">"1%"</span>,<span class="st">"49.5%"</span>), eval<span class="ot">=</span><span class="fu">identical</span>(gitbook_on, <span class="cn">FALSE</span>)}</span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo1)</span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(<span class="st">"fig/pixel.png"</span>)</span>
-<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo2)</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># Prep — find the photo</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>{r photo<span class="dv">-196332-01</span><span class="sc">-</span>prep}</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>my_photo1 <span class="ot">&lt;-</span> fpr<span class="sc">::</span><span class="fu">fpr_photo_pull_by_str</span>(<span class="at">str_to_pull =</span> <span class="st">'ds_typical_1_'</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>my_caption1 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">'Typical habitat downstream of PSCIS crossing '</span>, my_site, <span class="st">'.'</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Gitbook — full width</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>{r photo<span class="dv">-196332-01</span>, fig.cap<span class="ot">=</span>my_caption1, out.width<span class="ot">=</span>photo_width, eval<span class="ot">=</span>gitbook_on}</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo1)</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># PDF — side by side with 1% spacer</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>{r photo<span class="dv">-196332</span><span class="sc">-</span>d01, fig.show<span class="ot">=</span><span class="st">"hold"</span>, out.width<span class="ot">=</span><span class="fu">c</span>(<span class="st">"49.5%"</span>,<span class="st">"1%"</span>,<span class="st">"49.5%"</span>), eval<span class="ot">=</span><span class="fu">identical</span>(gitbook_on, <span class="cn">FALSE</span>)}</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo1)</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(<span class="st">"fig/pixel.png"</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo2)</span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="bibliography">Bibliography<a class="anchor" aria-label="anchor" href="#bibliography"></a></h2>
 <p><strong><code>references.bib</code> is auto-generated — never edit it manually.</strong> On each build, <code>rbbt::bbt_write_bib()</code> scans all <code>.Rmd</code> files for <code>@citekey</code> references, pulls the BibTeX from Zotero’s Better BibTeX, and overwrites <code>references.bib</code>. Any manual additions will be lost on the next build.</p>
 <p>To add a reference: add it to the shared Zotero group library, use its BBT citation key (<code>@key</code>) in the <code>.Rmd</code> text, and build. rbbt handles the rest.</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">biblio-style</span><span class="kw">:</span><span class="at"> apalike</span></span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">link-citations</span><span class="kw">:</span><span class="at"> </span><span class="ch">no</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">biblio-style</span><span class="kw">:</span><span class="at"> apalike</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="fu">link-citations</span><span class="kw">:</span><span class="at"> </span><span class="ch">no</span></span></code></pre></div>
 <p>When <code>update_bib: FALSE</code> in params, the build uses the existing <code>references.bib</code> without regenerating — useful for offline builds or CI where Zotero isn’t running.</p>
 <p>Auto-generate package citations:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/write_bib.html" class="external-link">write_bib</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/zpackages.html" class="external-link">.packages</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">'bookdown'</span>, <span class="st">'knitr'</span>, <span class="st">'rmarkdown'</span><span class="op">)</span>, <span class="st">'packages.bib'</span><span class="op">)</span></span></code></pre></div>
 <p>Use <code>nocite:</code> in YAML to include references not cited in text.</p>
 </div>
@@ -419,11 +372,11 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level3">
 <h3 id="ai-disclosure">AI Disclosure<a class="anchor" aria-label="anchor" href="#ai-disclosure"></a></h3>
 <p>Do not use a <code>#</code> heading for the disclosure — this creates a separate chapter page in gitbook. Instead, add it to the YAML <code>date:</code> field so it renders in the title block:</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">date</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a> |</span>
-<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a> | Version X.X.X DRAFT `r format(Sys.Date(), "%Y-%m-%d")`</span>
-<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a> |</span>
-<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a> | *Claude Sonnet 4.6 (Anthropic) assisted with literature synthesis, drafting, and technical writing. All scientific interpretation, data analysis, and conclusions are the responsibility of the authors.*</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">date</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a> |</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a> | Version X.X.X DRAFT `r format(Sys.Date(), "%Y-%m-%d")`</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a> |</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a> | *Claude Sonnet 4.6 (Anthropic) assisted with literature synthesis, drafting, and technical writing. All scientific interpretation, data analysis, and conclusions are the responsibility of the authors.*</span></code></pre></div>
 <p><strong>Wording principle:</strong> Be accurate about what the LLM did. It assisted with drafting and synthesis — it did not make scientific interpretations or conclusions. Do not say “independently verified by the authors” (redundant) or attribute “ecological assessments” to the LLM.</p>
 <p>For regulatory/EGBC-stamped work, use the extended disclaimer from <code>soul/research/20260212_ai_disclosure_research.md</code>. See NewGraphEnvironment/mybookdown-template#89.</p>
 </div>
@@ -431,39 +384,39 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level2">
 <h2 id="conditional-rendering-gitbook-vs-pdf">Conditional Rendering (Gitbook vs PDF)<a class="anchor" aria-label="anchor" href="#conditional-rendering-gitbook-vs-pdf"></a></h2>
 <p>A single boolean <code>gitbook_on</code> controls output format throughout.</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="co"># Show only in gitbook</span></span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>{r map<span class="sc">-</span>interactive, eval<span class="ot">=</span>gitbook_on}</span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a></span>
-<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="co"># Show only in PDF</span></span>
-<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>{r fig<span class="sc">-</span>print<span class="sc">-</span>only, eval<span class="ot">=</span><span class="fu">identical</span>(gitbook_on, <span class="cn">FALSE</span>)}</span>
-<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a></span>
-<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="co"># Conditional inline content</span></span>
-<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a><span class="st">`</span><span class="at">r if(identical(gitbook_on, FALSE)) knitr::asis_output("This report is available online...")</span><span class="st">`</span></span>
-<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a></span>
-<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a><span class="co"># Page breaks for PDF only</span></span>
-<span id="cb16-11"><a href="#cb16-11" tabindex="-1"></a><span class="st">`</span><span class="at">r if(gitbook_on){knitr::asis_output("")} else knitr::asis_output("</span><span class="sc">\\</span><span class="at">pagebreak")</span><span class="st">`</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="co"># Show only in gitbook</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>{r map<span class="sc">-</span>interactive, eval<span class="ot">=</span>gitbook_on}</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co"># Show only in PDF</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>{r fig<span class="sc">-</span>print<span class="sc">-</span>only, eval<span class="ot">=</span><span class="fu">identical</span>(gitbook_on, <span class="cn">FALSE</span>)}</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="co"># Conditional inline content</span></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="st">`</span><span class="at">r if(identical(gitbook_on, FALSE)) knitr::asis_output("This report is available online...")</span><span class="st">`</span></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a><span class="co"># Page breaks for PDF only</span></span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a><span class="st">`</span><span class="at">r if(gitbook_on){knitr::asis_output("")} else knitr::asis_output("</span><span class="sc">\\</span><span class="at">pagebreak")</span><span class="st">`</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="versioning-and-changelog">Versioning and Changelog<a class="anchor" aria-label="anchor" href="#versioning-and-changelog"></a></h2>
 <p>Reports use MAJOR.MINOR.PATCH versioning with a <code>NEWS.md</code> changelog.</p>
 <p><strong>Version in <code>index.Rmd</code> YAML:</strong></p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="fu">date</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a> |</span>
-<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a> | Version 1.1.0 DRAFT `r format(Sys.Date(), "%Y-%m-%d")`</span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">date</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a> |</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a> | Version 1.1.0 DRAFT `r format(Sys.Date(), "%Y-%m-%d")`</span></code></pre></div>
 <p><strong>NEWS.md format:</strong></p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="fu">## 1.1.0 (2026-02-17)</span></span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a></span>
-<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="ss">- </span>Add feature X</span>
-<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="ss">- </span>Fix issue Y (<span class="co">[</span><span class="ot">Issue #N</span><span class="co">](https://github.com/Org/repo/issues/N)</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">## 1.1.0 (2026-02-17)</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="ss">- </span>Add feature X</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="ss">- </span>Fix issue Y (<span class="co">[</span><span class="ot">Issue #N</span><span class="co">](https://github.com/Org/repo/issues/N)</span>)</span></code></pre></div>
 <p><strong>Auto-append as appendix</strong> via <code>my_news_to_appendix()</code> in <code>staticimports.R</code>:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">news_to_appendix</span><span class="op">(</span>md_name <span class="op">=</span> <span class="st">"NEWS.md"</span>, rmd_name <span class="op">=</span> <span class="st">"2090-report-change-log.Rmd"</span><span class="op">)</span></span></code></pre></div>
 <p><strong>Convention:</strong> - Bump version in <code>index.Rmd</code> and add NEWS entry for every commit to main that changes report content - Tag releases: <code>git tag -a v1.1.0 -m "v1.1.0: Brief description"</code> - MAJOR: structural changes, new chapters, methodology changes - MINOR: new content, figures, tables, discussion sections - PATCH: prose fixes, corrections, formatting</p>
 </div>
 <div class="section level2">
 <h2 id="cog-viewer-embedding">COG Viewer Embedding<a class="anchor" aria-label="anchor" href="#cog-viewer-embedding"></a></h2>
 <p>Always use <code>ngr::ngr_str_viewer_cog()</code> — never hardcode viewer iframes.</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/asis_output.html" class="external-link">asis_output</a></span><span class="op">(</span><span class="fu">ngr</span><span class="fu">::</span><span class="fu">ngr_str_viewer_cog</span><span class="op">(</span><span class="st">"https://bucket.s3.us-west-2.amazonaws.com/ortho.tif"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>The function includes a cache-busting <code>?v=</code> parameter. Bump <code>v</code> in the function default when <code>viewer.html</code> has breaking changes.</p>
 </div>
@@ -489,7 +442,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level2">
 <h2 id="style-registry">Style Registry<a class="anchor" aria-label="anchor" href="#style-registry"></a></h2>
 <p>Use the <code>gq</code> package for all shared layer symbology. Never hardcode hex color values when a registry style exists.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></span><span class="op">)</span></span>
 <span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># load once per script — 51+ layers</span></span></code></pre></div>
 <p><strong>Core pattern:</strong> <code>reg$layers$lake</code>, <code>reg$layers$road</code>, <code>reg$layers$bec_zone</code>, etc.</p>
@@ -513,7 +466,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level3">
 <h3 id="custom-styles">Custom styles<a class="anchor" aria-label="anchor" href="#custom-styles"></a></h3>
 <p>For project-specific layers not in the main registry, use a hand-curated CSV and merge:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_merge.html" class="external-link">gq_reg_merge</a></span><span class="op">(</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu">gq_reg_read_csv</span><span class="op">(</span><span class="st">"path/to/custom.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Install: <code>pak::pak("NewGraphEnvironment/gq")</code></p>
 </div>
@@ -536,7 +489,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <td>Field work, Mergin Maps</td>
 </tr></tbody></table></div>
 <div class="section level2">
-<h2 id="key-rules">Key Rules<a class="anchor" aria-label="anchor" href="#key-rules"></a></h2>
+<h2 id="key-rules-1">Key Rules<a class="anchor" aria-label="anchor" href="#key-rules-1"></a></h2>
 <ul><li>
 <strong><code>sf_use_s2(FALSE)</code></strong> at top of every mapping script</li>
 <li>
@@ -574,7 +527,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <h2 id="land-cover-change">Land Cover Change<a class="anchor" aria-label="anchor" href="#land-cover-change"></a></h2>
 <p>Use <a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a> and <a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a> together for riparian land cover change analysis. flooded delineates floodplain extents from DEMs and stream networks; drift tracks what’s changing inside them over time.</p>
 <p><strong>Pipeline:</strong></p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Delineate floodplain AOI (flooded)</span></span>
 <span><span class="va">valleys</span> <span class="op">&lt;-</span> <span class="fu">flooded</span><span class="fu">::</span><span class="fu">fl_valley_confine</span><span class="op">(</span><span class="va">dem</span>, <span class="va">streams</span><span class="op">)</span></span>
 <span></span>
@@ -707,12 +660,6 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level2">
 <h2 id="general">General<a class="anchor" aria-label="anchor" href="#general"></a></h2>
 <div class="section level3">
-<h3 id="diff-hygiene">Diff Hygiene<a class="anchor" aria-label="anchor" href="#diff-hygiene"></a></h3>
-<ul><li>Every changed line should trace to the task — no drive-by cleanups</li>
-<li>New files need: are they gitignored if sensitive? executable if scripts?</li>
-<li>Deleted files: check for references in other files, docs, READMEs</li>
-</ul></div>
-<div class="section level3">
 <h3 id="documentation-staleness">Documentation Staleness<a class="anchor" aria-label="anchor" href="#documentation-staleness"></a></h3>
 <ul><li>Moving/renaming scripts: update CLAUDE.md, READMEs, usage comments</li>
 <li>New variables: update .tfvars.example</li>
@@ -841,7 +788,8 @@ Website: www.newgraphenvironment.com</code></pre>
 </tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/compost" class="external-link">compost</a></td>
 <td>Communications templates, email workflows, contact management</td>
 <td>The “who”</td>
-</tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/awshak" class="external-link">awshak</a></td>
+</tr><tr class="even"><td>
+<a href="https://github.com/NewGraphEnvironment/rtj" class="external-link">rtj</a> (formerly awshak)</td>
 <td>Infrastructure as Code, deployment</td>
 <td>The “where”</td>
 </tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></td>
@@ -871,27 +819,27 @@ Website: www.newgraphenvironment.com</code></pre>
 <li>
 <strong>Add tracking links at the end</strong> (e.g., <code>Relates to Owner/repo#N</code>)</li>
 </ul><p><strong>Issue body structure:</strong></p>
-<div class="sourceCode" id="cb26"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu">## Problem</span></span>
-<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a>&lt;what's wrong or missing&gt;</span>
-<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a></span>
-<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a><span class="fu">## Proposed Solution</span></span>
-<span id="cb26-5"><a href="#cb26-5" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">approach</span><span class="dt">&gt;</span></span>
-<span id="cb26-6"><a href="#cb26-6" tabindex="-1"></a></span>
-<span id="cb26-7"><a href="#cb26-7" tabindex="-1"></a>Relates to #<span class="dt">&lt;</span><span class="kw">local</span><span class="dt">&gt;</span></span>
-<span id="cb26-8"><a href="#cb26-8" tabindex="-1"></a>Relates to NewGraphEnvironment/sred-2025-2026#<span class="dt">&lt;</span><span class="kw">N</span><span class="dt">&gt;</span></span></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu">## Problem</span></span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a>&lt;what's wrong or missing&gt;</span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="fu">## Proposed Solution</span></span>
+<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">approach</span><span class="dt">&gt;</span></span>
+<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a></span>
+<span id="cb24-7"><a href="#cb24-7" tabindex="-1"></a>Relates to #<span class="dt">&lt;</span><span class="kw">local</span><span class="dt">&gt;</span></span>
+<span id="cb24-8"><a href="#cb24-8" tabindex="-1"></a>Relates to NewGraphEnvironment/sred-2025-2026#<span class="dt">&lt;</span><span class="kw">N</span><span class="dt">&gt;</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="github-issue-creation---always-use-files">GitHub Issue Creation - Always Use Files<a class="anchor" aria-label="anchor" href="#github-issue-creation---always-use-files"></a></h3>
 <p>The <code>gh issue create</code> command with heredoc syntax fails repeatedly with EOF errors. ALWAYS use <code>--body-file</code>:</p>
-<div class="sourceCode" id="cb27"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> /tmp/issue_body.md <span class="op">&lt;&lt; 'EOF'</span></span>
-<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a><span class="st">## Problem</span></span>
-<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a><span class="st">...</span></span>
-<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a></span>
-<span id="cb27-5"><a href="#cb27-5" tabindex="-1"></a><span class="st">## Proposed Solution</span></span>
-<span id="cb27-6"><a href="#cb27-6" tabindex="-1"></a><span class="st">...</span></span>
-<span id="cb27-7"><a href="#cb27-7" tabindex="-1"></a><span class="op">EOF</span></span>
-<span id="cb27-8"><a href="#cb27-8" tabindex="-1"></a></span>
-<span id="cb27-9"><a href="#cb27-9" tabindex="-1"></a><span class="ex">gh</span> issue create <span class="at">--title</span> <span class="st">"Brief technical title"</span> <span class="at">--body-file</span> /tmp/issue_body.md</span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> /tmp/issue_body.md <span class="op">&lt;&lt; 'EOF'</span></span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="st">## Problem</span></span>
+<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a><span class="st">...</span></span>
+<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" tabindex="-1"></a><span class="st">## Proposed Solution</span></span>
+<span id="cb25-6"><a href="#cb25-6" tabindex="-1"></a><span class="st">...</span></span>
+<span id="cb25-7"><a href="#cb25-7" tabindex="-1"></a><span class="op">EOF</span></span>
+<span id="cb25-8"><a href="#cb25-8" tabindex="-1"></a></span>
+<span id="cb25-9"><a href="#cb25-9" tabindex="-1"></a><span class="ex">gh</span> issue create <span class="at">--title</span> <span class="st">"Brief technical title"</span> <span class="at">--body-file</span> /tmp/issue_body.md</span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -928,13 +876,13 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <h2 id="llm-agent-conventions">LLM Agent Conventions<a class="anchor" aria-label="anchor" href="#llm-agent-conventions"></a></h2>
 <p>Rules learned from real project sessions. These apply across all repos.</p>
 <ul><li>
-<strong>Cite primary sources</strong> — when a review paper references an older study, trace back to the original and cite it. Don’t attribute findings to the review when the original exists.</li>
-<li>
 <strong>Install missing packages, don’t workaround</strong> — if a package is needed, ask the user to install it (e.g. <code>pak::pak("pkg")</code>). Don’t write degraded fallback code to avoid the dependency.</li>
 <li>
 <strong>Never hardcode extractable data</strong> — if coordinates, station names, or metadata can be pulled from an API or database at runtime, do that. Don’t hardcode values that have a programmatic source.</li>
 <li>
 <strong>Close issues via commits, not <code>gh issue close</code></strong> — see Closing Issues above.</li>
+<li>
+<strong>Cite primary sources</strong> — see references conventions.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="naming-conventions-1">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions-1"></a></h2>
@@ -977,102 +925,6 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </tr></tbody></table></div>
 </div>
 <div class="section level1">
-<h1 id="pr-review-automation">PR Review Automation<a class="anchor" aria-label="anchor" href="#pr-review-automation"></a></h1>
-<p>Automated PR review and interactive Claude mentions using Claude Code GitHub Action.</p>
-<div class="section level2">
-<h2 id="setup-per-repo">Setup (per repo)<a class="anchor" aria-label="anchor" href="#setup-per-repo"></a></h2>
-<ol style="list-style-type: decimal"><li>
-<strong>Install the Claude Code GitHub App</strong> via <code>/install-github-app</code>
-<ul><li>Sets <code>CLAUDE_CODE_OAUTH_TOKEN</code> as a repo secret automatically</li>
-<li>Uses Max subscription (flat $200/mo, not per-token)</li>
-</ul></li>
-<li>
-<strong>Enable the workflow</strong> via <code>/claude-review-enable</code>
-<ul><li>Choose mode: <strong>review</strong> (auto PR review + @claude mentions) or <strong>mention</strong> (@claude only)</li>
-<li>Pushes the workflow template to <code>.github/workflows/claude.yml</code>
-</li>
-</ul></li>
-<li>
-<strong>Ensure CLAUDE.md exists</strong> in the repo — the action reads it automatically. Use <code>/claude-md-init</code> to set up if missing.</li>
-</ol></div>
-<div class="section level2">
-<h2 id="what-it-does">What It Does<a class="anchor" aria-label="anchor" href="#what-it-does"></a></h2>
-<div class="section level3">
-<h3 id="automatic-pr-review-haiku">Automatic PR Review (Haiku)<a class="anchor" aria-label="anchor" href="#automatic-pr-review-haiku"></a></h3>
-<p>On every PR open/update, Claude reviews the diff and posts: - <strong>Inline comments</strong> on specific lines with issues - <strong>Summary comment</strong> with overall assessment - Uses Haiku for speed and cost (~$0.01-0.05 per review)</p>
-</div>
-<div class="section level3">
-<h3 id="interactive-claude-mentions-sonnet">Interactive @claude Mentions (Sonnet)<a class="anchor" aria-label="anchor" href="#interactive-claude-mentions-sonnet"></a></h3>
-<p>Comment <code>@claude &lt;request&gt;</code> on any issue or PR. Claude can: - Answer questions about the codebase - Create branches and open PRs from issue descriptions - Fix code and push commits - Run slash commands: <code>@claude /review</code> - Uses Sonnet for deeper reasoning</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="model-selection">Model Selection<a class="anchor" aria-label="anchor" href="#model-selection"></a></h2>
-<table class="table"><colgroup><col width="29%"><col width="41%"><col width="29%"></colgroup><thead><tr class="header"><th>Job</th>
-<th>Model</th>
-<th>Why</th>
-</tr></thead><tbody><tr class="odd"><td>Auto-review</td>
-<td>Haiku 4.5</td>
-<td>Fast, cheap, good enough for style/lint/bug checks</td>
-</tr><tr class="even"><td>Interactive</td>
-<td>Sonnet 4.5</td>
-<td>Needs reasoning for code changes, PR creation</td>
-</tr></tbody></table><p>To override, edit <code>claude_args</code> in the workflow:</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="fu">claude_args</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a>  --model claude-sonnet-4-5-20250929</span></code></pre></div>
-<p>Available models (use exact IDs): - <code>claude-haiku-4-5-20251001</code> — cheapest, fastest - <code>claude-sonnet-4-5-20250929</code> — balanced - <code>claude-opus-4-6</code> — most capable, expensive</p>
-</div>
-<div class="section level2">
-<h2 id="interactive-examples">Interactive Examples<a class="anchor" aria-label="anchor" href="#interactive-examples"></a></h2>
-<pre><code>@claude what does the validate_crossing function do?
-@claude fix the failing lintr checks and open a PR
-@claude /review — focus on the database query performance
-@claude add tests for the new helper functions in R/utils.R</code></pre>
-</div>
-<div class="section level2">
-<h2 id="bot-workflow-for-openclaw-bots-opening-prs">Bot Workflow (for OpenClaw bots opening PRs)<a class="anchor" aria-label="anchor" href="#bot-workflow-for-openclaw-bots-opening-prs"></a></h2>
-<p>When a bot opens a PR, it should:</p>
-<ol style="list-style-type: decimal"><li>
-<strong>Push the PR</strong> and wait for the Claude review action to complete</li>
-<li>
-<strong>Read review comments</strong> via <code>gh pr view --comments</code>
-</li>
-<li>
-<strong>Fix no-brainers</strong> automatically: lint issues, typos, missing imports</li>
-<li>
-<strong>Ask humans</strong> for judgment calls: architecture, logic changes, scope</li>
-<li>
-<strong>Push fix commits</strong> to re-trigger the review</li>
-<li>
-<strong>Stop after 3 rounds</strong> — if still failing, tag a human reviewer</li>
-</ol></div>
-<div class="section level2">
-<h2 id="cost">Cost<a class="anchor" aria-label="anchor" href="#cost"></a></h2>
-<table class="table"><thead><tr class="header"><th>Model</th>
-<th>Input</th>
-<th>Output</th>
-<th>Typical review</th>
-</tr></thead><tbody><tr class="odd"><td>Haiku 4.5</td>
-<td>$1/M</td>
-<td>$5/M</td>
-<td>~$0.01-0.05</td>
-</tr><tr class="even"><td>Sonnet 4.5</td>
-<td>$3/M</td>
-<td>$15/M</td>
-<td>~$0.05-0.25</td>
-</tr><tr class="odd"><td>Opus 4.6</td>
-<td>$15/M</td>
-<td>$75/M</td>
-<td>~$0.25-1.00</td>
-</tr></tbody></table><p>Use <code>--max-turns</code> to cap iterations and cost.</p>
-</div>
-<div class="section level2">
-<h2 id="reference">Reference<a class="anchor" aria-label="anchor" href="#reference"></a></h2>
-<ul><li><a href="https://github.com/anthropics/claude-code-action" class="external-link">claude-code-action</a></li>
-<li><a href="https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md" class="external-link">Setup guide</a></li>
-</ul></div>
-</div>
-<div class="section level1">
 <h1 id="r-package-development-conventions">R Package Development Conventions<a class="anchor" aria-label="anchor" href="#r-package-development-conventions"></a></h1>
 <p>Standards for R package development across New Graph Environment repositories. Based on <a href="https://r-pkgs.org/" class="external-link">R Packages (2e)</a> by Hadley Wickham and Jenny Bryan.</p>
 <p><strong>Reference packages:</strong> When starting a new package, study these existing packages for patterns: <code>flooded</code>, <code>gq</code>. They demonstrate the conventions below in practice (DESCRIPTION fields, README layout, NEWS.md style, pkgdown setup, test structure, hex sticker, etc.).</p>
@@ -1081,6 +933,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <ul><li>tidyverse style guide: snake_case, pipe operators (<code>|&gt;</code> or <code>%&gt;%</code>)</li>
 <li>Match existing patterns in each codebase</li>
 <li>Use <code>pak</code> for package installation (not <code>install.packages</code>)</li>
+<li>Prefix column name vectors with <code>cols_</code> for discoverability in the environment pane: <code>cols_all</code>, <code>cols_carry</code>, <code>cols_split</code>, <code>cols_writable</code>. Same principle for other grouped vectors (<code>params_</code>, <code>tbl_</code>, etc.)</li>
 </ul></div>
 <div class="section level2">
 <h2 id="package-structure">Package Structure<a class="anchor" aria-label="anchor" href="#package-structure"></a></h2>
@@ -1104,21 +957,21 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </div>
 <div class="section level3">
 <h3 id="closing-issues-1">Closing issues<a class="anchor" aria-label="anchor" href="#closing-issues-1"></a></h3>
-<p>Close function issues via commit messages (not <code>gh issue close</code>) so the diff is linked:</p>
-<pre><code>Add fl_mask() with threshold and operator support
-
-Fixes #3
-Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
+<p>Close function issues via commit messages — see Closing Issues in newgraph conventions.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a></h2>
-<ul><li>Use testthat 3e (<code>Config/testthat/edition: 3</code> in DESCRIPTION)</li>
-<li>Run <code>devtools::test()</code> before committing</li>
-<li>Test files mirror source: <code>R/utils.R</code> -&gt; <code>tests/testthat/test-utils.R</code>
+<ul><li><p>Use testthat 3e (<code>Config/testthat/edition: 3</code> in DESCRIPTION)</p></li>
+<li><p>Run <code>devtools::test()</code> before committing</p></li>
+<li><p>Test files mirror source: <code>R/utils.R</code> -&gt; <code>tests/testthat/test-utils.R</code></p></li>
+<li><p>Test for edge cases and potential failures, not just happy paths</p></li>
+<li><p>Tests must pass before closing the function’s issue</p></li>
+<li>
+<p>Always grep for errors in the same command as the test run to avoid running twice:</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
+<p>For error context: <code>grep -E "(ERROR:|FAIL )" -A 10 | head -25</code></p>
 </li>
-<li>Test for edge cases and potential failures, not just happy paths</li>
-<li>Tests must pass before closing the function’s issue</li>
 </ul></div>
 <div class="section level2">
 <h2 id="examples-and-vignettes">Examples and Vignettes<a class="anchor" aria-label="anchor" href="#examples-and-vignettes"></a></h2>
@@ -1129,6 +982,10 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level3">
 <h3 id="vignettes">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes"></a></h3>
 <p>At least one vignette showing the full pipeline on real data: - Demonstrates the package solving an actual problem end-to-end - Uses bundled test data (committed to <code>inst/testdata/</code>) - Hosted on pkgdown so users can read it without installing</p>
+<p><strong>Output format:</strong> Use <code><a href="https://pkgs.rstudio.com/bookdown/reference/html_document2.html" class="external-link">bookdown::html_vignette2</a></code> (not <code><a href="https://pkgs.rstudio.com/rmarkdown/reference/html_vignette.html" class="external-link">rmarkdown::html_vignette</a></code>) for figure numbering and cross-references. Requires <code>bookdown</code> in Suggests and chunks must have <code>fig.cap</code> for numbered figures. Cross-reference with <code>Figure \@ref(fig:chunk-name)</code>.</p>
+<p><strong>Vignettes that need external resources (DB, API, STAC):</strong> Do NOT use the <code>.Rmd.orig</code> pre-knit pattern — it breaks <code>bookdown</code> figure numbering because knitr evaluates chunks during pre-knit and emits <code>![](path)</code> markdown that bookdown can’t number.</p>
+<p>Instead, separate data generation from presentation: 1. <code>data-raw/vignette_data.R</code> — runs the queries, saves results as <code>.rds</code> to <code>inst/testdata/</code> (or <code>inst/vignette-data/</code>) 2. Vignette loads <code>.rds</code> files, all chunks run live during pkgdown build 3. Note at top of vignette: “Data generated by <code>data-raw/script.R</code>” 4. bookdown controls all chunks — figure numbers, cross-refs work</p>
+<p>This is the same pattern as test data: <code>data-raw/</code> documents how the data was produced, committed artifacts make vignettes reproducible without the external resource.</p>
 </div>
 <div class="section level3">
 <h3 id="test-data">Test data<a class="anchor" aria-label="anchor" href="#test-data"></a></h3>
@@ -1150,7 +1007,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <p>Run <code>lintr::lint_package()</code> before committing R package code. Fix all warnings — every lint should be worth fixing.</p>
 <div class="section level3">
 <h3 id="recommended-lintr-config">Recommended .lintr config<a class="anchor" aria-label="anchor" href="#recommended-lintr-config"></a></h3>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linters</span><span class="op">:</span> <span class="fu">linters_with_defaults</span><span class="op">(</span></span>
 <span>    <span class="fu">line_length_linter</span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>,</span>
 <span>    <span class="fu">object_name_linter</span><span class="op">(</span>styles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snake_case"</span>, <span class="st">"dotted.case"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -1187,19 +1044,19 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <h2 id="repository-setup">Repository Setup<a class="anchor" aria-label="anchor" href="#repository-setup"></a></h2>
 <div class="section level3">
 <h3 id="branch-protection">Branch protection<a class="anchor" aria-label="anchor" href="#branch-protection"></a></h3>
-<p>Protect main from deletion and force pushes. Admin bypasses so you can push directly:</p>
-<div class="sourceCode" id="cb35"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
-<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a><span class="st">{</span></span>
-<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
-<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
-<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
-<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
-<span id="cb35-7"><a href="#cb35-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
-<span id="cb35-8"><a href="#cb35-8" tabindex="-1"></a><span class="st">  ],</span></span>
-<span id="cb35-9"><a href="#cb35-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
-<span id="cb35-10"><a href="#cb35-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
-<span id="cb35-11"><a href="#cb35-11" tabindex="-1"></a><span class="st">}</span></span>
-<span id="cb35-12"><a href="#cb35-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+<p>Protect main from deletion and force pushes:</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
+<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
+<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
+<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
+<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
+<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a><span class="st">  ],</span></span>
+<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
+<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
+<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scaffold-checklist">Scaffold checklist<a class="anchor" aria-label="anchor" href="#scaffold-checklist"></a></h3>
@@ -1226,7 +1083,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </div>
 <div class="section level2">
 <h2 id="llm-workflow">LLM Workflow<a class="anchor" aria-label="anchor" href="#llm-workflow"></a></h2>
-<p>When an LLM assistant modifies R package code: 1. Run <code>lintr::lint_package()</code> — fix issues before committing 2. Run <code>devtools::test()</code> — ensure tests pass 3. Run <code>devtools::document()</code> if roxygen comments changed 4. Check <code>devtools::check()</code> passes for releases</p>
+<p>When an LLM assistant modifies R package code: 1. Run <code>lintr::lint_package()</code> — fix issues before committing 2. Run <code>devtools::test()</code> with error grep — ensure tests pass in one call: <code>bash    Rscript -e 'devtools::test()' 2&gt;&amp;1 | grep -E "(FAIL|ERROR|PASS)" | tail -5</code> 3. Run <code>devtools::document()</code> and grep for results: <code>bash    Rscript -e 'devtools::document()' 2&gt;&amp;1 | grep -E "(Writing|Updating|warning)" | tail -10</code> 4. Check <code>devtools::check()</code> passes for releases — capture results in one call: <code>bash    Rscript -e 'devtools::check()' 2&gt;&amp;1 | grep -E "(ERROR|WARNING|NOTE|errors|warnings|notes)" | tail -10</code></p>
 </div>
 </div>
 <div class="section level1">
@@ -1258,14 +1115,16 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </div>
 <div class="section level3">
 <h3 id="id_2-add-to-zotero">2. Add to Zotero<a class="anchor" aria-label="anchor" href="#id_2-add-to-zotero"></a></h3>
-<p><strong>Preferred order:</strong> 1. DOI magic wand in Zotero UI (fastest, most complete metadata) 2. <code>saveItems</code> via <code>/zotero-api</code> (good for batch creation from structured data) 3. JS console script for group library (when connector can’t target the right collection)</p>
-<p><strong>Collection targeting:</strong> <code>saveItems</code> drops items into whatever collection is selected in Zotero’s UI. Always confirm with the user before calling it.</p>
+<p><strong>Preferred order:</strong> 1. DOI magic wand in Zotero UI (fastest, most complete metadata) 2. Web API POST with <code>collections</code> array (grey literature, local PDFs — targets collection directly, no UI interaction needed) 3. <code>saveItems</code> via <code>/zotero-api</code> (batch creation from structured data — requires UI collection selection) 4. JS console script for group library (when connector can’t target the right collection)</p>
+<p><strong>Collection targeting:</strong> <code>saveItems</code> drops items into whatever collection is selected in Zotero’s UI. Always confirm with the user before calling it. <strong>Web API bypasses this</strong> — include <code>"collections": ["KEY"]</code> in the POST body. Find collection keys with <code>?q=name</code> search on the collections endpoint.</p>
 </div>
 <div class="section level3">
 <h3 id="id_3-attach-pdfs">3. Attach PDFs<a class="anchor" aria-label="anchor" href="#id_3-attach-pdfs"></a></h3>
 <p><code>saveItems</code> attachments silently fail. Don’t use them. Instead:</p>
-<ol style="list-style-type: decimal"><li>Download with <code>curl</code> (see <code>/zotero-api</code> skill for source-specific patterns)</li>
-<li>Attach via <code>item_attach_pdf.js</code> in Zotero JS console</li>
+<ol style="list-style-type: decimal"><li>
+<strong>Web API S3 upload (preferred):</strong> Create attachment item → get upload auth → build S3 body (Python: prefix + file bytes + suffix) → POST to S3 → register with uploadKey. Works without Zotero running. See <code>/zotero-api</code> skill section 4.</li>
+<li>
+<strong>JS console fallback:</strong> Download with <code>curl</code>, attach via <code>item_attach_pdf.js</code> in Zotero JS console.</li>
 <li>Verify attachment exists via MCP: <code>zotero_get_item_children</code>
 </li>
 </ol></div>
@@ -1282,11 +1141,11 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <h2 id="in-reports-bookdown">In Reports (bookdown)<a class="anchor" aria-label="anchor" href="#in-reports-bookdown"></a></h2>
 <div class="section level3">
 <h3 id="bibliography-generation">Bibliography generation<a class="anchor" aria-label="anchor" href="#bibliography-generation"></a></h3>
-<div class="sourceCode" id="cb36"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
-<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
+<div class="sourceCode" id="cb32"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
+<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
 <p><code>rbbt</code> pulls from BBT, which syncs with Zotero. Edit references in Zotero → rebuild report → bibliography updates.</p>
 <p><strong>Library targeting:</strong> rbbt must know which Zotero library to search. This is set globally in <code>~/.Rprofile</code>:</p>
-<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># default library — NewGraphEnvironment group (libraryID 9, group 4733734)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>rbbt.default.library_id <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p>Without this option, rbbt searches only the personal library (libraryID 1) and won’t find group library references. The library IDs map to Zotero’s internal numbering — use <code>/zotero-lookup</code> with <code>SELECT DISTINCT libraryID FROM citationkey</code> against the BBT database to discover available libraries.</p>
@@ -1323,10 +1182,32 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li>Ask user for institutional access</li>
 </ol><p>Always verify downloads: <code>file paper.pdf</code> should say “PDF document”, not HTML.</p>
 </div>
+<div class="section level2">
+<h2 id="searching-paper-content-ragnar">Searching Paper Content (ragnar)<a class="anchor" aria-label="anchor" href="#searching-paper-content-ragnar"></a></h2>
+<div class="section level3">
+<h3 id="setup-per-project">Setup (per project)<a class="anchor" aria-label="anchor" href="#setup-per-project"></a></h3>
+<ul><li>
+<code>scripts/rag_build.R</code> — maps citation keys to Zotero PDF attachment keys, builds DuckDB</li>
+<li>
+<code>data/rag/</code> gitignored — store is local, not committed</li>
+<li>Dependencies: ragnar, Ollama with nomic-embed-text model</li>
+<li>See <code>/lit-search</code> skill for full recipe</li>
+</ul></div>
+<div class="section level3">
+<h3 id="query">Query<a class="anchor" aria-label="anchor" href="#query"></a></h3>
+<p><code>ragnar_store_connect()</code> then <code>ragnar_retrieve()</code> — returns chunks with source file attribution.</p>
+</div>
+<div class="section level3">
+<h3 id="anti-patterns">Anti-patterns<a class="anchor" aria-label="anchor" href="#anti-patterns"></a></h3>
+<ul><li>NEVER write abstracts manually — if CrossRef has no abstract, leave blank</li>
+<li>NEVER cite specific numbers without verifying from the source PDF via ragnar search</li>
+<li>NEVER paraphrase equations — copy exact notation and cite page/section</li>
+</ul></div>
+</div>
 </div>
 <div class="section level1">
 <h1 id="sred-conventions">SRED Conventions<a class="anchor" aria-label="anchor" href="#sred-conventions"></a></h1>
-<p>How SR&amp;ED (Scientific Research and Experimental Development) tracking integrates with New Graph Environment’s development workflows.</p>
+<p>How SR&amp;ED tracking integrates with New Graph Environment’s development workflows.</p>
 <div class="section level2">
 <h2 id="the-claim-one-project">The Claim: One Project<a class="anchor" aria-label="anchor" href="#the-claim-one-project"></a></h2>
 <p>All SRED-eligible work across NGE falls under a <strong>single continuous project</strong>:</p>
@@ -1338,118 +1219,20 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li>
 <strong>Start date:</strong> May 2022</li>
 <li>
-<strong>Status:</strong> Ongoing</li>
-<li>
 <strong>Fiscal year:</strong> May 1 – April 30</li>
 <li>
 <strong>Consultant:</strong> Boast Capital (prepares final technical report)</li>
 </ul><p><strong>Do not fragment work into separate claims.</strong> Each fiscal year’s work is structured as iterations within this one project. Internal tracking (experiment numbers in <code>sred-2025-2026</code>) maps to iterations — Boast assembles the final narrative.</p>
 </div>
 <div class="section level2">
-<h2 id="what-were-building">What We’re Building<a class="anchor" aria-label="anchor" href="#what-were-building"></a></h2>
-<p>The SRED investment is in the <strong>system</strong>, not the reports it produces. Reports are service revenue. The framework is the IP and the competitive asset.</p>
-<p>The system is an integrated, version-controlled framework that: - Generates GIS projects from parameterized inputs - Synchronizes field data collection with cloud-hosted databases and portable GeoPackages - Processes and catalogs UAV imagery via STAC pipelines - Produces dynamic, reproducible reports (bookdown/Quarto) - Orchestrates workflows via LLM agents with shared conventions and skills - Manages communications, time tracking, and evidence as part of the framework</p>
-<p>No other environmental consultancy has this level of integration. This is the international competitiveness that SRED exists to incentivize.</p>
-</div>
-<div class="section level2">
-<h2 id="system-components">System Components<a class="anchor" aria-label="anchor" href="#system-components"></a></h2>
-<table class="table"><colgroup><col width="21%"><col width="21%"><col width="57%"></colgroup><thead><tr class="header"><th>Layer</th>
-<th>Repos</th>
-<th>Role in Framework</th>
-</tr></thead><tbody><tr class="odd"><td><strong>Agent governance</strong></td>
-<td>soul</td>
-<td>Conventions, skills, settings — how agents behave across all repos</td>
-</tr><tr class="even"><td><strong>Communications</strong></td>
-<td>compost</td>
-<td>Centralized email workflows, contact management, tone standards</td>
-</tr><tr class="odd"><td><strong>Operations</strong></td>
-<td>rolex</td>
-<td>Time tracking, invoicing, SRED evidence, budget management</td>
-</tr><tr class="even"><td><strong>Infrastructure</strong></td>
-<td>awshak</td>
-<td>IaC (OpenTofu), S3, IAM, CORS, OIDC — reproducible cloud environments</td>
-</tr><tr class="odd"><td><strong>GIS automation</strong></td>
-<td>rfp, ngr, dff-2022</td>
-<td>QGIS project generation, spatial data processing, layer management</td>
-</tr><tr class="even"><td><strong>Imagery</strong></td>
-<td>stac_uav, stac_orthophoto_bc</td>
-<td>UAV processing, STAC cataloging, containerized pipelines</td>
-</tr><tr class="odd"><td><strong>Change detection</strong></td>
-<td>drift, flooded</td>
-<td>Floodplain delineation, STAC land cover fetch, multi-temporal change analysis</td>
-</tr><tr class="even"><td><strong>Citations</strong></td>
-<td>xciter</td>
-<td>Pandoc hooks for citations in interactive tables</td>
-</tr><tr class="odd"><td><strong>Data</strong></td>
-<td>db_newgraph, bcfishpass, fwapg</td>
-<td>PostgreSQL spatial databases, modelling, query APIs</td>
-</tr><tr class="even"><td><strong>Field collection</strong></td>
-<td>Mergin Maps projects</td>
-<td>Mobile forms, offline GeoPackages, bidirectional sync</td>
-</tr><tr class="odd"><td><strong>Reporting</strong></td>
-<td>Annual project repos</td>
-<td>Bookdown reports consuming all of the above</td>
-</tr></tbody></table></div>
-<div class="section level2">
-<h2 id="fiscal-year-iterations">Fiscal Year Iterations<a class="anchor" aria-label="anchor" href="#fiscal-year-iterations"></a></h2>
-<p>Each fiscal year, Boast structures the claim as iterations within the project. Our internal experiment numbers map to these.</p>
-<div class="section level3">
-<h3 id="fy2024-may-2023--april-2024">FY2024 (May 2023 – April 2024)<a class="anchor" aria-label="anchor" href="#fy2024-may-2023--april-2024"></a></h3>
-<p>Single narrative: version control for GIS projects + dynamic reporting engine.</p>
-</div>
-<div class="section level3">
-<h3 id="fy2025-may-2024--april-2025">FY2025 (May 2024 – April 2025)<a class="anchor" aria-label="anchor" href="#fy2025-may-2024--april-2025"></a></h3>
-<table class="table"><thead><tr class="header"><th>Iteration</th>
-<th>Focus</th>
-<th>Key Repos</th>
-</tr></thead><tbody><tr class="odd"><td>1</td>
-<td>GIS–RMarkdown synchronization</td>
-<td>rfp, ngr, dff-2022</td>
-</tr><tr class="even"><td>2</td>
-<td>UAV imagery + STAC cataloging</td>
-<td>stac_uav, stac_orthophoto_bc</td>
-</tr><tr class="odd"><td>3</td>
-<td>Citation handling (xciter)</td>
-<td>xciter</td>
-</tr><tr class="even"><td>4</td>
-<td>Field-to-cloud data workflows</td>
-<td>Mergin, PostgreSQL, GeoPackages</td>
-</tr><tr class="odd"><td>5</td>
-<td>Infrastructure as Code</td>
-<td>awshak</td>
-</tr></tbody></table></div>
-<div class="section level3">
-<h3 id="fy2026-may-2025--april-2026">FY2026 (May 2025 – April 2026)<a class="anchor" aria-label="anchor" href="#fy2026-may-2025--april-2026"></a></h3>
-<table class="table"><colgroup><col width="37%"><col width="24%"><col width="37%"></colgroup><thead><tr class="header"><th>Iteration</th>
-<th>Focus</th>
-<th>Key Repos</th>
-</tr></thead><tbody><tr class="odd"><td>TBD</td>
-<td>LLM agent orchestration &amp; governance</td>
-<td>soul, agent teams</td>
-</tr><tr class="even"><td>TBD</td>
-<td>Communications workflow</td>
-<td>compost</td>
-</tr><tr class="odd"><td>TBD</td>
-<td>Time tracking &amp; evidence management</td>
-<td>rolex</td>
-</tr><tr class="even"><td>TBD</td>
-<td>MCP integrations (Zotero, PostgreSQL, Harvest, Xero)</td>
-<td>soul settings, MCP configs</td>
-</tr><tr class="odd"><td>TBD</td>
-<td>Continued GIS/reporting improvements</td>
-<td>rfp, ngr, bookdown repos</td>
-</tr></tbody></table><p>Iteration numbers are assigned by Boast in the final report. We provide evidence organized by theme.</p>
-</div>
-</div>
-<div class="section level2">
 <h2 id="tagging-work-for-sred">Tagging Work for SRED<a class="anchor" aria-label="anchor" href="#tagging-work-for-sred"></a></h2>
 <div class="section level3">
 <h3 id="commits">Commits<a class="anchor" aria-label="anchor" href="#commits"></a></h3>
-<p>Use <code>Relates to NewGraphEnvironment/sred-2025-2026#N</code> in commit messages when work is SRED-eligible. The <code>/sred-commit</code> skill handles this.</p>
+<p>Use <code>Relates to NewGraphEnvironment/sred-2025-2026#N</code> in commit messages when work is SRED-eligible.</p>
 </div>
 <div class="section level3">
 <h3 id="time-entries-rolex">Time entries (rolex)<a class="anchor" aria-label="anchor" href="#time-entries-rolex"></a></h3>
-<p>Tag hours with <code>sred_experiment</code> field linking to the relevant <code>sred-2025-2026</code> issue number. This enables automated evidence reports.</p>
+<p>Tag hours with <code>sred_ref</code> field linking to the relevant <code>sred-2025-2026</code> issue number.</p>
 </div>
 <div class="section level3">
 <h3 id="github-issues">GitHub issues<a class="anchor" aria-label="anchor" href="#github-issues"></a></h3>
@@ -1458,32 +1241,9 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </div>
 <div class="section level2">
 <h2 id="what-qualifies-as-sred">What Qualifies as SRED<a class="anchor" aria-label="anchor" href="#what-qualifies-as-sred"></a></h2>
-<p>From the Boast interview guide and CRA guidelines:</p>
 <p><strong>Eligible (systematic investigation to overcome technological uncertainty):</strong> - Building tools/functions that don’t exist in standard practice - Prototyping new integrations between systems (GIS ↔︎ reporting ↔︎ field collection) - Testing whether an approach works and documenting why it did/didn’t - Iterating on failed approaches with new hypotheses</p>
-<p><strong>Not eligible (but still important to document as due diligence):</strong> - Evaluating existing tools to confirm they can’t meet requirements - Standard configuration of known tools - Routine bug fixes in working systems - Writing reports using the framework (that’s service delivery)</p>
+<p><strong>Not eligible:</strong> - Standard configuration of known tools - Routine bug fixes in working systems - Writing reports using the framework (that’s service delivery)</p>
 <p><strong>The test:</strong> “Did we try something we weren’t sure would work, and did we learn something from the attempt?” If yes, it’s likely eligible.</p>
-</div>
-<div class="section level2">
-<h2 id="sred-and-contractors">SRED and Contractors<a class="anchor" aria-label="anchor" href="#sred-and-contractors"></a></h2>
-<p>Subcontractors are eligible for SRED at a reduced rate (~32% vs ~64% for T4 employees). Arm’s length, Canadian contractors only. The work must be performed in Canada.</p>
-<p>For core SRED work, T4 employees generate roughly 2x the credit per dollar spent. Use contractors when needed but be aware of the credit differential.</p>
-</div>
-<div class="section level2">
-<h2 id="evidence-for-boast">Evidence for Boast<a class="anchor" aria-label="anchor" href="#evidence-for-boast"></a></h2>
-<p>At fiscal year-end, Boast needs: 1. <strong>Time records</strong> — hours by person, tagged to iterations (from rolex) 2. <strong>Technical narrative</strong> — what was attempted, what worked, what didn’t (from commit history, issues, PRs) 3. <strong>Financial summary</strong> — wages, contractor payments, expenses (from rolex + Xero) 4. <strong>GitHub evidence</strong> — commits, issues, PRs showing systematic investigation (from <code>sred-2025-2026</code> cross-references)</p>
-<p>The better our tagging during the year, the less work at claim time.</p>
-</div>
-<div class="section level2">
-<h2 id="fiscal-calendar">Fiscal Calendar<a class="anchor" aria-label="anchor" href="#fiscal-calendar"></a></h2>
-<table class="table"><thead><tr class="header"><th>Period</th>
-<th>Dates</th>
-</tr></thead><tbody><tr class="odd"><td>FY2024</td>
-<td>May 1 2022 – April 30 2024</td>
-</tr><tr class="even"><td>FY2025</td>
-<td>May 1 2024 – April 30 2025</td>
-</tr><tr class="odd"><td>FY2026</td>
-<td>May 1 2025 – April 30 2026</td>
-</tr></tbody></table><p>Claims are filed within 18 months of fiscal year-end.</p>
 </div>
 </div>
 
