@@ -4,7 +4,7 @@
 \name{fresh-package}
 \alias{fresh}
 \alias{fresh-package}
-\title{fresh: FWA-Referenced Spatial Hydrology}
+\title{fresh: Freshwater Referenced Spatial Hydrology}
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 

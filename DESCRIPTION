@@ -1,5 +1,5 @@
 Package: fresh
-Title: FWA-Referenced Spatial Hydrology
+Title: Freshwater Referenced Spatial Hydrology
 Version: 0.9.0
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),

@@ -1,8 +1,8 @@
 # fresh <img src="man/figures/logo.png" align="right" height="139" alt="fresh hex sticker" />
 
-> FWA-Referenced Spatial Hydrology
+> Freshwater Referenced Spatial Hydrology
 
-Stream network-aware spatial operations via direct SQL against [fwapg](https://github.com/smnorris/fwapg). Segment networks, classify habitat, aggregate upstream features, and query the BC Freshwater Atlas.
+A composable stream network modelling engine. Query and extract stream networks, classify habitat by gradient and channel width, segment networks at barriers and break points, aggregate features upstream or downstream, and run multi-species habitat modelling with parallel workers. Supports custom model outputs and attribute joining — channel width, mean annual discharge, precipitation, or any scalar value. Currently running on BC's Freshwater Atlas, designed to model fish habitat, connectivity, water temperature, channel morphology, and custom attributes for any species or question on any stream network.
 
 ## Installation
 
@@ -52,15 +52,24 @@ frs_habitat_classify(conn,
   species = c("CO", "BT", "ST"))
 ```
 
-Or use the orchestrator for multi-WSG runs:
+Or use the orchestrator for multi-WSG runs with any AOI:
 
 ```r
+# Province-wide with parallel workers
 frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat",
   workers = 4, password = "postgres",
   break_sources = list(
     list(table = "working.falls", label = "blocked")))
+
+# Custom AOI — sub-basin, territory, or any spatial extent
+frs_habitat(conn,
+  aoi = "wscode_ltree <@ '100.190442'::ltree",
+  species = c("BT", "CO"),
+  label = "richfield",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
 ```
 
 See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for vignettes and function reference.
@@ -69,7 +78,7 @@ See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for vignett
 
 | Package | Role |
 |---------|------|
-| **fresh** | Network segmentation, habitat classification, sub-basin delineation (this package) |
+| **fresh** | Stream network modelling engine (this package) |
 | [link](https://github.com/NewGraphEnvironment/link) | Crossing connectivity interpretation — scoring, overrides, prioritization |
 | [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks |
 | [drift](https://github.com/NewGraphEnvironment/drift) | Track land cover change within floodplains over time |
