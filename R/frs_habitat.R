@@ -32,6 +32,22 @@
 #' @param break_sources List of additional break source specs (falls,
 #'   crossings, etc.), or `NULL`. Gradient access barriers are generated
 #'   automatically from species parameters.
+#' @param breaks_gradient Numeric vector or `NULL`. Extra gradient
+#'   thresholds at which to break the network for sub-segment resolution
+#'   (in addition to species access thresholds, which are always
+#'   generated). Three modes:
+#'   \itemize{
+#'     \item `NULL` (default) — auto-derive from `spawn_gradient_max`
+#'       and `rear_gradient_max` in `params`. Captures every biologically
+#'       meaningful threshold for the species being classified.
+#'     \item Numeric vector — explicit list (e.g. `c(0.06, 0.12)`).
+#'       Replaces auto-derivation.
+#'     \item `numeric(0)` — disable extras. Only access thresholds are
+#'       generated (the fresh 0.9.0 behavior).
+#'   }
+#'   Auto-derived breaks give cluster analysis ([frs_cluster()]) the
+#'   gradient resolution to detect within-segment steep sections that
+#'   would otherwise be hidden by averaging.
 #' @param params Named list from [frs_params()], or `NULL` to use
 #'   bundled `parameters_habitat_thresholds.csv`.
 #' @param params_fresh Data frame from `parameters_fresh.csv`, or
@@ -93,12 +109,41 @@
 #'   to_streams = "fresh.streams",
 #'   to_habitat = "fresh.streams_habitat")
 #'
+#' # --- Controlling gradient resolution with breaks_gradient ---
+#'
+#' # Default: auto-derive breaks from spawn_gradient_max +
+#' # rear_gradient_max in params. For BULK with CO/BT/ST that's
+#' # roughly: 0.0449, 0.0549, 0.0849, 0.1049 plus access (0.15, 0.20,
+#' # 0.25). Every biologically meaningful threshold is captured.
+#' # Recommended — gives frs_cluster() the resolution to find
+#' # within-segment steep sections.
+#' frs_habitat(conn, "BULK",
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
+#' # Custom override: explicit list. Use when you have project-specific
+#' # gradient thresholds (e.g. local channel-type classification scheme)
+#' # that aren't tied to a species threshold.
+#' frs_habitat(conn, "BULK",
+#'   breaks_gradient = c(0.03, 0.06, 0.10, 0.15),
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
+#' # Disable extras: only species access thresholds (15/20/25). Faster
+#' # but coarser — fresh 0.9.0 behavior. Not recommended unless you
+#' # specifically don't want sub-segment gradient resolution.
+#' frs_habitat(conn, "BULK",
+#'   breaks_gradient = numeric(0),
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_habitat <- function(conn, wsg = NULL,
                         aoi = NULL, species = NULL, label = NULL,
                         to_streams = NULL, to_habitat = NULL,
                         break_sources = NULL,
+                        breaks_gradient = NULL,
                         gate = TRUE,
                         label_block = "blocked",
                         params = NULL,
@@ -106,6 +151,10 @@ frs_habitat <- function(conn, wsg = NULL,
                         workers = 1L,
                         password = "",
                         cleanup = TRUE, verbose = TRUE) {
+
+  if (!is.null(breaks_gradient)) {
+    stopifnot(is.numeric(breaks_gradient))
+  }
 
   t_total <- proc.time()
 
@@ -192,8 +241,9 @@ frs_habitat <- function(conn, wsg = NULL,
   conn_params <- if (use_parallel) .frs_conn_params(conn, password) else NULL
 
   # -- Per-job worker function -------------------------------------------------
-  .run_job <- function(spec, conn_params, break_sources, params,
-                       params_fresh, to_streams, to_habitat, verbose) {
+  .run_job <- function(spec, conn_params, break_sources, breaks_gradient,
+                       params, params_fresh, to_streams, to_habitat,
+                       verbose) {
     # Connect (parallel) or reuse (sequential)
     if (!is.null(conn_params)) {
       library(fresh)
@@ -210,10 +260,32 @@ frs_habitat <- function(conn, wsg = NULL,
     wsg_code <- spec$wsg  # NULL for custom AOI mode
     t0 <- proc.time()
 
-    # 1. Determine unique access thresholds for this job's species
-    access_thresholds <- sort(unique(
-      params_fresh$access_gradient_max[
-        params_fresh$species_code %in% species]))
+    # 1. Determine gradient thresholds at which to break the network
+    #
+    # Access thresholds (always): from params_fresh, mandatory for
+    # accessibility classification.
+    access_thresholds <- params_fresh$access_gradient_max[
+      params_fresh$species_code %in% species]
+    access_thresholds <- access_thresholds[!is.na(access_thresholds)]
+
+    # Extra thresholds (configurable): default = auto-derive from
+    # spawn_gradient_max + rear_gradient_max in params; explicit numeric
+    # vector overrides; numeric(0) disables extras.
+    extra_thresholds <- if (is.null(breaks_gradient)) {
+      vals <- unlist(lapply(params[species], function(p) {
+        c(p$spawn_gradient_max, p$rear_gradient_max)
+      }), use.names = FALSE)
+      vals[!is.na(vals)]
+    } else {
+      as.numeric(breaks_gradient)
+    }
+
+    # Union, sort ascending, dedupe by integer-percent label.
+    # Two thresholds that round to the same gradient_N label would
+    # otherwise collide on the barrier table name and label string.
+    all_thresholds <- sort(c(access_thresholds, extra_thresholds))
+    all_thresholds <- all_thresholds[
+      !duplicated(as.integer(all_thresholds * 100))]
 
     # 2. Generate gradient barriers at each threshold
     streams_tbl <- paste0("working.streams_", job_label)
@@ -246,7 +318,7 @@ frs_habitat <- function(conn, wsg = NULL,
     all_sources <- if (!is.null(break_sources)) break_sources else list()
     barrier_tables <- character(0)
 
-    for (thr in access_thresholds) {
+    for (thr in all_thresholds) {
       thr_tbl <- sprintf("working.barriers_%s_%d",
                          job_label, as.integer(thr * 100))
       frs_break_find(w_conn, tmp_tbl,
@@ -340,9 +412,24 @@ frs_habitat <- function(conn, wsg = NULL,
       wsg_code <- spec$wsg
       t0 <- proc.time()
 
-      access_thresholds <- sort(unique(
-        params_fresh$access_gradient_max[
-          params_fresh$species_code %in% species]))
+      # Access thresholds (always) + extra thresholds (configurable).
+      # See sequential branch for full explanation.
+      access_thresholds <- params_fresh$access_gradient_max[
+        params_fresh$species_code %in% species]
+      access_thresholds <- access_thresholds[!is.na(access_thresholds)]
+
+      extra_thresholds <- if (is.null(breaks_gradient)) {
+        vals <- unlist(lapply(params[species], function(p) {
+          c(p$spawn_gradient_max, p$rear_gradient_max)
+        }), use.names = FALSE)
+        vals[!is.na(vals)]
+      } else {
+        as.numeric(breaks_gradient)
+      }
+
+      all_thresholds <- sort(c(access_thresholds, extra_thresholds))
+      all_thresholds <- all_thresholds[
+        !duplicated(as.integer(all_thresholds * 100))]
 
       streams_tbl <- paste0("working.streams_", job_label)
       tmp_tbl <- paste0(streams_tbl, "_tmp")
@@ -367,7 +454,7 @@ frs_habitat <- function(conn, wsg = NULL,
 
       all_sources <- if (!is.null(break_sources)) break_sources else list()
       barrier_tables <- character(0)
-      for (thr in access_thresholds) {
+      for (thr in all_thresholds) {
         thr_tbl <- sprintf("working.barriers_%s_%d",
                            job_label, as.integer(thr * 100))
         frs_break_find(w_conn, tmp_tbl,
@@ -425,6 +512,7 @@ frs_habitat <- function(conn, wsg = NULL,
                  stringsAsFactors = FALSE)
     },
       conn_params = conn_params, break_sources = break_sources,
+      breaks_gradient = breaks_gradient,
       params = params, params_fresh = params_fresh,
       to_streams = to_streams, to_habitat = to_habitat,
       gate = gate, label_block = label_block,
@@ -442,6 +530,7 @@ frs_habitat <- function(conn, wsg = NULL,
     result_list <- lapply(wsg_specs, function(spec) {
       res <- .run_job(spec, conn_params = NULL,
         break_sources = break_sources,
+        breaks_gradient = breaks_gradient,
         params = params, params_fresh = params_fresh,
         to_streams = to_streams, to_habitat = to_habitat,
         verbose = verbose)
