@@ -41,8 +41,10 @@ inaccessible. If \code{FALSE}, all segments are classified regardless of
 breaks (raw habitat potential).}
 
 \item{label_block}{Character vector. Labels that always block
-access. Default \code{"blocked"}. Gradient labels (\code{gradient_15}, etc.)
-are always threshold-aware regardless of this parameter. Set to
+access. Default \code{"blocked"}. Gradient labels (\code{gradient_NNNN},
+the canonical 4-digit basis-point format like \code{gradient_1500} for
+15\%, or the legacy \code{gradient_N} like \code{gradient_15}) are always
+threshold-aware regardless of this parameter. Set to
 \code{c("blocked", "potential")} for conservative analysis.}
 
 \item{overwrite}{Logical. If \code{TRUE}, replace existing rows for
@@ -69,12 +71,12 @@ a breaks table (\verb{\{streams_table\}_breaks}) for accessibility checks.
 conn <- frs_db_conn()
 
 # Assumes fresh.streams built by frs_network_segment() with
-# gradient barriers labeled "gradient_15", "gradient_20", "gradient_25".
-# See frs_network_segment() for the full setup.
+# gradient barriers labeled "gradient_1500", "gradient_2000",
+# "gradient_2500" (15\%, 20\%, 25\% — see frs_network_segment()).
 
 # Classify CO, BT, ST — each gets species-specific accessibility.
-# CO (15\% access) is blocked by gradient_15, gradient_20, gradient_25.
-# BT (25\% access) is only blocked by gradient_25.
+# CO (15\% access) is blocked by gradient_1500, gradient_2000,
+# gradient_2500. BT (25\% access) is only blocked by gradient_2500.
 # Result: BT has ~2x the accessible habitat of CO on the same network.
 frs_habitat_classify(conn,
   table = "fresh.streams",
@@ -113,6 +115,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
 \code{\link{frs_classify}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},

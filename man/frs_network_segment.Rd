@@ -80,16 +80,20 @@ frs_break_find(conn, "working.tmp_bulk",
 
 # 2. Segment the network at ALL barrier points + falls.
 #    One table, one copy of geometry, shared across all species.
-#    Labels control which species each barrier blocks — gradient_15
-#    blocks CO but not BT; gradient_25 blocks both.
+#    Labels control which species each barrier blocks — gradient_1500
+#    (15\%) blocks CO but not BT; gradient_2500 (25\%) blocks both.
+#    Labels follow the gradient_NNNN format: 4-digit zero-padded
+#    basis points (threshold * 10000). The legacy gradient_N format
+#    (e.g. "gradient_15") is still accepted by the parser for
+#    backward compatibility with user-supplied labels.
 #    Falls (from inst/extdata/falls.csv, loaded to working.falls)
 #    block all species.
 frs_network_segment(conn, aoi = "BULK",
   to = "fresh.streams",
   break_sources = list(
-    list(table = "working.barriers_15", label = "gradient_15"),
-    list(table = "working.barriers_20", label = "gradient_20"),
-    list(table = "working.barriers_25", label = "gradient_25"),
+    list(table = "working.barriers_15", label = "gradient_1500"),
+    list(table = "working.barriers_20", label = "gradient_2000"),
+    list(table = "working.barriers_25", label = "gradient_2500"),
     list(table = "working.falls",
          where = "barrier_ind = TRUE", label = "blocked")
   ))
@@ -122,6 +126,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
 \code{\link{frs_classify}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},

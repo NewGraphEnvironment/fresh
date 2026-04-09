@@ -73,6 +73,88 @@
 }
 
 
+#' Format a gradient threshold as a `gradient_NNNN` label
+#'
+#' Generates the canonical 4-digit zero-padded basis-point label.
+#' `0.05` becomes `"gradient_0500"`. `0.0549` becomes
+#' `"gradient_0549"`.
+#'
+#' @param thr Numeric scalar in `[0, 1]`. Caller should validate
+#'   first via [.frs_validate_gradient_thresholds()].
+#' @return Character scalar.
+#' @noRd
+.frs_gradient_label <- function(thr) {
+  sprintf("gradient_%04d", as.integer(round(thr * 10000)))
+}
+
+
+#' Validate a vector of gradient threshold values
+#'
+#' Errors if any value is:
+#'   - not numeric or NA
+#'   - outside `[0, 1]` (gradient is a fraction, not a percent)
+#'   - cannot be represented exactly at basis-point precision
+#'     (e.g. `0.05001` rounds to the same label as `0.05`)
+#'   - duplicates another value's label after rounding
+#'
+#' Catches the silent failure mode where two distinct user-supplied
+#' thresholds produce the same `gradient_NNNN` label and would
+#' overwrite each other's barrier table.
+#'
+#' @param x Numeric vector of gradient thresholds (as fractions).
+#' @param name Character. Argument name for error messages.
+#' @return Invisible `x`. Errors on failure.
+#' @noRd
+.frs_validate_gradient_thresholds <- function(x, name = "thresholds") {
+  if (!is.numeric(x)) {
+    stop(sprintf("%s must be numeric", name), call. = FALSE)
+  }
+  if (length(x) == 0) {
+    return(invisible(x))
+  }
+  if (any(is.na(x))) {
+    stop(sprintf("%s contains NA values", name), call. = FALSE)
+  }
+  if (any(x < 0 | x > 1)) {
+    bad <- x[x < 0 | x > 1]
+    stop(sprintf(
+      "%s values must be in [0, 1] (gradient as fraction, not percent). Got: %s",
+      name, paste(bad, collapse = ", ")
+    ), call. = FALSE)
+  }
+
+  # Precision check: must round-trip through 4-digit basis points
+  rounded <- as.integer(round(x * 10000)) / 10000
+  diffs <- abs(x - rounded)
+  if (any(diffs > 1e-10)) {
+    bad <- x[diffs > 1e-10]
+    stop(sprintf(
+      paste0(
+        "%s values exceed basis-point precision (0.0001). ",
+        "Each value must be representable as gradient_NNNN. Got: %s. ",
+        "Round to 4 decimal places (e.g. 0.0549)."
+      ),
+      name, paste(bad, collapse = ", ")
+    ), call. = FALSE)
+  }
+
+  # Label collision check: after rounding, no two values should map
+  # to the same label. This is a defensive check — should be impossible
+  # if precision check passed.
+  labels_int <- as.integer(round(x * 10000))
+  if (anyDuplicated(labels_int)) {
+    dup_idx <- duplicated(labels_int) | duplicated(labels_int, fromLast = TRUE)
+    bad <- unique(x[dup_idx])
+    stop(sprintf(
+      "%s values produce duplicate labels at basis-point precision: %s",
+      name, paste(bad, collapse = ", ")
+    ), call. = FALSE)
+  }
+
+  invisible(x)
+}
+
+
 #' Add id_segment column to a working table
 #'
 #' Assigns a unique integer ID to every row. Uses `linear_feature_id`
