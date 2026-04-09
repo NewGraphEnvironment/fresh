@@ -73,35 +73,62 @@ segments, then validates each cluster by checking for
 \dontrun{
 conn <- frs_db_conn()
 
-# After running frs_network_segment() + frs_habitat_classify():
+# --- Why cluster connectivity matters ---
+#
+# frs_habitat_classify() labels segments as rearing or spawning
+# based on gradient and channel width. But a rearing segment has
+# no ecological value for anadromous species unless juveniles can
+# reach spawning habitat. A headwater stream with perfect rearing
+# conditions but no spawning upstream or downstream is a dead end.
+#
+# frs_cluster() groups adjacent rearing segments into clusters,
+# then checks if each cluster connects to spawning on the network.
+# Disconnected clusters get rearing set to FALSE.
 
-# Upstream: keep rearing only if spawning exists upstream
+# After frs_network_segment() + frs_habitat_classify():
+DBI::dbGetQuery(conn, "
+  SELECT count(*) FILTER (WHERE rearing) AS rearing_before
+  FROM fresh.streams_habitat
+  WHERE species_code = 'CO'")
+#>   rearing_before
+#> 1             33
+
+# Upstream check: keep rearing only if spawning exists upstream.
+# Anadromous juveniles rear downstream of where adults spawn.
 frs_cluster(conn,
   table = "fresh.streams",
   habitat = "fresh.streams_habitat",
-  label_cluster = "rearing",
-  label_connect = "spawning",
   species = "CO",
   direction = "upstream")
+#>   CO: 2 disconnected removed (31 rearing remaining, 0.6s)
 
-# Downstream: keep rearing only if spawning exists downstream
-# within 10km, with no >5\% gradient barrier in between
+# Downstream check: keep rearing only if spawning exists downstream
+# within 10km, with no segment steeper than 5\% in between.
+# Juveniles can drift downstream but can't pass steep barriers
+# to reach spawning habitat above.
 frs_cluster(conn,
   table = "fresh.streams",
   habitat = "fresh.streams_habitat",
-  label_cluster = "rearing",
-  label_connect = "spawning",
   species = "CO",
   direction = "downstream",
   bridge_gradient = 0.05,
   bridge_distance = 10000)
 
-# Both directions — valid if connected in either direction
-frs_cluster(conn,
-  table = "fresh.streams",
-  habitat = "fresh.streams_habitat",
-  species = c("CO", "CH", "ST"),
-  direction = "both")
+# Both directions — valid if connected in either direction.
+# Run per species with parameters from parameters_fresh.csv:
+pf <- utils::read.csv(system.file("extdata",
+  "parameters_fresh.csv", package = "fresh"))
+for (i in which(pf$cluster_rearing)) {
+  sp <- pf$species_code[i]
+  frs_cluster(conn,
+    table = "fresh.streams",
+    habitat = "fresh.streams_habitat",
+    species = sp,
+    direction = pf$cluster_direction[i],
+    bridge_gradient = pf$cluster_bridge_gradient[i],
+    bridge_distance = pf$cluster_bridge_distance[i],
+    confluence_m = pf$cluster_confluence_m[i])
+}
 
 DBI::dbDisconnect(conn)
 }
