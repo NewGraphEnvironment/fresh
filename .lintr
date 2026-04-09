@@ -4,5 +4,5 @@ linters: linters_with_defaults(
     commented_code_linter = NULL
   )
 exclusions: list(
-    "renv" = list(linters = "all")
+    "renv"
   )
