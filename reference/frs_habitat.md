@@ -19,6 +19,7 @@ frs_habitat(
   to_streams = NULL,
   to_habitat = NULL,
   break_sources = NULL,
+  breaks_gradient = NULL,
   gate = TRUE,
   label_block = "blocked",
   params = NULL,
@@ -80,6 +81,27 @@ frs_habitat(
   `NULL`. Gradient access barriers are generated automatically from
   species parameters.
 
+- breaks_gradient:
+
+  Numeric vector or `NULL`. Extra gradient thresholds at which to break
+  the network for sub-segment resolution (in addition to species access
+  thresholds, which are always generated). Three modes:
+
+  - `NULL` (default) — auto-derive from `spawn_gradient_max` and
+    `rear_gradient_max` in `params`. Captures every biologically
+    meaningful threshold for the species being classified.
+
+  - Numeric vector — explicit list (e.g. `c(0.06, 0.12)`). Replaces
+    auto-derivation.
+
+  - `numeric(0)` — disable extras. Only access thresholds are generated
+    (the fresh 0.9.0 behavior).
+
+  Auto-derived breaks give cluster analysis
+  ([`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md))
+  the gradient resolution to detect within-segment steep sections that
+  would otherwise be hidden by averaging.
+
 - params:
 
   Named list from
@@ -136,6 +158,7 @@ Other habitat:
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+[`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
 [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md),
@@ -190,6 +213,34 @@ frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
 frs_habitat(conn, "BULK",
   params = frs_params(csv = "path/to/my_thresholds.csv"),
   params_fresh = read.csv("path/to/my_fresh_params.csv"),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# --- Controlling gradient resolution with breaks_gradient ---
+
+# Default: auto-derive breaks from spawn_gradient_max +
+# rear_gradient_max in params. For BULK with CO/BT/ST that's
+# roughly: 0.0449, 0.0549, 0.0849, 0.1049 plus access (0.15, 0.20,
+# 0.25). Every biologically meaningful threshold is captured.
+# Recommended — gives frs_cluster() the resolution to find
+# within-segment steep sections.
+frs_habitat(conn, "BULK",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# Custom override: explicit list. Use when you have project-specific
+# gradient thresholds (e.g. local channel-type classification scheme)
+# that aren't tied to a species threshold.
+frs_habitat(conn, "BULK",
+  breaks_gradient = c(0.03, 0.06, 0.10, 0.15),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# Disable extras: only species access thresholds (15/20/25). Faster
+# but coarser — fresh 0.9.0 behavior. Not recommended unless you
+# specifically don't want sub-segment gradient resolution.
+frs_habitat(conn, "BULK",
+  breaks_gradient = numeric(0),
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat")
 

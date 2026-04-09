@@ -59,6 +59,7 @@ habitat via <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a>
 <span>  to_streams <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  to_habitat <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  break_sources <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  breaks_gradient <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  gate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  label_block <span class="op">=</span> <span class="st">"blocked"</span>,</span>
 <span>  params <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -118,6 +119,22 @@ crossings, etc.), or <code>NULL</code>. Gradient access barriers are generated
 automatically from species parameters.</p></dd>
 
 
+<dt id="arg-breaks-gradient">breaks_gradient<a class="anchor" aria-label="anchor" href="#arg-breaks-gradient"></a></dt>
+<dd><p>Numeric vector or <code>NULL</code>. Extra gradient
+thresholds at which to break the network for sub-segment resolution
+(in addition to species access thresholds, which are always
+generated). Three modes:</p><ul><li><p><code>NULL</code> (default) — auto-derive from <code>spawn_gradient_max</code>
+and <code>rear_gradient_max</code> in <code>params</code>. Captures every biologically
+meaningful threshold for the species being classified.</p></li>
+<li><p>Numeric vector — explicit list (e.g. <code>c(0.06, 0.12)</code>).
+Replaces auto-derivation.</p></li>
+<li><p><code>numeric(0)</code> — disable extras. Only access thresholds are
+generated (the fresh 0.9.0 behavior).</p></li>
+</ul><p>Auto-derived breaks give cluster analysis (<code><a href="frs_cluster.html">frs_cluster()</a></code>) the
+gradient resolution to detect within-segment steep sections that
+would otherwise be hidden by averaging.</p></dd>
+
+
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
 <dd><p>Named list from <code><a href="frs_params.html">frs_params()</a></code>, or <code>NULL</code> to use
 bundled <code>parameters_habitat_thresholds.csv</code>.</p></dd>
@@ -169,6 +186,7 @@ table naming, custom AOI for spatial extent.</p></li>
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_categorize.html">frs_categorize()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
+<code><a href="frs_cluster.html">frs_cluster()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
 <code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code>,
@@ -223,6 +241,34 @@ table naming, custom AOI for spatial extent.</p></li>
 <span class="r-in"><span><span class="fu">frs_habitat</span><span class="op">(</span><span class="va">conn</span>, <span class="st">"BULK"</span>,</span></span>
 <span class="r-in"><span>  params <span class="op">=</span> <span class="fu"><a href="frs_params.html">frs_params</a></span><span class="op">(</span>csv <span class="op">=</span> <span class="st">"path/to/my_thresholds.csv"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  params_fresh <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"path/to/my_fresh_params.csv"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
+<span class="r-in"><span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># --- Controlling gradient resolution with breaks_gradient ---</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Default: auto-derive breaks from spawn_gradient_max +</span></span></span>
+<span class="r-in"><span><span class="co"># rear_gradient_max in params. For BULK with CO/BT/ST that's</span></span></span>
+<span class="r-in"><span><span class="co"># roughly: 0.0449, 0.0549, 0.0849, 0.1049 plus access (0.15, 0.20,</span></span></span>
+<span class="r-in"><span><span class="co"># 0.25). Every biologically meaningful threshold is captured.</span></span></span>
+<span class="r-in"><span><span class="co"># Recommended — gives frs_cluster() the resolution to find</span></span></span>
+<span class="r-in"><span><span class="co"># within-segment steep sections.</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat</span><span class="op">(</span><span class="va">conn</span>, <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
+<span class="r-in"><span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Custom override: explicit list. Use when you have project-specific</span></span></span>
+<span class="r-in"><span><span class="co"># gradient thresholds (e.g. local channel-type classification scheme)</span></span></span>
+<span class="r-in"><span><span class="co"># that aren't tied to a species threshold.</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat</span><span class="op">(</span><span class="va">conn</span>, <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  breaks_gradient <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.03</span>, <span class="fl">0.06</span>, <span class="fl">0.10</span>, <span class="fl">0.15</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
+<span class="r-in"><span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Disable extras: only species access thresholds (15/20/25). Faster</span></span></span>
+<span class="r-in"><span><span class="co"># but coarser — fresh 0.9.0 behavior. Not recommended unless you</span></span></span>
+<span class="r-in"><span><span class="co"># specifically don't want sub-segment gradient resolution.</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat</span><span class="op">(</span><span class="va">conn</span>, <span class="st">"BULK"</span>,</span></span>
+<span class="r-in"><span>  breaks_gradient <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
 <span class="r-in"><span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
