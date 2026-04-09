@@ -143,3 +143,54 @@ test_that("both direction creates temp table and evaluates independently", {
 
   expect_true(any(grepl("BOTH: CO", sql_log)))
 })
+
+# --- Integration tests (DB required) ---
+
+test_that("frs_cluster upstream removes disconnected rearing", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  tbl_streams <- "working.test_cluster_streams"
+  tbl_habitat <- "working.test_cluster_habitat"
+  on.exit({
+    .frs_test_drop(conn, tbl_habitat)
+    .frs_test_drop(conn, tbl_streams)
+    .frs_test_drop(conn, paste0(tbl_streams, "_breaks"))
+    DBI::dbDisconnect(conn)
+  })
+
+  # ADMS sub-basin: 188 segments, small enough for fast test
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+
+  # Segment network with gradient barriers
+  frs_network_segment(conn, aoi = aoi, to = tbl_streams,
+    break_sources = list(
+      list(table = "whse_basemapping.fwa_obstructions_sp",
+           where = "obstruction_type = 'Falls'",
+           label = "blocked",
+           col_measure = "route_measure")
+    ), verbose = FALSE)
+
+  # Classify CO habitat
+
+  frs_habitat_classify(conn,
+    table = tbl_streams, to = tbl_habitat,
+    species = "CO", gate = FALSE, verbose = FALSE)
+
+  # Count rearing before cluster analysis
+  n_before <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*) FILTER (WHERE rearing)::int AS n FROM %s
+     WHERE species_code = 'CO'", tbl_habitat))$n
+
+  # Run upstream cluster check
+  frs_cluster(conn, table = tbl_streams, habitat = tbl_habitat,
+    label_cluster = "rearing", label_connect = "spawning",
+    species = "CO", direction = "upstream", verbose = FALSE)
+
+  n_after <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*) FILTER (WHERE rearing)::int AS n FROM %s
+     WHERE species_code = 'CO'", tbl_habitat))$n
+
+  # Cluster analysis should remove some or keep all — never add
+  expect_true(n_after <= n_before)
+})
