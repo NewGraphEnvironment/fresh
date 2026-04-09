@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,15 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.10.0" id="fresh-0100">fresh 0.10.0<a class="anchor" aria-label="anchor" href="#fresh-0100"></a></h2>
+<p>Network cluster connectivity analysis.</p>
+<ul><li>
+<code><a href="../reference/frs_cluster.html">frs_cluster()</a></code> — generic cluster connectivity validation. Groups adjacent segments sharing one label, checks if another label exists upstream, downstream, or both on the network. Disconnected clusters set to FALSE. Uses <code>ST_ClusterDBSCAN</code> for spatial clustering and <code>fwa_downstreamtrace()</code> for downstream trace with gradient bridge and distance cap (<a href="https://github.com/NewGraphEnvironment/fresh/issues/107" class="external-link">#107</a>)</li>
+<li>Per-species cluster config in <code>parameters_fresh.csv</code> — <code>cluster_rearing</code>, <code>cluster_direction</code>, <code>cluster_bridge_gradient</code>, <code>cluster_bridge_distance</code>, <code>cluster_confluence_m</code>. Anadromous species opt in; resident species do not</li>
+<li>
+<code>direction = "both"</code> evaluates upstream and downstream independently, keeps clusters valid in either direction</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.9.0" id="fresh-090">fresh 0.9.0<a class="anchor" aria-label="anchor" href="#fresh-090"></a></h2>
 <p>Flexible AOI, configurable access gating, and feature indexing.</p>
