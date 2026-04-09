@@ -1,3 +1,11 @@
+# fresh 0.10.0
+
+Network cluster connectivity analysis.
+
+- `frs_cluster()` — generic cluster connectivity validation. Groups adjacent segments sharing one label, checks if another label exists upstream, downstream, or both on the network. Disconnected clusters set to FALSE. Uses `ST_ClusterDBSCAN` for spatial clustering and `fwa_downstreamtrace()` for downstream trace with gradient bridge and distance cap ([#107](https://github.com/NewGraphEnvironment/fresh/issues/107))
+- Per-species cluster config in `parameters_fresh.csv` — `cluster_rearing`, `cluster_direction`, `cluster_bridge_gradient`, `cluster_bridge_distance`, `cluster_confluence_m`. Anadromous species opt in; resident species do not
+- `direction = "both"` evaluates upstream and downstream independently, keeps clusters valid in either direction
+
 # fresh 0.9.0
 
 Flexible AOI, configurable access gating, and feature indexing.
