@@ -13,6 +13,7 @@ frs_habitat(
   to_streams = NULL,
   to_habitat = NULL,
   break_sources = NULL,
+  breaks_gradient = NULL,
   gate = TRUE,
   label_block = "blocked",
   params = NULL,
@@ -51,6 +52,23 @@ habitat classifications. Long format: one row per segment x species.}
 \item{break_sources}{List of additional break source specs (falls,
 crossings, etc.), or \code{NULL}. Gradient access barriers are generated
 automatically from species parameters.}
+
+\item{breaks_gradient}{Numeric vector or \code{NULL}. Extra gradient
+thresholds at which to break the network for sub-segment resolution
+(in addition to species access thresholds, which are always
+generated). Three modes:
+\itemize{
+\item \code{NULL} (default) — auto-derive from \code{spawn_gradient_max}
+and \code{rear_gradient_max} in \code{params}. Captures every biologically
+meaningful threshold for the species being classified.
+\item Numeric vector — explicit list (e.g. \code{c(0.06, 0.12)}).
+Replaces auto-derivation.
+\item \code{numeric(0)} — disable extras. Only access thresholds are
+generated (the fresh 0.9.0 behavior).
+}
+Auto-derived breaks give cluster analysis (\code{\link[=frs_cluster]{frs_cluster()}}) the
+gradient resolution to detect within-segment steep sections that
+would otherwise be hidden by averaging.}
 
 \item{params}{Named list from \code{\link[=frs_params]{frs_params()}}, or \code{NULL} to use
 bundled \code{parameters_habitat_thresholds.csv}.}
@@ -131,6 +149,34 @@ frs_habitat(conn, "BULK",
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat")
 
+# --- Controlling gradient resolution with breaks_gradient ---
+
+# Default: auto-derive breaks from spawn_gradient_max +
+# rear_gradient_max in params. For BULK with CO/BT/ST that's
+# roughly: 0.0449, 0.0549, 0.0849, 0.1049 plus access (0.15, 0.20,
+# 0.25). Every biologically meaningful threshold is captured.
+# Recommended — gives frs_cluster() the resolution to find
+# within-segment steep sections.
+frs_habitat(conn, "BULK",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# Custom override: explicit list. Use when you have project-specific
+# gradient thresholds (e.g. local channel-type classification scheme)
+# that aren't tied to a species threshold.
+frs_habitat(conn, "BULK",
+  breaks_gradient = c(0.03, 0.06, 0.10, 0.15),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# Disable extras: only species access thresholds (15/20/25). Faster
+# but coarser — fresh 0.9.0 behavior. Not recommended unless you
+# specifically don't want sub-segment gradient resolution.
+frs_habitat(conn, "BULK",
+  breaks_gradient = numeric(0),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
 DBI::dbDisconnect(conn)
 }
 }
@@ -143,6 +189,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
 \code{\link{frs_classify}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
