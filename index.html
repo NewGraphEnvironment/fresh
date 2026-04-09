@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>FWA-Referenced Spatial Hydrology • fresh</title>
+<title>Freshwater Referenced Spatial Hydrology • fresh</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="FWA-Referenced Spatial Hydrology">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Freshwater Referenced Spatial Hydrology">
 <meta name="description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg. bcfishpass, and bcfishobs.">
 <meta property="og:description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg. bcfishpass, and bcfishobs.">
 <meta property="og:image" content="https://newgraphenvironment.github.io/fresh/logo.png">
@@ -61,9 +61,9 @@
 </h1>
 </div>
 <blockquote>
-<p>FWA-Referenced Spatial Hydrology</p>
+<p>Freshwater Referenced Spatial Hydrology</p>
 </blockquote>
-<p>Stream network-aware spatial operations via direct SQL against <a href="https://github.com/smnorris/fwapg" class="external-link">fwapg</a>. Segment networks, classify habitat, aggregate upstream features, and query the BC Freshwater Atlas.</p>
+<p>A composable stream network modelling engine. Query and extract stream networks, classify habitat by gradient and channel width, segment networks at barriers and break points, aggregate features upstream or downstream, and run multi-species habitat modelling with parallel workers. Supports custom model outputs and attribute joining — channel width, mean annual discharge, precipitation, or any scalar value. Currently running on BC’s Freshwater Atlas, designed to model fish habitat, connectivity, water temperature, channel morphology, and custom attributes for any species or question on any stream network.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -107,14 +107,23 @@
 <span>  table <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span>
 <span>  to <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span>
 <span>  species <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"CO"</span>, <span class="st">"BT"</span>, <span class="st">"ST"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>Or use the orchestrator for multi-WSG runs:</p>
+<p>Or use the orchestrator for multi-WSG runs with any AOI:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/frs_habitat.html">frs_habitat</a></span><span class="op">(</span><span class="va">conn</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"BULK"</span>, <span class="st">"MORR"</span>, <span class="st">"ZYMO"</span><span class="op">)</span>,</span>
+<code class="sourceCode R"><span><span class="co"># Province-wide with parallel workers</span></span>
+<span><span class="fu"><a href="reference/frs_habitat.html">frs_habitat</a></span><span class="op">(</span><span class="va">conn</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"BULK"</span>, <span class="st">"MORR"</span>, <span class="st">"ZYMO"</span><span class="op">)</span>,</span>
 <span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span>
 <span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">4</span>, password <span class="op">=</span> <span class="st">"postgres"</span>,</span>
 <span>  break_sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.falls"</span>, label <span class="op">=</span> <span class="st">"blocked"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.falls"</span>, label <span class="op">=</span> <span class="st">"blocked"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Custom AOI — sub-basin, territory, or any spatial extent</span></span>
+<span><span class="fu"><a href="reference/frs_habitat.html">frs_habitat</a></span><span class="op">(</span><span class="va">conn</span>,</span>
+<span>  aoi <span class="op">=</span> <span class="st">"wscode_ltree &lt;@ '100.190442'::ltree"</span>,</span>
+<span>  species <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"BT"</span>, <span class="st">"CO"</span><span class="op">)</span>,</span>
+<span>  label <span class="op">=</span> <span class="st">"richfield"</span>,</span>
+<span>  to_streams <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span>
+<span>  to_habitat <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span><span class="op">)</span></span></code></pre></div>
 <p>See the <a href="https://newgraphenvironment.github.io/fresh/">pkgdown site</a> for vignettes and function reference.</p>
 </div>
 <div class="section level2">
@@ -132,7 +141,7 @@
 <tbody>
 <tr class="odd">
 <td><strong>fresh</strong></td>
-<td>Network segmentation, habitat classification, sub-basin delineation (this package)</td>
+<td>Stream network modelling engine (this package)</td>
 </tr>
 <tr class="even">
 <td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>

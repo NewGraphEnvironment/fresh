@@ -12,11 +12,11 @@
 Source:
 [`DESCRIPTION`](https://github.com/NewGraphEnvironment/fresh/blob/main/DESCRIPTION)
 
-Irvine A (2026). *fresh: FWA-Referenced Spatial Hydrology*. R package
-version 0.9.0, <https://github.com/NewGraphEnvironment/fresh>.
+Irvine A (2026). *fresh: Freshwater Referenced Spatial Hydrology*. R
+package version 0.9.0, <https://github.com/NewGraphEnvironment/fresh>.
 
     @Manual{,
-      title = {fresh: FWA-Referenced Spatial Hydrology},
+      title = {fresh: Freshwater Referenced Spatial Hydrology},
       author = {Allan Irvine},
       year = {2026},
       note = {R package version 0.9.0},

@@ -1,4 +1,4 @@
-# fresh: FWA-Referenced Spatial Hydrology
+# fresh: Freshwater Referenced Spatial Hydrology
 
 Stream network-aware spatial operations via direct SQL against fwapg.
 Segment networks at break points, classify habitat by species, aggregate
