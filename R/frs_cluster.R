@@ -115,12 +115,16 @@ frs_cluster <- function(conn, table, habitat,
         label_cluster, habitat, .frs_quote_string(sp)))$n
     }
 
-    if (direction == "upstream" || direction == "both") {
+    if (direction == "both") {
+      # Both directions evaluated independently on original data,
+      # then combined: valid if connected in EITHER direction
+      .frs_cluster_both(conn, table, habitat,
+        label_cluster, label_connect, sp,
+        confluence_m, bridge_gradient, bridge_distance)
+    } else if (direction == "upstream") {
       .frs_cluster_upstream(conn, table, habitat,
         label_cluster, label_connect, sp, confluence_m)
-    }
-
-    if (direction == "downstream" || direction == "both") {
+    } else {
       .frs_cluster_downstream(conn, table, habitat,
         label_cluster, label_connect, sp,
         bridge_gradient, bridge_distance)
@@ -342,4 +346,172 @@ frs_cluster <- function(conn, table, habitat,
     habitat, label_cluster, sp_quoted)
 
   .frs_db_execute(conn, sql)
+}
+
+
+#' Both-direction cluster connectivity check
+#'
+#' Evaluates upstream and downstream independently on the original data,
+#' then combines: a cluster is valid if connected in either direction.
+#' Uses a temp table for clustering so both checks see the same clusters.
+#'
+#' @noRd
+.frs_cluster_both <- function(conn, table, habitat,
+                              label_cluster, label_connect,
+                              species, confluence_m,
+                              bridge_gradient, bridge_distance) {
+  sp_quoted <- .frs_quote_string(species)
+  conf_m <- .frs_sql_num(confluence_m)
+  bg <- .frs_sql_num(bridge_gradient)
+  bd <- .frs_sql_num(bridge_distance)
+
+  tmp_clusters <- sprintf("pg_temp.frs_clusters_%s",
+    gsub("[^a-z0-9]", "", tolower(species)))
+
+  # Create shared clustering temp table
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", tmp_clusters))
+  .frs_db_execute(conn, sprintf(
+    "CREATE TEMP TABLE %s AS
+     SELECT
+       h.id_segment,
+       ST_ClusterDBSCAN(s.geom, 1, 1) OVER () AS cluster_id,
+       s.wscode_ltree,
+       s.localcode_ltree,
+       s.blue_line_key,
+       s.downstream_route_measure
+     FROM %s h
+     INNER JOIN %s s ON h.id_segment = s.id_segment
+     WHERE h.species_code = %s
+       AND h.%s IS TRUE",
+    tmp_clusters, habitat, table, sp_quoted, label_cluster))
+
+  .frs_db_execute(conn, sprintf(
+    "CREATE INDEX ON %s (cluster_id)", tmp_clusters))
+
+  # Upstream valid clusters
+  sql_upstream <- sprintf(
+    "WITH cluster_minimums AS (
+       SELECT DISTINCT ON (cluster_id)
+         cluster_id, wscode_ltree, localcode_ltree,
+         blue_line_key, downstream_route_measure
+       FROM %s
+       ORDER BY cluster_id, wscode_ltree ASC, localcode_ltree ASC,
+                downstream_route_measure ASC
+     )
+     SELECT DISTINCT cm.cluster_id
+     FROM cluster_minimums cm
+     INNER JOIN %s h2 ON h2.species_code = %s
+       AND h2.%s IS TRUE
+     INNER JOIN %s st ON h2.id_segment = st.id_segment
+     WHERE
+       FWA_Upstream(
+         cm.blue_line_key, cm.downstream_route_measure,
+         cm.wscode_ltree, cm.localcode_ltree,
+         st.blue_line_key, st.downstream_route_measure,
+         st.wscode_ltree, st.localcode_ltree
+       )
+       OR (
+         cm.downstream_route_measure < %s
+         AND FWA_Upstream(
+           subpath(cm.wscode_ltree, 0, -1), cm.wscode_ltree,
+           st.wscode_ltree, st.localcode_ltree
+         )
+       )",
+    tmp_clusters,
+    habitat, sp_quoted, label_connect, table,
+    conf_m)
+
+  valid_up <- DBI::dbGetQuery(conn, sql_upstream)$cluster_id
+
+  # Downstream valid clusters
+  sql_downstream <- sprintf(
+    "WITH cluster_minimums AS (
+       SELECT DISTINCT ON (cluster_id)
+         cluster_id, wscode_ltree, localcode_ltree,
+         blue_line_key, downstream_route_measure
+       FROM %s
+       ORDER BY cluster_id, wscode_ltree ASC, localcode_ltree ASC,
+                downstream_route_measure ASC
+     ),
+     downstream AS (
+       SELECT
+         cm.cluster_id,
+         t.linear_feature_id,
+         t.wscode,
+         t.downstream_route_measure,
+         t.gradient,
+         EXISTS (
+           SELECT 1 FROM %s s
+           INNER JOIN %s h2 ON s.id_segment = h2.id_segment
+           WHERE s.linear_feature_id = t.linear_feature_id
+             AND h2.species_code = %s
+             AND h2.%s IS TRUE
+         ) AS has_connect,
+         -t.length_metre + SUM(t.length_metre) OVER (
+           PARTITION BY cm.cluster_id
+           ORDER BY t.wscode DESC, t.downstream_route_measure DESC
+         ) AS dist_to_cluster
+       FROM cluster_minimums cm
+       CROSS JOIN LATERAL whse_basemapping.fwa_downstreamtrace(
+         cm.blue_line_key,
+         cm.downstream_route_measure
+       ) t
+       WHERE t.blue_line_key = t.watershed_key
+     ),
+     downstream_capped AS (
+       SELECT
+         row_number() OVER (
+           PARTITION BY cluster_id
+           ORDER BY wscode DESC, downstream_route_measure DESC
+         ) AS rn,
+         *
+       FROM downstream
+       WHERE dist_to_cluster < %s
+     ),
+     nearest_connect AS (
+       SELECT DISTINCT ON (cluster_id) *
+       FROM downstream_capped
+       WHERE has_connect IS TRUE
+       ORDER BY cluster_id, wscode DESC, downstream_route_measure DESC
+     ),
+     nearest_barrier AS (
+       SELECT DISTINCT ON (cluster_id) *
+       FROM downstream_capped
+       WHERE gradient >= %s
+       ORDER BY cluster_id, wscode DESC, downstream_route_measure DESC
+     )
+     SELECT a.cluster_id
+     FROM nearest_connect a
+     LEFT JOIN nearest_barrier b ON a.cluster_id = b.cluster_id
+     WHERE b.rn IS NULL OR b.rn > a.rn",
+    tmp_clusters,
+    table, habitat, sp_quoted, label_connect,
+    bd,
+    bg)
+
+  valid_down <- DBI::dbGetQuery(conn, sql_downstream)$cluster_id
+
+  # Union of both valid sets
+  all_valid <- unique(c(valid_up, valid_down))
+
+  # UPDATE: set FALSE for segments in clusters NOT valid in either direction
+  if (length(all_valid) == 0) {
+    .frs_db_execute(conn, sprintf(
+      "UPDATE %s h SET %s = FALSE
+       FROM %s c
+       WHERE h.id_segment = c.id_segment
+         AND h.species_code = %s",
+      habitat, label_cluster, tmp_clusters, sp_quoted))
+  } else {
+    valid_list <- paste(as.integer(all_valid), collapse = ", ")
+    .frs_db_execute(conn, sprintf(
+      "UPDATE %s h SET %s = FALSE
+       FROM %s c
+       WHERE h.id_segment = c.id_segment
+         AND h.species_code = %s
+         AND c.cluster_id NOT IN (%s)",
+      habitat, label_cluster, tmp_clusters, sp_quoted, valid_list))
+  }
+
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", tmp_clusters))
 }
