@@ -278,7 +278,13 @@ frs_cluster <- function(conn, table, habitat,
          t.wscode,
          t.downstream_route_measure,
          t.gradient,
-         CASE WHEN h2.%s IS TRUE THEN TRUE ELSE FALSE END AS has_connect,
+         EXISTS (
+           SELECT 1 FROM %s s
+           INNER JOIN %s h2 ON s.id_segment = h2.id_segment
+           WHERE s.linear_feature_id = t.linear_feature_id
+             AND h2.species_code = %s
+             AND h2.%s IS TRUE
+         ) AS has_connect,
          -t.length_metre + SUM(t.length_metre) OVER (
            PARTITION BY cm.cluster_id
            ORDER BY t.wscode DESC, t.downstream_route_measure DESC
@@ -288,16 +294,15 @@ frs_cluster <- function(conn, table, habitat,
          cm.blue_line_key,
          cm.downstream_route_measure
        ) t
-       LEFT JOIN %s s ON t.linear_feature_id = s.linear_feature_id
-         AND t.downstream_route_measure = s.downstream_route_measure
-       LEFT JOIN %s h2 ON s.id_segment = h2.id_segment
-         AND h2.species_code = %s
        WHERE t.blue_line_key = t.watershed_key
      ),
 
      downstream_capped AS (
        SELECT
-         row_number() OVER (PARTITION BY cluster_id) AS rn,
+         row_number() OVER (
+           PARTITION BY cluster_id
+           ORDER BY wscode DESC, downstream_route_measure DESC
+         ) AS rn,
          *
        FROM downstream
        WHERE dist_to_cluster < %s
@@ -331,8 +336,7 @@ frs_cluster <- function(conn, table, habitat,
        AND h.species_code = %s
        AND c.cluster_id NOT IN (SELECT cluster_id FROM valid_clusters)",
     habitat, table, sp_quoted, label_cluster,
-    label_connect,
-    table, habitat, sp_quoted,
+    table, habitat, sp_quoted, label_connect,
     bd,
     bg,
     habitat, label_cluster, sp_quoted)
