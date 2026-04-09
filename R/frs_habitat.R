@@ -153,7 +153,7 @@ frs_habitat <- function(conn, wsg = NULL,
                         cleanup = TRUE, verbose = TRUE) {
 
   if (!is.null(breaks_gradient)) {
-    stopifnot(is.numeric(breaks_gradient))
+    .frs_validate_gradient_thresholds(breaks_gradient, "breaks_gradient")
   }
 
   t_total <- proc.time()
@@ -280,12 +280,12 @@ frs_habitat <- function(conn, wsg = NULL,
       as.numeric(breaks_gradient)
     }
 
-    # Union, sort ascending, dedupe by integer-percent label.
-    # Two thresholds that round to the same gradient_N label would
-    # otherwise collide on the barrier table name and label string.
-    all_thresholds <- sort(c(access_thresholds, extra_thresholds))
-    all_thresholds <- all_thresholds[
-      !duplicated(as.integer(all_thresholds * 100))]
+    # Union, sort ascending, dedupe on actual numeric value.
+    # Distinct biological thresholds (e.g. 0.05 and 0.0549) are
+    # preserved — they each get their own break and a unique
+    # `gradient_NNNN` label that captures threshold * 10000 padded
+    # to 4 digits (resolution of 1 basis point).
+    all_thresholds <- sort(unique(c(access_thresholds, extra_thresholds)))
 
     # 2. Generate gradient barriers at each threshold
     streams_tbl <- paste0("working.streams_", job_label)
@@ -319,14 +319,15 @@ frs_habitat <- function(conn, wsg = NULL,
     barrier_tables <- character(0)
 
     for (thr in all_thresholds) {
-      thr_tbl <- sprintf("working.barriers_%s_%d",
-                         job_label, as.integer(thr * 100))
+      thr_label <- .frs_gradient_label(thr)
+      thr_tbl <- sprintf("working.barriers_%s_%s",
+                         job_label, sub("^gradient_", "", thr_label))
       frs_break_find(w_conn, tmp_tbl,
         attribute = "gradient", threshold = thr,
         to = thr_tbl)
       all_sources <- c(all_sources, list(list(
         table = thr_tbl,
-        label = sprintf("gradient_%d", as.integer(thr * 100)))))
+        label = thr_label)))
       barrier_tables <- c(barrier_tables, thr_tbl)
     }
 
@@ -427,9 +428,7 @@ frs_habitat <- function(conn, wsg = NULL,
         as.numeric(breaks_gradient)
       }
 
-      all_thresholds <- sort(c(access_thresholds, extra_thresholds))
-      all_thresholds <- all_thresholds[
-        !duplicated(as.integer(all_thresholds * 100))]
+      all_thresholds <- sort(unique(c(access_thresholds, extra_thresholds)))
 
       streams_tbl <- paste0("working.streams_", job_label)
       tmp_tbl <- paste0(streams_tbl, "_tmp")
@@ -455,13 +454,14 @@ frs_habitat <- function(conn, wsg = NULL,
       all_sources <- if (!is.null(break_sources)) break_sources else list()
       barrier_tables <- character(0)
       for (thr in all_thresholds) {
-        thr_tbl <- sprintf("working.barriers_%s_%d",
-                           job_label, as.integer(thr * 100))
+        thr_label <- .frs_gradient_label(thr)
+        thr_tbl <- sprintf("working.barriers_%s_%s",
+                           job_label, sub("^gradient_", "", thr_label))
         frs_break_find(w_conn, tmp_tbl,
           attribute = "gradient", threshold = thr, to = thr_tbl)
         all_sources <- c(all_sources, list(list(
           table = thr_tbl,
-          label = sprintf("gradient_%d", as.integer(thr * 100)))))
+          label = thr_label)))
         barrier_tables <- c(barrier_tables, thr_tbl)
       }
 

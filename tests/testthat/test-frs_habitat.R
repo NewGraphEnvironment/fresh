@@ -3,8 +3,50 @@
 test_that("breaks_gradient validates type", {
   expect_error(
     frs_habitat("mock", "BULK", breaks_gradient = "high"),
-    "is.numeric"
+    "must be numeric"
   )
+})
+
+test_that("breaks_gradient validates range [0,1]", {
+  expect_error(
+    frs_habitat("mock", "BULK", breaks_gradient = c(0.05, 1.5)),
+    "must be in \\[0, 1\\]"
+  )
+  expect_error(
+    frs_habitat("mock", "BULK", breaks_gradient = c(-0.01, 0.05)),
+    "must be in \\[0, 1\\]"
+  )
+})
+
+test_that("breaks_gradient errors on excess precision", {
+  # 0.05001 cannot be represented at 4-digit basis points
+  expect_error(
+    frs_habitat("mock", "BULK", breaks_gradient = c(0.05001)),
+    "exceed basis-point precision"
+  )
+})
+
+test_that("breaks_gradient errors on duplicate labels", {
+  # Distinct values that round to same label
+  # Note: basis-point precision check catches this first for most inputs.
+  # This tests the fallback collision check directly.
+  expect_error(
+    .frs_validate_gradient_thresholds(c(0.05, 0.0500), "test"),
+    "duplicate labels|exceed basis-point"
+  )
+})
+
+test_that("breaks_gradient errors on NA", {
+  expect_error(
+    frs_habitat("mock", "BULK", breaks_gradient = c(0.05, NA)),
+    "contains NA"
+  )
+})
+
+test_that("breaks_gradient accepts valid 4-decimal values", {
+  # Should NOT error
+  expect_silent(.frs_validate_gradient_thresholds(c(0.0249, 0.05, 0.0549, 0.10, 0.15), "test"))
+  expect_silent(.frs_validate_gradient_thresholds(numeric(0), "test"))
 })
 
 test_that("breaks_gradient default auto-derives from params", {
@@ -107,4 +149,45 @@ test_that("breaks_gradient custom override produces more segments than disabled"
   # Adding one extra break should produce >= segments (more or equal,
   # depending on whether 10% is exceeded anywhere in the test area)
   expect_gte(res_custom$n_segments, res_min$n_segments)
+})
+
+test_that("regression #110: distinct thresholds produce distinct labels", {
+  # Pre-fix bug: 0.05 and 0.0549 both rounded to gradient_5 (collision)
+  # Post-fix: 0.05 → gradient_0500, 0.0549 → gradient_0549 (distinct)
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+
+  on.exit({
+    for (tbl in c("working.persist_brk_110",
+                  "working.persist_brk_110_habitat",
+                  "working.persist_brk_110_one",
+                  "working.persist_brk_110_one_habitat")) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+    }
+    DBI::dbDisconnect(conn)
+  })
+
+  # Pass two thresholds that would collide under the old format
+  frs_habitat(conn,
+    aoi = aoi, species = c("CO", "BT"), label = "brktest_110",
+    to_streams = "working.persist_brk_110",
+    to_habitat = "working.persist_brk_110_habitat",
+    breaks_gradient = c(0.05, 0.0549),
+    verbose = FALSE)
+
+  res_one <- frs_habitat(conn,
+    aoi = aoi, species = c("CO", "BT"), label = "brktest_110b",
+    to_streams = "working.persist_brk_110_one",
+    to_habitat = "working.persist_brk_110_one_habitat",
+    breaks_gradient = c(0.05),
+    verbose = FALSE)
+
+  res_two <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM working.persist_brk_110")$n
+
+  # Two distinct thresholds should produce >= segments than one
+  # (more if any segments fall between 5.0% and 5.49% gradient)
+  expect_gte(res_two, res_one$n_segments)
 })

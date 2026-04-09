@@ -42,7 +42,7 @@ frs_break_find(conn, "working.tmp",
 frs_network_segment(conn, aoi = "BULK",
   to = "fresh.streams",
   break_sources = list(
-    list(table = "working.barriers_15", label = "gradient_15"),
+    list(table = "working.barriers_15", label = "gradient_1500"),
     list(table = "working.falls", label = "blocked")))
 
 # 3. Classify habitat per species

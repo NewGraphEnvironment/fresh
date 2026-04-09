@@ -25,8 +25,10 @@
 #'   inaccessible. If `FALSE`, all segments are classified regardless of
 #'   breaks (raw habitat potential).
 #' @param label_block Character vector. Labels that always block
-#'   access. Default `"blocked"`. Gradient labels (`gradient_15`, etc.)
-#'   are always threshold-aware regardless of this parameter. Set to
+#'   access. Default `"blocked"`. Gradient labels (`gradient_NNNN`,
+#'   the canonical 4-digit basis-point format like `gradient_1500` for
+#'   15%, or the legacy `gradient_N` like `gradient_15`) are always
+#'   threshold-aware regardless of this parameter. Set to
 #'   `c("blocked", "potential")` for conservative analysis.
 #' @param overwrite Logical. If `TRUE`, replace existing rows for
 #'   these species in the output table. Default `TRUE`.
@@ -43,12 +45,12 @@
 #' conn <- frs_db_conn()
 #'
 #' # Assumes fresh.streams built by frs_network_segment() with
-#' # gradient barriers labeled "gradient_15", "gradient_20", "gradient_25".
-#' # See frs_network_segment() for the full setup.
+#' # gradient barriers labeled "gradient_1500", "gradient_2000",
+#' # "gradient_2500" (15%, 20%, 25% — see frs_network_segment()).
 #'
 #' # Classify CO, BT, ST — each gets species-specific accessibility.
-#' # CO (15% access) is blocked by gradient_15, gradient_20, gradient_25.
-#' # BT (25% access) is only blocked by gradient_25.
+#' # CO (15% access) is blocked by gradient_1500, gradient_2000,
+#' # gradient_2500. BT (25% access) is only blocked by gradient_2500.
 #' # Result: BT has ~2x the accessible habitat of CO on the same network.
 #' frs_habitat_classify(conn,
 #'   table = "fresh.streams",
@@ -322,7 +324,8 @@ frs_habitat_classify <- function(conn, table, to,
 #' Build SQL label filter for species-specific accessibility
 #'
 #' Determines which break labels block a species based on its access
-#' gradient threshold. Gradient labels like `"gradient_15"` are parsed
+#' gradient threshold. Gradient labels like `"gradient_1500"` (new
+#' 4-digit basis-point format) or `"gradient_15"` (legacy) are parsed
 #' to extract the threshold value. Labels >= the species' threshold
 #' block that species. Non-gradient labels (e.g. `"blocked"`) always
 #' block.
@@ -339,16 +342,26 @@ frs_habitat_classify <- function(conn, table, to,
     "SELECT DISTINCT label FROM %s", breaks_tbl))$label
 
   # Determine which labels block this species
-  # Two patterns:
+  # Patterns recognized:
   #   label_block — user-configured labels that always block
-  #   "gradient_N" — blocks species with access threshold <= N%
+  #   "gradient_NNNN" — new format (4-digit basis points * 10).
+  #     Parsed as N / 10000. Resolution 0.0001.
+  #   "gradient_N"  — legacy format (integer percent, 1-3 digits).
+  #     Parsed as N / 100. Backward compat for user-supplied labels
+  #     like `frs_break_find(label = "gradient_15")`.
   # Everything else does not block
   blocking <- vapply(labels, function(lbl) {
     if (is.na(lbl)) return(FALSE)
     if (lbl %in% label_block) return(TRUE)
-    m <- regmatches(lbl, regexec("^gradient_(\\d+)$", lbl))[[1]]
-    if (length(m) == 2) {
-      return(as.numeric(m[2]) / 100 >= access_gradient)
+    # New format: gradient_NNNN
+    m4 <- regmatches(lbl, regexec("^gradient_(\\d{4})$", lbl))[[1]]
+    if (length(m4) == 2) {
+      return(as.numeric(m4[2]) / 10000 >= access_gradient)
+    }
+    # Legacy format: gradient_N (1-3 digits)
+    m_legacy <- regmatches(lbl, regexec("^gradient_(\\d{1,3})$", lbl))[[1]]
+    if (length(m_legacy) == 2) {
+      return(as.numeric(m_legacy[2]) / 100 >= access_gradient)
     }
     FALSE
   }, logical(1))
