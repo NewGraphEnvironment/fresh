@@ -109,8 +109,10 @@ breaks (raw habitat potential).</p></dd>
 
 <dt id="arg-label-block">label_block<a class="anchor" aria-label="anchor" href="#arg-label-block"></a></dt>
 <dd><p>Character vector. Labels that always block
-access. Default <code>"blocked"</code>. Gradient labels (<code>gradient_15</code>, etc.)
-are always threshold-aware regardless of this parameter. Set to
+access. Default <code>"blocked"</code>. Gradient labels (<code>gradient_NNNN</code>,
+the canonical 4-digit basis-point format like <code>gradient_1500</code> for
+15%, or the legacy <code>gradient_N</code> like <code>gradient_15</code>) are always
+threshold-aware regardless of this parameter. Set to
 <code>c("blocked", "potential")</code> for conservative analysis.</p></dd>
 
 
@@ -143,6 +145,7 @@ a breaks table (<code>{streams_table}_breaks</code>) for accessibility checks.</
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_categorize.html">frs_categorize()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
+<code><a href="frs_cluster.html">frs_cluster()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
 <code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code>,
@@ -161,12 +164,12 @@ a breaks table (<code>{streams_table}_breaks</code>) for accessibility checks.</
 <span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="frs_db_conn.html">frs_db_conn</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Assumes fresh.streams built by frs_network_segment() with</span></span></span>
-<span class="r-in"><span><span class="co"># gradient barriers labeled "gradient_15", "gradient_20", "gradient_25".</span></span></span>
-<span class="r-in"><span><span class="co"># See frs_network_segment() for the full setup.</span></span></span>
+<span class="r-in"><span><span class="co"># gradient barriers labeled "gradient_1500", "gradient_2000",</span></span></span>
+<span class="r-in"><span><span class="co"># "gradient_2500" (15%, 20%, 25% — see frs_network_segment()).</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Classify CO, BT, ST — each gets species-specific accessibility.</span></span></span>
-<span class="r-in"><span><span class="co"># CO (15% access) is blocked by gradient_15, gradient_20, gradient_25.</span></span></span>
-<span class="r-in"><span><span class="co"># BT (25% access) is only blocked by gradient_25.</span></span></span>
+<span class="r-in"><span><span class="co"># CO (15% access) is blocked by gradient_1500, gradient_2000,</span></span></span>
+<span class="r-in"><span><span class="co"># gradient_2500. BT (25% access) is only blocked by gradient_2500.</span></span></span>
 <span class="r-in"><span><span class="co"># Result: BT has ~2x the accessible habitat of CO on the same network.</span></span></span>
 <span class="r-in"><span><span class="fu">frs_habitat_classify</span><span class="op">(</span><span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  table <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>

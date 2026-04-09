@@ -121,6 +121,7 @@ alongside falls, crossings, or any other point table.</p>
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_categorize.html">frs_categorize()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
+<code><a href="frs_cluster.html">frs_cluster()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
 <code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code>,
@@ -164,16 +165,20 @@ alongside falls, crossings, or any other point table.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># 2. Segment the network at ALL barrier points + falls.</span></span></span>
 <span class="r-in"><span><span class="co">#    One table, one copy of geometry, shared across all species.</span></span></span>
-<span class="r-in"><span><span class="co">#    Labels control which species each barrier blocks — gradient_15</span></span></span>
-<span class="r-in"><span><span class="co">#    blocks CO but not BT; gradient_25 blocks both.</span></span></span>
+<span class="r-in"><span><span class="co">#    Labels control which species each barrier blocks — gradient_1500</span></span></span>
+<span class="r-in"><span><span class="co">#    (15%) blocks CO but not BT; gradient_2500 (25%) blocks both.</span></span></span>
+<span class="r-in"><span><span class="co">#    Labels follow the gradient_NNNN format: 4-digit zero-padded</span></span></span>
+<span class="r-in"><span><span class="co">#    basis points (threshold * 10000). The legacy gradient_N format</span></span></span>
+<span class="r-in"><span><span class="co">#    (e.g. "gradient_15") is still accepted by the parser for</span></span></span>
+<span class="r-in"><span><span class="co">#    backward compatibility with user-supplied labels.</span></span></span>
 <span class="r-in"><span><span class="co">#    Falls (from inst/extdata/falls.csv, loaded to working.falls)</span></span></span>
 <span class="r-in"><span><span class="co">#    block all species.</span></span></span>
 <span class="r-in"><span><span class="fu">frs_network_segment</span><span class="op">(</span><span class="va">conn</span>, aoi <span class="op">=</span> <span class="st">"BULK"</span>,</span></span>
 <span class="r-in"><span>  to <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
 <span class="r-in"><span>  break_sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.barriers_15"</span>, label <span class="op">=</span> <span class="st">"gradient_15"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.barriers_20"</span>, label <span class="op">=</span> <span class="st">"gradient_20"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.barriers_25"</span>, label <span class="op">=</span> <span class="st">"gradient_25"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.barriers_15"</span>, label <span class="op">=</span> <span class="st">"gradient_1500"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.barriers_20"</span>, label <span class="op">=</span> <span class="st">"gradient_2000"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.barriers_25"</span>, label <span class="op">=</span> <span class="st">"gradient_2500"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table <span class="op">=</span> <span class="st">"working.falls"</span>,</span></span>
 <span class="r-in"><span>         where <span class="op">=</span> <span class="st">"barrier_ind = TRUE"</span>, label <span class="op">=</span> <span class="st">"blocked"</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span><span class="op">)</span></span></span>

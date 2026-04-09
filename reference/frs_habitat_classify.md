@@ -65,9 +65,11 @@ frs_habitat_classify(
 - label_block:
 
   Character vector. Labels that always block access. Default
-  `"blocked"`. Gradient labels (`gradient_15`, etc.) are always
-  threshold-aware regardless of this parameter. Set to
-  `c("blocked", "potential")` for conservative analysis.
+  `"blocked"`. Gradient labels (`gradient_NNNN`, the canonical 4-digit
+  basis-point format like `gradient_1500` for 15%, or the legacy
+  `gradient_N` like `gradient_15`) are always threshold-aware regardless
+  of this parameter. Set to `c("blocked", "potential")` for conservative
+  analysis.
 
 - overwrite:
 
@@ -99,6 +101,7 @@ Other habitat:
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+[`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
 [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md),
@@ -117,12 +120,12 @@ if (FALSE) { # \dontrun{
 conn <- frs_db_conn()
 
 # Assumes fresh.streams built by frs_network_segment() with
-# gradient barriers labeled "gradient_15", "gradient_20", "gradient_25".
-# See frs_network_segment() for the full setup.
+# gradient barriers labeled "gradient_1500", "gradient_2000",
+# "gradient_2500" (15%, 20%, 25% — see frs_network_segment()).
 
 # Classify CO, BT, ST — each gets species-specific accessibility.
-# CO (15% access) is blocked by gradient_15, gradient_20, gradient_25.
-# BT (25% access) is only blocked by gradient_25.
+# CO (15% access) is blocked by gradient_1500, gradient_2000,
+# gradient_2500. BT (25% access) is only blocked by gradient_2500.
 # Result: BT has ~2x the accessible habitat of CO on the same network.
 frs_habitat_classify(conn,
   table = "fresh.streams",
