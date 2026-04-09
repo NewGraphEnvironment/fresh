@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,15 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.11.1" id="fresh-0111">fresh 0.11.1<a class="anchor" aria-label="anchor" href="#fresh-0111"></a></h2>
+<p>Gradient barrier label format precision fix.</p>
+<ul><li>New <code>gradient_NNNN</code> label format — 4-digit zero-padded basis points (threshold × 10000) preserves precision for fractional thresholds. <code>0.05</code> → <code>gradient_0500</code>, <code>0.0549</code> → <code>gradient_0549</code>, <code>0.15</code> → <code>gradient_1500</code>. Resolution: 1 basis point (<a href="https://github.com/NewGraphEnvironment/fresh/issues/110" class="external-link">#110</a>)</li>
+<li>Fixes silent precision loss in 0.11.0 where <code>as.integer(thr * 100)</code> collapsed <code>0.05</code> and <code>0.0549</code> both to <code>gradient_5</code>, causing distinct biological thresholds to share a single break</li>
+<li>New <code>.frs_validate_gradient_thresholds()</code> errors on out-of-range, excess precision, NA, or label-collision inputs (catches the bug class going forward)</li>
+<li>Parser <code>.frs_access_label_filter()</code> accepts BOTH new format and legacy <code>gradient_N</code> for backward compat with user-supplied labels via <code>frs_break_find(label = "gradient_15")</code>
+</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.11.0" id="fresh-0110">fresh 0.11.0<a class="anchor" aria-label="anchor" href="#fresh-0110"></a></h2>
 <p>Sub-segment gradient resolution via auto-derived breaks.</p>
