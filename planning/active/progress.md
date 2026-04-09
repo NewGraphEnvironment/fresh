@@ -10,22 +10,29 @@
 - Created fresh `planning/active/{task_plan,findings,progress}.md` for #110
 - Initial commit: `ee5da61 Archive stale planning files for issue #56 (coho habitat vignette)`
 
-#### Phase 1: Branch and core fix
+#### Phase 1: Branch and core fix ✓
+- Branch `110-gradient-label-precision` created
+- Replaced lossy dedup with `unique()` in both sequential and mirai branches
+- New `gradient_NNNN` label format via `.frs_gradient_label()` helper
+- Updated `.frs_access_label_filter()` to accept both new + legacy formats
 
-- (in progress)
+#### Phase 2: Update tests ✓
+- Updated mocks in test-frs_habitat_classify.R to new format
+- Added 9 label parser tests: legacy compat, mixed format, malformed, parametric
+- Added 6 validation tests for `.frs_validate_gradient_thresholds()`
+- Added regression test for 0.05 vs 0.0549 distinct labels
 
-#### Phase 2: Update tests
-
-- (pending)
-
-#### Phase 3: Update docs and examples
-
-- (pending)
+#### Phase 3: Update docs and examples ✓
+- Updated examples in frs_network_segment.R, frs_habitat_classify.R, README.md
+- Documented both formats in label_block parameter doc
 
 #### Phase 4: Verify and release
-
-- (pending)
+- All 600 tests pass
+- Commit: `ad94bc7 Fix gradient barrier precision loss with new label format`
+- Code-check round 1: found latent bug — auto-derived thresholds bypass validation when user passes custom params. Could cause silent label collision in the auto-derive path.
+- Fix commit: `6acfa94 Validate combined gradient thresholds in frs_habitat()`
+- Code-check round 2: clean
+- (next: push, PR, merge)
 
 #### Phase 5: Archive PWF
-
-- (pending)
+- (pending after merge)
