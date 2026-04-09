@@ -1,26 +1,26 @@
 # fresh
 
-FWA-Referenced Spatial Hydrology. Stream network-aware spatial operations via direct SQL against fwapg and bcfishpass. Snap points to streams, delineate watersheds, query fish observations, and fetch network-referenced features from the BC Freshwater Atlas.
+Freshwater Referenced Spatial Hydrology. A composable stream network modelling engine. Query and extract stream networks, classify habitat by gradient and channel width, segment networks at barriers and break points, aggregate features upstream or downstream, and run multi-species habitat modelling with parallel workers.
 
 ## Repository Context
 
 **Repository:** NewGraphEnvironment/fresh
 **Primary Language:** R (package)
-**Version:** 0.1.0
+**Version:** 0.9.0
 **License:** MIT
 
 ## Ecosystem
 
 | Package | Role |
 |---------|------|
-| **fresh** | FWA-referenced spatial hydrology (this package) |
-| [breaks](https://github.com/NewGraphEnvironment/breaks) | Delineate sub-basins from break points on stream networks |
+| **fresh** | Stream network modelling engine (this package) |
+| [link](https://github.com/NewGraphEnvironment/link) | Crossing connectivity interpretation — scoring, overrides, prioritization |
 | [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks |
 | [drift](https://github.com/NewGraphEnvironment/drift) | Track land cover change within floodplains over time |
 | [fly](https://github.com/NewGraphEnvironment/fly) | Estimate airphoto footprints and select optimal coverage for a study area |
 | [diggs](https://github.com/NewGraphEnvironment/diggs) | Interactive explorer for fly airphoto selections (Shiny app) |
 
-Pipeline: fresh (network data) → breaks (sub-basins) → flooded (floodplains) → drift (land cover change)
+Pipeline: fresh (network data) → flooded (floodplains) → drift (land cover change)
 
 ## Architecture
 
@@ -29,42 +29,55 @@ R/
   fresh-package.R            — package-level doc, imports
   frs_db_conn.R              — DB connection via PG_*_SHARE env vars
   frs_db_query.R             — execute SQL, return sf
+  frs_habitat.R              — orchestrator: multi-WSG/AOI habitat pipeline
+  frs_habitat_classify.R     — long-format habitat classification per species
+  frs_network_segment.R      — domain-agnostic network segmentation
+  frs_feature_find.R         — locate point features on network
+  frs_feature_index.R        — upstream/downstream relationship indexing
+  frs_break.R                — gradient break detection (island method)
+  frs_classify.R             — segment classification by attributes/breaks
+  frs_extract.R              — extract streams to working table
+  frs_col_join.R             — join attributes (channel width, discharge)
+  frs_col_generate.R         — recompute gradient from geometry
   frs_network.R              — unified multi-table network traversal
   frs_network_upstream.R     — upstream network query (ltree)
   frs_network_downstream.R   — downstream network query (ltree)
-  frs_network_prune.R        — prune network to measure range
-  frs_waterbody_network.R    — lakes/wetlands by waterbody key
   frs_point_snap.R           — snap points to nearest stream
   frs_point_locate.R         — locate point on stream network
   frs_stream_fetch.R         — fetch stream segments
   frs_lake_fetch.R           — fetch lakes
   frs_wetland_fetch.R        — fetch wetlands
-  frs_fish_obs.R             — fish observation queries
-  frs_fish_habitat.R         — habitat model queries
-  frs_order_filter.R         — filter by stream order
+  frs_params.R               — load species habitat parameters
+  frs_wsg_species.R          — species presence per watershed group
+  frs_edge_types.R           — FWA edge type lookup
   utils.R                    — internal helpers
-tests/testthat/              — unit tests for each function
-inst/extdata/                — cached vignette data (subbasin_data.rds)
-data-raw/                    — hex sticker generation
+tests/testthat/              — unit tests
+inst/extdata/                — bundled CSVs (falls, crossings, params, species)
+data-raw/                    — data refresh scripts
+docker/                      — local fwapg Docker setup
 vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output
 ```
 
 ## Key Patterns
 
-- All exported functions prefixed `frs_`, named noun-first: `frs_stream_fetch()`, `frs_point_snap()`, etc.
-- `frs_network()` is the main workhorse — unified multi-table traversal with network subtraction via `upstream_measure`
-- Direct SQL via DBI/RPostgres against fwapg/bcfishpass PostgreSQL
+- All exported functions prefixed `frs_`, named noun-first: `frs_network_segment()`, `frs_habitat_classify()`, `frs_feature_find()`
+- `frs_habitat()` is the main orchestrator — wraps `frs_network_segment()` + `frs_habitat_classify()` with mirai parallel workers
+- `frs_network_segment()` is domain-agnostic — segments any network at any break points
+- `frs_habitat_classify()` produces long-format output: one row per segment × species, joined to geometry via `id_segment`
+- `break_sources` with `label`, `label_col`, `label_map` for flexible network-referenced classification
+- `label_block` controls which labels restrict access (default `"blocked"`, configurable)
+- `gate = FALSE` skips accessibility for raw habitat potential
+- Direct SQL via DBI/RPostgres against fwapg PostgreSQL
 - Returns sf objects for spatial results
-- Requires PostgreSQL with fwapg, bcfishpass, and bcfishobs extensions
-- Smart defaults: functions detect context (e.g. auto-detect species from bcfishpass)
+- Requires PostgreSQL with fwapg only (bcfishpass/bcfishobs optional)
 - Vignette data cached in `inst/extdata/` with `update_gis` YAML param (FALSE = cached, TRUE = live DB)
 
 ## Dependencies
 
 - **Runtime:** DBI, RPostgres, sf
-- **Suggests:** tmap (>= 4.0), gq, bookdown, knitr, rmarkdown
-- **Database:** PostgreSQL with fwapg + bcfishpass + bcfishobs
-- **Connection:** SSH tunnel to remote instance or local; see db-newgraph skill
+- **Suggests:** mirai, tmap (>= 4.0), gq, bookdown, knitr, rmarkdown
+- **Database:** PostgreSQL with fwapg (local Docker or remote tunnel)
+- **Connection:** Local Docker on port 5432 or SSH tunnel on 63333; see db-newgraph skill
 
 ## Naming Conventions
 
@@ -98,83 +111,27 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output
 
 <!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE -->
 
-# Agent Teams Orchestration
+# Agent Teams
 
-Checklist for effectively running Claude Code agent teams. Agent teams coordinate multiple Claude Code instances working in parallel with shared tasks and inter-agent messaging.
+When to use Claude Code agent teams vs subagents, and key constraints.
 
 **Source:** [code.claude.com/docs/en/agent-teams](https://code.claude.com/docs/en/agent-teams)
-
-**Status:** Experimental. Disabled by default.
-
-## Before You Start
-
-- [ ] **Enable the feature flag** in `settings.json` or environment:
-  ```json
-  { "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
-  ```
-- [ ] **Choose display mode** — `in-process` (default, any terminal) or split panes (requires tmux or iTerm2). Set `teammateMode` in `settings.json` or pass `--teammate-mode`.
-- [ ] **Install tmux** if using split panes (`brew install tmux`). Not supported in VS Code terminal, Windows Terminal, or Ghostty.
-- [ ] **Pre-approve common permissions** in your permission settings before spawning teammates — permission prompts bubble up to the lead and create friction.
 
 ## When to Use Teams (vs. Subagents)
 
 Use agent teams when teammates need to **talk to each other** — research debates, competing hypotheses, cross-layer coordination. Use subagents when you just need focused workers that report back results.
 
-**Good fit:** parallel code review (security + performance + tests), investigating competing bug hypotheses, new modules that don't share files, research from multiple angles.
+**Good fit:** parallel code review, investigating competing bug hypotheses, new modules that don't share files, research from multiple angles.
 
 **Bad fit:** sequential tasks, edits to the same file, simple work where coordination overhead exceeds benefit.
 
-## Starting a Team
+## Key Rules
 
-- [ ] **Give enough context in the spawn prompt** — teammates don't inherit the lead's conversation history. Include file paths, architecture context, and specific focus areas.
-- [ ] **Size tasks right** — too small = overhead wasted, too large = risk of divergence. Aim for self-contained units with clear deliverables. 5-6 tasks per teammate keeps everyone productive.
-- [ ] **Specify models explicitly** if you want cost control (e.g., "Use Sonnet for each teammate").
-- [ ] **Ensure teammates own different files** — two teammates editing the same file leads to overwrites.
-
-## During Execution
-
-- [ ] **Use delegate mode** (Shift+Tab) to prevent the lead from implementing tasks itself instead of waiting for teammates.
-- [ ] **Monitor and steer** — check progress, redirect approaches that aren't working. Don't let a team run unattended too long.
-- [ ] **Message teammates directly** — Shift+Up/Down in in-process mode, click pane in split mode. Give additional instructions or ask follow-ups.
-- [ ] **If the lead starts coding instead of delegating**, tell it: "Wait for your teammates to complete their tasks before proceeding."
-
-## Quality Gates
-
-- [ ] **Require plan approval** for risky work — teammates plan in read-only mode until the lead approves. Give criteria: "only approve plans that include test coverage."
-- [ ] **Use hooks** for automated enforcement:
-  - `TeammateIdle` — exit code 2 sends feedback and keeps the teammate working
-  - `TaskCompleted` — exit code 2 prevents completion and sends feedback
-
-## Cleanup (Critical)
-
-- [ ] **Shut down all teammates first** — ask the lead: "Ask the researcher teammate to shut down." Teammates finish their current action before stopping.
-- [ ] **Then clean up the team** — tell the lead: "Clean up the team." This removes shared resources. Cleanup fails if teammates are still running.
-- [ ] **Always clean up via the lead** — teammates should never run cleanup (their team context may not resolve correctly).
-- [ ] **Check for orphaned tmux sessions** after cleanup:
-  ```bash
-  tmux ls
-  tmux kill-session -t <session-name>
-  ```
-
-## Known Limitations
-
-- **No session resumption** — `/resume` and `/rewind` don't restore in-process teammates. After resuming, tell the lead to spawn new teammates.
-- **Task status can lag** — teammates sometimes fail to mark tasks complete, blocking dependents. Manually check and update if stuck.
-- **One team per session** — clean up before starting a new team.
-- **No nested teams** — only the lead can manage the team.
-- **Lead is fixed** — can't promote a teammate or transfer leadership.
-- **Permissions set at spawn** — all teammates inherit the lead's mode. Change individually after spawning if needed.
-
-## Quick Reference
-
-| Action | How |
-|--------|-----|
-| Cycle teammates | Shift+Up/Down |
-| View teammate session | Enter on selected teammate |
-| Interrupt teammate | Escape while viewing |
-| Toggle task list | Ctrl+T |
-| Enable delegate mode | Shift+Tab |
-| Force in-process mode | `claude --teammate-mode in-process` |
+- **Give enough context in the spawn prompt** — teammates don't inherit the lead's conversation history
+- **Ensure teammates own different files** — two teammates editing the same file leads to overwrites
+- **Shut down all teammates before cleanup** — cleanup fails if teammates are still running
+- **Always clean up via the lead** — teammates should never run cleanup
+- **No session resumption** — after `/resume`, spawn new teammates
 
 # Bookdown Conventions
 
@@ -638,11 +595,6 @@ Add new checks here when a bug class is discovered — they compound over time.
 
 ## General
 
-### Diff Hygiene
-- Every changed line should trace to the task — no drive-by cleanups
-- New files need: are they gitignored if sensitive? executable if scripts?
-- Deleted files: check for references in other files, docs, READMEs
-
 ### Documentation Staleness
 - Moving/renaming scripts: update CLAUDE.md, READMEs, usage comments
 - New variables: update .tfvars.example
@@ -793,7 +745,7 @@ Five repos form the governance and operations layer across all New Graph Environ
 | [compass](https://github.com/NewGraphEnvironment/compass) | Ethics, values, guiding principles | The "why" |
 | [soul](https://github.com/NewGraphEnvironment/soul) | Standards, skills, conventions for LLM agents | The "how" |
 | [compost](https://github.com/NewGraphEnvironment/compost) | Communications templates, email workflows, contact management | The "who" |
-| [awshak](https://github.com/NewGraphEnvironment/awshak) | Infrastructure as Code, deployment | The "where" |
+| [rtj](https://github.com/NewGraphEnvironment/rtj) (formerly awshak) | Infrastructure as Code, deployment | The "where" |
 | [gq](https://github.com/NewGraphEnvironment/gq) | Cartographic style management across QGIS, tmap, leaflet, web | The "look" |
 
 **Adaptive management:** Conventions evolve from real project work, not theory. When a pattern is learned or refined during project work, propagate it back to soul so all projects benefit. The `/claude-md-init` skill builds each project's `CLAUDE.md` from soul conventions.
@@ -892,10 +844,10 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 
 Rules learned from real project sessions. These apply across all repos.
 
-- **Cite primary sources** — when a review paper references an older study, trace back to the original and cite it. Don't attribute findings to the review when the original exists.
 - **Install missing packages, don't workaround** — if a package is needed, ask the user to install it (e.g. `pak::pak("pkg")`). Don't write degraded fallback code to avoid the dependency.
 - **Never hardcode extractable data** — if coordinates, station names, or metadata can be pulled from an API or database at runtime, do that. Don't hardcode values that have a programmatic source.
 - **Close issues via commits, not `gh issue close`** — see Closing Issues above.
+- **Cite primary sources** — see references conventions.
 
 ## Naming Conventions
 
@@ -924,92 +876,6 @@ Scripts and logs live together: `scripts/<module>/logs/`
 | Restoration planning | **Aquatic Restoration Planning (#5)** |
 | QGIS, Mergin, field forms | **Collaborative GIS (#3)** |
 
-# PR Review Automation
-
-Automated PR review and interactive Claude mentions using Claude Code GitHub Action.
-
-## Setup (per repo)
-
-1. **Install the Claude Code GitHub App** via `/install-github-app`
-   - Sets `CLAUDE_CODE_OAUTH_TOKEN` as a repo secret automatically
-   - Uses Max subscription (flat $200/mo, not per-token)
-
-2. **Enable the workflow** via `/claude-review-enable`
-   - Choose mode: **review** (auto PR review + @claude mentions) or **mention** (@claude only)
-   - Pushes the workflow template to `.github/workflows/claude.yml`
-
-3. **Ensure CLAUDE.md exists** in the repo — the action reads it automatically.
-   Use `/claude-md-init` to set up if missing.
-
-## What It Does
-
-### Automatic PR Review (Haiku)
-On every PR open/update, Claude reviews the diff and posts:
-- **Inline comments** on specific lines with issues
-- **Summary comment** with overall assessment
-- Uses Haiku for speed and cost (~$0.01-0.05 per review)
-
-### Interactive @claude Mentions (Sonnet)
-Comment `@claude <request>` on any issue or PR. Claude can:
-- Answer questions about the codebase
-- Create branches and open PRs from issue descriptions
-- Fix code and push commits
-- Run slash commands: `@claude /review`
-- Uses Sonnet for deeper reasoning
-
-## Model Selection
-
-| Job | Model | Why |
-|-----|-------|-----|
-| Auto-review | Haiku 4.5 | Fast, cheap, good enough for style/lint/bug checks |
-| Interactive | Sonnet 4.5 | Needs reasoning for code changes, PR creation |
-
-To override, edit `claude_args` in the workflow:
-```yaml
-claude_args: |
-  --model claude-sonnet-4-5-20250929
-```
-
-Available models (use exact IDs):
-- `claude-haiku-4-5-20251001` — cheapest, fastest
-- `claude-sonnet-4-5-20250929` — balanced
-- `claude-opus-4-6` — most capable, expensive
-
-## Interactive Examples
-
-```
-@claude what does the validate_crossing function do?
-@claude fix the failing lintr checks and open a PR
-@claude /review — focus on the database query performance
-@claude add tests for the new helper functions in R/utils.R
-```
-
-## Bot Workflow (for OpenClaw bots opening PRs)
-
-When a bot opens a PR, it should:
-
-1. **Push the PR** and wait for the Claude review action to complete
-2. **Read review comments** via `gh pr view --comments`
-3. **Fix no-brainers** automatically: lint issues, typos, missing imports
-4. **Ask humans** for judgment calls: architecture, logic changes, scope
-5. **Push fix commits** to re-trigger the review
-6. **Stop after 3 rounds** — if still failing, tag a human reviewer
-
-## Cost
-
-| Model | Input | Output | Typical review |
-|-------|-------|--------|----------------|
-| Haiku 4.5 | $1/M | $5/M | ~$0.01-0.05 |
-| Sonnet 4.5 | $3/M | $15/M | ~$0.05-0.25 |
-| Opus 4.6 | $15/M | $75/M | ~$0.25-1.00 |
-
-Use `--max-turns` to cap iterations and cost.
-
-## Reference
-
-- [claude-code-action](https://github.com/anthropics/claude-code-action)
-- [Setup guide](https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md)
-
 # R Package Development Conventions
 
 Standards for R package development across New Graph Environment repositories.
@@ -1025,6 +891,9 @@ test structure, hex sticker, etc.).
 - tidyverse style guide: snake_case, pipe operators (`|>` or `%>%`)
 - Match existing patterns in each codebase
 - Use `pak` for package installation (not `install.packages`)
+- Prefix column name vectors with `cols_` for discoverability in the
+  environment pane: `cols_all`, `cols_carry`, `cols_split`, `cols_writable`.
+  Same principle for other grouped vectors (`params_`, `tbl_`, etc.)
 
 ## Package Structure
 
@@ -1065,15 +934,7 @@ their respective function issues with `Fixes #N`.
 
 ### Closing issues
 
-Close function issues via commit messages (not `gh issue close`) so the
-diff is linked:
-
-```
-Add fl_mask() with threshold and operator support
-
-Fixes #3
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
-```
+Close function issues via commit messages — see Closing Issues in newgraph conventions.
 
 ## Testing
 
@@ -1082,6 +943,12 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 - Test files mirror source: `R/utils.R` -> `tests/testthat/test-utils.R`
 - Test for edge cases and potential failures, not just happy paths
 - Tests must pass before closing the function's issue
+- Always grep for errors in the same command as the test run to avoid
+  running twice:
+  ```bash
+  Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5
+  ```
+  For error context: `grep -E "(ERROR:|FAIL )" -A 10 | head -25`
 
 ## Examples and Vignettes
 
@@ -1101,6 +968,27 @@ At least one vignette showing the full pipeline on real data:
 - Demonstrates the package solving an actual problem end-to-end
 - Uses bundled test data (committed to `inst/testdata/`)
 - Hosted on pkgdown so users can read it without installing
+
+**Output format:** Use `bookdown::html_vignette2` (not
+`rmarkdown::html_vignette`) for figure numbering and cross-references.
+Requires `bookdown` in Suggests and chunks must have `fig.cap` for
+numbered figures. Cross-reference with `Figure \@ref(fig:chunk-name)`.
+
+**Vignettes that need external resources (DB, API, STAC):** Do NOT use
+the `.Rmd.orig` pre-knit pattern — it breaks `bookdown` figure numbering
+because knitr evaluates chunks during pre-knit and emits `![](path)`
+markdown that bookdown can't number.
+
+Instead, separate data generation from presentation:
+1. `data-raw/vignette_data.R` — runs the queries, saves results as `.rds`
+   to `inst/testdata/` (or `inst/vignette-data/`)
+2. Vignette loads `.rds` files, all chunks run live during pkgdown build
+3. Note at top of vignette: "Data generated by `data-raw/script.R`"
+4. bookdown controls all chunks — figure numbers, cross-refs work
+
+This is the same pattern as test data: `data-raw/` documents how the data
+was produced, committed artifacts make vignettes reproducible without the
+external resource.
 
 ### Test data
 
@@ -1161,8 +1049,7 @@ exclusions: list(
 
 ### Branch protection
 
-Protect main from deletion and force pushes. Admin bypasses so you can
-push directly:
+Protect main from deletion and force pushes:
 
 ```bash
 gh api repos/OWNER/REPO/rulesets --method POST --input - <<'EOF'
@@ -1209,9 +1096,18 @@ Keep the README lean:
 
 When an LLM assistant modifies R package code:
 1. Run `lintr::lint_package()` — fix issues before committing
-2. Run `devtools::test()` — ensure tests pass
-3. Run `devtools::document()` if roxygen comments changed
-4. Check `devtools::check()` passes for releases
+2. Run `devtools::test()` with error grep — ensure tests pass in one call:
+   ```bash
+   Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5
+   ```
+3. Run `devtools::document()` and grep for results:
+   ```bash
+   Rscript -e 'devtools::document()' 2>&1 | grep -E "(Writing|Updating|warning)" | tail -10
+   ```
+4. Check `devtools::check()` passes for releases — capture results in one call:
+   ```bash
+   Rscript -e 'devtools::check()' 2>&1 | grep -E "(ERROR|WARNING|NOTE|errors|warnings|notes)" | tail -10
+   ```
 
 # Reference Management Conventions
 
@@ -1245,17 +1141,18 @@ When research turns up a reference:
 
 **Preferred order:**
 1. DOI magic wand in Zotero UI (fastest, most complete metadata)
-2. `saveItems` via `/zotero-api` (good for batch creation from structured data)
-3. JS console script for group library (when connector can't target the right collection)
+2. Web API POST with `collections` array (grey literature, local PDFs — targets collection directly, no UI interaction needed)
+3. `saveItems` via `/zotero-api` (batch creation from structured data — requires UI collection selection)
+4. JS console script for group library (when connector can't target the right collection)
 
-**Collection targeting:** `saveItems` drops items into whatever collection is selected in Zotero's UI. Always confirm with the user before calling it.
+**Collection targeting:** `saveItems` drops items into whatever collection is selected in Zotero's UI. Always confirm with the user before calling it. **Web API bypasses this** — include `"collections": ["KEY"]` in the POST body. Find collection keys with `?q=name` search on the collections endpoint.
 
 ### 3. Attach PDFs
 
 `saveItems` attachments silently fail. Don't use them. Instead:
 
-1. Download with `curl` (see `/zotero-api` skill for source-specific patterns)
-2. Attach via `item_attach_pdf.js` in Zotero JS console
+1. **Web API S3 upload (preferred):** Create attachment item → get upload auth → build S3 body (Python: prefix + file bytes + suffix) → POST to S3 → register with uploadKey. Works without Zotero running. See `/zotero-api` skill section 4.
+2. **JS console fallback:** Download with `curl`, attach via `item_attach_pdf.js` in Zotero JS console.
 3. Verify attachment exists via MCP: `zotero_get_item_children`
 
 ### 4. Verify
@@ -1321,9 +1218,25 @@ When you need a PDF and the obvious URL doesn't work:
 
 Always verify downloads: `file paper.pdf` should say "PDF document", not HTML.
 
+## Searching Paper Content (ragnar)
+
+### Setup (per project)
+- `scripts/rag_build.R` — maps citation keys to Zotero PDF attachment keys, builds DuckDB
+- `data/rag/` gitignored — store is local, not committed
+- Dependencies: ragnar, Ollama with nomic-embed-text model
+- See `/lit-search` skill for full recipe
+
+### Query
+`ragnar_store_connect()` then `ragnar_retrieve()` — returns chunks with source file attribution.
+
+### Anti-patterns
+- NEVER write abstracts manually — if CrossRef has no abstract, leave blank
+- NEVER cite specific numbers without verifying from the source PDF via ragnar search
+- NEVER paraphrase equations — copy exact notation and cite page/section
+
 # SRED Conventions
 
-How SR&ED (Scientific Research and Experimental Development) tracking integrates with New Graph Environment's development workflows.
+How SR&ED tracking integrates with New Graph Environment's development workflows.
 
 ## The Claim: One Project
 
@@ -1333,81 +1246,20 @@ All SRED-eligible work across NGE falls under a **single continuous project**:
 
 - **Field:** Software Engineering (2.02.09)
 - **Start date:** May 2022
-- **Status:** Ongoing
 - **Fiscal year:** May 1 – April 30
 - **Consultant:** Boast Capital (prepares final technical report)
 
 **Do not fragment work into separate claims.** Each fiscal year's work is structured as iterations within this one project. Internal tracking (experiment numbers in `sred-2025-2026`) maps to iterations — Boast assembles the final narrative.
 
-## What We're Building
-
-The SRED investment is in the **system**, not the reports it produces. Reports are service revenue. The framework is the IP and the competitive asset.
-
-The system is an integrated, version-controlled framework that:
-- Generates GIS projects from parameterized inputs
-- Synchronizes field data collection with cloud-hosted databases and portable GeoPackages
-- Processes and catalogs UAV imagery via STAC pipelines
-- Produces dynamic, reproducible reports (bookdown/Quarto)
-- Orchestrates workflows via LLM agents with shared conventions and skills
-- Manages communications, time tracking, and evidence as part of the framework
-
-No other environmental consultancy has this level of integration. This is the international competitiveness that SRED exists to incentivize.
-
-## System Components
-
-| Layer | Repos | Role in Framework |
-|-------|-------|-------------------|
-| **Agent governance** | soul | Conventions, skills, settings — how agents behave across all repos |
-| **Communications** | compost | Centralized email workflows, contact management, tone standards |
-| **Operations** | rolex | Time tracking, invoicing, SRED evidence, budget management |
-| **Infrastructure** | awshak | IaC (OpenTofu), S3, IAM, CORS, OIDC — reproducible cloud environments |
-| **GIS automation** | rfp, ngr, dff-2022 | QGIS project generation, spatial data processing, layer management |
-| **Imagery** | stac_uav, stac_orthophoto_bc | UAV processing, STAC cataloging, containerized pipelines |
-| **Change detection** | drift, flooded | Floodplain delineation, STAC land cover fetch, multi-temporal change analysis |
-| **Citations** | xciter | Pandoc hooks for citations in interactive tables |
-| **Data** | db_newgraph, bcfishpass, fwapg | PostgreSQL spatial databases, modelling, query APIs |
-| **Field collection** | Mergin Maps projects | Mobile forms, offline GeoPackages, bidirectional sync |
-| **Reporting** | Annual project repos | Bookdown reports consuming all of the above |
-
-## Fiscal Year Iterations
-
-Each fiscal year, Boast structures the claim as iterations within the project. Our internal experiment numbers map to these.
-
-### FY2024 (May 2023 – April 2024)
-
-Single narrative: version control for GIS projects + dynamic reporting engine.
-
-### FY2025 (May 2024 – April 2025)
-
-| Iteration | Focus | Key Repos |
-|-----------|-------|-----------|
-| 1 | GIS–RMarkdown synchronization | rfp, ngr, dff-2022 |
-| 2 | UAV imagery + STAC cataloging | stac_uav, stac_orthophoto_bc |
-| 3 | Citation handling (xciter) | xciter |
-| 4 | Field-to-cloud data workflows | Mergin, PostgreSQL, GeoPackages |
-| 5 | Infrastructure as Code | awshak |
-
-### FY2026 (May 2025 – April 2026)
-
-| Iteration | Focus | Key Repos |
-|-----------|-------|-----------|
-| TBD | LLM agent orchestration & governance | soul, agent teams |
-| TBD | Communications workflow | compost |
-| TBD | Time tracking & evidence management | rolex |
-| TBD | MCP integrations (Zotero, PostgreSQL, Harvest, Xero) | soul settings, MCP configs |
-| TBD | Continued GIS/reporting improvements | rfp, ngr, bookdown repos |
-
-Iteration numbers are assigned by Boast in the final report. We provide evidence organized by theme.
-
 ## Tagging Work for SRED
 
 ### Commits
 
-Use `Relates to NewGraphEnvironment/sred-2025-2026#N` in commit messages when work is SRED-eligible. The `/sred-commit` skill handles this.
+Use `Relates to NewGraphEnvironment/sred-2025-2026#N` in commit messages when work is SRED-eligible.
 
 ### Time entries (rolex)
 
-Tag hours with `sred_experiment` field linking to the relevant `sred-2025-2026` issue number. This enables automated evidence reports.
+Tag hours with `sred_ref` field linking to the relevant `sred-2025-2026` issue number.
 
 ### GitHub issues
 
@@ -1415,44 +1267,15 @@ Link SRED-eligible issues to the tracking repo: `Relates to NewGraphEnvironment/
 
 ## What Qualifies as SRED
 
-From the Boast interview guide and CRA guidelines:
-
 **Eligible (systematic investigation to overcome technological uncertainty):**
 - Building tools/functions that don't exist in standard practice
 - Prototyping new integrations between systems (GIS ↔ reporting ↔ field collection)
 - Testing whether an approach works and documenting why it did/didn't
 - Iterating on failed approaches with new hypotheses
 
-**Not eligible (but still important to document as due diligence):**
-- Evaluating existing tools to confirm they can't meet requirements
+**Not eligible:**
 - Standard configuration of known tools
 - Routine bug fixes in working systems
 - Writing reports using the framework (that's service delivery)
 
 **The test:** "Did we try something we weren't sure would work, and did we learn something from the attempt?" If yes, it's likely eligible.
-
-## SRED and Contractors
-
-Subcontractors are eligible for SRED at a reduced rate (~32% vs ~64% for T4 employees). Arm's length, Canadian contractors only. The work must be performed in Canada.
-
-For core SRED work, T4 employees generate roughly 2x the credit per dollar spent. Use contractors when needed but be aware of the credit differential.
-
-## Evidence for Boast
-
-At fiscal year-end, Boast needs:
-1. **Time records** — hours by person, tagged to iterations (from rolex)
-2. **Technical narrative** — what was attempted, what worked, what didn't (from commit history, issues, PRs)
-3. **Financial summary** — wages, contractor payments, expenses (from rolex + Xero)
-4. **GitHub evidence** — commits, issues, PRs showing systematic investigation (from `sred-2025-2026` cross-references)
-
-The better our tagging during the year, the less work at claim time.
-
-## Fiscal Calendar
-
-| Period | Dates |
-|--------|-------|
-| FY2024 | May 1 2022 – April 30 2024 |
-| FY2025 | May 1 2024 – April 30 2025 |
-| FY2026 | May 1 2025 – April 30 2026 |
-
-Claims are filed within 18 months of fiscal year-end.
