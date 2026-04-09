@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,14 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.11.0" id="fresh-0110">fresh 0.11.0<a class="anchor" aria-label="anchor" href="#fresh-0110"></a></h2>
+<p>Sub-segment gradient resolution via auto-derived breaks.</p>
+<ul><li>
+<code>breaks_gradient</code> parameter on <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> — generates gradient breaks at biologically meaningful thresholds derived from <code>spawn_gradient_max</code> + <code>rear_gradient_max</code> in <code>parameters_habitat_thresholds.csv</code>. Three modes: <code>NULL</code> (default auto-derive), numeric vector (explicit override), <code>numeric(0)</code> (disable, 0.10.0 behavior) (<a href="https://github.com/NewGraphEnvironment/fresh/issues/101" class="external-link">#101</a>)</li>
+<li>Default behavior change: <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> now produces ~30% more segments on typical sub-basins (ADMS test: 312 → 409). The added breaks are at biologically meaningful gradient thresholds and give <code><a href="../reference/frs_cluster.html">frs_cluster()</a></code> the resolution it needs to detect within-segment steep sections that would otherwise be hidden by averaging</li>
+<li>Pass <code>breaks_gradient = numeric(0)</code> to restore 0.10.0 behavior (only species access thresholds)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.10.0" id="fresh-0100">fresh 0.10.0<a class="anchor" aria-label="anchor" href="#fresh-0100"></a></h2>
 <p>Network cluster connectivity analysis.</p>

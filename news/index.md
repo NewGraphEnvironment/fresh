@@ -1,5 +1,28 @@
 # Changelog
 
+## fresh 0.11.0
+
+Sub-segment gradient resolution via auto-derived breaks.
+
+- `breaks_gradient` parameter on
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  — generates gradient breaks at biologically meaningful thresholds
+  derived from `spawn_gradient_max` + `rear_gradient_max` in
+  `parameters_habitat_thresholds.csv`. Three modes: `NULL` (default
+  auto-derive), numeric vector (explicit override), `numeric(0)`
+  (disable, 0.10.0 behavior)
+  ([\#101](https://github.com/NewGraphEnvironment/fresh/issues/101))
+- Default behavior change:
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  now produces ~30% more segments on typical sub-basins (ADMS test: 312
+  → 409). The added breaks are at biologically meaningful gradient
+  thresholds and give
+  [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md)
+  the resolution it needs to detect within-segment steep sections that
+  would otherwise be hidden by averaging
+- Pass `breaks_gradient = numeric(0)` to restore 0.10.0 behavior (only
+  species access thresholds)
+
 ## fresh 0.10.0
 
 Network cluster connectivity analysis.
