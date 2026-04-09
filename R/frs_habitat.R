@@ -287,6 +287,11 @@ frs_habitat <- function(conn, wsg = NULL,
     # to 4 digits (resolution of 1 basis point).
     all_thresholds <- sort(unique(c(access_thresholds, extra_thresholds)))
 
+    # Validate combined thresholds — catches collisions from
+    # user-supplied custom params even when breaks_gradient is NULL.
+    .frs_validate_gradient_thresholds(all_thresholds,
+      "combined gradient thresholds")
+
     # 2. Generate gradient barriers at each threshold
     streams_tbl <- paste0("working.streams_", job_label)
 
@@ -429,6 +434,9 @@ frs_habitat <- function(conn, wsg = NULL,
       }
 
       all_thresholds <- sort(unique(c(access_thresholds, extra_thresholds)))
+
+      .frs_validate_gradient_thresholds(all_thresholds,
+        "combined gradient thresholds")
 
       streams_tbl <- paste0("working.streams_", job_label)
       tmp_tbl <- paste0(streams_tbl, "_tmp")
