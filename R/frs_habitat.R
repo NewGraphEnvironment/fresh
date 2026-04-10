@@ -406,6 +406,11 @@ frs_habitat <- function(conn, wsg = NULL,
       gate = gate, label_block = label_block,
       verbose = verbose && is.null(conn_params))
 
+    # 4b. Post-classification connectivity checks (requires_connected)
+    .frs_run_connectivity(w_conn, streams_tbl, habitat_tbl,
+      species, params, params_fresh,
+      verbose = verbose && is.null(conn_params))
+
     # 5. Persist streams (if to_streams provided)
     if (!is.null(to_streams)) {
       .frs_db_execute(w_conn, sprintf(
@@ -530,6 +535,10 @@ frs_habitat <- function(conn, wsg = NULL,
       frs_habitat_classify(w_conn, table = streams_tbl, to = habitat_tbl,
         species = species, params = params, params_fresh = params_fresh,
         gate = gate, label_block = label_block, verbose = FALSE)
+
+      # Post-classification connectivity checks (requires_connected)
+      .frs_run_connectivity(w_conn, streams_tbl, habitat_tbl,
+        species, params, params_fresh, verbose = FALSE)
 
       if (!is.null(to_streams)) {
         DBI::dbExecute(w_conn, sprintf(
@@ -1033,4 +1042,70 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' @noRd
 .frs_thr_label <- function(thr) {
   gsub("\\.", "", format(thr, scientific = FALSE))
+}
+
+
+#' Run post-classification connectivity checks
+#'
+#' Scans species params for rules with `requires_connected`. For each
+#' match, calls [frs_cluster()] with the appropriate label swap and
+#' cluster parameters from `params_fresh`.
+#'
+#' @noRd
+.frs_run_connectivity <- function(conn, table, habitat,
+                                  species, params, params_fresh,
+                                  verbose = TRUE) {
+  for (sp in species) {
+    ps <- params[[sp]]
+    if (is.null(ps) || is.null(ps[["rules"]])) next
+
+    fp <- params_fresh[params_fresh$species_code == sp, ]
+    if (nrow(fp) == 0) next
+
+    # Check rearing connectivity (cluster_rearing)
+    if (isTRUE(fp$cluster_rearing)) {
+      dir <- if (is.na(fp$cluster_direction)) "upstream" else fp$cluster_direction
+      bg <- if (is.na(fp$cluster_bridge_gradient)) 0.05 else fp$cluster_bridge_gradient
+      bd <- if (is.na(fp$cluster_bridge_distance)) 10000 else fp$cluster_bridge_distance
+      cm <- if (is.na(fp$cluster_confluence_m)) 10 else fp$cluster_confluence_m
+      frs_cluster(conn, table, habitat,
+        label_cluster = "rearing", label_connect = "spawning",
+        species = sp, direction = dir,
+        bridge_gradient = bg, bridge_distance = bd,
+        confluence_m = cm, verbose = verbose)
+    }
+
+    # Check spawning connectivity (requires_connected: rearing)
+    spawn_rules <- ps[["rules"]][["spawn"]]
+    has_rc <- length(spawn_rules) > 0 && any(vapply(
+      spawn_rules,
+      function(rule) !is.null(rule[["requires_connected"]]),
+      logical(1)))
+
+    if (has_rc && isTRUE(fp$cluster_spawning)) {
+      # Determine what label_cluster connects to from rules
+      rc_target <- NULL
+      for (rule in ps[["rules"]][["spawn"]]) {
+        if (!is.null(rule[["requires_connected"]])) {
+          rc_target <- rule[["requires_connected"]]
+          break
+        }
+      }
+      if (!is.null(rc_target)) {
+        dir <- if (is.na(fp$cluster_spawn_direction)) "both" else
+          fp$cluster_spawn_direction
+        bg <- if (is.na(fp$cluster_spawn_bridge_gradient)) 0.05 else
+          fp$cluster_spawn_bridge_gradient
+        bd <- if (is.na(fp$cluster_spawn_bridge_distance)) 3000 else
+          fp$cluster_spawn_bridge_distance
+        cm <- if (is.na(fp$cluster_spawn_confluence_m)) 10 else
+          fp$cluster_spawn_confluence_m
+        frs_cluster(conn, table, habitat,
+          label_cluster = "spawning", label_connect = rc_target,
+          species = sp, direction = dir,
+          bridge_gradient = bg, bridge_distance = bd,
+          confluence_m = cm, verbose = verbose)
+      }
+    }
+  }
 }

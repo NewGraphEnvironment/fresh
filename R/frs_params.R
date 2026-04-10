@@ -133,7 +133,8 @@ frs_params <- function(conn = NULL,
 
   valid_predicates <- c("edge_types", "edge_types_explicit",
                         "waterbody_type", "lake_ha_min", "thresholds",
-                        "gradient", "channel_width")
+                        "gradient", "channel_width",
+                        "requires_connected")
 
   for (sp in names(raw)) {
     sp_block <- raw[[sp]]
@@ -245,6 +246,17 @@ frs_params <- function(conn = NULL,
     if (!is.character(et)) {
       stop(sprintf(
         "rules YAML %s/%s rule %d edge_types must be a list of category names",
+        sp, habitat, idx), call. = FALSE)
+    }
+  }
+
+  if (!is.null(rule[["requires_connected"]])) {
+    rc <- rule[["requires_connected"]]
+    if (!is.character(rc) || length(rc) != 1 ||
+        !rc %in% c("spawning", "rearing")) {
+      stop(sprintf(
+        paste0("rules YAML %s/%s rule %d requires_connected must be ",
+               "'spawning' or 'rearing'"),
         sp, habitat, idx), call. = FALSE)
     }
   }
