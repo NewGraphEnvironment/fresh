@@ -1,3 +1,10 @@
+# fresh 0.12.1
+
+Per-rule threshold overrides in habitat rules YAML.
+
+- Rules can now specify `gradient: [min, max]` and `channel_width: [min, max]` that override CSV inheritance per rule. Missing fields still inherit from CSV when `thresholds: true` ([#116](https://github.com/NewGraphEnvironment/fresh/issues/116))
+- Bundled YAML updated: all `waterbody_type: R` rules now have `channel_width: [0, 9999]` — skips channel_width_min on river polygons (matching bcfishpass v0.5.0 pattern where river polygon widths are unreliable)
+
 # fresh 0.12.0
 
 Habitat eligibility rules format (Phase 1).
