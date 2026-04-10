@@ -34,6 +34,18 @@
 - 12 new tests covering edge_types, edge_types_explicit, all waterbody types, lake_ha_min, threshold inheritance, threshold opt-out, empty rule, empty list, multi-rule OR, full CO 4-rule pattern
 - **Bug found and fixed**: R `$` partial matching — `rule$edge_types` was matching `rule$edge_types_explicit` because `edge_types` is a prefix. Switched to `rule[["..."]]` everywhere in rule access. Same fix in `.frs_validate_rule()`.
 - 641 tests pass (619 + 12 new + 10 incremental)
+- Commit `f25f2ab Add rule evaluator helpers`
+
+#### Phase 4: Rule evaluator wired into classify ✓
+- `frs_habitat_classify()` species loop: if `params_sp$rules$spawn` set → use `.frs_rules_to_sql()`. Else → existing CSV ranges path. Same for `$rear`.
+- Spawn CSV thresholds passed to evaluator: gradient = c(spawn_min, spawn_max), channel_width = ranges$spawn$channel_width
+- Rear CSV thresholds: gradient = c(0, rear_max) if set, channel_width = ranges$rear$channel_width
+- `lake_rearing` column logic UNCHANGED — independent of rules
+- Smoke test on ADMS verified:
+  - SK rearing on streams: 0 (was 21+ km pre-rules) — lake-only rule fires correctly
+  - CO rearing: 76 (includes wetland-flow segments via thresholds: false carve-out)
+  - BT rearing: 135, lake_rearing: 4 (lake_rearing column unchanged)
+- 641 tests still pass
 
 #### Phase 2: Parser in frs_params
 - (pending)

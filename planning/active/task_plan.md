@@ -42,10 +42,10 @@ The rules YAML adds the missing OR + per-rule threshold opt-out semantics.
 - [x] Commit + PWF update + code-check
 
 ### Phase 4: Rule evaluator wired into classify
-- [ ] `frs_habitat_classify()` checks for `params_sp$rules$spawn`/`$rear` and uses evaluator
-- [ ] Falls through to existing `$ranges` logic when no rules
-- [ ] `lake_rearing` column logic UNCHANGED
-- [ ] Commit + PWF update + code-check
+- [x] `frs_habitat_classify()` checks for `params_sp$rules$spawn`/`$rear` and uses evaluator
+- [x] Falls through to existing `$ranges` logic when no rules
+- [x] `lake_rearing` column logic UNCHANGED
+- [x] Commit + PWF update + code-check
 
 ### Phase 5: Wire through frs_habitat
 - [ ] Add `rules` parameter (default NULL = bundled YAML, string = custom path)
