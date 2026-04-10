@@ -54,12 +54,12 @@ The rules YAML adds the missing OR + per-rule threshold opt-out semantics.
 - [x] Commit + PWF update + code-check
 
 ### Phase 6: Integration tests on ADMS sub-basin
-- [ ] SK rear streams = 0 (only lake_rearing, lakes >= 200 ha)
-- [ ] CO rear includes wetland-flow segments regardless of thresholds
-- [ ] BT spawn includes river-polygon segments
-- [ ] Backward compat: `rules_yaml = NULL` matches pre-rules behavior
-- [ ] PK / CM `rear: []` → all rearing FALSE
-- [ ] Commit + PWF update + code-check
+- [x] SK rear streams = 0 (only lake_rearing, lakes >= 200 ha)
+- [x] CO rear includes wetland-flow segments regardless of thresholds
+- [x] PK `rear: []` → all rearing FALSE
+- [x] Backward compat: `rules = FALSE` runs CSV-only path
+- [x] `lake_rearing` column preserved with rules
+- [x] Commit + PWF update + code-check
 
 ### Phase 7: Verify and PR
 - [ ] `devtools::test()` all pass

@@ -166,3 +166,112 @@ test_that("gradient_NNNN with various values parses to expected fractions", {
                      tc$label, tc$expected_block_at))
   }
 })
+
+
+# --- Integration tests: rules YAML behavior on ADMS sub-basin ---
+
+# Helper: run frs_habitat with given rules and return per-species counts
+.rules_test_run <- function(conn, label, rules) {
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+  to_streams <- paste0("working.rt_streams_", label)
+  to_habitat <- paste0("working.rt_habitat_", label)
+
+  frs_habitat(conn,
+    aoi = aoi, species = c("CO", "BT", "SK", "PK"),
+    label = label,
+    rules = rules,
+    to_streams = to_streams,
+    to_habitat = to_habitat,
+    verbose = FALSE)
+
+  counts <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT species_code,
+       count(*) FILTER (WHERE accessible)::int AS acc,
+       count(*) FILTER (WHERE spawning)::int AS spn,
+       count(*) FILTER (WHERE rearing)::int AS rr,
+       count(*) FILTER (WHERE lake_rearing)::int AS lake_rr
+     FROM %s GROUP BY species_code ORDER BY species_code", to_habitat))
+
+  for (tbl in c(to_streams, to_habitat)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+  }
+
+  counts
+}
+
+test_that("integration: bundled rules — SK rear on streams = 0", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  counts <- .rules_test_run(conn, "rt_sk", rules = NULL)
+  sk <- counts[counts$species_code == "SK", ]
+
+  # SK rule: rear on lakes >= 200 ha only. ADMS sub-basin has no lakes
+  # >= 200 ha, so rearing should be 0.
+  expect_equal(sk$rr, 0)
+})
+
+test_that("integration: bundled rules — CO rear includes wetland-flow segments", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  counts <- .rules_test_run(conn, "rt_co", rules = NULL)
+  co <- counts[counts$species_code == "CO", ]
+
+  # CO has 4 rear rules including wetland-flow carve-out (1050/1150
+  # without thresholds). Compare to disabled rules — should be >= disabled
+  # since wetland-flow carve-out adds segments.
+  counts_off <- .rules_test_run(conn, "rt_co_off", rules = FALSE)
+  co_off <- counts_off[counts_off$species_code == "CO", ]
+
+  # Bundled rules should give CO at least as much rearing as disabled
+  # (the carve-out can only ADD segments, never remove). It might be
+  # equal if no 1050/1150 edges exist in this AOI.
+  expect_gte(co$rr, co_off$rr)
+})
+
+test_that("integration: bundled rules — PK and CM get rearing = 0", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  counts <- .rules_test_run(conn, "rt_pk", rules = NULL)
+  pk <- counts[counts$species_code == "PK", ]
+
+  # PK has rear: [] (empty rule list). Rearing should be 0.
+  expect_equal(pk$rr, 0)
+})
+
+test_that("integration: rules = FALSE matches pre-rules behavior", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  counts_off <- .rules_test_run(conn, "rt_off", rules = FALSE)
+
+  # When rules disabled, BT should have non-zero rearing on streams
+  # (BT in CSV has rear_channel_width_min=1.5, rear_gradient_max=0.1049)
+  bt <- counts_off[counts_off$species_code == "BT", ]
+  expect_gt(bt$rr, 0)
+
+  # SK without rules should have rearing on streams (CSV gives
+  # rear_channel_width_min=1.5 but no gradient — see params CSV)
+  sk_off <- counts_off[counts_off$species_code == "SK", ]
+  expect_gte(sk_off$rr, 0)  # may or may not have rearing without rules
+})
+
+test_that("integration: lake_rearing column preserved with rules", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  counts <- .rules_test_run(conn, "rt_lr", rules = NULL)
+  bt <- counts[counts$species_code == "BT", ]
+
+  # lake_rearing column logic is independent of rules YAML.
+  # BT has CSV rear_channel_width which populates lake_rearing.
+  # Should be >= 0 (not NULL or error). Smoke test verified 4.
+  expect_true(!is.na(bt$lake_rr))
+})

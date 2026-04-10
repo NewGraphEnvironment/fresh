@@ -53,6 +53,17 @@
 - Only consulted when `params` is NULL (user-passed params override).
 - roxygen examples for default, custom path, and disable mode
 - 641 tests still pass
+- Commit `114ba25 Pass rules through frs_habitat orchestrator`
+
+#### Phase 6: Integration tests ✓
+- Added 5 integration tests + 1 helper in test-frs_habitat_classify.R
+- Tests on ADMS sub-basin with `species = c("CO", "BT", "SK", "PK")`:
+  - SK rear = 0 (lake-only rule, no lakes >= 200 ha in AOI)
+  - CO rear with bundled rules >= CO rear with rules disabled (carve-out)
+  - PK rear = 0 (empty rear list)
+  - rules=FALSE backward compat: BT rear > 0 (CSV path works)
+  - lake_rearing column preserved (BT lake_rr not NA)
+- 647 tests pass (641 + 6 new)
 
 #### Phase 2: Parser in frs_params
 - (pending)
