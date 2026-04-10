@@ -56,6 +56,7 @@ sources. Assigns a unique <code>id_segment</code> to each sub-segment.</p>
 <span>  <span class="va">to</span>,</span>
 <span>  source <span class="op">=</span> <span class="st">"whse_basemapping.fwa_stream_networks_sp"</span>,</span>
 <span>  break_sources <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  gradient_recompute <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -89,6 +90,14 @@ watershed group code, <code>sf</code> polygon, or <code>NULL</code>.</p></dd>
 breaking). Each spec is a list with <code>table</code>, and optionally <code>where</code>,
 <code>label</code>, <code>label_col</code>, <code>label_map</code>, <code>col_blk</code>, <code>col_measure</code>.
 See <code><a href="frs_break_find.html">frs_break_find()</a></code> for details.</p></dd>
+
+
+<dt id="arg-gradient-recompute">gradient_recompute<a class="anchor" aria-label="anchor" href="#arg-gradient-recompute"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (default), recompute
+gradient from DEM vertices after splitting. If <code>FALSE</code>, child
+segments inherit the parent segment gradient. Use <code>FALSE</code> to match
+bcfishpass behavior where gradient is assigned from the original
+FWA segment, not recomputed per sub-segment.</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>

@@ -23,6 +23,7 @@ frs_habitat(
   gate = TRUE,
   label_block = "blocked",
   rules = NULL,
+  gradient_recompute = TRUE,
   params = NULL,
   params_fresh = NULL,
   workers = 1L,
@@ -119,6 +120,14 @@ frs_habitat(
   See
   [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
   for the rules format.
+
+- gradient_recompute:
+
+  Logical. If `TRUE` (default), recompute gradient from DEM vertices
+  after splitting segments. If `FALSE`, child segments inherit the
+  parent gradient. See
+  [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
+  for details.
 
 - params:
 

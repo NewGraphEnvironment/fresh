@@ -13,6 +13,7 @@ frs_network_segment(
   to,
   source = "whse_basemapping.fwa_stream_networks_sp",
   break_sources = NULL,
+  gradient_recompute = TRUE,
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -50,6 +51,14 @@ frs_network_segment(
   `label_map`, `col_blk`, `col_measure`. See
   [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
   for details.
+
+- gradient_recompute:
+
+  Logical. If `TRUE` (default), recompute gradient from DEM vertices
+  after splitting. If `FALSE`, child segments inherit the parent segment
+  gradient. Use `FALSE` to match bcfishpass behavior where gradient is
+  assigned from the original FWA segment, not recomputed per
+  sub-segment.
 
 - overwrite:
 

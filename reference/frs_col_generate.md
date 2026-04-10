@@ -10,7 +10,7 @@ recalculation needed.
 ## Usage
 
 ``` r
-frs_col_generate(conn, table, geom_col = "geom")
+frs_col_generate(conn, table, geom_col = "geom", exclude = NULL)
 ```
 
 ## Arguments
@@ -30,6 +30,12 @@ frs_col_generate(conn, table, geom_col = "geom")
 - geom_col:
 
   Character. Name of the geometry column. Default `"geom"`.
+
+- exclude:
+
+  Character vector or `NULL`. Column names to skip (e.g. `"gradient"` to
+  preserve parent-segment gradient after splitting). Default `NULL`
+  (regenerate all columns).
 
 ## Value
 
@@ -72,6 +78,7 @@ Other habitat:
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+[`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md),
 [`frs_feature_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_find.md),
