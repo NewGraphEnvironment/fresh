@@ -12,6 +12,7 @@ frs_break_find(
   threshold = NULL,
   interval = 100L,
   distance = 100L,
+  min_length = 0L,
   overwrite = TRUE
 )
 }
@@ -33,7 +34,12 @@ gradient exceeds this produce a break point at the entry.}
 \item{interval}{Integer. Not used (kept for compatibility). Default \code{100}.}
 
 \item{distance}{Integer. Upstream window in metres for gradient
-computation AND minimum island length. Default \code{100}.}
+computation at each vertex. Default \code{100}.}
+
+\item{min_length}{Integer. Minimum island length in metres to keep.
+Default \code{0} (keep all islands — a 30m waterfall at 20\% gradient is
+a real barrier). Set to \code{100} to restore pre-0.12.2 behavior where
+short steep sections were filtered out.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
@@ -90,6 +96,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
 \code{\link{frs_classify}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
