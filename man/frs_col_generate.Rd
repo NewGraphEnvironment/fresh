@@ -4,7 +4,7 @@
 \alias{frs_col_generate}
 \title{Convert Columns to PostgreSQL Generated Columns from Geometry}
 \usage{
-frs_col_generate(conn, table, geom_col = "geom")
+frs_col_generate(conn, table, geom_col = "geom", exclude = NULL)
 }
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
@@ -13,6 +13,10 @@ frs_col_generate(conn, table, geom_col = "geom")
 (from \code{\link[=frs_extract]{frs_extract()}}).}
 
 \item{geom_col}{Character. Name of the geometry column. Default \code{"geom"}.}
+
+\item{exclude}{Character vector or \code{NULL}. Column names to skip
+(e.g. \code{"gradient"} to preserve parent-segment gradient after
+splitting). Default \code{NULL} (regenerate all columns).}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -92,6 +96,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
 \code{\link{frs_classify}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
 \code{\link{frs_feature_find}()},

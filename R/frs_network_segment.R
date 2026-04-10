@@ -20,6 +20,11 @@
 #'   breaking). Each spec is a list with `table`, and optionally `where`,
 #'   `label`, `label_col`, `label_map`, `col_blk`, `col_measure`.
 #'   See [frs_break_find()] for details.
+#' @param gradient_recompute Logical. If `TRUE` (default), recompute
+#'   gradient from DEM vertices after splitting. If `FALSE`, child
+#'   segments inherit the parent segment gradient. Use `FALSE` to match
+#'   bcfishpass behavior where gradient is assigned from the original
+#'   FWA segment, not recomputed per sub-segment.
 #' @param overwrite Logical. If `TRUE`, drop `to` before creating.
 #'   Default `TRUE`.
 #' @param verbose Logical. Print progress. Default `TRUE`.
@@ -99,6 +104,7 @@
 frs_network_segment <- function(conn, aoi, to,
                                 source = "whse_basemapping.fwa_stream_networks_sp",
                                 break_sources = NULL,
+                                gradient_recompute = TRUE,
                                 overwrite = TRUE,
                                 verbose = TRUE) {
   .frs_validate_identifier(to, "output table")
@@ -185,8 +191,10 @@ frs_network_segment <- function(conn, aoi, to,
           round((proc.time() - t1)["elapsed"], 1), "s)\n", sep = "")
     }
 
-    # Recompute gradient/measures from new geometry
-    frs_col_generate(conn, to)
+    # Recompute measures/length from new geometry. Gradient optionally
+    # preserved from parent segment (gradient_recompute = FALSE).
+    frs_col_generate(conn, to,
+      exclude = if (isTRUE(gradient_recompute)) NULL else "gradient")
 
     # Keep breaks table for frs_habitat_classify (accessibility check)
     # Caller or frs_habitat can clean up later

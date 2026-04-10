@@ -48,6 +48,10 @@
 #'   Auto-derived breaks give cluster analysis ([frs_cluster()]) the
 #'   gradient resolution to detect within-segment steep sections that
 #'   would otherwise be hidden by averaging.
+#' @param gradient_recompute Logical. If `TRUE` (default), recompute
+#'   gradient from DEM vertices after splitting segments. If `FALSE`,
+#'   child segments inherit the parent gradient. See
+#'   [frs_network_segment()] for details.
 #' @param rules Character path to a habitat rules YAML, `FALSE`, or
 #'   `NULL`. Default `NULL` uses the bundled
 #'   `inst/extdata/parameters_habitat_rules.yaml`. Pass a path string
@@ -178,6 +182,7 @@ frs_habitat <- function(conn, wsg = NULL,
                         gate = TRUE,
                         label_block = "blocked",
                         rules = NULL,
+                        gradient_recompute = TRUE,
                         params = NULL,
                         params_fresh = NULL,
                         workers = 1L,
@@ -285,8 +290,8 @@ frs_habitat <- function(conn, wsg = NULL,
 
   # -- Per-job worker function -------------------------------------------------
   .run_job <- function(spec, conn_params, break_sources, breaks_gradient,
-                       params, params_fresh, to_streams, to_habitat,
-                       verbose) {
+                       gradient_recompute, params, params_fresh,
+                       to_streams, to_habitat, verbose) {
     # Connect (parallel) or reuse (sequential)
     if (!is.null(conn_params)) {
       library(fresh)
@@ -385,6 +390,7 @@ frs_habitat <- function(conn, wsg = NULL,
     frs_network_segment(w_conn, aoi = job_aoi,
       to = streams_tbl,
       break_sources = all_sources,
+      gradient_recompute = gradient_recompute,
       verbose = verbose && is.null(conn_params))
 
     n_seg <- DBI::dbGetQuery(w_conn,
@@ -524,7 +530,8 @@ frs_habitat <- function(conn, wsg = NULL,
       DBI::dbExecute(w_conn, sprintf("DROP TABLE IF EXISTS %s", tmp_tbl))
 
       frs_network_segment(w_conn, aoi = job_aoi,
-        to = streams_tbl, break_sources = all_sources, verbose = FALSE)
+        to = streams_tbl, break_sources = all_sources,
+        gradient_recompute = gradient_recompute, verbose = FALSE)
 
       n_seg <- DBI::dbGetQuery(w_conn,
         sprintf("SELECT count(*)::int AS n FROM %s", streams_tbl))$n
@@ -573,6 +580,7 @@ frs_habitat <- function(conn, wsg = NULL,
     },
       conn_params = conn_params, break_sources = break_sources,
       breaks_gradient = breaks_gradient,
+      gradient_recompute = gradient_recompute,
       params = params, params_fresh = params_fresh,
       to_streams = to_streams, to_habitat = to_habitat,
       gate = gate, label_block = label_block,
@@ -591,6 +599,7 @@ frs_habitat <- function(conn, wsg = NULL,
       res <- .run_job(spec, conn_params = NULL,
         break_sources = break_sources,
         breaks_gradient = breaks_gradient,
+        gradient_recompute = gradient_recompute,
         params = params, params_fresh = params_fresh,
         to_streams = to_streams, to_habitat = to_habitat,
         verbose = verbose)
