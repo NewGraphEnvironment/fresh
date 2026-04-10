@@ -1,5 +1,17 @@
 # Changelog
 
+## fresh 0.12.2
+
+Fix short barrier detection.
+
+- [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
+  gains `min_length` parameter (default `0`) — keeps all gradient
+  islands regardless of length. A 30m waterfall at 20% gradient is a
+  real barrier but was silently dropped by the old 100m minimum. Pass
+  `min_length = 100` to restore pre-0.12.2 behavior
+  ([\#118](https://github.com/NewGraphEnvironment/fresh/issues/118))
+- ADMS sub-basin at 15%: 137 barriers (was 98, +39 recovered)
+
 ## fresh 0.12.1
 
 Per-rule threshold overrides in habitat rules YAML.

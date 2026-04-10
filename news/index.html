@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.2" id="fresh-0122">fresh 0.12.2<a class="anchor" aria-label="anchor" href="#fresh-0122"></a></h2>
+<p>Fix short barrier detection.</p>
+<ul><li>
+<code><a href="../reference/frs_break_find.html">frs_break_find()</a></code> gains <code>min_length</code> parameter (default <code>0</code>) — keeps all gradient islands regardless of length. A 30m waterfall at 20% gradient is a real barrier but was silently dropped by the old 100m minimum. Pass <code>min_length = 100</code> to restore pre-0.12.2 behavior (<a href="https://github.com/NewGraphEnvironment/fresh/issues/118" class="external-link">#118</a>)</li>
+<li>ADMS sub-basin at 15%: 137 barriers (was 98, +39 recovered)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.1" id="fresh-0121">fresh 0.12.1<a class="anchor" aria-label="anchor" href="#fresh-0121"></a></h2>
 <p>Per-rule threshold overrides in habitat rules YAML.</p>
