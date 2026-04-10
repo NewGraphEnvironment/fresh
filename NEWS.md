@@ -1,3 +1,15 @@
+# fresh 0.12.0
+
+Habitat eligibility rules format (Phase 1).
+
+- YAML-based habitat rules for multi-rule species — each species gets a list of rules per habitat type joined by OR, each rule is AND of predicates. Replaces the single-rule-per-CSV-row limitation ([#113](https://github.com/NewGraphEnvironment/fresh/issues/113))
+- Bundled `inst/extdata/parameters_habitat_rules.yaml` with NGE defaults for 11 species (synced from `link/inst/extdata/parameters_habitat_dimensions.csv`)
+- `frs_params(rules_yaml =)` loads rules YAML (default = bundled, `NULL` = skip rules for backward compat)
+- `frs_habitat(rules =)` pass-through (`NULL` = bundled, `FALSE` = disable, string path = custom file)
+- `thresholds: false` per rule — wetland-flow carve-out pattern where a rule bypasses CSV gradient/channel_width inheritance
+- **Default behavior change**: SK rearing now lake-only (area >= 200 ha); PK/CM rearing = 0 (explicit `rear: []`); CO/BT/CH/ST/WCT/RB rearing expanded to include river polygons + wetland-flow segments. Pass `rules = FALSE` to restore pre-0.12.0 behavior.
+- Phase 2 MAD support deferred to [#114](https://github.com/NewGraphEnvironment/fresh/issues/114)
+
 # fresh 0.11.1
 
 Gradient barrier label format precision fix.
