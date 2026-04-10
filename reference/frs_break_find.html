@@ -58,6 +58,7 @@ each steep section, suitable for <code><a href="frs_break_apply.html">frs_break_
 <span>  threshold <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  interval <span class="op">=</span> <span class="fl">100L</span>,</span>
 <span>  distance <span class="op">=</span> <span class="fl">100L</span>,</span>
+<span>  min_length <span class="op">=</span> <span class="fl">0L</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -96,7 +97,14 @@ gradient exceeds this produce a break point at the entry.</p></dd>
 
 <dt id="arg-distance">distance<a class="anchor" aria-label="anchor" href="#arg-distance"></a></dt>
 <dd><p>Integer. Upstream window in metres for gradient
-computation AND minimum island length. Default <code>100</code>.</p></dd>
+computation at each vertex. Default <code>100</code>.</p></dd>
+
+
+<dt id="arg-min-length">min_length<a class="anchor" aria-label="anchor" href="#arg-min-length"></a></dt>
+<dd><p>Integer. Minimum island length in metres to keep.
+Default <code>0</code> (keep all islands — a 30m waterfall at 20% gradient is
+a real barrier). Set to <code>100</code> to restore pre-0.12.2 behavior where
+short steep sections were filtered out.</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
@@ -122,6 +130,7 @@ observations), use <code><a href="frs_feature_find.html">frs_feature_find()</a><
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_categorize.html">frs_categorize()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
+<code><a href="frs_cluster.html">frs_cluster()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,
 <code><a href="frs_col_join.html">frs_col_join()</a></code>,
 <code><a href="frs_extract.html">frs_extract()</a></code>,

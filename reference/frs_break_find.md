@@ -16,6 +16,7 @@ frs_break_find(
   threshold = NULL,
   interval = 100L,
   distance = 100L,
+  min_length = 0L,
   overwrite = TRUE
 )
 ```
@@ -55,8 +56,15 @@ frs_break_find(
 
 - distance:
 
-  Integer. Upstream window in metres for gradient computation AND
-  minimum island length. Default `100`.
+  Integer. Upstream window in metres for gradient computation at each
+  vertex. Default `100`.
+
+- min_length:
+
+  Integer. Minimum island length in metres to keep. Default `0` (keep
+  all islands — a 30m waterfall at 20% gradient is a real barrier). Set
+  to `100` to restore pre-0.12.2 behavior where short steep sections
+  were filtered out.
 
 - overwrite:
 
@@ -82,6 +90,7 @@ Other habitat:
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+[`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
 [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md),
