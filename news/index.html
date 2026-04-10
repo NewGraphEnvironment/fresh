@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.3" id="fresh-0123">fresh 0.12.3<a class="anchor" aria-label="anchor" href="#fresh-0123"></a></h2>
+<p>SK/KO spawning requires connected rearing lake.</p>
+<ul><li>
+<code>requires_connected</code> predicate in rules YAML — spawning segments must be spatially connected to rearing via <code><a href="../reference/frs_cluster.html">frs_cluster()</a></code>. No rearing lake = no spawning (<a href="https://github.com/NewGraphEnvironment/fresh/issues/120" class="external-link">#120</a>)</li>
+<li>New <code>.frs_run_connectivity()</code> orchestrates both rearing cluster checks (<code>cluster_rearing</code>) and spawning connectivity checks (<code>requires_connected</code> + <code>cluster_spawning</code>) after classification</li>
+<li>SK/KO: <code>cluster_spawning = TRUE</code> with 3km bridge distance. KO added to <code>parameters_fresh.csv</code>
+</li>
+<li>ADMS sub-basin: SK spawning 15 → 0 (correct — no lakes &gt;= 200 ha)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.2" id="fresh-0122">fresh 0.12.2<a class="anchor" aria-label="anchor" href="#fresh-0122"></a></h2>
 <p>Fix short barrier detection.</p>

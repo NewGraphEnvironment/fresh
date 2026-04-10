@@ -1,5 +1,21 @@
 # Changelog
 
+## fresh 0.12.3
+
+SK/KO spawning requires connected rearing lake.
+
+- `requires_connected` predicate in rules YAML — spawning segments must
+  be spatially connected to rearing via
+  [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md).
+  No rearing lake = no spawning
+  ([\#120](https://github.com/NewGraphEnvironment/fresh/issues/120))
+- New `.frs_run_connectivity()` orchestrates both rearing cluster checks
+  (`cluster_rearing`) and spawning connectivity checks
+  (`requires_connected` + `cluster_spawning`) after classification
+- SK/KO: `cluster_spawning = TRUE` with 3km bridge distance. KO added to
+  `parameters_fresh.csv`
+- ADMS sub-basin: SK spawning 15 → 0 (correct — no lakes \>= 200 ha)
+
 ## fresh 0.12.2
 
 Fix short barrier detection.
