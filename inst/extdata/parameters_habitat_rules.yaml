@@ -14,7 +14,9 @@
 #   edge_types_explicit: list of integer FWA edge_type codes
 #   waterbody_type: 'L' (lake), 'R' (river polygon), 'W' (wetland)
 #   lake_ha_min: minimum lake area for waterbody_type=L rules
-#   thresholds: false  — skip CSV threshold inheritance for this rule
+#   gradient: [min, max]  — override CSV gradient (rule value wins)
+#   channel_width: [min, max]  — override CSV channel_width (rule value wins)
+#   thresholds: false  — skip ALL CSV threshold inheritance for this rule
 
 BT:
   spawn:
@@ -22,11 +24,13 @@ BT:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear:
   - edge_types:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - edge_types_explicit:
     - 1050
     - 1150
@@ -38,11 +42,13 @@ CH:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear:
   - edge_types:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - edge_types_explicit:
     - 1050
     - 1150
@@ -54,6 +60,7 @@ CM:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear: []
 CO:
   spawn:
@@ -61,11 +68,13 @@ CO:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear:
   - edge_types:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - edge_types_explicit:
     - 1050
     - 1150
@@ -77,6 +86,7 @@ PK:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear: []
 SK:
   spawn:
@@ -84,6 +94,7 @@ SK:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - waterbody_type: L
   rear:
   - waterbody_type: L
@@ -94,11 +105,13 @@ ST:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear:
   - edge_types:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - edge_types_explicit:
     - 1050
     - 1150
@@ -110,11 +123,13 @@ WCT:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear:
   - edge_types:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - edge_types_explicit:
     - 1050
     - 1150
@@ -126,6 +141,7 @@ KO:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - waterbody_type: L
   rear:
   - waterbody_type: L
@@ -136,11 +152,13 @@ RB:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear:
   - edge_types:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - edge_types_explicit:
     - 1050
     - 1150
@@ -152,9 +170,11 @@ GR:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   rear:
   - edge_types:
     - stream
     - canal
   - waterbody_type: R
+    channel_width: [0, 9999]
   - waterbody_type: L

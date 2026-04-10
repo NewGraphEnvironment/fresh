@@ -132,7 +132,8 @@ frs_params <- function(conn = NULL,
   }
 
   valid_predicates <- c("edge_types", "edge_types_explicit",
-                        "waterbody_type", "lake_ha_min", "thresholds")
+                        "waterbody_type", "lake_ha_min", "thresholds",
+                        "gradient", "channel_width")
 
   for (sp in names(raw)) {
     sp_block <- raw[[sp]]
@@ -245,6 +246,17 @@ frs_params <- function(conn = NULL,
       stop(sprintf(
         "rules YAML %s/%s rule %d edge_types must be a list of category names",
         sp, habitat, idx), call. = FALSE)
+    }
+  }
+
+  for (field in c("gradient", "channel_width")) {
+    val <- rule[[field]]
+    if (!is.null(val)) {
+      if (!is.numeric(val) || length(val) != 2) {
+        stop(sprintf(
+          "rules YAML %s/%s rule %d %s must be a numeric vector of length 2 [min, max]",
+          sp, habitat, idx, field), call. = FALSE)
+      }
     }
   }
 }
