@@ -1076,8 +1076,9 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     }
 
     # Check spawning connectivity (requires_connected: rearing)
-    has_rc <- any(vapply(
-      c(ps[["rules"]][["spawn"]], ps[["rules"]][["rear"]]),
+    spawn_rules <- ps[["rules"]][["spawn"]]
+    has_rc <- length(spawn_rules) > 0 && any(vapply(
+      spawn_rules,
       function(rule) !is.null(rule[["requires_connected"]]),
       logical(1)))
 
