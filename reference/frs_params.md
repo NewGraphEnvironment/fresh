@@ -16,7 +16,8 @@ pipeline.
 frs_params(
   conn = NULL,
   table = "bcfishpass.parameters_habitat_thresholds",
-  csv = NULL
+  csv = NULL,
+  rules_yaml = system.file("extdata", "parameters_habitat_rules.yaml", package = "fresh")
 )
 ```
 
@@ -40,6 +41,17 @@ frs_params(
 
   Character or `NULL`. Path to a local CSV file. When provided, `conn`
   and `table` are ignored.
+
+- rules_yaml:
+
+  Character or `NULL`. Path to a habitat rules YAML file. Default reads
+  the bundled `inst/extdata/parameters_habitat_rules.yaml`. Pass `NULL`
+  to skip rules entirely (every species falls through to the CSV ranges
+  path used pre-0.12.0). When a rules file is loaded, each species
+  listed in the file gets `$rules$spawn` and `$rules$rear` attached to
+  its params entry. Species not listed in the file fall through to the
+  CSV ranges path. See the `parameters_habitat_rules.yaml` header for
+  the rule format.
 
 ## Value
 

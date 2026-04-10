@@ -56,7 +56,8 @@ iteration with <code><a href="https://rdrr.io/r/base/lapply.html" class="externa
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_params</span><span class="op">(</span></span>
 <span>  conn <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"bcfishpass.parameters_habitat_thresholds"</span>,</span>
-<span>  csv <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  csv <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  rules_yaml <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"parameters_habitat_rules.yaml"</span>, package <span class="op">=</span> <span class="st">"fresh"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -78,6 +79,18 @@ Default <code>"bcfishpass.parameters_habitat_thresholds"</code>.</p></dd>
 <dt id="arg-csv">csv<a class="anchor" aria-label="anchor" href="#arg-csv"></a></dt>
 <dd><p>Character or <code>NULL</code>. Path to a local CSV file. When provided,
 <code>conn</code> and <code>table</code> are ignored.</p></dd>
+
+
+<dt id="arg-rules-yaml">rules_yaml<a class="anchor" aria-label="anchor" href="#arg-rules-yaml"></a></dt>
+<dd><p>Character or <code>NULL</code>. Path to a habitat rules YAML
+file. Default reads the bundled
+<code>inst/extdata/parameters_habitat_rules.yaml</code>. Pass <code>NULL</code> to skip
+rules entirely (every species falls through to the CSV ranges
+path used pre-0.12.0). When a rules file is loaded, each species
+listed in the file gets <code>$rules$spawn</code> and <code>$rules$rear</code> attached
+to its params entry. Species not listed in the file fall through
+to the CSV ranges path. See the <code>parameters_habitat_rules.yaml</code>
+header for the rule format.</p></dd>
 
 </dl></div>
     <div class="section level2">
