@@ -17,6 +17,7 @@ frs_habitat(
   gate = TRUE,
   label_block = "blocked",
   rules = NULL,
+  gradient_recompute = TRUE,
   params = NULL,
   params_fresh = NULL,
   workers = 1L,
@@ -83,6 +84,11 @@ Only consulted when \code{params = NULL}. If you pass your own
 object and \code{rules} here is ignored.
 
 See \code{\link[=frs_params]{frs_params()}} for the rules format.}
+
+\item{gradient_recompute}{Logical. If \code{TRUE} (default), recompute
+gradient from DEM vertices after splitting segments. If \code{FALSE},
+child segments inherit the parent gradient. See
+\code{\link[=frs_network_segment]{frs_network_segment()}} for details.}
 
 \item{params}{Named list from \code{\link[=frs_params]{frs_params()}}, or \code{NULL} to use
 bundled \code{parameters_habitat_thresholds.csv} and rules YAML.}

@@ -10,6 +10,7 @@ frs_network_segment(
   to,
   source = "whse_basemapping.fwa_stream_networks_sp",
   break_sources = NULL,
+  gradient_recompute = TRUE,
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -30,6 +31,12 @@ watershed group code, \code{sf} polygon, or \code{NULL}.}
 breaking). Each spec is a list with \code{table}, and optionally \code{where},
 \code{label}, \code{label_col}, \code{label_map}, \code{col_blk}, \code{col_measure}.
 See \code{\link[=frs_break_find]{frs_break_find()}} for details.}
+
+\item{gradient_recompute}{Logical. If \code{TRUE} (default), recompute
+gradient from DEM vertices after splitting. If \code{FALSE}, child
+segments inherit the parent segment gradient. Use \code{FALSE} to match
+bcfishpass behavior where gradient is assigned from the original
+FWA segment, not recomputed per sub-segment.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}

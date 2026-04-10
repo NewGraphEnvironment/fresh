@@ -14,6 +14,9 @@
 #' @param table Character. Schema-qualified working table name
 #'   (from [frs_extract()]).
 #' @param geom_col Character. Name of the geometry column. Default `"geom"`.
+#' @param exclude Character vector or `NULL`. Column names to skip
+#'   (e.g. `"gradient"` to preserve parent-segment gradient after
+#'   splitting). Default `NULL` (regenerate all columns).
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -75,7 +78,8 @@
 #' DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.breaks")
 #' DBI::dbDisconnect(conn)
 #' }
-frs_col_generate <- function(conn, table, geom_col = "geom") {
+frs_col_generate <- function(conn, table, geom_col = "geom",
+                             exclude = NULL) {
   .frs_validate_identifier(table, "table")
   .frs_validate_identifier(geom_col, "geometry column")
 
@@ -107,6 +111,11 @@ frs_col_generate <- function(conn, table, geom_col = "geom") {
       geom_col
     )
   )
+
+  # Filter out excluded columns
+  if (!is.null(exclude)) {
+    generated_defs <- generated_defs[!names(generated_defs) %in% exclude]
+  }
 
   # For each column: drop if exists, then add as generated
   for (col_name in names(generated_defs)) {
