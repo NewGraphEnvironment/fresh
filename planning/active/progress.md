@@ -17,6 +17,14 @@
 - Added `yaml` to DESCRIPTION Imports
 - Verified YAML parses cleanly with `yaml::read_yaml()`
 - 600 tests pass
+- Commit `12fd347 Add bundled habitat rules YAML and yaml dep`
+
+#### Phase 2: Parser in frs_params ✓
+- Added `rules_yaml` parameter to `frs_params()` (default = bundled, NULL = skip)
+- New `.frs_load_rules()` reads YAML, validates structure
+- New `.frs_validate_rule()` validates each rule: errors on `mad` (#114), unknown keys, `lake_ha_min` without `waterbody_type: L`, bad waterbody_type, bad habitat block
+- 11 new tests in test-frs_params.R covering parsing + all error cases + edge cases (empty file, empty rear list)
+- 619 tests pass (600 + 11 new + 8 incremental)
 
 #### Phase 2: Parser in frs_params
 - (pending)

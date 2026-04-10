@@ -65,6 +65,110 @@ test_that("frs_params errors on missing species_code column", {
 })
 
 
+# --- Rules YAML tests ---
+
+test_that("frs_params loads bundled rules YAML by default", {
+  csv <- system.file("testdata", "test_params.csv", package = "fresh")
+  params <- frs_params(csv = csv)
+  # CO is in both the test CSV and the bundled rules YAML
+  expect_false(is.null(params$CO$rules))
+  expect_false(is.null(params$CO$rules$spawn))
+  expect_false(is.null(params$CO$rules$rear))
+})
+
+test_that("frs_params with rules_yaml = NULL skips rules", {
+  csv <- system.file("testdata", "test_params.csv", package = "fresh")
+  params <- frs_params(csv = csv, rules_yaml = NULL)
+  # No species should have $rules
+  expect_null(params$CO$rules)
+  expect_null(params$BT$rules)
+})
+
+test_that("frs_params bundled rules has expected species blocks", {
+  csv <- system.file("testdata", "test_params.csv", package = "fresh")
+  params <- frs_params(csv = csv)
+  # CO has 2 spawn rules (stream/canal + R polygon) and 4 rear rules
+  expect_length(params$CO$rules$spawn, 2)
+  expect_length(params$CO$rules$rear, 4)
+  # CO rule 3 has thresholds: false (wetland-flow carve-out)
+  expect_false(params$CO$rules$rear[[3]]$thresholds)
+  expect_equal(params$CO$rules$rear[[3]]$edge_types_explicit, c(1050L, 1150L))
+})
+
+test_that(".frs_load_rules errors on missing file", {
+  expect_error(.frs_load_rules("/nonexistent/path.yaml"),
+               "rules_yaml file not found")
+})
+
+test_that(".frs_load_rules errors on mad predicate (Phase 2)", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  spawn:",
+    "    - mad: [0.5, 9999]"), tmp)
+  expect_error(.frs_load_rules(tmp), "fresh#114")
+})
+
+test_that(".frs_load_rules errors on unknown predicate", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  spawn:",
+    "    - bogus_field: 42"), tmp)
+  expect_error(.frs_load_rules(tmp), "unknown predicates")
+})
+
+test_that(".frs_load_rules errors on lake_ha_min without waterbody_type L", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  rear:",
+    "    - lake_ha_min: 200"), tmp)
+  expect_error(.frs_load_rules(tmp), "lake_ha_min without waterbody_type")
+})
+
+test_that(".frs_load_rules errors on bad waterbody_type", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  rear:",
+    "    - waterbody_type: lake"), tmp)
+  expect_error(.frs_load_rules(tmp), "must be one of L, R, W")
+})
+
+test_that(".frs_load_rules errors on bad habitat block", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawning:",
+    "    - waterbody_type: L"), tmp)
+  expect_error(.frs_load_rules(tmp), "unknown habitat block")
+})
+
+test_that(".frs_load_rules accepts empty rear list", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "PK:",
+    "  rear: []"), tmp)
+  expect_silent(rules <- .frs_load_rules(tmp))
+  expect_length(rules$PK$rear, 0)
+})
+
+test_that(".frs_load_rules accepts empty file", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines("", tmp)
+  expect_silent(rules <- .frs_load_rules(tmp))
+  expect_length(rules, 0)
+})
+
+
 # Integration tests — require DB connection
 
 test_that("frs_params reads bcfishpass parameter table", {

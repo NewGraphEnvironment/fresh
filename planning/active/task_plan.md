@@ -28,11 +28,11 @@ The rules YAML adds the missing OR + per-rule threshold opt-out semantics.
 - [x] Commit + PWF update + code-check
 
 ### Phase 2: Parser in frs_params
-- [ ] Add `rules_yaml` parameter to `frs_params()` (default = bundled file, NULL = no rules)
-- [ ] Parse YAML, attach `params[[sp]]$rules$spawn` and `$rules$rear` per species
-- [ ] Validate predicates: error on `mad` (Phase 2/#114), unknown keys, `lake_ha_min` without `waterbody_type: L`
-- [ ] Tests in `test-frs_params.R`
-- [ ] Commit + PWF update + code-check
+- [x] Add `rules_yaml` parameter to `frs_params()` (default = bundled file, NULL = no rules)
+- [x] Parse YAML, attach `params[[sp]]$rules$spawn` and `$rules$rear` per species
+- [x] Validate predicates: error on `mad` (Phase 2/#114), unknown keys, `lake_ha_min` without `waterbody_type: L`
+- [x] Tests in `test-frs_params.R`
+- [x] Commit + PWF update + code-check
 
 ### Phase 3: Rule evaluator helpers in utils.R
 - [ ] `.frs_rule_to_sql(rule, csv_thresholds)` — single rule → AND predicate

@@ -12,6 +12,15 @@
 #'   Default `"bcfishpass.parameters_habitat_thresholds"`.
 #' @param csv Character or `NULL`. Path to a local CSV file. When provided,
 #'   `conn` and `table` are ignored.
+#' @param rules_yaml Character or `NULL`. Path to a habitat rules YAML
+#'   file. Default reads the bundled
+#'   `inst/extdata/parameters_habitat_rules.yaml`. Pass `NULL` to skip
+#'   rules entirely (every species falls through to the CSV ranges
+#'   path used pre-0.12.0). When a rules file is loaded, each species
+#'   listed in the file gets `$rules$spawn` and `$rules$rear` attached
+#'   to its params entry. Species not listed in the file fall through
+#'   to the CSV ranges path. See the `parameters_habitat_rules.yaml`
+#'   header for the rule format.
 #'
 #' @return A named list of parameter sets, keyed by species code. Each element
 #'   is a list with threshold values and a `ranges` sub-list suitable for
@@ -50,7 +59,10 @@
 #' }
 frs_params <- function(conn = NULL,
                        table = "bcfishpass.parameters_habitat_thresholds",
-                       csv = NULL) {
+                       csv = NULL,
+                       rules_yaml = system.file(
+                         "extdata", "parameters_habitat_rules.yaml",
+                         package = "fresh")) {
   if (!is.null(csv)) {
     raw <- utils::read.csv(csv, stringsAsFactors = FALSE)
   } else {
@@ -86,7 +98,126 @@ frs_params <- function(conn = NULL,
     row
   })
 
+  # Attach rules from YAML if provided. Rules are validated at parse
+  # time so downstream code can trust the structure.
+  if (!is.null(rules_yaml) && nzchar(rules_yaml)) {
+    rules <- .frs_load_rules(rules_yaml)
+    for (sp in names(rules)) {
+      if (!is.null(params[[sp]])) {
+        params[[sp]]$rules <- rules[[sp]]
+      }
+    }
+  }
+
   params
+}
+
+
+#' Load and validate a habitat rules YAML file
+#'
+#' Reads a rules YAML, validates the structure, and returns a named
+#' list keyed by species code with `$spawn` and `$rear` rule lists.
+#'
+#' @param path Character. Path to the YAML file.
+#' @return Named list keyed by species code. Each entry has
+#'   `$spawn` and `$rear` rule lists. Either may be missing or empty.
+#' @noRd
+.frs_load_rules <- function(path) {
+  if (!file.exists(path)) {
+    stop(sprintf("rules_yaml file not found: %s", path), call. = FALSE)
+  }
+  raw <- yaml::read_yaml(path)
+  if (length(raw) == 0) {
+    return(list())
+  }
+
+  valid_predicates <- c("edge_types", "edge_types_explicit",
+                        "waterbody_type", "lake_ha_min", "thresholds")
+
+  for (sp in names(raw)) {
+    sp_block <- raw[[sp]]
+    for (habitat in names(sp_block)) {
+      if (!habitat %in% c("spawn", "rear")) {
+        stop(sprintf(
+          "rules YAML for species %s has unknown habitat block '%s' (expected 'spawn' or 'rear')",
+          sp, habitat), call. = FALSE)
+      }
+      rule_list <- sp_block[[habitat]]
+      if (is.null(rule_list) || length(rule_list) == 0) next
+      for (i in seq_along(rule_list)) {
+        rule <- rule_list[[i]]
+        if (!is.list(rule)) {
+          stop(sprintf(
+            "rules YAML %s/%s rule %d is not a mapping",
+            sp, habitat, i), call. = FALSE)
+        }
+        .frs_validate_rule(rule, sp, habitat, i, valid_predicates)
+      }
+    }
+  }
+
+  raw
+}
+
+
+#' Validate a single rule entry
+#'
+#' Errors on unknown predicate keys, on `mad` (deferred to #114),
+#' on `lake_ha_min` without `waterbody_type: L`, on bad
+#' `waterbody_type`, or on a non-logical `thresholds` field.
+#'
+#' @noRd
+.frs_validate_rule <- function(rule, sp, habitat, idx, valid_predicates) {
+  keys <- names(rule)
+
+  if ("mad" %in% keys) {
+    stop(sprintf(
+      paste0("rules YAML %s/%s rule %d uses 'mad' predicate which is ",
+             "not supported in Phase 1. ",
+             "MAD support is tracked in fresh#114."),
+      sp, habitat, idx), call. = FALSE)
+  }
+
+  unknown <- setdiff(keys, valid_predicates)
+  if (length(unknown) > 0) {
+    stop(sprintf(
+      "rules YAML %s/%s rule %d has unknown predicates: %s. Valid: %s",
+      sp, habitat, idx,
+      paste(unknown, collapse = ", "),
+      paste(valid_predicates, collapse = ", ")), call. = FALSE)
+  }
+
+  if (!is.null(rule$waterbody_type)) {
+    wt <- rule$waterbody_type
+    if (!is.character(wt) || length(wt) != 1 ||
+        !wt %in% c("L", "R", "W")) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d waterbody_type must be one of L, R, W (got: %s)",
+        sp, habitat, idx, paste(wt, collapse = ", ")), call. = FALSE)
+    }
+  }
+
+  if (!is.null(rule$lake_ha_min)) {
+    if (is.null(rule$waterbody_type) || rule$waterbody_type != "L") {
+      stop(sprintf(
+        paste0("rules YAML %s/%s rule %d uses lake_ha_min without ",
+               "waterbody_type: L"),
+        sp, habitat, idx), call. = FALSE)
+    }
+    if (!is.numeric(rule$lake_ha_min) || length(rule$lake_ha_min) != 1) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d lake_ha_min must be a numeric scalar",
+        sp, habitat, idx), call. = FALSE)
+    }
+  }
+
+  if (!is.null(rule$thresholds)) {
+    if (!is.logical(rule$thresholds) || length(rule$thresholds) != 1) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d thresholds must be a logical scalar",
+        sp, habitat, idx), call. = FALSE)
+    }
+  }
 }
 
 
