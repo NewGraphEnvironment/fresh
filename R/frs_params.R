@@ -187,8 +187,10 @@ frs_params <- function(conn = NULL,
       paste(valid_predicates, collapse = ", ")), call. = FALSE)
   }
 
-  if (!is.null(rule$waterbody_type)) {
-    wt <- rule$waterbody_type
+  # Use [[ ]] not $ to avoid partial matching (e.g. rule$lake matching
+  # rule$lake_ha_min by prefix).
+  if (!is.null(rule[["waterbody_type"]])) {
+    wt <- rule[["waterbody_type"]]
     if (!is.character(wt) || length(wt) != 1 ||
         !wt %in% c("L", "R", "W")) {
       stop(sprintf(
@@ -197,22 +199,25 @@ frs_params <- function(conn = NULL,
     }
   }
 
-  if (!is.null(rule$lake_ha_min)) {
-    if (is.null(rule$waterbody_type) || rule$waterbody_type != "L") {
+  if (!is.null(rule[["lake_ha_min"]])) {
+    if (is.null(rule[["waterbody_type"]]) ||
+        rule[["waterbody_type"]] != "L") {
       stop(sprintf(
         paste0("rules YAML %s/%s rule %d uses lake_ha_min without ",
                "waterbody_type: L"),
         sp, habitat, idx), call. = FALSE)
     }
-    if (!is.numeric(rule$lake_ha_min) || length(rule$lake_ha_min) != 1) {
+    if (!is.numeric(rule[["lake_ha_min"]]) ||
+        length(rule[["lake_ha_min"]]) != 1) {
       stop(sprintf(
         "rules YAML %s/%s rule %d lake_ha_min must be a numeric scalar",
         sp, habitat, idx), call. = FALSE)
     }
   }
 
-  if (!is.null(rule$thresholds)) {
-    if (!is.logical(rule$thresholds) || length(rule$thresholds) != 1) {
+  if (!is.null(rule[["thresholds"]])) {
+    if (!is.logical(rule[["thresholds"]]) ||
+        length(rule[["thresholds"]]) != 1) {
       stop(sprintf(
         "rules YAML %s/%s rule %d thresholds must be a logical scalar",
         sp, habitat, idx), call. = FALSE)

@@ -25,6 +25,15 @@
 - New `.frs_validate_rule()` validates each rule: errors on `mad` (#114), unknown keys, `lake_ha_min` without `waterbody_type: L`, bad waterbody_type, bad habitat block
 - 11 new tests in test-frs_params.R covering parsing + all error cases + edge cases (empty file, empty rear list)
 - 619 tests pass (600 + 11 new + 8 incremental)
+- Commit `60d8559 Add rules YAML loader to frs_params`
+
+#### Phase 3: Rule evaluator helpers in utils.R ✓
+- New `.frs_rule_to_sql(rule, csv_thresholds)` — single rule to AND predicate
+- New `.frs_rules_to_sql(rules, csv_thresholds)` — list of rules to OR predicate
+- Threshold inheritance: `thresholds: true` (default) AND with CSV thresholds; `thresholds: false` rule stands alone (wetland-flow carve-out pattern)
+- 12 new tests covering edge_types, edge_types_explicit, all waterbody types, lake_ha_min, threshold inheritance, threshold opt-out, empty rule, empty list, multi-rule OR, full CO 4-rule pattern
+- **Bug found and fixed**: R `$` partial matching — `rule$edge_types` was matching `rule$edge_types_explicit` because `edge_types` is a prefix. Switched to `rule[["..."]]` everywhere in rule access. Same fix in `.frs_validate_rule()`.
+- 641 tests pass (619 + 12 new + 10 incremental)
 
 #### Phase 2: Parser in frs_params
 - (pending)

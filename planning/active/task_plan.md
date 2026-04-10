@@ -35,11 +35,11 @@ The rules YAML adds the missing OR + per-rule threshold opt-out semantics.
 - [x] Commit + PWF update + code-check
 
 ### Phase 3: Rule evaluator helpers in utils.R
-- [ ] `.frs_rule_to_sql(rule, csv_thresholds)` — single rule → AND predicate
-- [ ] `.frs_rules_to_sql(rules, csv_thresholds)` — list of rules → OR predicate
-- [ ] Threshold inheritance via `csv_thresholds` arg, opt-out via `thresholds: false`
-- [ ] Unit tests for each predicate type
-- [ ] Commit + PWF update + code-check
+- [x] `.frs_rule_to_sql(rule, csv_thresholds)` — single rule → AND predicate
+- [x] `.frs_rules_to_sql(rules, csv_thresholds)` — list of rules → OR predicate
+- [x] Threshold inheritance via `csv_thresholds` arg, opt-out via `thresholds: false`
+- [x] Unit tests for each predicate type
+- [x] Commit + PWF update + code-check
 
 ### Phase 4: Rule evaluator wired into classify
 - [ ] `frs_habitat_classify()` checks for `params_sp$rules$spawn`/`$rear` and uses evaluator

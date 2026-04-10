@@ -169,6 +169,113 @@ test_that(".frs_load_rules accepts empty file", {
 })
 
 
+# --- Rule evaluator tests ---
+
+test_that(".frs_rule_to_sql edge_types translates via frs_edge_types", {
+  rule <- list(edge_types = c("stream", "canal"))
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "^\\(s\\.edge_type IN")
+  # Should contain at least one stream code from frs_edge_types
+  expect_match(sql, "1000|1100|1325")
+})
+
+test_that(".frs_rule_to_sql edge_types_explicit uses raw codes", {
+  rule <- list(edge_types_explicit = c(1050L, 1150L))
+  sql <- .frs_rule_to_sql(rule)
+  expect_equal(sql, "(s.edge_type IN (1050, 1150))")
+})
+
+test_that(".frs_rule_to_sql waterbody_type L uses fwa_lakes_poly", {
+  rule <- list(waterbody_type = "L")
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "fwa_lakes_poly")
+  expect_match(sql, "waterbody_key IN")
+})
+
+test_that(".frs_rule_to_sql waterbody_type R uses fwa_rivers_poly", {
+  rule <- list(waterbody_type = "R")
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "fwa_rivers_poly")
+})
+
+test_that(".frs_rule_to_sql waterbody_type W uses fwa_wetlands_poly", {
+  rule <- list(waterbody_type = "W")
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "fwa_wetlands_poly")
+})
+
+test_that(".frs_rule_to_sql lake_ha_min adds area_ha filter", {
+  rule <- list(waterbody_type = "L", lake_ha_min = 200)
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "fwa_lakes_poly WHERE area_ha >= 200")
+})
+
+test_that(".frs_rule_to_sql inherits CSV thresholds by default", {
+  rule <- list(edge_types_explicit = c(1000L))
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(2, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  expect_match(sql, "s\\.gradient BETWEEN 0 AND 0\\.0549")
+  expect_match(sql, "s\\.channel_width BETWEEN 2 AND 9999")
+})
+
+test_that(".frs_rule_to_sql skips CSV thresholds when thresholds=FALSE", {
+  rule <- list(
+    edge_types_explicit = c(1050L, 1150L),
+    thresholds = FALSE)
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(2, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  # No threshold conditions should be added
+  expect_false(grepl("gradient", sql))
+  expect_false(grepl("channel_width", sql))
+  # But the explicit edge_type predicate should be there
+  expect_match(sql, "s\\.edge_type IN \\(1050, 1150\\)")
+})
+
+test_that(".frs_rule_to_sql empty rule returns (TRUE)", {
+  expect_equal(.frs_rule_to_sql(list()), "(TRUE)")
+})
+
+test_that(".frs_rules_to_sql empty list returns FALSE", {
+  expect_equal(.frs_rules_to_sql(list()), "FALSE")
+  expect_equal(.frs_rules_to_sql(NULL), "FALSE")
+})
+
+test_that(".frs_rules_to_sql joins multiple rules with OR", {
+  rules <- list(
+    list(edge_types_explicit = c(1000L)),
+    list(edge_types_explicit = c(2000L)))
+  sql <- .frs_rules_to_sql(rules)
+  expect_match(sql, "OR")
+  expect_match(sql, "1000")
+  expect_match(sql, "2000")
+})
+
+test_that(".frs_rules_to_sql CO rear pattern: 4 rules with carve-out", {
+  rules <- list(
+    list(edge_types_explicit = c(1000L)),                             # rule 1: with thresholds
+    list(waterbody_type = "R"),                                       # rule 2: with thresholds
+    list(edge_types_explicit = c(1050L, 1150L), thresholds = FALSE),  # rule 3: NO thresholds
+    list(waterbody_type = "L"))                                       # rule 4: with thresholds
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(1.5, 9999))
+  sql <- .frs_rules_to_sql(rules, csv_thresholds)
+
+  # Should have 3 OR separators (4 rules)
+  expect_equal(length(gregexpr(" OR ", sql, fixed = TRUE)[[1]]), 3)
+  # Rule 3 (1050,1150) should NOT have gradient/channel_width
+  # We can't easily verify this without parsing, but we can check
+  # the explicit edge codes appear without nearby threshold text
+  expect_match(sql, "1050, 1150")
+  # All three other rules should have thresholds
+  expect_equal(length(gregexpr("gradient BETWEEN", sql)[[1]]), 3)
+})
+
+
 # Integration tests — require DB connection
 
 test_that("frs_params reads bcfishpass parameter table", {
