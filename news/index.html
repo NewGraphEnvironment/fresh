@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,12 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.1" id="fresh-0121">fresh 0.12.1<a class="anchor" aria-label="anchor" href="#fresh-0121"></a></h2>
+<p>Per-rule threshold overrides in habitat rules YAML.</p>
+<ul><li>Rules can now specify <code>gradient: [min, max]</code> and <code>channel_width: [min, max]</code> that override CSV inheritance per rule. Missing fields still inherit from CSV when <code>thresholds: true</code> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/116" class="external-link">#116</a>)</li>
+<li>Bundled YAML updated: all <code>waterbody_type: R</code> rules now have <code>channel_width: [0, 9999]</code> — skips channel_width_min on river polygons (matching bcfishpass v0.5.0 pattern where river polygon widths are unreliable)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.0" id="fresh-0120">fresh 0.12.0<a class="anchor" aria-label="anchor" href="#fresh-0120"></a></h2>
 <p>Habitat eligibility rules format (Phase 1).</p>
