@@ -1,3 +1,10 @@
+# fresh 0.12.4
+
+Post-segmentation gradient control.
+
+- `gradient_recompute` parameter on `frs_network_segment()` and `frs_habitat()` — `TRUE` (default) recomputes gradient from DEM vertices after splitting; `FALSE` inherits parent segment gradient, matching bcfishpass v0.5.0 behavior ([#124](https://github.com/NewGraphEnvironment/fresh/issues/124))
+- `frs_col_generate(exclude =)` — skip named columns from regeneration (generic, reusable)
+
 # fresh 0.12.3
 
 SK/KO spawning requires connected rearing lake.
