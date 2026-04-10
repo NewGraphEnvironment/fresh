@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,14 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.4" id="fresh-0124">fresh 0.12.4<a class="anchor" aria-label="anchor" href="#fresh-0124"></a></h2>
+<p>Post-segmentation gradient control.</p>
+<ul><li>
+<code>gradient_recompute</code> parameter on <code><a href="../reference/frs_network_segment.html">frs_network_segment()</a></code> and <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> — <code>TRUE</code> (default) recomputes gradient from DEM vertices after splitting; <code>FALSE</code> inherits parent segment gradient, matching bcfishpass v0.5.0 behavior (<a href="https://github.com/NewGraphEnvironment/fresh/issues/124" class="external-link">#124</a>)</li>
+<li>
+<code>frs_col_generate(exclude =)</code> — skip named columns from regeneration (generic, reusable)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.3" id="fresh-0123">fresh 0.12.3<a class="anchor" aria-label="anchor" href="#fresh-0123"></a></h2>
 <p>SK/KO spawning requires connected rearing lake.</p>
