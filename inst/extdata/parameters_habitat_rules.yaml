@@ -16,6 +16,8 @@
 #   lake_ha_min: minimum lake area for waterbody_type=L rules
 #   gradient: [min, max]  — override CSV gradient (rule value wins)
 #   channel_width: [min, max]  — override CSV channel_width (rule value wins)
+#   requires_connected: 'spawning' or 'rearing' — post-classification check
+#     via frs_cluster(). Segments must connect to the named habitat type.
 #   thresholds: false  — skip ALL CSV threshold inheritance for this rule
 
 BT:
@@ -93,9 +95,12 @@ SK:
   - edge_types:
     - stream
     - canal
+    requires_connected: rearing
   - waterbody_type: R
     channel_width: [0, 9999]
+    requires_connected: rearing
   - waterbody_type: L
+    requires_connected: rearing
   rear:
   - waterbody_type: L
     lake_ha_min: 200
@@ -140,9 +145,12 @@ KO:
   - edge_types:
     - stream
     - canal
+    requires_connected: rearing
   - waterbody_type: R
     channel_width: [0, 9999]
+    requires_connected: rearing
   - waterbody_type: L
+    requires_connected: rearing
   rear:
   - waterbody_type: L
     lake_ha_min: 200
