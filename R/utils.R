@@ -216,19 +216,34 @@
     }
   }
 
-  if (inherit_thresholds && !is.null(csv_thresholds)) {
-    if (!is.null(csv_thresholds$gradient)) {
-      g <- csv_thresholds$gradient
-      parts <- c(parts, sprintf(
-        "s.gradient BETWEEN %s AND %s",
-        .frs_sql_num(g[1]), .frs_sql_num(g[2])))
-    }
-    if (!is.null(csv_thresholds$channel_width)) {
-      cw <- csv_thresholds$channel_width
-      parts <- c(parts, sprintf(
-        "s.channel_width BETWEEN %s AND %s",
-        .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
-    }
+  # Gradient: rule-level override wins, then CSV inheritance fills gap.
+  # A rule with gradient: [0, 9999] explicitly overrides the CSV value.
+  # A rule without gradient inherits from CSV when thresholds: true.
+  if (!is.null(rule[["gradient"]])) {
+    g <- rule[["gradient"]]
+    parts <- c(parts, sprintf(
+      "s.gradient BETWEEN %s AND %s",
+      .frs_sql_num(g[1]), .frs_sql_num(g[2])))
+  } else if (inherit_thresholds && !is.null(csv_thresholds) &&
+             !is.null(csv_thresholds$gradient)) {
+    g <- csv_thresholds$gradient
+    parts <- c(parts, sprintf(
+      "s.gradient BETWEEN %s AND %s",
+      .frs_sql_num(g[1]), .frs_sql_num(g[2])))
+  }
+
+  # Channel width: same override-then-inherit pattern.
+  if (!is.null(rule[["channel_width"]])) {
+    cw <- rule[["channel_width"]]
+    parts <- c(parts, sprintf(
+      "s.channel_width BETWEEN %s AND %s",
+      .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
+  } else if (inherit_thresholds && !is.null(csv_thresholds) &&
+             !is.null(csv_thresholds$channel_width)) {
+    cw <- csv_thresholds$channel_width
+    parts <- c(parts, sprintf(
+      "s.channel_width BETWEEN %s AND %s",
+      .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
   }
 
   if (length(parts) == 0) return("(TRUE)")

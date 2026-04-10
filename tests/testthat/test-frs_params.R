@@ -299,6 +299,63 @@ test_that(".frs_rules_to_sql CO rear pattern: 4 rules with carve-out", {
   expect_equal(length(gregexpr("gradient BETWEEN", sql)[[1]]), 3)
 })
 
+test_that(".frs_rule_to_sql rule-level gradient overrides CSV", {
+  rule <- list(
+    waterbody_type = "R",
+    gradient = c(0, 0.10))  # rule-level override
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(2, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  # Rule gradient (0.10) should win over CSV gradient (0.0549)
+  expect_match(sql, "gradient BETWEEN 0 AND 0\\.1")
+  expect_false(grepl("0\\.0549", sql))
+  # Channel width still inherited from CSV
+  expect_match(sql, "channel_width BETWEEN 2 AND 9999")
+})
+
+test_that(".frs_rule_to_sql rule-level channel_width overrides CSV", {
+  rule <- list(
+    waterbody_type = "R",
+    channel_width = c(0, 9999))  # override: skip cw_min
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(2, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  # Rule channel_width [0, 9999] should win (min=0 not 2)
+  expect_match(sql, "channel_width BETWEEN 0 AND 9999")
+  # Gradient still inherited from CSV
+  expect_match(sql, "gradient BETWEEN 0 AND 0\\.0549")
+})
+
+test_that(".frs_rule_to_sql rule-level override WITH thresholds=false", {
+  # If both gradient override and thresholds=false, override still applies
+  # (rule-level values always apply; thresholds=false only affects inheritance)
+  rule <- list(
+    waterbody_type = "R",
+    gradient = c(0, 0.10),
+    thresholds = FALSE)
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(2, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  # Rule gradient (0.10) should be present (explicit, not inherited)
+  expect_match(sql, "gradient BETWEEN 0 AND 0\\.1")
+  # Channel width should NOT be present (thresholds: false skips inheritance,
+  # and there's no rule-level cw override)
+  expect_false(grepl("channel_width", sql))
+})
+
+test_that(".frs_validate_rule errors on bad gradient format", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  spawn:",
+    "    - gradient: 0.05"), tmp)
+  expect_error(.frs_load_rules(tmp), "numeric vector of length 2")
+})
+
 
 # Integration tests — require DB connection
 
