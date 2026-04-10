@@ -23,9 +23,9 @@ The rules YAML adds the missing OR + per-rule threshold opt-out semantics.
 - [x] First commit: PWF init only
 
 ### Phase 1: Bundled YAML + Imports
-- [ ] Create `inst/extdata/parameters_habitat_rules.yaml` (link-generated default)
-- [ ] Add `yaml` to `DESCRIPTION` Imports
-- [ ] Commit + PWF update + code-check
+- [x] Create `inst/extdata/parameters_habitat_rules.yaml` (link-generated default)
+- [x] Add `yaml` to `DESCRIPTION` Imports
+- [x] Commit + PWF update + code-check
 
 ### Phase 2: Parser in frs_params
 - [ ] Add `rules_yaml` parameter to `frs_params()` (default = bundled file, NULL = no rules)

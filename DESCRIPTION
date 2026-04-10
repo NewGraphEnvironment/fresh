@@ -23,7 +23,8 @@ Depends:
 Imports:
     DBI,
     RPostgres,
-    sf
+    sf,
+    yaml
 Suggests:
     bookdown,
     gq,

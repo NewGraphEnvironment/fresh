@@ -1,0 +1,160 @@
+# Generated from link/inst/extdata/parameters_habitat_dimensions.csv
+# DO NOT EDIT — sync from link via:
+#   cp ../link/inst/extdata/parameters_habitat_rules.yaml inst/extdata/
+#
+# Each species has spawn and rear rule lists. A segment qualifies as
+# spawning/rearing if ANY rule matches (rules joined by OR; predicates
+# within a rule joined by AND).
+#
+# Rules inherit gradient/channel_width thresholds from
+# parameters_habitat_thresholds.csv unless `thresholds: false` is set.
+#
+# Predicates:
+#   edge_types: list of fresh categories (stream, canal, river, lake, wetland)
+#   edge_types_explicit: list of integer FWA edge_type codes
+#   waterbody_type: 'L' (lake), 'R' (river polygon), 'W' (wetland)
+#   lake_ha_min: minimum lake area for waterbody_type=L rules
+#   thresholds: false  — skip CSV threshold inheritance for this rule
+
+BT:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - edge_types_explicit:
+    - 1050
+    - 1150
+    thresholds: false
+  - waterbody_type: L
+CH:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - edge_types_explicit:
+    - 1050
+    - 1150
+    thresholds: false
+  - waterbody_type: L
+CM:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear: []
+CO:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - edge_types_explicit:
+    - 1050
+    - 1150
+    thresholds: false
+  - waterbody_type: L
+PK:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear: []
+SK:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - waterbody_type: L
+  rear:
+  - waterbody_type: L
+    lake_ha_min: 200
+ST:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - edge_types_explicit:
+    - 1050
+    - 1150
+    thresholds: false
+  - waterbody_type: L
+WCT:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - edge_types_explicit:
+    - 1050
+    - 1150
+    thresholds: false
+  - waterbody_type: L
+KO:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - waterbody_type: L
+  rear:
+  - waterbody_type: L
+    lake_ha_min: 200
+RB:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - edge_types_explicit:
+    - 1050
+    - 1150
+    thresholds: false
+  - waterbody_type: L
+GR:
+  spawn:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  rear:
+  - edge_types:
+    - stream
+    - canal
+  - waterbody_type: R
+  - waterbody_type: L

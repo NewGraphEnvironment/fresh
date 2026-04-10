@@ -8,11 +8,15 @@
 - Branch `113-habitat-rules-phase-1` created
 - PWF initialized at `planning/active/`
 
-#### Phase 0: Workflow setup
-- (in progress)
+#### Phase 0: Workflow setup ✓
+- Branch created, PWF initialized
+- Commit `dd3be90 Initialize PWF for issue #113`
 
-#### Phase 1: Bundled YAML + Imports
-- (pending)
+#### Phase 1: Bundled YAML + Imports ✓
+- Created `inst/extdata/parameters_habitat_rules.yaml` (11 species, all blocks present)
+- Added `yaml` to DESCRIPTION Imports
+- Verified YAML parses cleanly with `yaml::read_yaml()`
+- 600 tests pass
 
 #### Phase 2: Parser in frs_params
 - (pending)
