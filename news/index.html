@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,22 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.0" id="fresh-0120">fresh 0.12.0<a class="anchor" aria-label="anchor" href="#fresh-0120"></a></h2>
+<p>Habitat eligibility rules format (Phase 1).</p>
+<ul><li>YAML-based habitat rules for multi-rule species — each species gets a list of rules per habitat type joined by OR, each rule is AND of predicates. Replaces the single-rule-per-CSV-row limitation (<a href="https://github.com/NewGraphEnvironment/fresh/issues/113" class="external-link">#113</a>)</li>
+<li>Bundled <code>inst/extdata/parameters_habitat_rules.yaml</code> with NGE defaults for 11 species (synced from <code>link/inst/extdata/parameters_habitat_dimensions.csv</code>)</li>
+<li>
+<code>frs_params(rules_yaml =)</code> loads rules YAML (default = bundled, <code>NULL</code> = skip rules for backward compat)</li>
+<li>
+<code>frs_habitat(rules =)</code> pass-through (<code>NULL</code> = bundled, <code>FALSE</code> = disable, string path = custom file)</li>
+<li>
+<code>thresholds: false</code> per rule — wetland-flow carve-out pattern where a rule bypasses CSV gradient/channel_width inheritance</li>
+<li>
+<strong>Default behavior change</strong>: SK rearing now lake-only (area &gt;= 200 ha); PK/CM rearing = 0 (explicit <code>rear: []</code>); CO/BT/CH/ST/WCT/RB rearing expanded to include river polygons + wetland-flow segments. Pass <code>rules = FALSE</code> to restore pre-0.12.0 behavior.</li>
+<li>Phase 2 MAD support deferred to <a href="https://github.com/NewGraphEnvironment/fresh/issues/114" class="external-link">#114</a>
+</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.11.1" id="fresh-0111">fresh 0.11.1<a class="anchor" aria-label="anchor" href="#fresh-0111"></a></h2>
 <p>Gradient barrier label format precision fix.</p>
