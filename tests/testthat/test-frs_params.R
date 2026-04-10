@@ -168,6 +168,30 @@ test_that(".frs_load_rules accepts empty file", {
   expect_length(rules, 0)
 })
 
+test_that(".frs_load_rules errors on non-integer edge_types_explicit", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  spawn:",
+    "    - edge_types_explicit:",
+    "      - foo",
+    "      - bar"), tmp)
+  expect_error(.frs_load_rules(tmp), "must be a list of integers")
+})
+
+test_that(".frs_load_rules errors on non-character edge_types", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  spawn:",
+    "    - edge_types:",
+    "      - 1050",
+    "      - 1150"), tmp)
+  expect_error(.frs_load_rules(tmp), "must be a list of category names")
+})
+
 
 # --- Rule evaluator tests ---
 

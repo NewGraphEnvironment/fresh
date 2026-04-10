@@ -223,6 +223,30 @@ frs_params <- function(conn = NULL,
         sp, habitat, idx), call. = FALSE)
     }
   }
+
+  if (!is.null(rule[["edge_types_explicit"]])) {
+    et <- rule[["edge_types_explicit"]]
+    # Allow integer or numeric (yaml parses 1050 as int, 1050.0 as num)
+    if (!is.numeric(et) && !is.integer(et)) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d edge_types_explicit must be a list of integers",
+        sp, habitat, idx), call. = FALSE)
+    }
+    if (any(is.na(et)) || any(et != as.integer(et))) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d edge_types_explicit values must be integers (got: %s)",
+        sp, habitat, idx, paste(et, collapse = ", ")), call. = FALSE)
+    }
+  }
+
+  if (!is.null(rule[["edge_types"]])) {
+    et <- rule[["edge_types"]]
+    if (!is.character(et)) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d edge_types must be a list of category names",
+        sp, habitat, idx), call. = FALSE)
+    }
+  }
 }
 
 
