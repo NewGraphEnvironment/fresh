@@ -7,7 +7,8 @@
 frs_params(
   conn = NULL,
   table = "bcfishpass.parameters_habitat_thresholds",
-  csv = NULL
+  csv = NULL,
+  rules_yaml = system.file("extdata", "parameters_habitat_rules.yaml", package = "fresh")
 )
 }
 \arguments{
@@ -20,6 +21,16 @@ Default \code{"bcfishpass.parameters_habitat_thresholds"}.}
 
 \item{csv}{Character or \code{NULL}. Path to a local CSV file. When provided,
 \code{conn} and \code{table} are ignored.}
+
+\item{rules_yaml}{Character or \code{NULL}. Path to a habitat rules YAML
+file. Default reads the bundled
+\code{inst/extdata/parameters_habitat_rules.yaml}. Pass \code{NULL} to skip
+rules entirely (every species falls through to the CSV ranges
+path used pre-0.12.0). When a rules file is loaded, each species
+listed in the file gets \verb{$rules$spawn} and \verb{$rules$rear} attached
+to its params entry. Species not listed in the file fall through
+to the CSV ranges path. See the \code{parameters_habitat_rules.yaml}
+header for the rule format.}
 }
 \value{
 A named list of parameter sets, keyed by species code. Each element

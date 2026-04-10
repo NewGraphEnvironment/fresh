@@ -155,6 +155,106 @@
 }
 
 
+#' Convert a single rule to a SQL AND predicate
+#'
+#' Translates one habitat rule (a list of predicates) into a
+#' parenthesized SQL string joining the predicates with AND. When
+#' `rule$thresholds` is `TRUE` (default) or unset, the species'
+#' CSV-derived gradient/channel_width thresholds from `csv_thresholds`
+#' are added to the AND chain. When `FALSE`, the rule stands alone
+#' (the wetland-flow carve-out pattern).
+#'
+#' @param rule Named list with optional fields: `edge_types`,
+#'   `edge_types_explicit`, `waterbody_type`, `lake_ha_min`,
+#'   `thresholds`.
+#' @param csv_thresholds Named list with `gradient = c(min, max)`
+#'   and/or `channel_width = c(min, max)`. Either may be NULL.
+#' @return Character. A parenthesized SQL predicate.
+#'   Returns `"(TRUE)"` if the rule has no predicates and no
+#'   thresholds to inherit (a wide-open rule).
+#' @noRd
+.frs_rule_to_sql <- function(rule, csv_thresholds = NULL) {
+  parts <- character(0)
+
+  # Use [[ ]] not $ to avoid partial matching: rule$edge_types
+  # would match rule$edge_types_explicit because edge_types is a
+  # prefix.
+  inherit_thresholds <- is.null(rule[["thresholds"]]) ||
+    isTRUE(rule[["thresholds"]])
+
+  if (!is.null(rule[["edge_types"]])) {
+    et_categories <- rule[["edge_types"]]
+    codes <- unlist(lapply(et_categories, function(et_category) {
+      frs_edge_types(category = et_category)$edge_type
+    }))
+    if (length(codes) > 0) {
+      parts <- c(parts, sprintf("s.edge_type IN (%s)",
+        paste(codes, collapse = ", ")))
+    }
+  }
+
+  if (!is.null(rule[["edge_types_explicit"]])) {
+    codes <- as.integer(rule[["edge_types_explicit"]])
+    parts <- c(parts, sprintf("s.edge_type IN (%s)",
+      paste(codes, collapse = ", ")))
+  }
+
+  if (!is.null(rule[["waterbody_type"]])) {
+    wb_table <- switch(rule[["waterbody_type"]],
+      "L" = "whse_basemapping.fwa_lakes_poly",
+      "R" = "whse_basemapping.fwa_rivers_poly",
+      "W" = "whse_basemapping.fwa_wetlands_poly")
+    if (!is.null(rule[["lake_ha_min"]])) {
+      # Already validated as L by parser
+      parts <- c(parts, sprintf(
+        "s.waterbody_key IN (SELECT waterbody_key FROM %s WHERE area_ha >= %s)",
+        wb_table, .frs_sql_num(rule[["lake_ha_min"]])))
+    } else {
+      parts <- c(parts, sprintf(
+        "s.waterbody_key IN (SELECT waterbody_key FROM %s)",
+        wb_table))
+    }
+  }
+
+  if (inherit_thresholds && !is.null(csv_thresholds)) {
+    if (!is.null(csv_thresholds$gradient)) {
+      g <- csv_thresholds$gradient
+      parts <- c(parts, sprintf(
+        "s.gradient BETWEEN %s AND %s",
+        .frs_sql_num(g[1]), .frs_sql_num(g[2])))
+    }
+    if (!is.null(csv_thresholds$channel_width)) {
+      cw <- csv_thresholds$channel_width
+      parts <- c(parts, sprintf(
+        "s.channel_width BETWEEN %s AND %s",
+        .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
+    }
+  }
+
+  if (length(parts) == 0) return("(TRUE)")
+  paste0("(", paste(parts, collapse = " AND "), ")")
+}
+
+
+#' Convert a list of rules to a SQL OR predicate
+#'
+#' Joins individual rule SQL predicates with OR and parenthesizes the
+#' result. An empty rule list returns `"FALSE"` (no segments qualify).
+#'
+#' @param rules List of rule lists. Empty list → `"FALSE"`.
+#' @param csv_thresholds Same as for [.frs_rule_to_sql()].
+#' @return Character. A parenthesized SQL predicate, or `"FALSE"`.
+#' @noRd
+.frs_rules_to_sql <- function(rules, csv_thresholds = NULL) {
+  if (is.null(rules) || length(rules) == 0) {
+    return("FALSE")
+  }
+  rule_sqls <- vapply(rules, .frs_rule_to_sql, character(1),
+                      csv_thresholds = csv_thresholds)
+  paste0("(", paste(rule_sqls, collapse = " OR "), ")")
+}
+
+
 #' Add id_segment column to a working table
 #'
 #' Assigns a unique integer ID to every row. Uses `linear_feature_id`

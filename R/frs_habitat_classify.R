@@ -231,38 +231,63 @@ frs_habitat_classify <- function(conn, table, to,
       sprintf("s.edge_type IN (%s)", paste(codes, collapse = ", "))
     }
 
-    # Spawning
-    spawn_cond <- sprintf("s.gradient >= %s AND s.gradient <= %s",
-      .frs_sql_num(sp_params$spawn_gradient_min),
-      .frs_sql_num(sp_params$spawn_gradient_max))
-    if (!is.null(params_sp$ranges$spawn$channel_width)) {
-      cw <- params_sp$ranges$spawn$channel_width
-      spawn_cond <- paste0(spawn_cond, sprintf(
-        " AND s.channel_width >= %s AND s.channel_width <= %s",
-        .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
-    }
-    spawn_et <- edge_filter(params_sp$spawn_edge_types)
-    if (!is.null(spawn_et)) {
-      spawn_cond <- paste(spawn_cond, "AND", spawn_et)
-    }
-
-    # Rearing
-    rear_cond <- "FALSE"
-    if (!is.null(params_sp$ranges$rear)) {
-      parts <- character(0)
-      if (!is.null(params_sp$ranges$rear$gradient)) {
-        g <- params_sp$ranges$rear$gradient
-        parts <- c(parts, sprintf("s.gradient <= %s", .frs_sql_num(g[2])))
-      }
-      if (!is.null(params_sp$ranges$rear$channel_width)) {
-        cw <- params_sp$ranges$rear$channel_width
-        parts <- c(parts, sprintf(
-          "s.channel_width >= %s AND s.channel_width <= %s",
+    # Spawning — rules YAML path or CSV ranges path
+    if (!is.null(params_sp[["rules"]]) &&
+        !is.null(params_sp[["rules"]][["spawn"]])) {
+      # Rules path: build CSV thresholds (with spawn min) for inheritance
+      csv_thresholds_spawn <- list(
+        gradient = c(sp_params$spawn_gradient_min,
+                     sp_params$spawn_gradient_max),
+        channel_width = params_sp$ranges$spawn$channel_width)
+      spawn_cond <- .frs_rules_to_sql(params_sp[["rules"]][["spawn"]],
+                                      csv_thresholds_spawn)
+    } else {
+      # CSV ranges path (pre-rules behavior)
+      spawn_cond <- sprintf("s.gradient >= %s AND s.gradient <= %s",
+        .frs_sql_num(sp_params$spawn_gradient_min),
+        .frs_sql_num(sp_params$spawn_gradient_max))
+      if (!is.null(params_sp$ranges$spawn$channel_width)) {
+        cw <- params_sp$ranges$spawn$channel_width
+        spawn_cond <- paste0(spawn_cond, sprintf(
+          " AND s.channel_width >= %s AND s.channel_width <= %s",
           .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
       }
-      rear_et <- edge_filter(params_sp$rear_edge_types)
-      if (!is.null(rear_et)) parts <- c(parts, rear_et)
-      if (length(parts) > 0) rear_cond <- paste(parts, collapse = " AND ")
+      spawn_et <- edge_filter(params_sp$spawn_edge_types)
+      if (!is.null(spawn_et)) {
+        spawn_cond <- paste(spawn_cond, "AND", spawn_et)
+      }
+    }
+
+    # Rearing — rules YAML path or CSV ranges path
+    if (!is.null(params_sp[["rules"]]) &&
+        !is.null(params_sp[["rules"]][["rear"]])) {
+      # Rules path: csv_thresholds use rear gradient (min=0) and cw
+      rear_g <- params_sp$ranges$rear$gradient
+      csv_thresholds_rear <- list(
+        gradient = if (is.null(rear_g)) NULL else c(0, rear_g[2]),
+        channel_width = params_sp$ranges$rear$channel_width)
+      rear_cond <- .frs_rules_to_sql(params_sp[["rules"]][["rear"]],
+                                     csv_thresholds_rear)
+    } else {
+      # CSV ranges path (pre-rules behavior)
+      rear_cond <- "FALSE"
+      if (!is.null(params_sp$ranges$rear)) {
+        parts <- character(0)
+        if (!is.null(params_sp$ranges$rear$gradient)) {
+          g <- params_sp$ranges$rear$gradient
+          parts <- c(parts, sprintf("s.gradient <= %s",
+                                    .frs_sql_num(g[2])))
+        }
+        if (!is.null(params_sp$ranges$rear$channel_width)) {
+          cw <- params_sp$ranges$rear$channel_width
+          parts <- c(parts, sprintf(
+            "s.channel_width >= %s AND s.channel_width <= %s",
+            .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
+        }
+        rear_et <- edge_filter(params_sp$rear_edge_types)
+        if (!is.null(rear_et)) parts <- c(parts, rear_et)
+        if (length(parts) > 0) rear_cond <- paste(parts, collapse = " AND ")
+      }
     }
 
     # Lake rearing
