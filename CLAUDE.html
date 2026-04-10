@@ -925,6 +925,93 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </tr></tbody></table></div>
 </div>
 <div class="section level1">
+<h1 id="planning-conventions">Planning Conventions<a class="anchor" aria-label="anchor" href="#planning-conventions"></a></h1>
+<p>How Claude manages structured planning for complex tasks using planning-with-files (PWF).</p>
+<div class="section level2">
+<h2 id="when-to-plan">When to Plan<a class="anchor" aria-label="anchor" href="#when-to-plan"></a></h2>
+<p>Use PWF when a task has multiple phases, requires research, or involves more than ~5 tool calls. Triggers: - User says “let’s plan this”, “plan mode”, “use planning”, or invokes <code>/planning-init</code> - Complex issue work begins (multi-step, uncertain approach) - Claude judges the task warrants structured tracking</p>
+<p>Skip planning for single-file edits, quick fixes, or tasks with obvious next steps.</p>
+</div>
+<div class="section level2">
+<h2 id="the-workflow">The Workflow<a class="anchor" aria-label="anchor" href="#the-workflow"></a></h2>
+<ol style="list-style-type: decimal"><li>
+<strong>Explore first</strong> — Enter plan mode (read-only). Read code, trace paths, understand the problem before proposing anything.</li>
+<li>
+<strong>Plan to files</strong> — Write the plan into 3 files in <code>planning/active/</code>:
+<ul><li>
+<code>task_plan.md</code> — Phases with checkbox tasks</li>
+<li>
+<code>findings.md</code> — Research, discoveries, technical analysis</li>
+<li>
+<code>progress.md</code> — Session log with timestamps and commit refs</li>
+</ul></li>
+<li>
+<strong>Commit the plan</strong> — Commit the planning files before starting implementation. This is the baseline.</li>
+<li>
+<strong>Work in atomic commits</strong> — Each commit bundles code changes WITH checkbox updates in the planning files. The diff shows both what was done and the checkbox marking it done.</li>
+<li>
+<strong>Archive when complete</strong> — Move <code>planning/active/</code> to <code>planning/archive/</code> via <code>/planning-archive</code>.</li>
+</ol></div>
+<div class="section level2">
+<h2 id="atomic-commits-critical">Atomic Commits (Critical)<a class="anchor" aria-label="anchor" href="#atomic-commits-critical"></a></h2>
+<p>Every commit that completes a planned task MUST include: - The code/script changes - The checkbox update in <code>task_plan.md</code> (<code>- [ ]</code> -&gt; <code>- [x]</code>) - A progress entry in <code>progress.md</code> if meaningful</p>
+<p>This creates a git audit trail where <code>git log -- planning/</code> tells the full story. Each commit is self-documenting — you can backtrack with git and understand everything that happened.</p>
+</div>
+<div class="section level2">
+<h2 id="file-formats">File Formats<a class="anchor" aria-label="anchor" href="#file-formats"></a></h2>
+<div class="section level3">
+<h3 id="task_planmd">task_plan.md<a class="anchor" aria-label="anchor" href="#task_planmd"></a></h3>
+<p>Phases with checkboxes. This is the core tracking file.</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
+<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
+<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
+<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
+<span id="cb28-6"><a href="#cb28-6" tabindex="-1"></a></span>
+<span id="cb28-7"><a href="#cb28-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
+<span id="cb28-8"><a href="#cb28-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
+<p>Mark tasks done as they’re completed: <code>- [x] Task description</code></p>
+</div>
+<div class="section level3">
+<h3 id="findingsmd">findings.md<a class="anchor" aria-label="anchor" href="#findingsmd"></a></h3>
+<p>Append-only research log. Discoveries, technical analysis, things learned.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a></span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="progressmd">progress.md<a class="anchor" aria-label="anchor" href="#progressmd"></a></h3>
+<p>Session entries with commit references.</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
+<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
+<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
+<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
+<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="directory-structure">Directory Structure<a class="anchor" aria-label="anchor" href="#directory-structure"></a></h2>
+<pre><code>planning/
+  active/          &lt;- Current work (3 PWF files)
+  archive/         &lt;- Completed issues
+    YYYY-MM-issue-N-slug/</code></pre>
+<p>If <code>planning/</code> doesn’t exist in the repo, run <code>/planning-init</code> first.</p>
+</div>
+<div class="section level2">
+<h2 id="skills">Skills<a class="anchor" aria-label="anchor" href="#skills"></a></h2>
+<table class="table"><colgroup><col width="35%"><col width="65%"></colgroup><thead><tr class="header"><th>Skill</th>
+<th>When to use</th>
+</tr></thead><tbody><tr class="odd"><td><code>/planning-init</code></td>
+<td>First time in a repo — creates directory structure</td>
+</tr><tr class="even"><td><code>/planning-update</code></td>
+<td>Mid-session — sync checkboxes and progress</td>
+</tr><tr class="odd"><td><code>/planning-archive</code></td>
+<td>Issue complete — archive and create fresh active/</td>
+</tr></tbody></table></div>
+</div>
+<div class="section level1">
 <h1 id="r-package-development-conventions">R Package Development Conventions<a class="anchor" aria-label="anchor" href="#r-package-development-conventions"></a></h1>
 <p>Standards for R package development across New Graph Environment repositories. Based on <a href="https://r-pkgs.org/" class="external-link">R Packages (2e)</a> by Hadley Wickham and Jenny Bryan.</p>
 <p><strong>Reference packages:</strong> When starting a new package, study these existing packages for patterns: <code>flooded</code>, <code>gq</code>. They demonstrate the conventions below in practice (DESCRIPTION fields, README layout, NEWS.md style, pkgdown setup, test structure, hex sticker, etc.).</p>
@@ -969,7 +1056,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li><p>Tests must pass before closing the function’s issue</p></li>
 <li>
 <p>Always grep for errors in the same command as the test run to avoid running twice:</p>
-<div class="sourceCode" id="cb29"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
+<div class="sourceCode" id="cb33"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
 <p>For error context: <code>grep -E "(ERROR:|FAIL )" -A 10 | head -25</code></p>
 </li>
 </ul></div>
@@ -1007,7 +1094,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <p>Run <code>lintr::lint_package()</code> before committing R package code. Fix all warnings — every lint should be worth fixing.</p>
 <div class="section level3">
 <h3 id="recommended-lintr-config">Recommended .lintr config<a class="anchor" aria-label="anchor" href="#recommended-lintr-config"></a></h3>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linters</span><span class="op">:</span> <span class="fu">linters_with_defaults</span><span class="op">(</span></span>
 <span>    <span class="fu">line_length_linter</span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>,</span>
 <span>    <span class="fu">object_name_linter</span><span class="op">(</span>styles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snake_case"</span>, <span class="st">"dotted.case"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -1045,18 +1132,18 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level3">
 <h3 id="branch-protection">Branch protection<a class="anchor" aria-label="anchor" href="#branch-protection"></a></h3>
 <p>Protect main from deletion and force pushes:</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
-<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="st">{</span></span>
-<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
-<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
-<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
-<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
-<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
-<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a><span class="st">  ],</span></span>
-<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
-<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
-<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a><span class="st">}</span></span>
-<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+<div class="sourceCode" id="cb35"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
+<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
+<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
+<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
+<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
+<span id="cb35-7"><a href="#cb35-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
+<span id="cb35-8"><a href="#cb35-8" tabindex="-1"></a><span class="st">  ],</span></span>
+<span id="cb35-9"><a href="#cb35-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
+<span id="cb35-10"><a href="#cb35-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
+<span id="cb35-11"><a href="#cb35-11" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb35-12"><a href="#cb35-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scaffold-checklist">Scaffold checklist<a class="anchor" aria-label="anchor" href="#scaffold-checklist"></a></h3>
@@ -1141,11 +1228,11 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <h2 id="in-reports-bookdown">In Reports (bookdown)<a class="anchor" aria-label="anchor" href="#in-reports-bookdown"></a></h2>
 <div class="section level3">
 <h3 id="bibliography-generation">Bibliography generation<a class="anchor" aria-label="anchor" href="#bibliography-generation"></a></h3>
-<div class="sourceCode" id="cb32"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
-<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
+<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
 <p><code>rbbt</code> pulls from BBT, which syncs with Zotero. Edit references in Zotero → rebuild report → bibliography updates.</p>
 <p><strong>Library targeting:</strong> rbbt must know which Zotero library to search. This is set globally in <code>~/.Rprofile</code>:</p>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># default library — NewGraphEnvironment group (libraryID 9, group 4733734)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>rbbt.default.library_id <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p>Without this option, rbbt searches only the personal library (libraryID 1) and won’t find group library references. The library IDs map to Zotero’s internal numbering — use <code>/zotero-lookup</code> with <code>SELECT DISTINCT libraryID FROM citationkey</code> against the BBT database to discover available libraries.</p>
