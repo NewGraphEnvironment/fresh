@@ -46,6 +46,13 @@
   - CO rearing: 76 (includes wetland-flow segments via thresholds: false carve-out)
   - BT rearing: 135, lake_rearing: 4 (lake_rearing column unchanged)
 - 641 tests still pass
+- Commit `6b17ece Wire rule evaluator into frs_habitat_classify`
+
+#### Phase 5: Wire through frs_habitat ✓
+- Added `rules` parameter to `frs_habitat()`. NULL = bundled YAML, string = custom path, FALSE = disable.
+- Only consulted when `params` is NULL (user-passed params override).
+- roxygen examples for default, custom path, and disable mode
+- 641 tests still pass
 
 #### Phase 2: Parser in frs_params
 - (pending)

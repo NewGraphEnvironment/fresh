@@ -48,8 +48,20 @@
 #'   Auto-derived breaks give cluster analysis ([frs_cluster()]) the
 #'   gradient resolution to detect within-segment steep sections that
 #'   would otherwise be hidden by averaging.
+#' @param rules Character path to a habitat rules YAML, `FALSE`, or
+#'   `NULL`. Default `NULL` uses the bundled
+#'   `inst/extdata/parameters_habitat_rules.yaml`. Pass a path string
+#'   to load a custom rules file (e.g. one shipped by the `link`
+#'   package). Pass `FALSE` to disable rules entirely and use only
+#'   the CSV ranges path (the pre-0.12.0 behavior).
+#'
+#'   Only consulted when `params = NULL`. If you pass your own
+#'   `params` from `frs_params()`, the rules are baked into that
+#'   object and `rules` here is ignored.
+#'
+#'   See [frs_params()] for the rules format.
 #' @param params Named list from [frs_params()], or `NULL` to use
-#'   bundled `parameters_habitat_thresholds.csv`.
+#'   bundled `parameters_habitat_thresholds.csv` and rules YAML.
 #' @param params_fresh Data frame from `parameters_fresh.csv`, or
 #'   `NULL` to use bundled default.
 #' @param workers Integer. Number of parallel workers. Default `1`.
@@ -109,6 +121,25 @@
 #'   to_streams = "fresh.streams",
 #'   to_habitat = "fresh.streams_habitat")
 #'
+#' # --- Custom habitat rules YAML ---
+#'
+#' # Default: ships parameters_habitat_rules.yaml with NGE-derived
+#' # multi-rule species (SK lake-only, CO wetland carve-out, all
+#' # anadromous waterbody_type=R spawn). Behavior matches what
+#' # consumers like the `link` package expect.
+#'
+#' # Custom rules from a project: pass a path string
+#' frs_habitat(conn, "BULK",
+#'   rules = "path/to/project_habitat_rules.yaml",
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
+#' # Disable rules entirely (pre-0.12.0 behavior — only CSV ranges)
+#' frs_habitat(conn, "BULK",
+#'   rules = FALSE,
+#'   to_streams = "fresh.streams",
+#'   to_habitat = "fresh.streams_habitat")
+#'
 #' # --- Controlling gradient resolution with breaks_gradient ---
 #'
 #' # Default: auto-derive breaks from spawn_gradient_max +
@@ -146,6 +177,7 @@ frs_habitat <- function(conn, wsg = NULL,
                         breaks_gradient = NULL,
                         gate = TRUE,
                         label_block = "blocked",
+                        rules = NULL,
                         params = NULL,
                         params_fresh = NULL,
                         workers = 1L,
@@ -160,8 +192,19 @@ frs_habitat <- function(conn, wsg = NULL,
 
   # -- Load parameters --------------------------------------------------------
   if (is.null(params)) {
-    params <- frs_params(csv = system.file("extdata",
-      "parameters_habitat_thresholds.csv", package = "fresh"))
+    rules_path <- if (is.null(rules)) {
+      # frs_params default points at the bundled rules YAML
+      system.file("extdata", "parameters_habitat_rules.yaml",
+                  package = "fresh")
+    } else if (identical(rules, FALSE)) {
+      NULL
+    } else {
+      rules
+    }
+    params <- frs_params(
+      csv = system.file("extdata", "parameters_habitat_thresholds.csv",
+                        package = "fresh"),
+      rules_yaml = rules_path)
   }
   if (is.null(params_fresh)) {
     params_fresh <- utils::read.csv(system.file("extdata",

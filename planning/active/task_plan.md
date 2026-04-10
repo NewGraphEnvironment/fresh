@@ -48,10 +48,10 @@ The rules YAML adds the missing OR + per-rule threshold opt-out semantics.
 - [x] Commit + PWF update + code-check
 
 ### Phase 5: Wire through frs_habitat
-- [ ] Add `rules` parameter (default NULL = bundled YAML, string = custom path)
-- [ ] Only consulted when `params` is NULL
-- [ ] Update roxygen example
-- [ ] Commit + PWF update + code-check
+- [x] Add `rules` parameter (default NULL = bundled YAML, string = custom path, FALSE = disable)
+- [x] Only consulted when `params` is NULL
+- [x] Update roxygen example (custom path + disable)
+- [x] Commit + PWF update + code-check
 
 ### Phase 6: Integration tests on ADMS sub-basin
 - [ ] SK rear streams = 0 (only lake_rearing, lakes >= 200 ha)

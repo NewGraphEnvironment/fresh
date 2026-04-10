@@ -16,6 +16,7 @@ frs_habitat(
   breaks_gradient = NULL,
   gate = TRUE,
   label_block = "blocked",
+  rules = NULL,
   params = NULL,
   params_fresh = NULL,
   workers = 1L,
@@ -70,8 +71,21 @@ Auto-derived breaks give cluster analysis (\code{\link[=frs_cluster]{frs_cluster
 gradient resolution to detect within-segment steep sections that
 would otherwise be hidden by averaging.}
 
+\item{rules}{Character path to a habitat rules YAML, \code{FALSE}, or
+\code{NULL}. Default \code{NULL} uses the bundled
+\code{inst/extdata/parameters_habitat_rules.yaml}. Pass a path string
+to load a custom rules file (e.g. one shipped by the \code{link}
+package). Pass \code{FALSE} to disable rules entirely and use only
+the CSV ranges path (the pre-0.12.0 behavior).
+
+Only consulted when \code{params = NULL}. If you pass your own
+\code{params} from \code{frs_params()}, the rules are baked into that
+object and \code{rules} here is ignored.
+
+See \code{\link[=frs_params]{frs_params()}} for the rules format.}
+
 \item{params}{Named list from \code{\link[=frs_params]{frs_params()}}, or \code{NULL} to use
-bundled \code{parameters_habitat_thresholds.csv}.}
+bundled \code{parameters_habitat_thresholds.csv} and rules YAML.}
 
 \item{params_fresh}{Data frame from \code{parameters_fresh.csv}, or
 \code{NULL} to use bundled default.}
@@ -146,6 +160,25 @@ frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
 frs_habitat(conn, "BULK",
   params = frs_params(csv = "path/to/my_thresholds.csv"),
   params_fresh = read.csv("path/to/my_fresh_params.csv"),
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# --- Custom habitat rules YAML ---
+
+# Default: ships parameters_habitat_rules.yaml with NGE-derived
+# multi-rule species (SK lake-only, CO wetland carve-out, all
+# anadromous waterbody_type=R spawn). Behavior matches what
+# consumers like the `link` package expect.
+
+# Custom rules from a project: pass a path string
+frs_habitat(conn, "BULK",
+  rules = "path/to/project_habitat_rules.yaml",
+  to_streams = "fresh.streams",
+  to_habitat = "fresh.streams_habitat")
+
+# Disable rules entirely (pre-0.12.0 behavior — only CSV ranges)
+frs_habitat(conn, "BULK",
+  rules = FALSE,
   to_streams = "fresh.streams",
   to_habitat = "fresh.streams_habitat")
 
