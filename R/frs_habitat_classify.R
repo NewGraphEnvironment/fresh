@@ -464,9 +464,15 @@ frs_habitat_classify <- function(conn, table, to,
     vapply(obs_species, .frs_quote_string, character(1)),
     collapse = ", ")
 
-  # Find barriers overridden by observations
-  overridden_sql <- sprintf(
-    "SELECT b.blue_line_key, b.downstream_route_measure
+  # Materialize overridden barriers into a temp table for performance.
+  # The correlated subquery approach was 57+ minutes on ADMS scale.
+  acc_tbl_sp <- sprintf("%s_obs_%s", base_acc_tbl, tolower(sp))
+  ovr_tbl <- sprintf("%s_ovr", acc_tbl_sp)
+
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", ovr_tbl))
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE %s AS
+     SELECT b.blue_line_key, b.downstream_route_measure
      FROM %s b
      INNER JOIN %s o
        ON o.blue_line_key = b.blue_line_key
@@ -476,17 +482,19 @@ frs_habitat_classify <- function(conn, table, to,
      WHERE (%s)
      GROUP BY b.blue_line_key, b.downstream_route_measure
      HAVING count(*) >= %d",
+    ovr_tbl,
     breaks_tbl, observations,
     .frs_sql_num(obs_buffer),
     .frs_quote_string(obs_date),
     obs_species_sql,
     label_filter,
-    obs_thr)
+    obs_thr))
+
+  .frs_db_execute(conn, sprintf(
+    "CREATE INDEX ON %s (blue_line_key, downstream_route_measure)",
+    ovr_tbl))
 
   # Create per-species access table excluding overridden barriers
-  acc_tbl_sp <- sprintf("%s_obs_%s", base_acc_tbl,
-                        tolower(sp))
-
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl_sp))
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE %s AS
@@ -497,7 +505,7 @@ frs_habitat_classify <- function(conn, table, to,
            AND b.blue_line_key = s.blue_line_key
            AND b.downstream_route_measure <= s.downstream_route_measure
            AND NOT EXISTS (
-             SELECT 1 FROM (%s) ovr
+             SELECT 1 FROM %s ovr
              WHERE ovr.blue_line_key = b.blue_line_key
                AND ovr.downstream_route_measure = b.downstream_route_measure
            )
@@ -510,19 +518,20 @@ frs_habitat_classify <- function(conn, table, to,
            AND fwa_upstream(b.wscode_ltree, b.localcode_ltree,
                             s.wscode_ltree, s.localcode_ltree)
            AND NOT EXISTS (
-             SELECT 1 FROM (%s) ovr
+             SELECT 1 FROM %s ovr
              WHERE ovr.blue_line_key = b.blue_line_key
                AND ovr.downstream_route_measure = b.downstream_route_measure
            )
        ) AS accessible
      FROM %s s",
     acc_tbl_sp,
-    breaks_tbl, label_filter, overridden_sql,
-    breaks_tbl, label_filter, overridden_sql,
+    breaks_tbl, label_filter, ovr_tbl,
+    breaks_tbl, label_filter, ovr_tbl,
     table))
 
   .frs_db_execute(conn, sprintf("CREATE INDEX ON %s (id_segment)",
                                 acc_tbl_sp))
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", ovr_tbl))
 
   acc_tbl_sp
 }
