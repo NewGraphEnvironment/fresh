@@ -18,6 +18,7 @@ frs_habitat(
   label_block = "blocked",
   rules = NULL,
   gradient_recompute = TRUE,
+  observations = NULL,
   params = NULL,
   params_fresh = NULL,
   workers = 1L,
@@ -89,6 +90,16 @@ See \code{\link[=frs_params]{frs_params()}} for the rules format.}
 gradient from DEM vertices after splitting segments. If \code{FALSE},
 child segments inherit the parent gradient. See
 \code{\link[=frs_network_segment]{frs_network_segment()}} for details.}
+
+\item{observations}{Character or \code{NULL}. Schema-qualified table of
+fish observations (e.g. \code{"bcfishobs.observations"}). Must have
+columns \code{species_code}, \code{blue_line_key},
+\code{downstream_route_measure}, \code{observation_date}. When provided,
+barriers with enough qualifying observations upstream are
+excluded from per-species access gating. Thresholds come from
+\code{parameters_fresh.csv} (\code{observation_threshold},
+\code{observation_date_min}, \code{observation_buffer_m},
+\code{observation_species}). Default \code{NULL} (no observation override).}
 
 \item{params}{Named list from \code{\link[=frs_params]{frs_params()}}, or \code{NULL} to use
 bundled \code{parameters_habitat_thresholds.csv} and rules YAML.}

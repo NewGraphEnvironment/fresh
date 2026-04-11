@@ -85,12 +85,16 @@ frs_habitat_classify <- function(conn, table, to,
                                  params_fresh = NULL,
                                  gate = TRUE,
                                  label_block = "blocked",
+                                 observations = NULL,
                                  overwrite = TRUE,
                                  verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
   .frs_validate_identifier(to, "output table")
   stopifnot(is.character(species), length(species) > 0)
   stopifnot(is.logical(gate), length(gate) == 1)
+  if (!is.null(observations)) {
+    .frs_validate_identifier(observations, "observations table")
+  }
 
   breaks_tbl <- paste0(table, "_breaks")
 
@@ -290,6 +294,27 @@ frs_habitat_classify <- function(conn, table, to,
       }
     }
 
+    # Observation override: if observations table provided and species
+    # has observation_threshold, recompute access excluding overridden
+    # barriers. The overridden barriers are those with enough qualifying
+    # observations upstream.
+    acc_tbl_sp <- acc_tbl  # default: use the shared threshold-based table
+    if (gate && !is.null(observations)) {
+      fp <- params_fresh[params_fresh$species_code == sp, ]
+      obs_thr <- if (nrow(fp) > 0 && "observation_threshold" %in% names(fp))
+        fp$observation_threshold else NA
+      obs_sp <- if (nrow(fp) > 0 && "observation_species" %in% names(fp))
+        fp$observation_species else NA
+      if (!is.na(obs_thr) && obs_thr > 0 && !is.na(obs_sp) && nzchar(obs_sp)) {
+        # Recompute label_filter for THIS species' access gradient
+        sp_label_filter <- .frs_access_label_filter(
+          conn, breaks_tbl, sp_params$access_gradient, label_block)
+        acc_tbl_sp <- .frs_access_with_observations(
+          conn, table, breaks_tbl, observations,
+          sp_label_filter, sp, fp, acc_tbl)
+      }
+    }
+
     # Lake rearing
     lake_rear_cond <- "FALSE"
     if (!is.null(params_sp$ranges$rear$channel_width)) {
@@ -316,9 +341,14 @@ frs_habitat_classify <- function(conn, table, to,
        INNER JOIN %s a ON s.id_segment = a.id_segment",
       to, .frs_quote_string(sp),
       spawn_cond, rear_cond, lake_rear_cond,
-      table, acc_tbl)
+      table, acc_tbl_sp)
 
     .frs_db_execute(conn, sql)
+
+    # Clean up per-species access table if observation override created one
+    if (acc_tbl_sp != acc_tbl) {
+      .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl_sp))
+    }
 
     if (verbose) {
       elapsed <- round((proc.time() - t0)["elapsed"], 1)
@@ -400,4 +430,108 @@ frs_habitat_classify <- function(conn, table, to,
   quoted <- paste(vapply(labels_matched, .frs_quote_string, character(1)),
                   collapse = ", ")
   sprintf("b.label IN (%s)", quoted)
+}
+
+
+#' Recompute accessibility with observation overrides
+#'
+#' For a species with `observation_threshold > 0`, find barriers with
+#' enough qualifying observations upstream and exclude them from the
+#' access computation. Returns the name of a per-species access table
+#' (which the caller must clean up).
+#'
+#' @param conn DBI connection.
+#' @param table Streams table.
+#' @param breaks_tbl Breaks table.
+#' @param observations Observations table name.
+#' @param label_filter SQL predicate for blocking labels.
+#' @param sp Species code.
+#' @param fp Params_fresh row for this species.
+#' @param base_acc_tbl The shared access table (for fallback).
+#' @return Character. Name of the per-species access table.
+#' @noRd
+.frs_access_with_observations <- function(conn, table, breaks_tbl,
+                                          observations, label_filter,
+                                          sp, fp, base_acc_tbl) {
+  obs_thr <- as.integer(fp$observation_threshold)
+  obs_date <- as.character(fp$observation_date_min)
+  obs_buffer <- as.numeric(fp$observation_buffer_m)
+  obs_species_str <- as.character(fp$observation_species)
+
+  # Parse semicolon-separated species list
+  obs_species <- trimws(strsplit(obs_species_str, ";")[[1]])
+  obs_species_sql <- paste(
+    vapply(obs_species, .frs_quote_string, character(1)),
+    collapse = ", ")
+
+  # Materialize overridden barriers into a temp table for performance.
+  # The correlated subquery approach was 57+ minutes on ADMS scale.
+  acc_tbl_sp <- sprintf("%s_obs_%s", base_acc_tbl, tolower(sp))
+  ovr_tbl <- sprintf("%s_ovr", acc_tbl_sp)
+
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", ovr_tbl))
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE %s AS
+     SELECT b.blue_line_key, b.downstream_route_measure
+     FROM %s b
+     INNER JOIN %s o
+       ON o.blue_line_key = b.blue_line_key
+       AND o.downstream_route_measure > b.downstream_route_measure + %s
+       AND o.observation_date >= %s
+       AND o.species_code IN (%s)
+     WHERE (%s)
+     GROUP BY b.blue_line_key, b.downstream_route_measure
+     HAVING count(*) >= %d",
+    ovr_tbl,
+    breaks_tbl, observations,
+    .frs_sql_num(obs_buffer),
+    .frs_quote_string(obs_date),
+    obs_species_sql,
+    label_filter,
+    obs_thr))
+
+  .frs_db_execute(conn, sprintf(
+    "CREATE INDEX ON %s (blue_line_key, downstream_route_measure)",
+    ovr_tbl))
+
+  # Create per-species access table excluding overridden barriers
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", acc_tbl_sp))
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE %s AS
+     SELECT s.id_segment,
+       NOT EXISTS (
+         SELECT 1 FROM %s b
+         WHERE (%s)
+           AND b.blue_line_key = s.blue_line_key
+           AND b.downstream_route_measure <= s.downstream_route_measure
+           AND NOT EXISTS (
+             SELECT 1 FROM %s ovr
+             WHERE ovr.blue_line_key = b.blue_line_key
+               AND ovr.downstream_route_measure = b.downstream_route_measure
+           )
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM %s b
+         WHERE (%s)
+           AND b.blue_line_key != s.blue_line_key
+           AND b.wscode_ltree IS NOT NULL
+           AND fwa_upstream(b.wscode_ltree, b.localcode_ltree,
+                            s.wscode_ltree, s.localcode_ltree)
+           AND NOT EXISTS (
+             SELECT 1 FROM %s ovr
+             WHERE ovr.blue_line_key = b.blue_line_key
+               AND ovr.downstream_route_measure = b.downstream_route_measure
+           )
+       ) AS accessible
+     FROM %s s",
+    acc_tbl_sp,
+    breaks_tbl, label_filter, ovr_tbl,
+    breaks_tbl, label_filter, ovr_tbl,
+    table))
+
+  .frs_db_execute(conn, sprintf("CREATE INDEX ON %s (id_segment)",
+                                acc_tbl_sp))
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", ovr_tbl))
+
+  acc_tbl_sp
 }

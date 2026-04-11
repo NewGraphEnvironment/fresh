@@ -52,6 +52,15 @@
 #'   gradient from DEM vertices after splitting segments. If `FALSE`,
 #'   child segments inherit the parent gradient. See
 #'   [frs_network_segment()] for details.
+#' @param observations Character or `NULL`. Schema-qualified table of
+#'   fish observations (e.g. `"bcfishobs.observations"`). Must have
+#'   columns `species_code`, `blue_line_key`,
+#'   `downstream_route_measure`, `observation_date`. When provided,
+#'   barriers with enough qualifying observations upstream are
+#'   excluded from per-species access gating. Thresholds come from
+#'   `parameters_fresh.csv` (`observation_threshold`,
+#'   `observation_date_min`, `observation_buffer_m`,
+#'   `observation_species`). Default `NULL` (no observation override).
 #' @param rules Character path to a habitat rules YAML, `FALSE`, or
 #'   `NULL`. Default `NULL` uses the bundled
 #'   `inst/extdata/parameters_habitat_rules.yaml`. Pass a path string
@@ -183,6 +192,7 @@ frs_habitat <- function(conn, wsg = NULL,
                         label_block = "blocked",
                         rules = NULL,
                         gradient_recompute = TRUE,
+                        observations = NULL,
                         params = NULL,
                         params_fresh = NULL,
                         workers = 1L,
@@ -410,6 +420,7 @@ frs_habitat <- function(conn, wsg = NULL,
       params = params,
       params_fresh = params_fresh,
       gate = gate, label_block = label_block,
+      observations = observations,
       verbose = verbose && is.null(conn_params))
 
     # 4b. Post-classification connectivity checks (requires_connected)
@@ -541,7 +552,8 @@ frs_habitat <- function(conn, wsg = NULL,
 
       frs_habitat_classify(w_conn, table = streams_tbl, to = habitat_tbl,
         species = species, params = params, params_fresh = params_fresh,
-        gate = gate, label_block = label_block, verbose = FALSE)
+        gate = gate, label_block = label_block,
+        observations = observations, verbose = FALSE)
 
       # Post-classification connectivity checks (requires_connected)
       .frs_run_connectivity(w_conn, streams_tbl, habitat_tbl,
@@ -581,6 +593,7 @@ frs_habitat <- function(conn, wsg = NULL,
       conn_params = conn_params, break_sources = break_sources,
       breaks_gradient = breaks_gradient,
       gradient_recompute = gradient_recompute,
+      observations = observations,
       params = params, params_fresh = params_fresh,
       to_streams = to_streams, to_habitat = to_habitat,
       gate = gate, label_block = label_block,
