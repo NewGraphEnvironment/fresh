@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,15 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.5" id="fresh-0125">fresh 0.12.5<a class="anchor" aria-label="anchor" href="#fresh-0125"></a></h2>
+<p>Observation-based access override.</p>
+<ul><li>
+<code>observations</code> parameter on <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> and <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> — fish observations upstream of gradient/falls barriers override access gating per species. Thresholds from <code>parameters_fresh.csv</code>: <code>observation_threshold</code>, <code>observation_date_min</code>, <code>observation_buffer_m</code>, <code>observation_species</code> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/69" class="external-link">#69</a>)</li>
+<li>Defaults match bcfishpass v0.5.0: BT &gt;= 1 obs (all salmonids count), CH/CO/SK/PK/CM/ST &gt;= 5 obs (species-specific), since 1990, 20m buffer</li>
+<li>ADMS: BT accessible +103%, CH/CO +10% with <code>bcfishobs.observations</code>
+</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.4" id="fresh-0124">fresh 0.12.4<a class="anchor" aria-label="anchor" href="#fresh-0124"></a></h2>
 <p>Post-segmentation gradient control.</p>
