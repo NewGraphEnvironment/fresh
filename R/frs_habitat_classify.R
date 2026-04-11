@@ -303,10 +303,15 @@ frs_habitat_classify <- function(conn, table, to,
       fp <- params_fresh[params_fresh$species_code == sp, ]
       obs_thr <- if (nrow(fp) > 0 && "observation_threshold" %in% names(fp))
         fp$observation_threshold else NA
-      if (!is.na(obs_thr) && obs_thr > 0) {
+      obs_sp <- if (nrow(fp) > 0 && "observation_species" %in% names(fp))
+        fp$observation_species else NA
+      if (!is.na(obs_thr) && obs_thr > 0 && !is.na(obs_sp) && nzchar(obs_sp)) {
+        # Recompute label_filter for THIS species' access gradient
+        sp_label_filter <- .frs_access_label_filter(
+          conn, breaks_tbl, sp_params$access_gradient, label_block)
         acc_tbl_sp <- .frs_access_with_observations(
           conn, table, breaks_tbl, observations,
-          label_filter, sp, fp, acc_tbl)
+          sp_label_filter, sp, fp, acc_tbl)
       }
     }
 
