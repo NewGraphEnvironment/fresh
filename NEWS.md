@@ -1,3 +1,11 @@
+# fresh 0.12.5
+
+Observation-based access override.
+
+- `observations` parameter on `frs_habitat()` and `frs_habitat_classify()` — fish observations upstream of gradient/falls barriers override access gating per species. Thresholds from `parameters_fresh.csv`: `observation_threshold`, `observation_date_min`, `observation_buffer_m`, `observation_species` ([#69](https://github.com/NewGraphEnvironment/fresh/issues/69))
+- Defaults match bcfishpass v0.5.0: BT >= 1 obs (all salmonids count), CH/CO/SK/PK/CM/ST >= 5 obs (species-specific), since 1990, 20m buffer
+- ADMS: BT accessible +103%, CH/CO +10% with `bcfishobs.observations`
+
 # fresh 0.12.4
 
 Post-segmentation gradient control.
