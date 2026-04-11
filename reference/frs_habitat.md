@@ -24,6 +24,7 @@ frs_habitat(
   label_block = "blocked",
   rules = NULL,
   gradient_recompute = TRUE,
+  observations = NULL,
   params = NULL,
   params_fresh = NULL,
   workers = 1L,
@@ -128,6 +129,17 @@ frs_habitat(
   parent gradient. See
   [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
   for details.
+
+- observations:
+
+  Character or `NULL`. Schema-qualified table of fish observations (e.g.
+  `"bcfishobs.observations"`). Must have columns `species_code`,
+  `blue_line_key`, `downstream_route_measure`, `observation_date`. When
+  provided, barriers with enough qualifying observations upstream are
+  excluded from per-species access gating. Thresholds come from
+  `parameters_fresh.csv` (`observation_threshold`,
+  `observation_date_min`, `observation_buffer_m`,
+  `observation_species`). Default `NULL` (no observation override).
 
 - params:
 
