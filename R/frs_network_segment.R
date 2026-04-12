@@ -187,12 +187,15 @@ frs_network_segment <- function(conn, aoi, to,
       "UPDATE %s SET downstream_route_measure =
          round(downstream_route_measure::numeric, %d)",
       breaks_tbl, mp))
-    # Remove duplicates at the same rounded position on same BLK
+    # Remove exact duplicates (same position AND same label).
+    # Different labels at the same position are preserved — a gradient_15
+    # and a falls at the same measure both survive in the breaks table.
     .frs_db_execute(conn, sprintf(
       "DELETE FROM %s a USING %s b
        WHERE a.ctid > b.ctid
          AND a.blue_line_key = b.blue_line_key
-         AND a.downstream_route_measure = b.downstream_route_measure",
+         AND a.downstream_route_measure = b.downstream_route_measure
+         AND a.label IS NOT DISTINCT FROM b.label",
       breaks_tbl, breaks_tbl))
 
     # Enrich breaks with ltree for classify + index
