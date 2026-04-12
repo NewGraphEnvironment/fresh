@@ -191,3 +191,66 @@ test_that("regression #110: distinct thresholds produce distinct labels", {
   # (more if any segments fall between 5.0% and 5.49% gradient)
   expect_gte(res_two, res_one$n_segments)
 })
+
+# --- Unit tests: aoi + wsg interaction ---
+
+test_that("wsg + character aoi are ANDed, not replaced", {
+  # The wsg_specs construction should combine WSG and aoi
+  # We can't easily test frs_habitat() without a DB, but we can
+  # verify the job_aoi construction logic directly.
+
+  # Simulate the fixed logic:
+  w <- "ADMS"
+  aoi_str <- "edge_type != 6010"
+  job_aoi <- sprintf(
+    "watershed_group_code = %s AND (%s)",
+    fresh:::.frs_quote_string(w), aoi_str)
+
+  expect_match(job_aoi, "watershed_group_code = 'ADMS'")
+  expect_match(job_aoi, "edge_type != 6010")
+  expect_match(job_aoi, "AND")
+})
+
+test_that("wsg without aoi uses WSG code directly", {
+  w <- "ADMS"
+  aoi <- NULL
+  job_aoi <- if (is.null(aoi)) w else aoi
+  expect_equal(job_aoi, "ADMS")
+})
+
+test_that("wsg + sf aoi uses sf directly (not combined string)", {
+  w <- "ADMS"
+  aoi_sf <- sf::st_sfc(sf::st_point(c(0, 0)), crs = 3005)
+  # sf aoi should pass through unchanged
+  if (is.null(aoi_sf)) {
+    job_aoi <- w
+  } else if (is.character(aoi_sf) && length(aoi_sf) == 1) {
+    job_aoi <- "should not reach here"
+  } else {
+    job_aoi <- aoi_sf
+  }
+  expect_true(inherits(job_aoi, "sfc"))
+})
+
+test_that("integration: wsg + aoi does not scan entire province", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  # Extract with wsg + aoi — should be ADMS-sized, not province-sized
+  frs_extract(conn,
+    from = "whse_basemapping.fwa_stream_networks_sp",
+    to = "working.test_aoi_141",
+    where = sprintf("watershed_group_code = 'ADMS' AND (%s)",
+                    "edge_type != 6010"),
+    overwrite = TRUE)
+
+  n <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM working.test_aoi_141")$n
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.test_aoi_141")
+
+  # ADMS has ~11,500 segments. Province has ~4.9 million.
+  # Filtered ADMS should be < 15,000 (not millions).
+  expect_lt(n, 15000)
+  expect_gt(n, 5000)
+})

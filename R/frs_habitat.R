@@ -242,8 +242,18 @@ frs_habitat <- function(conn, wsg = NULL,
       }
       if (length(sp) == 0) return(NULL)
 
-      # AOI: explicit or WSG code
-      job_aoi <- if (!is.null(aoi)) aoi else w
+      # AOI: when both wsg and aoi are provided, aoi is additive
+      # (ANDed with the WSG filter for character WHERE clauses).
+      # For sf/list AOIs, the spatial filter handles scoping.
+      if (is.null(aoi)) {
+        job_aoi <- w
+      } else if (is.character(aoi) && length(aoi) == 1) {
+        job_aoi <- sprintf(
+          "watershed_group_code = %s AND (%s)",
+          .frs_quote_string(w), aoi)
+      } else {
+        job_aoi <- aoi
+      }
       job_label <- tolower(w)
 
       list(label = job_label, aoi = job_aoi, species = sp, wsg = w)
