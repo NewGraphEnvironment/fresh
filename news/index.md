@@ -1,5 +1,18 @@
 # Changelog
 
+## fresh 0.12.8
+
+Lake/wetland threshold auto-skip and connected distance cap.
+
+- Auto-skip gradient/channel_width CSV inheritance on
+  `waterbody_type: L` and `waterbody_type: W` rules — lake/wetland flow
+  lines are routing lines, channel dimensions are meaningless
+  ([\#131](https://github.com/NewGraphEnvironment/fresh/issues/131))
+- `connected_distance_max` predicate in rules YAML — caps network
+  distance from connected habitat when `requires_connected` is present.
+  SK/KO spawning capped at 3km from rearing lake
+  ([\#133](https://github.com/NewGraphEnvironment/fresh/issues/133))
+
 ## fresh 0.12.7
 
 Replace observations with barrier_overrides.

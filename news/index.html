@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.8" id="fresh-0128">fresh 0.12.8<a class="anchor" aria-label="anchor" href="#fresh-0128"></a></h2>
+<p>Lake/wetland threshold auto-skip and connected distance cap.</p>
+<ul><li>Auto-skip gradient/channel_width CSV inheritance on <code>waterbody_type: L</code> and <code>waterbody_type: W</code> rules — lake/wetland flow lines are routing lines, channel dimensions are meaningless (<a href="https://github.com/NewGraphEnvironment/fresh/issues/131" class="external-link">#131</a>)</li>
+<li>
+<code>connected_distance_max</code> predicate in rules YAML — caps network distance from connected habitat when <code>requires_connected</code> is present. SK/KO spawning capped at 3km from rearing lake (<a href="https://github.com/NewGraphEnvironment/fresh/issues/133" class="external-link">#133</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.7" id="fresh-0127">fresh 0.12.7<a class="anchor" aria-label="anchor" href="#fresh-0127"></a></h2>
 <p>Replace observations with barrier_overrides.</p>
