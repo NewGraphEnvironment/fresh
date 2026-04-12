@@ -324,3 +324,57 @@ test_that("integration: NULL to_barriers does not persist", {
      ) AS e")$e
   expect_false(exists)
 })
+
+# --- Integration tests: multiple labels per break position (#145) ---
+
+test_that("integration: multiple labels at same position preserved in breaks", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+  tbl_s <- "working.test_145_streams"
+  tbl_breaks <- paste0(tbl_s, "_breaks")
+
+  on.exit({
+    for (tbl in c(tbl_s, tbl_breaks,
+                  "working.test_145_src_a", "working.test_145_src_b")) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+    }
+    DBI::dbDisconnect(conn)
+  })
+
+  # Extract to get a real BLK + measure
+  frs_extract(conn,
+    from = "whse_basemapping.fwa_stream_networks_sp",
+    to = tbl_s, where = aoi, overwrite = TRUE)
+  pos <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT blue_line_key, downstream_route_measure + 100 AS drm
+     FROM %s LIMIT 1", tbl_s))
+
+  # Create two mock break sources at the SAME position, DIFFERENT labels
+  for (tbl in c("working.test_145_src_a", "working.test_145_src_b")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", tbl))
+    DBI::dbExecute(conn, sprintf(
+      "CREATE TABLE %s AS SELECT %d::int AS blue_line_key, %s::float8 AS downstream_route_measure",
+      tbl, pos$blue_line_key, pos$drm))
+  }
+
+  # Segment with both sources at same position
+  DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", tbl_s))
+  frs_network_segment(conn, aoi = aoi, to = tbl_s,
+    break_sources = list(
+      list(table = "working.test_145_src_a", label = "label_a"),
+      list(table = "working.test_145_src_b", label = "label_b")),
+    verbose = FALSE)
+
+  # Both labels should survive at the same position
+  dupes <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT blue_line_key, downstream_route_measure,
+            count(DISTINCT label)::int AS n_labels
+     FROM %s
+     GROUP BY blue_line_key, downstream_route_measure
+     HAVING count(DISTINCT label) > 1", tbl_breaks))
+
+  expect_gt(nrow(dupes), 0)
+  expect_true(all(dupes$n_labels >= 2))
+})
