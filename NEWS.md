@@ -1,3 +1,10 @@
+# fresh 0.12.7
+
+Replace observations with barrier_overrides.
+
+- `barrier_overrides` parameter replaces `observations` on `frs_habitat()` and `frs_habitat_classify()` — accepts a pre-computed table of `(blue_line_key, downstream_route_measure, species_code)` from link. Fresh skips matched barriers without counting, thresholds, or date filters ([#129](https://github.com/NewGraphEnvironment/fresh/issues/129))
+- Remove observation counting SQL and `observation_*` columns from `parameters_fresh.csv` — fish passage interpretation belongs in link, not the network engine
+
 # fresh 0.12.6
 
 Multi-class gradient barrier detection.
