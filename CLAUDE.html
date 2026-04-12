@@ -184,265 +184,11 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 </div>
 </div>
 <div class="section level1">
-<h1 id="agent-teams">Agent Teams<a class="anchor" aria-label="anchor" href="#agent-teams"></a></h1>
-<p>When to use Claude Code agent teams vs subagents, and key constraints.</p>
-<p><strong>Source:</strong> <a href="https://code.claude.com/docs/en/agent-teams" class="external-link">code.claude.com/docs/en/agent-teams</a></p>
-<div class="section level2">
-<h2 id="when-to-use-teams-vs-subagents">When to Use Teams (vs. Subagents)<a class="anchor" aria-label="anchor" href="#when-to-use-teams-vs-subagents"></a></h2>
-<p>Use agent teams when teammates need to <strong>talk to each other</strong> — research debates, competing hypotheses, cross-layer coordination. Use subagents when you just need focused workers that report back results.</p>
-<p><strong>Good fit:</strong> parallel code review, investigating competing bug hypotheses, new modules that don’t share files, research from multiple angles.</p>
-<p><strong>Bad fit:</strong> sequential tasks, edits to the same file, simple work where coordination overhead exceeds benefit.</p>
-</div>
-<div class="section level2">
-<h2 id="key-rules">Key Rules<a class="anchor" aria-label="anchor" href="#key-rules"></a></h2>
-<ul><li>
-<strong>Give enough context in the spawn prompt</strong> — teammates don’t inherit the lead’s conversation history</li>
-<li>
-<strong>Ensure teammates own different files</strong> — two teammates editing the same file leads to overwrites</li>
-<li>
-<strong>Shut down all teammates before cleanup</strong> — cleanup fails if teammates are still running</li>
-<li>
-<strong>Always clean up via the lead</strong> — teammates should never run cleanup</li>
-<li>
-<strong>No session resumption</strong> — after <code>/resume</code>, spawn new teammates</li>
-</ul></div>
-</div>
-<div class="section level1">
-<h1 id="bookdown-conventions">Bookdown Conventions<a class="anchor" aria-label="anchor" href="#bookdown-conventions"></a></h1>
-<p>Standards for bookdown report projects across New Graph Environment.</p>
-<div class="section level2">
-<h2 id="template-repos">Template Repos<a class="anchor" aria-label="anchor" href="#template-repos"></a></h2>
-<p>These are the canonical references. Child repos inherit their structure and patterns.</p>
-<ul><li>
-<a href="https://github.com/NewGraphEnvironment/mybookdown-template" class="external-link">mybookdown-template</a> — General-purpose bookdown starter</li>
-<li>
-<a href="https://github.com/NewGraphEnvironment/fish_passage_template_reporting" class="external-link">fish_passage_template_reporting</a> — Fish passage reporting template</li>
-</ul><p>When in doubt, match what the template does. When the template and production repos disagree, production wins — update the template.</p>
-</div>
-<div class="section level2">
-<h2 id="project-structure">Project Structure<a class="anchor" aria-label="anchor" href="#project-structure"></a></h2>
-<pre><code>project/
-├── index.Rmd                # Master config, YAML params, setup chunks
-├── _bookdown.yml            # book_filename, output_dir: "docs"
-├── _output.yml              # Gitbook, pagedown, pdf_book config
-├── 0100-intro.Rmd           # Chapter numbering: 4-digit, 100s increment
-├── 0200-background.Rmd
-├── 0300-methods.Rmd
-├── 0400-results.Rmd
-├── 0500-*.Rmd               # Discussion/recommendations
-├── 0800-appendix-*.Rmd      # Appendices (site-specific in fish passage)
-├── 2000-references.Rmd      # Auto-generated from .bib
-├── 2090-report-change-log.Rmd  # Auto-generated from NEWS.md
-├── 2100-session-info.Rmd    # Reproducibility
-├── NEWS.md                  # Changelog (semantic versioning)
-├── scripts/
-│   ├── packages.R           # Package loading (renv-managed)
-│   ├── functions.R          # Project-specific functions
-│   ├── staticimports.R      # Auto-generated from staticimports pkg
-│   ├── setup_docs.R         # Build helper
-│   └── run.R                # Local build (gitbook + PDF)
-├── fig/                     # Figures (organized by chapter or type)
-├── data/                    # Project data
-├── docs/                    # Rendered output (GitHub Pages)
-├── renv.lock                # Locked dependencies
-└── .Rprofile                # Activates renv</code></pre>
-</div>
-<div class="section level2">
-<h2 id="setup-chunk-pattern">Setup Chunk Pattern<a class="anchor" aria-label="anchor" href="#setup-chunk-pattern"></a></h2>
-<p>Every <code>index.Rmd</code> follows this setup sequence. Order matters.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># 1. Gitbook vs PDF switch</span></span>
-<span><span class="va">gitbook_on</span> <span class="op">&lt;-</span> <span class="cn">TRUE</span></span>
-<span></span>
-<span><span class="co"># 2. Knitr options</span></span>
-<span><span class="fu">knitr</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/pkg/knitr/man/opts_chunk.html" class="external-link">opts_chunk</a></span><span class="op">$</span><span class="fu">set</span><span class="op">(</span></span>
-<span>  echo <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">gitbook_on</span>, <span class="cn">TRUE</span><span class="op">)</span>,  <span class="co"># Show code only in gitbook</span></span>
-<span>  message <span class="op">=</span> <span class="cn">FALSE</span>, warning <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  dpi <span class="op">=</span> <span class="fl">60</span>, out.width <span class="op">=</span> <span class="st">"100%"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>scipen <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>knitr.kable.NA <span class="op">=</span> <span class="st">'--'</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>knitr.kable.NAN <span class="op">=</span> <span class="st">'--'</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># 3. Source in order: packages → static imports → functions → data</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">'scripts/packages.R'</span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">'scripts/staticimports.R'</span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">'scripts/functions.R'</span><span class="op">)</span></span></code></pre></div>
-<p>Responsive settings by output format:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Gitbook</span></span>
-<span><span class="va">photo_width</span> <span class="op">&lt;-</span> <span class="st">"100%"</span>; <span class="va">font_set</span> <span class="op">&lt;-</span> <span class="fl">11</span></span>
-<span></span>
-<span><span class="co"># PDF (paged.js)</span></span>
-<span><span class="va">photo_width</span> <span class="op">&lt;-</span> <span class="st">"80%"</span>; <span class="va">font_set</span> <span class="op">&lt;-</span> <span class="fl">9</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="yaml-parameters">YAML Parameters<a class="anchor" aria-label="anchor" href="#yaml-parameters"></a></h2>
-<p>Parameters live in <code>index.Rmd</code> frontmatter (not a separate file). Child repos override by editing these values.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">params</span><span class="kw">:</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="at">  </span><span class="fu">repo_url</span><span class="kw">:</span><span class="at"> </span><span class="st">'https://github.com/NewGraphEnvironment/repo_name'</span></span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="at">  </span><span class="fu">report_url</span><span class="kw">:</span><span class="at"> </span><span class="st">'https://www.newgraphenvironment.com/repo_name/'</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="at">  </span><span class="fu">update_packages</span><span class="kw">:</span><span class="at"> </span><span class="ch">FALSE</span></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="at">  </span><span class="fu">update_bib</span><span class="kw">:</span><span class="at"> </span><span class="ch">TRUE</span></span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="at">  </span><span class="fu">gitbook_on</span><span class="kw">:</span><span class="at"> </span><span class="ch">TRUE</span></span></code></pre></div>
-<p>Fish passage repos add project-specific params (<code>project_region</code>, <code>model_species</code>, <code>wsg_code</code>, update flags for forms). These are project-specific — don’t add them to the general template.</p>
-</div>
-<div class="section level2">
-<h2 id="chunk-naming">Chunk Naming<a class="anchor" aria-label="anchor" href="#chunk-naming"></a></h2>
-<p>Embed context and purpose in chunk names. The principle is universal; the codes are project-specific.</p>
-<p><strong>Pattern:</strong> <code>{type}-{system}-{description}</code></p>
-<table class="table"><thead><tr class="header"><th>Type</th>
-<th>Examples</th>
-</tr></thead><tbody><tr class="odd"><td>Tables</td>
-<td>
-<code>tab-kln-load-int-yr</code>, <code>tab-sites-sum</code>, <code>tab-wshd-196332</code>
-</td>
-</tr><tr class="even"><td>Figures</td>
-<td>
-<code>plot-wq-kln-quadratic</code>, <code>map-interactive</code>, <code>map-196332</code>
-</td>
-</tr><tr class="odd"><td>Photos</td>
-<td>
-<code>photo-196332-01</code>, <code>photo-196332-d01</code> (dual layout)</td>
-</tr></tbody></table></div>
-<div class="section level2">
-<h2 id="cross-references">Cross-References<a class="anchor" aria-label="anchor" href="#cross-references"></a></h2>
-<p>Bookdown auto-prepends <code>fig:</code> or <code>tab:</code> to chunk names.</p>
-<ul><li>
-<strong>Tables:</strong> <code>Table \@ref(tab:chunk-name)</code>
-</li>
-<li>
-<strong>Figures:</strong> <code>Figure \@ref(fig:chunk-name)</code>
-</li>
-</ul><p>No <code>fig:</code> or <code>tab:</code> prefix in the chunk label itself — bookdown adds it.</p>
-</div>
-<div class="section level2">
-<h2 id="table-caption-workaround">Table Caption Workaround<a class="anchor" aria-label="anchor" href="#table-caption-workaround"></a></h2>
-<p>Interactive tables (DT) can’t use standard bookdown captions. Use the <code>my_tab_caption()</code> function from <code>staticimports.R</code>.</p>
-<p><strong>Pattern:</strong> Separate <code>-cap</code> chunk from table chunk.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Caption chunk — must use results="asis"</span></span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>{r tab<span class="sc">-</span>sites<span class="sc">-</span>sum<span class="sc">-</span>cap, results<span class="ot">=</span><span class="st">"asis"</span>}</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>my_caption <span class="ot">&lt;-</span> <span class="st">"Summary of fish passage assessment procedures."</span></span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">my_tab_caption</span>()</span></code></pre></div>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Table chunk — renders the DT</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>{r tab<span class="sc">-</span>sites<span class="sc">-</span>sum}</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">my_dt_table</span>(<span class="at">page_length =</span> <span class="dv">20</span>, <span class="at">cols_freeze_left =</span> <span class="dv">0</span>)</span></code></pre></div>
-<p><code>my_tab_caption()</code> auto-grabs the chunk label via <code>knitr::opts_current$get()$label</code> and wraps it in HTML caption tags that bookdown can cross-reference.</p>
-</div>
-<div class="section level2">
-<h2 id="photo-layout">Photo Layout<a class="anchor" aria-label="anchor" href="#photo-layout"></a></h2>
-<p>Separate prep chunk (find the file) from display chunk (render it).</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># Prep — find the photo</span></span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>{r photo<span class="dv">-196332-01</span><span class="sc">-</span>prep}</span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>my_photo1 <span class="ot">&lt;-</span> fpr<span class="sc">::</span><span class="fu">fpr_photo_pull_by_str</span>(<span class="at">str_to_pull =</span> <span class="st">'ds_typical_1_'</span>)</span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>my_caption1 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">'Typical habitat downstream of PSCIS crossing '</span>, my_site, <span class="st">'.'</span>)</span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Gitbook — full width</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>{r photo<span class="dv">-196332-01</span>, fig.cap<span class="ot">=</span>my_caption1, out.width<span class="ot">=</span>photo_width, eval<span class="ot">=</span>gitbook_on}</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo1)</span></code></pre></div>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># PDF — side by side with 1% spacer</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>{r photo<span class="dv">-196332</span><span class="sc">-</span>d01, fig.show<span class="ot">=</span><span class="st">"hold"</span>, out.width<span class="ot">=</span><span class="fu">c</span>(<span class="st">"49.5%"</span>,<span class="st">"1%"</span>,<span class="st">"49.5%"</span>), eval<span class="ot">=</span><span class="fu">identical</span>(gitbook_on, <span class="cn">FALSE</span>)}</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo1)</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(<span class="st">"fig/pixel.png"</span>)</span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">include_graphics</span>(my_photo2)</span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="bibliography">Bibliography<a class="anchor" aria-label="anchor" href="#bibliography"></a></h2>
-<p><strong><code>references.bib</code> is auto-generated — never edit it manually.</strong> On each build, <code>rbbt::bbt_write_bib()</code> scans all <code>.Rmd</code> files for <code>@citekey</code> references, pulls the BibTeX from Zotero’s Better BibTeX, and overwrites <code>references.bib</code>. Any manual additions will be lost on the next build.</p>
-<p>To add a reference: add it to the shared Zotero group library, use its BBT citation key (<code>@key</code>) in the <code>.Rmd</code> text, and build. rbbt handles the rest.</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span>
-<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">biblio-style</span><span class="kw">:</span><span class="at"> apalike</span></span>
-<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="fu">link-citations</span><span class="kw">:</span><span class="at"> </span><span class="ch">no</span></span></code></pre></div>
-<p>When <code>update_bib: FALSE</code> in params, the build uses the existing <code>references.bib</code> without regenerating — useful for offline builds or CI where Zotero isn’t running.</p>
-<p>Auto-generate package citations:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/write_bib.html" class="external-link">write_bib</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/zpackages.html" class="external-link">.packages</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">'bookdown'</span>, <span class="st">'knitr'</span>, <span class="st">'rmarkdown'</span><span class="op">)</span>, <span class="st">'packages.bib'</span><span class="op">)</span></span></code></pre></div>
-<p>Use <code>nocite:</code> in YAML to include references not cited in text.</p>
-</div>
-<div class="section level2">
-<h2 id="acknowledgement--ai-disclosure">Acknowledgement &amp; AI Disclosure<a class="anchor" aria-label="anchor" href="#acknowledgement--ai-disclosure"></a></h2>
-<p><code>index.Rmd</code> contains two separate front-matter sections after the setup chunks:</p>
-<div class="section level3 front-matter unnumbered">
-<h3 class="front-matter unnumbered" id="acknowledgement">Acknowledgement<a class="anchor" aria-label="anchor" href="#acknowledgement"></a></h3>
-<p>Three parts, in order:</p>
-<ol style="list-style-type: decimal"><li><p><strong>Personal connection to land</strong> (template-level, same across all reports): &gt; At New Graph Environment, we understand our well-being as inseparable from the health of the land and waters we work within. When we care for ecosystems, we care for ourselves and for the communities connected to them. This relationship is not metaphorical — it is the foundation of our practice.</p></li>
-<li><p><strong>Colonial acknowledgement</strong> (template-level): &gt; Modern civilization has a long journey ahead to acknowledge and address the historic and ongoing impacts of colonialism…</p></li>
-<li><p><strong>Territorial acknowledgement</strong> (project-specific, must be edited per report): Name the Nations, governance systems, watersheds, and species relevant to the project. Do not use a generic office-location acknowledgement — tie it to the territory where the work happens. See the Wedzin Kwa chinook example for the pattern.</p></li>
-<li><p><strong>Funding and partners</strong> (project-specific).</p></li>
-</ol></div>
-<div class="section level3">
-<h3 id="ai-disclosure">AI Disclosure<a class="anchor" aria-label="anchor" href="#ai-disclosure"></a></h3>
-<p>Do not use a <code>#</code> heading for the disclosure — this creates a separate chapter page in gitbook. Instead, add it to the YAML <code>date:</code> field so it renders in the title block:</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">date</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a> |</span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a> | Version X.X.X DRAFT `r format(Sys.Date(), "%Y-%m-%d")`</span>
-<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a> |</span>
-<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a> | *Claude Sonnet 4.6 (Anthropic) assisted with literature synthesis, drafting, and technical writing. All scientific interpretation, data analysis, and conclusions are the responsibility of the authors.*</span></code></pre></div>
-<p><strong>Wording principle:</strong> Be accurate about what the LLM did. It assisted with drafting and synthesis — it did not make scientific interpretations or conclusions. Do not say “independently verified by the authors” (redundant) or attribute “ecological assessments” to the LLM.</p>
-<p>For regulatory/EGBC-stamped work, use the extended disclaimer from <code>soul/research/20260212_ai_disclosure_research.md</code>. See NewGraphEnvironment/mybookdown-template#89.</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="conditional-rendering-gitbook-vs-pdf">Conditional Rendering (Gitbook vs PDF)<a class="anchor" aria-label="anchor" href="#conditional-rendering-gitbook-vs-pdf"></a></h2>
-<p>A single boolean <code>gitbook_on</code> controls output format throughout.</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="co"># Show only in gitbook</span></span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>{r map<span class="sc">-</span>interactive, eval<span class="ot">=</span>gitbook_on}</span>
-<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co"># Show only in PDF</span></span>
-<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>{r fig<span class="sc">-</span>print<span class="sc">-</span>only, eval<span class="ot">=</span><span class="fu">identical</span>(gitbook_on, <span class="cn">FALSE</span>)}</span>
-<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a></span>
-<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="co"># Conditional inline content</span></span>
-<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="st">`</span><span class="at">r if(identical(gitbook_on, FALSE)) knitr::asis_output("This report is available online...")</span><span class="st">`</span></span>
-<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a></span>
-<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a><span class="co"># Page breaks for PDF only</span></span>
-<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a><span class="st">`</span><span class="at">r if(gitbook_on){knitr::asis_output("")} else knitr::asis_output("</span><span class="sc">\\</span><span class="at">pagebreak")</span><span class="st">`</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="versioning-and-changelog">Versioning and Changelog<a class="anchor" aria-label="anchor" href="#versioning-and-changelog"></a></h2>
-<p>Reports use MAJOR.MINOR.PATCH versioning with a <code>NEWS.md</code> changelog.</p>
-<p><strong>Version in <code>index.Rmd</code> YAML:</strong></p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">date</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a> |</span>
-<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a> | Version 1.1.0 DRAFT `r format(Sys.Date(), "%Y-%m-%d")`</span></code></pre></div>
-<p><strong>NEWS.md format:</strong></p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">## 1.1.0 (2026-02-17)</span></span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a></span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="ss">- </span>Add feature X</span>
-<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="ss">- </span>Fix issue Y (<span class="co">[</span><span class="ot">Issue #N</span><span class="co">](https://github.com/Org/repo/issues/N)</span>)</span></code></pre></div>
-<p><strong>Auto-append as appendix</strong> via <code>my_news_to_appendix()</code> in <code>staticimports.R</code>:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">news_to_appendix</span><span class="op">(</span>md_name <span class="op">=</span> <span class="st">"NEWS.md"</span>, rmd_name <span class="op">=</span> <span class="st">"2090-report-change-log.Rmd"</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Convention:</strong> - Bump version in <code>index.Rmd</code> and add NEWS entry for every commit to main that changes report content - Tag releases: <code>git tag -a v1.1.0 -m "v1.1.0: Brief description"</code> - MAJOR: structural changes, new chapters, methodology changes - MINOR: new content, figures, tables, discussion sections - PATCH: prose fixes, corrections, formatting</p>
-</div>
-<div class="section level2">
-<h2 id="cog-viewer-embedding">COG Viewer Embedding<a class="anchor" aria-label="anchor" href="#cog-viewer-embedding"></a></h2>
-<p>Always use <code>ngr::ngr_str_viewer_cog()</code> — never hardcode viewer iframes.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/asis_output.html" class="external-link">asis_output</a></span><span class="op">(</span><span class="fu">ngr</span><span class="fu">::</span><span class="fu">ngr_str_viewer_cog</span><span class="op">(</span><span class="st">"https://bucket.s3.us-west-2.amazonaws.com/ortho.tif"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>The function includes a cache-busting <code>?v=</code> parameter. Bump <code>v</code> in the function default when <code>viewer.html</code> has breaking changes.</p>
-</div>
-<div class="section level2">
-<h2 id="dependency-management">Dependency Management<a class="anchor" aria-label="anchor" href="#dependency-management"></a></h2>
-<p>Use <code>renv</code> for reproducible package management: - <code>.Rprofile</code> activates renv on startup - <code>renv::restore()</code> installs from lockfile - <code>renv::snapshot()</code> updates lockfile after adding packages - Use <code>pak::pak("pkg")</code> to install (not <code>install.packages</code>)</p>
-</div>
-<div class="section level2">
-<h2 id="known-drift">Known Drift<a class="anchor" aria-label="anchor" href="#known-drift"></a></h2>
-<p>Production repos (2024-2025) have drifted from templates in these areas. When working in a child repo, match what that repo does, not the template:</p>
-<ul><li>
-<strong>Script naming in <code>02_reporting/</code></strong> — older repos use <code>tables.R</code>, <code>0165-read-sqlite.R</code>; newer repos use numbered <code>0130-tables.R</code>. Follow the repo you’re in.</li>
-<li>
-<strong>Removed packages</strong> — <code>elevatr</code>, <code>rayshader</code>, <code>arrow</code> removed from production but still in template.</li>
-<li>
-<strong><code>staticimports::import()</code> call</strong> — some repos skip it and source <code>staticimports.R</code> directly.</li>
-<li>
-<strong>Hardcoded vs parameterized years</strong> — older repos hardcode years in file paths; newer repos use <code>params$project_year</code>. Prefer parameterized.</li>
-</ul></div>
-</div>
-<div class="section level1">
 <h1 id="cartography">Cartography<a class="anchor" aria-label="anchor" href="#cartography"></a></h1>
 <div class="section level2">
 <h2 id="style-registry">Style Registry<a class="anchor" aria-label="anchor" href="#style-registry"></a></h2>
 <p>Use the <code>gq</code> package for all shared layer symbology. Never hardcode hex color values when a registry style exists.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></span><span class="op">)</span></span>
 <span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># load once per script — 51+ layers</span></span></code></pre></div>
 <p><strong>Core pattern:</strong> <code>reg$layers$lake</code>, <code>reg$layers$road</code>, <code>reg$layers$bec_zone</code>, etc.</p>
@@ -466,7 +212,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level3">
 <h3 id="custom-styles">Custom styles<a class="anchor" aria-label="anchor" href="#custom-styles"></a></h3>
 <p>For project-specific layers not in the main registry, use a hand-curated CSV and merge:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_merge.html" class="external-link">gq_reg_merge</a></span><span class="op">(</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu">gq_reg_read_csv</span><span class="op">(</span><span class="st">"path/to/custom.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Install: <code>pak::pak("NewGraphEnvironment/gq")</code></p>
 </div>
@@ -489,7 +235,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <td>Field work, Mergin Maps</td>
 </tr></tbody></table></div>
 <div class="section level2">
-<h2 id="key-rules-1">Key Rules<a class="anchor" aria-label="anchor" href="#key-rules-1"></a></h2>
+<h2 id="key-rules">Key Rules<a class="anchor" aria-label="anchor" href="#key-rules"></a></h2>
 <ul><li>
 <strong><code>sf_use_s2(FALSE)</code></strong> at top of every mapping script</li>
 <li>
@@ -527,7 +273,7 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <h2 id="land-cover-change">Land Cover Change<a class="anchor" aria-label="anchor" href="#land-cover-change"></a></h2>
 <p>Use <a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a> and <a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a> together for riparian land cover change analysis. flooded delineates floodplain extents from DEMs and stream networks; drift tracks what’s changing inside them over time.</p>
 <p><strong>Pipeline:</strong></p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Delineate floodplain AOI (flooded)</span></span>
 <span><span class="va">valleys</span> <span class="op">&lt;-</span> <span class="fu">flooded</span><span class="fu">::</span><span class="fu">fl_valley_confine</span><span class="op">(</span><span class="va">dem</span>, <span class="va">streams</span><span class="op">)</span></span>
 <span></span>
@@ -767,7 +513,7 @@ Website: www.newgraphenvironment.com</code></pre>
 2. [Step] → verify: [check]
 3. [Step] → verify: [check]</code></pre>
 <p>Strong success criteria let you loop independently. Weak criteria (“make it work”) require constant clarification.</p>
-<hr><p><strong>These guidelines are working if:</strong> fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.</p>
+<p><strong>These guidelines are working if:</strong> fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.</p>
 </div>
 </div>
 <div class="section level1">
@@ -819,27 +565,27 @@ Website: www.newgraphenvironment.com</code></pre>
 <li>
 <strong>Add tracking links at the end</strong> (e.g., <code>Relates to Owner/repo#N</code>)</li>
 </ul><p><strong>Issue body structure:</strong></p>
-<div class="sourceCode" id="cb24"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu">## Problem</span></span>
-<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a>&lt;what's wrong or missing&gt;</span>
-<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a></span>
-<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="fu">## Proposed Solution</span></span>
-<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">approach</span><span class="dt">&gt;</span></span>
-<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a></span>
-<span id="cb24-7"><a href="#cb24-7" tabindex="-1"></a>Relates to #<span class="dt">&lt;</span><span class="kw">local</span><span class="dt">&gt;</span></span>
-<span id="cb24-8"><a href="#cb24-8" tabindex="-1"></a>Relates to NewGraphEnvironment/sred-2025-2026#<span class="dt">&lt;</span><span class="kw">N</span><span class="dt">&gt;</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">## Problem</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>&lt;what's wrong or missing&gt;</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="fu">## Proposed Solution</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">approach</span><span class="dt">&gt;</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>Relates to #<span class="dt">&lt;</span><span class="kw">local</span><span class="dt">&gt;</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>Relates to NewGraphEnvironment/sred-2025-2026#<span class="dt">&lt;</span><span class="kw">N</span><span class="dt">&gt;</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="github-issue-creation---always-use-files">GitHub Issue Creation - Always Use Files<a class="anchor" aria-label="anchor" href="#github-issue-creation---always-use-files"></a></h3>
 <p>The <code>gh issue create</code> command with heredoc syntax fails repeatedly with EOF errors. ALWAYS use <code>--body-file</code>:</p>
-<div class="sourceCode" id="cb25"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> /tmp/issue_body.md <span class="op">&lt;&lt; 'EOF'</span></span>
-<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="st">## Problem</span></span>
-<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a><span class="st">...</span></span>
-<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a></span>
-<span id="cb25-5"><a href="#cb25-5" tabindex="-1"></a><span class="st">## Proposed Solution</span></span>
-<span id="cb25-6"><a href="#cb25-6" tabindex="-1"></a><span class="st">...</span></span>
-<span id="cb25-7"><a href="#cb25-7" tabindex="-1"></a><span class="op">EOF</span></span>
-<span id="cb25-8"><a href="#cb25-8" tabindex="-1"></a></span>
-<span id="cb25-9"><a href="#cb25-9" tabindex="-1"></a><span class="ex">gh</span> issue create <span class="at">--title</span> <span class="st">"Brief technical title"</span> <span class="at">--body-file</span> /tmp/issue_body.md</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> /tmp/issue_body.md <span class="op">&lt;&lt; 'EOF'</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="st">## Problem</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="st">...</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="st">## Proposed Solution</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="st">...</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="op">EOF</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="ex">gh</span> issue create <span class="at">--title</span> <span class="st">"Brief technical title"</span> <span class="at">--body-file</span> /tmp/issue_body.md</span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -964,33 +710,33 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level3">
 <h3 id="task_planmd">task_plan.md<a class="anchor" aria-label="anchor" href="#task_planmd"></a></h3>
 <p>Phases with checkboxes. This is the core tracking file.</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
-<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a></span>
-<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
-<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
-<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
-<span id="cb28-6"><a href="#cb28-6" tabindex="-1"></a></span>
-<span id="cb28-7"><a href="#cb28-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
-<span id="cb28-8"><a href="#cb28-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
 <p>Mark tasks done as they’re completed: <code>- [x] Task description</code></p>
 </div>
 <div class="section level3">
 <h3 id="findingsmd">findings.md<a class="anchor" aria-label="anchor" href="#findingsmd"></a></h3>
 <p>Append-only research log. Discoveries, technical analysis, things learned.</p>
-<div class="sourceCode" id="cb29"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
-<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a></span>
-<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
-<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="progressmd">progress.md<a class="anchor" aria-label="anchor" href="#progressmd"></a></h3>
 <p>Session entries with commit references.</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a></span>
-<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
-<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
-<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
-<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -1058,7 +804,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li><p>Tests must pass before closing the function’s issue</p></li>
 <li>
 <p>Always grep for errors in the same command as the test run to avoid running twice:</p>
-<div class="sourceCode" id="cb33"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
 <p>For error context: <code>grep -E "(ERROR:|FAIL )" -A 10 | head -25</code></p>
 </li>
 </ul></div>
@@ -1096,7 +842,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <p>Run <code>lintr::lint_package()</code> before committing R package code. Fix all warnings — every lint should be worth fixing.</p>
 <div class="section level3">
 <h3 id="recommended-lintr-config">Recommended .lintr config<a class="anchor" aria-label="anchor" href="#recommended-lintr-config"></a></h3>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linters</span><span class="op">:</span> <span class="fu">linters_with_defaults</span><span class="op">(</span></span>
 <span>    <span class="fu">line_length_linter</span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>,</span>
 <span>    <span class="fu">object_name_linter</span><span class="op">(</span>styles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snake_case"</span>, <span class="st">"dotted.case"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -1134,18 +880,18 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level3">
 <h3 id="branch-protection">Branch protection<a class="anchor" aria-label="anchor" href="#branch-protection"></a></h3>
 <p>Protect main from deletion and force pushes:</p>
-<div class="sourceCode" id="cb35"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
-<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a><span class="st">{</span></span>
-<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
-<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
-<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
-<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
-<span id="cb35-7"><a href="#cb35-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
-<span id="cb35-8"><a href="#cb35-8" tabindex="-1"></a><span class="st">  ],</span></span>
-<span id="cb35-9"><a href="#cb35-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
-<span id="cb35-10"><a href="#cb35-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
-<span id="cb35-11"><a href="#cb35-11" tabindex="-1"></a><span class="st">}</span></span>
-<span id="cb35-12"><a href="#cb35-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="st">  ],</span></span>
+<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
+<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
+<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scaffold-checklist">Scaffold checklist<a class="anchor" aria-label="anchor" href="#scaffold-checklist"></a></h3>
@@ -1230,11 +976,11 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <h2 id="in-reports-bookdown">In Reports (bookdown)<a class="anchor" aria-label="anchor" href="#in-reports-bookdown"></a></h2>
 <div class="section level3">
 <h3 id="bibliography-generation">Bibliography generation<a class="anchor" aria-label="anchor" href="#bibliography-generation"></a></h3>
-<div class="sourceCode" id="cb36"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
-<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
 <p><code>rbbt</code> pulls from BBT, which syncs with Zotero. Edit references in Zotero → rebuild report → bibliography updates.</p>
 <p><strong>Library targeting:</strong> rbbt must know which Zotero library to search. This is set globally in <code>~/.Rprofile</code>:</p>
-<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># default library — NewGraphEnvironment group (libraryID 9, group 4733734)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>rbbt.default.library_id <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p>Without this option, rbbt searches only the personal library (libraryID 1) and won’t find group library references. The library IDs map to Zotero’s internal numbering — use <code>/zotero-lookup</code> with <code>SELECT DISTINCT libraryID FROM citationkey</code> against the BBT database to discover available libraries.</p>
