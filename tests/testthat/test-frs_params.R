@@ -295,8 +295,11 @@ test_that(".frs_rules_to_sql CO rear pattern: 4 rules with carve-out", {
   # We can't easily verify this without parsing, but we can check
   # the explicit edge codes appear without nearby threshold text
   expect_match(sql, "1050, 1150")
-  # All three other rules should have thresholds
-  expect_equal(length(gregexpr("gradient BETWEEN", sql)[[1]]), 3)
+  # Rules 1 (stream) and 2 (river) inherit thresholds.
+  # Rule 3 (carve-out) has thresholds: false.
+  # Rule 4 (lake) auto-skips thresholds (waterbody_type L).
+  # So 2 rules should have gradient BETWEEN.
+  expect_equal(length(gregexpr("gradient BETWEEN", sql)[[1]]), 2)
 })
 
 test_that(".frs_rule_to_sql rule-level gradient overrides CSV", {
@@ -343,6 +346,55 @@ test_that(".frs_rule_to_sql rule-level override WITH thresholds=false", {
   expect_match(sql, "gradient BETWEEN 0 AND 0\\.1")
   # Channel width should NOT be present (thresholds: false skips inheritance,
   # and there's no rule-level cw override)
+  expect_false(grepl("channel_width", sql))
+})
+
+test_that(".frs_rule_to_sql lake rule auto-skips gradient/cw inheritance", {
+  rule <- list(waterbody_type = "L", lake_ha_min = 200)
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(1.5, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  # Lake rule should NOT inherit gradient or channel_width
+  expect_false(grepl("gradient", sql))
+  expect_false(grepl("channel_width", sql))
+  # But should have the lake area filter
+  expect_match(sql, "fwa_lakes_poly")
+  expect_match(sql, "area_ha >= 200")
+})
+
+test_that(".frs_rule_to_sql wetland rule auto-skips gradient/cw inheritance", {
+  rule <- list(waterbody_type = "W")
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(1.5, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  expect_false(grepl("gradient", sql))
+  expect_false(grepl("channel_width", sql))
+  expect_match(sql, "fwa_wetlands_poly")
+})
+
+test_that(".frs_rule_to_sql river rule still inherits thresholds", {
+  rule <- list(waterbody_type = "R", channel_width = c(0, 9999))
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(2, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  # River rule inherits gradient from CSV
+  expect_match(sql, "gradient BETWEEN 0 AND 0\\.0549")
+  # But uses rule-level channel_width override (0, not 2)
+  expect_match(sql, "channel_width BETWEEN 0 AND 9999")
+})
+
+test_that(".frs_rule_to_sql lake rule with explicit gradient still applies it", {
+  rule <- list(waterbody_type = "L", gradient = c(0, 0.02))
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(1.5, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  # Explicit gradient on lake rule should still apply
+  expect_match(sql, "gradient BETWEEN 0 AND 0\\.02")
+  # But channel_width should NOT be inherited (auto-skip for L)
   expect_false(grepl("channel_width", sql))
 })
 

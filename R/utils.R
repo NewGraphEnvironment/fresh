@@ -182,6 +182,17 @@
   inherit_thresholds <- is.null(rule[["thresholds"]]) ||
     isTRUE(rule[["thresholds"]])
 
+  # Auto-skip gradient/cw inheritance for lake/wetland rules.
+  # Lake and wetland flow lines are routing lines through waterbodies —
+  # gradient and channel_width are meaningless on them. The relevant
+  # threshold is lake_ha_min, not stream channel dimensions.
+  # Rule-level explicit overrides (rule[["gradient"]], rule[["channel_width"]])
+  # still apply if someone sets them deliberately.
+  wb_type <- rule[["waterbody_type"]]
+  if (!is.null(wb_type) && wb_type %in% c("L", "W")) {
+    inherit_thresholds <- FALSE
+  }
+
   if (!is.null(rule[["edge_types"]])) {
     et_categories <- rule[["edge_types"]]
     codes <- unlist(lapply(et_categories, function(et_category) {
