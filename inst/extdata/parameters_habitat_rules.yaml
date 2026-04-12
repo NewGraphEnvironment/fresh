@@ -18,6 +18,8 @@
 #   channel_width: [min, max]  — override CSV channel_width (rule value wins)
 #   requires_connected: 'spawning' or 'rearing' — post-classification check
 #     via frs_cluster(). Segments must connect to the named habitat type.
+#   connected_distance_max: numeric — max network distance (metres) from
+#     connected habitat. Overrides bridge_distance in frs_cluster().
 #   thresholds: false  — skip ALL CSV threshold inheritance for this rule
 
 BT:
@@ -96,11 +98,14 @@ SK:
     - stream
     - canal
     requires_connected: rearing
+    connected_distance_max: 3000
   - waterbody_type: R
     channel_width: [0, 9999]
     requires_connected: rearing
+    connected_distance_max: 3000
   - waterbody_type: L
     requires_connected: rearing
+    connected_distance_max: 3000
   rear:
   - waterbody_type: L
     lake_ha_min: 200
@@ -146,11 +151,14 @@ KO:
     - stream
     - canal
     requires_connected: rearing
+    connected_distance_max: 3000
   - waterbody_type: R
     channel_width: [0, 9999]
     requires_connected: rearing
+    connected_distance_max: 3000
   - waterbody_type: L
     requires_connected: rearing
+    connected_distance_max: 3000
   rear:
   - waterbody_type: L
     lake_ha_min: 200

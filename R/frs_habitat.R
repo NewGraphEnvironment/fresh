@@ -1126,11 +1126,14 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       logical(1)))
 
     if (has_rc && isTRUE(fp$cluster_spawning)) {
-      # Determine what label_cluster connects to from rules
+      # Determine what label_cluster connects to and extract
+      # connected_distance_max from the first matching rule
       rc_target <- NULL
-      for (rule in ps[["rules"]][["spawn"]]) {
+      rc_distance <- NULL
+      for (rule in spawn_rules) {
         if (!is.null(rule[["requires_connected"]])) {
           rc_target <- rule[["requires_connected"]]
+          rc_distance <- rule[["connected_distance_max"]]
           break
         }
       }
@@ -1139,8 +1142,14 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
           fp$cluster_spawn_direction
         bg <- if (is.na(fp$cluster_spawn_bridge_gradient)) 0.05 else
           fp$cluster_spawn_bridge_gradient
-        bd <- if (is.na(fp$cluster_spawn_bridge_distance)) 3000 else
+        # connected_distance_max from YAML overrides CSV bridge_distance
+        bd <- if (!is.null(rc_distance)) {
+          rc_distance
+        } else if (is.na(fp$cluster_spawn_bridge_distance)) {
+          3000
+        } else {
           fp$cluster_spawn_bridge_distance
+        }
         cm <- if (is.na(fp$cluster_spawn_confluence_m)) 10 else
           fp$cluster_spawn_confluence_m
         frs_cluster(conn, table, habitat,

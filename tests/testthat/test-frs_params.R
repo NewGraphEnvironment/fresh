@@ -398,6 +398,55 @@ test_that(".frs_rule_to_sql lake rule with explicit gradient still applies it", 
   expect_false(grepl("channel_width", sql))
 })
 
+test_that(".frs_load_rules accepts connected_distance_max with requires_connected", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn:",
+    "    - edge_types:",
+    "      - stream",
+    "      requires_connected: rearing",
+    "      connected_distance_max: 3000"), tmp)
+  expect_silent(rules <- .frs_load_rules(tmp))
+  expect_equal(rules$SK$spawn[[1]]$connected_distance_max, 3000)
+})
+
+test_that(".frs_load_rules errors on connected_distance_max without requires_connected", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn:",
+    "    - edge_types:",
+    "      - stream",
+    "      connected_distance_max: 3000"), tmp)
+  expect_error(.frs_load_rules(tmp), "connected_distance_max without requires_connected")
+})
+
+test_that(".frs_load_rules errors on non-numeric connected_distance_max", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn:",
+    "    - edge_types:",
+    "      - stream",
+    "      requires_connected: rearing",
+    "      connected_distance_max: far"), tmp)
+  expect_error(.frs_load_rules(tmp), "numeric scalar")
+})
+
+test_that("bundled YAML has connected_distance_max on SK spawn rules", {
+  csv <- system.file("testdata", "test_params.csv", package = "fresh")
+  params <- frs_params(csv = csv)
+  # SK might not be in test CSV — check bundled YAML directly
+  rules <- .frs_load_rules(system.file("extdata",
+    "parameters_habitat_rules.yaml", package = "fresh"))
+  expect_equal(rules$SK$spawn[[1]]$connected_distance_max, 3000)
+  expect_equal(rules$KO$spawn[[1]]$connected_distance_max, 3000)
+})
+
 test_that(".frs_validate_rule errors on bad gradient format", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))
