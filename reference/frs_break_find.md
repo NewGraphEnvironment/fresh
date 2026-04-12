@@ -17,6 +17,8 @@ frs_break_find(
   interval = 100L,
   distance = 100L,
   min_length = 0L,
+  classes = NULL,
+  blk_filter = TRUE,
   overwrite = TRUE
 )
 ```
@@ -65,6 +67,21 @@ frs_break_find(
   all islands — a 30m waterfall at 20% gradient is a real barrier). Set
   to `100` to restore pre-0.12.2 behavior where short steep sections
   were filtered out.
+
+- classes:
+
+  Named numeric vector or `NULL`. Gradient class lower bounds for
+  multi-class detection (matching bcfishpass v0.5.0). Names are class
+  labels (used in `gradient_class` column), values are lower gradient
+  bounds. When provided, `threshold` is ignored and all classes are
+  detected in one pass. Example:
+  `c("5" = 0.05, "7" = 0.07, "15" = 0.15, "25" = 0.25)`.
+
+- blk_filter:
+
+  Logical. If `TRUE` (default), only sample main flow lines
+  (`blue_line_key = watershed_key`). Matches bcfishpass. `FALSE` samples
+  all edge types including side channels.
 
 - overwrite:
 

@@ -59,6 +59,8 @@ each steep section, suitable for <code><a href="frs_break_apply.html">frs_break_
 <span>  interval <span class="op">=</span> <span class="fl">100L</span>,</span>
 <span>  distance <span class="op">=</span> <span class="fl">100L</span>,</span>
 <span>  min_length <span class="op">=</span> <span class="fl">0L</span>,</span>
+<span>  classes <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  blk_filter <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -105,6 +107,21 @@ computation at each vertex. Default <code>100</code>.</p></dd>
 Default <code>0</code> (keep all islands — a 30m waterfall at 20% gradient is
 a real barrier). Set to <code>100</code> to restore pre-0.12.2 behavior where
 short steep sections were filtered out.</p></dd>
+
+
+<dt id="arg-classes">classes<a class="anchor" aria-label="anchor" href="#arg-classes"></a></dt>
+<dd><p>Named numeric vector or <code>NULL</code>. Gradient class lower
+bounds for multi-class detection (matching bcfishpass v0.5.0).
+Names are class labels (used in <code>gradient_class</code> column), values
+are lower gradient bounds. When provided, <code>threshold</code> is ignored
+and all classes are detected in one pass.
+Example: <code>c("5" = 0.05, "7" = 0.07, "15" = 0.15, "25" = 0.25)</code>.</p></dd>
+
+
+<dt id="arg-blk-filter">blk_filter<a class="anchor" aria-label="anchor" href="#arg-blk-filter"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (default), only sample main
+flow lines (<code>blue_line_key = watershed_key</code>). Matches bcfishpass.
+<code>FALSE</code> samples all edge types including side channels.</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>

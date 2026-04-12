@@ -1079,8 +1079,13 @@ next steps.
 4.  **Work in atomic commits** — Each commit bundles code changes WITH
     checkbox updates in the planning files. The diff shows both what was
     done and the checkbox marking it done.
-5.  **Archive when complete** — Move `planning/active/` to
-    `planning/archive/` via `/planning-archive`.
+5.  **Code check before commit** — Run `/code-check` on staged diffs
+    before committing. Don’t mark a task done until the diff passes
+    review.
+6.  **Archive when complete** — Move `planning/active/` to
+    `planning/archive/` via `/planning-archive`. Write a README.md in
+    the archive directory with a one-paragraph outcome summary and
+    closing commit/PR ref — future sessions scan these to catch up fast.
 
 ## Atomic Commits (Critical)
 
