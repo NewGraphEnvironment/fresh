@@ -1205,12 +1205,15 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       label_cluster, habitat, sp_quoted))$n
   }
 
-  # Remove segments where the nearest connected segment is further
-  # than max_distance. Two distance measures:
-  #   Same-BLK: abs(DRM difference) — exact network distance.
-  #   Cross-BLK: ST_Distance on geometries — Euclidean approximation.
-  #     Underestimates network distance (straight line < river path)
-  #     so slightly more habitat survives than a true network cap.
+  # Remove segments that are DOWNSTREAM of rearing AND beyond the
+  # distance cap. Upstream spawning has no distance cap — limited by
+  # spawn-eligible contiguity (matching bcfishpass v0.5.0 SK logic).
+  #
+  # A segment is kept if ANY rearing segment satisfies:
+  #   Same-BLK upstream: s.drm >= r.drm (segment above rearing, any distance)
+  #   Same-BLK downstream within cap: s.drm < r.drm AND diff <= max
+  #   Cross-BLK upstream: fwa_upstream(s, r) (rearing is upstream, any distance)
+  #   Cross-BLK downstream within cap: NOT upstream AND Euclidean <= max
   .frs_db_execute(conn, sprintf(
     "UPDATE %s h SET %s = FALSE
      FROM %s s
@@ -1223,10 +1226,24 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
          WHERE hr.species_code = %s
            AND hr.%s IS TRUE
            AND (
+             -- Same-BLK: upstream of rearing (any distance)
              (r.blue_line_key = s.blue_line_key
-              AND abs(r.downstream_route_measure -
-                      s.downstream_route_measure) <= %s)
+              AND s.downstream_route_measure >= r.downstream_route_measure)
              OR
+             -- Same-BLK: downstream of rearing, within cap
+             (r.blue_line_key = s.blue_line_key
+              AND s.downstream_route_measure < r.downstream_route_measure
+              AND r.downstream_route_measure - s.downstream_route_measure <= %s)
+             OR
+             -- Cross-BLK: spawning upstream of rearing (any distance)
+             -- fwa_upstream(r, s) = TRUE when s is upstream of r
+             (r.blue_line_key != s.blue_line_key
+              AND s.wscode_ltree IS NOT NULL
+              AND r.wscode_ltree IS NOT NULL
+              AND fwa_upstream(r.wscode_ltree, r.localcode_ltree,
+                               s.wscode_ltree, s.localcode_ltree))
+             OR
+             -- Cross-BLK: downstream, within Euclidean cap
              (r.blue_line_key != s.blue_line_key
               AND ST_Distance(s.geom, r.geom) <= %s)
            )
