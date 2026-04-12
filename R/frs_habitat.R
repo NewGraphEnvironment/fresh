@@ -1205,12 +1205,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       label_cluster, habitat, sp_quoted))$n
   }
 
-  # Remove segments where the nearest connected segment is too far.
-  # Same-BLK: use absolute DRM difference.
-  # Cross-BLK: use fwa_upstream/fwa_downstream path — simplified to
-  # "exists a connected segment within max_distance on any BLK" via
-  # the same-BLK DRM check (covers the primary case: spawning
-  # downstream of a lake on the same stream).
+  # Remove segments where the nearest connected segment on the same
+  # blue_line_key is further than max_distance (via DRM difference).
+  # Cross-BLK distance is not computed — segments with no same-BLK
+  # connected segment within range are removed. This is correct for
+  # the primary case (SK spawning downstream of lake on the same
+  # stream) and conservative for cross-BLK cases.
   .frs_db_execute(conn, sprintf(
     "UPDATE %s h SET %s = FALSE
      FROM %s s
@@ -1222,19 +1222,9 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
          INNER JOIN %s hr ON r.id_segment = hr.id_segment
          WHERE hr.species_code = %s
            AND hr.%s IS TRUE
-           AND (
-             (r.blue_line_key = s.blue_line_key
-              AND abs(r.downstream_route_measure -
-                      s.downstream_route_measure) <= %s)
-             OR
-             (r.blue_line_key != s.blue_line_key
-              AND r.wscode_ltree IS NOT NULL
-              AND s.wscode_ltree IS NOT NULL
-              AND (fwa_upstream(s.wscode_ltree, s.localcode_ltree,
-                               r.wscode_ltree, r.localcode_ltree)
-                   OR fwa_upstream(r.wscode_ltree, r.localcode_ltree,
-                                  s.wscode_ltree, s.localcode_ltree)))
-           )
+           AND r.blue_line_key = s.blue_line_key
+           AND abs(r.downstream_route_measure -
+                   s.downstream_route_measure) <= %s
        )",
     habitat, label_cluster, table,
     sp_quoted, label_cluster,
