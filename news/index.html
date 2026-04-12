@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.7" id="fresh-0127">fresh 0.12.7<a class="anchor" aria-label="anchor" href="#fresh-0127"></a></h2>
+<p>Replace observations with barrier_overrides.</p>
+<ul><li>
+<code>barrier_overrides</code> parameter replaces <code>observations</code> on <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> and <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> — accepts a pre-computed table of <code>(blue_line_key, downstream_route_measure, species_code)</code> from link. Fresh skips matched barriers without counting, thresholds, or date filters (<a href="https://github.com/NewGraphEnvironment/fresh/issues/129" class="external-link">#129</a>)</li>
+<li>Remove observation counting SQL and <code>observation_*</code> columns from <code>parameters_fresh.csv</code> — fish passage interpretation belongs in link, not the network engine</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.6" id="fresh-0126">fresh 0.12.6<a class="anchor" aria-label="anchor" href="#fresh-0126"></a></h2>
 <p>Multi-class gradient barrier detection.</p>
