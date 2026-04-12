@@ -1,5 +1,29 @@
 # Changelog
 
+## fresh 0.13.0
+
+Distance filter, aoi fix, and measure rounding.
+
+- `connected_distance_max` distance filter now downstream-only —
+  upstream spawning has no distance cap, matching bcfishpass v0.5.0 SK
+  spawning logic. Uses DRM difference (same-BLK) and ST_Distance
+  Euclidean (cross-BLK)
+  ([\#133](https://github.com/NewGraphEnvironment/fresh/issues/133))
+- Fix `aoi` replacing `wsg` filter instead of being additive —
+  `frs_habitat(wsg = "ADMS", aoi = "edge_type != 6010")` now correctly
+  scopes to ADMS, not province-wide
+  ([\#141](https://github.com/NewGraphEnvironment/fresh/issues/141))
+- `measure_precision` parameter on
+  [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
+  and
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  — controls break measure rounding. Default `0` (integer, matching
+  bcfishpass). Breaks table rounded and deduped before splitting
+  ([\#135](https://github.com/NewGraphEnvironment/fresh/issues/135))
+- Auto-skip gradient/channel_width inheritance on
+  `waterbody_type: L`/`W` rules
+  ([\#131](https://github.com/NewGraphEnvironment/fresh/issues/131))
+
 ## fresh 0.12.9
 
 Post-cluster distance filter, measure rounding, and lake threshold
