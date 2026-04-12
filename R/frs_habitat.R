@@ -485,12 +485,11 @@ frs_habitat <- function(conn, wsg = NULL,
       .frs_db_execute(w_conn, sprintf(
         "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
         to_barriers, grad_tbl))
-      if (!is.null(wsg_code)) {
-        .frs_db_execute(w_conn, sprintf(
-          "DELETE FROM %s WHERE blue_line_key IN (
-             SELECT DISTINCT blue_line_key FROM %s)",
-          to_barriers, grad_tbl))
-      }
+      # Idempotent delete by BLK (works for both WSG and custom AOI)
+      .frs_db_execute(w_conn, sprintf(
+        "DELETE FROM %s WHERE blue_line_key IN (
+           SELECT DISTINCT blue_line_key FROM %s)",
+        to_barriers, grad_tbl))
       .frs_db_execute(w_conn, sprintf(
         "INSERT INTO %s SELECT * FROM %s",
         to_barriers, grad_tbl))
@@ -642,12 +641,10 @@ frs_habitat <- function(conn, wsg = NULL,
         DBI::dbExecute(w_conn, sprintf(
           "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
           to_barriers, grad_tbl))
-        if (!is.null(wsg_code)) {
-          DBI::dbExecute(w_conn, sprintf(
-            "DELETE FROM %s WHERE blue_line_key IN (
-               SELECT DISTINCT blue_line_key FROM %s)",
-            to_barriers, grad_tbl))
-        }
+        DBI::dbExecute(w_conn, sprintf(
+          "DELETE FROM %s WHERE blue_line_key IN (
+             SELECT DISTINCT blue_line_key FROM %s)",
+          to_barriers, grad_tbl))
         DBI::dbExecute(w_conn, sprintf(
           "INSERT INTO %s SELECT * FROM %s",
           to_barriers, grad_tbl))
