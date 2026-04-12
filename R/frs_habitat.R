@@ -1235,12 +1235,13 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
               AND s.downstream_route_measure < r.downstream_route_measure
               AND r.downstream_route_measure - s.downstream_route_measure <= %s)
              OR
-             -- Cross-BLK: upstream of rearing (any distance)
+             -- Cross-BLK: spawning upstream of rearing (any distance)
+             -- fwa_upstream(r, s) = TRUE when s is upstream of r
              (r.blue_line_key != s.blue_line_key
               AND s.wscode_ltree IS NOT NULL
               AND r.wscode_ltree IS NOT NULL
-              AND fwa_upstream(s.wscode_ltree, s.localcode_ltree,
-                               r.wscode_ltree, r.localcode_ltree))
+              AND fwa_upstream(r.wscode_ltree, r.localcode_ltree,
+                               s.wscode_ltree, s.localcode_ltree))
              OR
              -- Cross-BLK: downstream, within Euclidean cap
              (r.blue_line_key != s.blue_line_key
