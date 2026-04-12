@@ -195,7 +195,7 @@ frs_network_segment <- function(conn, aoi, to,
        WHERE a.ctid > b.ctid
          AND a.blue_line_key = b.blue_line_key
          AND a.downstream_route_measure = b.downstream_route_measure
-         AND a.label = b.label",
+         AND a.label IS NOT DISTINCT FROM b.label",
       breaks_tbl, breaks_tbl))
 
     # Enrich breaks with ltree for classify + index
