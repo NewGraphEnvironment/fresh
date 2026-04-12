@@ -134,7 +134,7 @@ frs_params <- function(conn = NULL,
   valid_predicates <- c("edge_types", "edge_types_explicit",
                         "waterbody_type", "lake_ha_min", "thresholds",
                         "gradient", "channel_width",
-                        "requires_connected")
+                        "requires_connected", "connected_distance_max")
 
   for (sp in names(raw)) {
     sp_block <- raw[[sp]]
@@ -257,6 +257,21 @@ frs_params <- function(conn = NULL,
       stop(sprintf(
         paste0("rules YAML %s/%s rule %d requires_connected must be ",
                "'spawning' or 'rearing'"),
+        sp, habitat, idx), call. = FALSE)
+    }
+  }
+
+  if (!is.null(rule[["connected_distance_max"]])) {
+    cdm <- rule[["connected_distance_max"]]
+    if (!is.numeric(cdm) || length(cdm) != 1) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d connected_distance_max must be a numeric scalar",
+        sp, habitat, idx), call. = FALSE)
+    }
+    if (is.null(rule[["requires_connected"]])) {
+      stop(sprintf(
+        paste0("rules YAML %s/%s rule %d has connected_distance_max without ",
+               "requires_connected"),
         sp, habitat, idx), call. = FALSE)
     }
   }
