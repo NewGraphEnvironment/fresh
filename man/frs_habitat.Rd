@@ -20,6 +20,7 @@ frs_habitat(
   gradient_recompute = TRUE,
   measure_precision = 0L,
   barrier_overrides = NULL,
+  to_barriers = NULL,
   params = NULL,
   params_fresh = NULL,
   workers = 1L,
@@ -98,6 +99,13 @@ of barrier overrides prepared by link via
 \code{downstream_route_measure}, \code{species_code}. When provided,
 matched barriers are excluded from per-species access gating.
 Default \code{NULL} (no overrides).}
+
+\item{to_barriers}{Character or \code{NULL}. Schema-qualified table for
+persisting gradient barriers. Includes \code{blue_line_key},
+\code{downstream_route_measure}, \code{gradient_class}, \code{label},
+\code{wscode_ltree}, \code{localcode_ltree}. Useful for link's
+\code{lnk_barrier_overrides()}. Default \code{NULL} (barriers dropped after
+segmentation).}
 
 \item{params}{Named list from \code{\link[=frs_params]{frs_params()}}, or \code{NULL} to use
 bundled \code{parameters_habitat_thresholds.csv} and rules YAML.}

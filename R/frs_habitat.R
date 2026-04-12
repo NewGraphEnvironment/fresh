@@ -52,6 +52,12 @@
 #'   gradient from DEM vertices after splitting segments. If `FALSE`,
 #'   child segments inherit the parent gradient. See
 #'   [frs_network_segment()] for details.
+#' @param to_barriers Character or `NULL`. Schema-qualified table for
+#'   persisting gradient barriers. Includes `blue_line_key`,
+#'   `downstream_route_measure`, `gradient_class`, `label`,
+#'   `wscode_ltree`, `localcode_ltree`. Useful for link's
+#'   `lnk_barrier_overrides()`. Default `NULL` (barriers dropped after
+#'   segmentation).
 #' @param barrier_overrides Character or `NULL`. Schema-qualified table
 #'   of barrier overrides prepared by link via
 #'   `lnk_barrier_overrides()`. Must have columns `blue_line_key`,
@@ -191,6 +197,7 @@ frs_habitat <- function(conn, wsg = NULL,
                         gradient_recompute = TRUE,
                         measure_precision = 0L,
                         barrier_overrides = NULL,
+                        to_barriers = NULL,
                         params = NULL,
                         params_fresh = NULL,
                         workers = 1L,
@@ -309,7 +316,8 @@ frs_habitat <- function(conn, wsg = NULL,
   # -- Per-job worker function -------------------------------------------------
   .run_job <- function(spec, conn_params, break_sources, breaks_gradient,
                        gradient_recompute, measure_precision, params,
-                       params_fresh, to_streams, to_habitat, verbose) {
+                       params_fresh, to_streams, to_habitat, to_barriers,
+                       verbose) {
     # Connect (parallel) or reuse (sequential)
     if (!is.null(conn_params)) {
       library(fresh)
@@ -470,6 +478,24 @@ frs_habitat <- function(conn, wsg = NULL,
         to_streams, streams_tbl))
     }
 
+    # 5b. Persist gradient barriers (if to_barriers provided)
+    if (!is.null(to_barriers)) {
+      # Enrich with ltree before persisting
+      .frs_enrich_breaks(w_conn, grad_tbl)
+      .frs_db_execute(w_conn, sprintf(
+        "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
+        to_barriers, grad_tbl))
+      if (!is.null(wsg_code)) {
+        .frs_db_execute(w_conn, sprintf(
+          "DELETE FROM %s WHERE blue_line_key IN (
+             SELECT DISTINCT blue_line_key FROM %s)",
+          to_barriers, grad_tbl))
+      }
+      .frs_db_execute(w_conn, sprintf(
+        "INSERT INTO %s SELECT * FROM %s",
+        to_barriers, grad_tbl))
+    }
+
     # 6. Cleanup working tables
     .frs_db_execute(w_conn, sprintf(
       "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_breaks")))
@@ -610,6 +636,23 @@ frs_habitat <- function(conn, wsg = NULL,
           "INSERT INTO %s SELECT * FROM %s", to_streams, streams_tbl))
       }
 
+      # Persist gradient barriers
+      if (!is.null(to_barriers)) {
+        .frs_enrich_breaks(w_conn, grad_tbl)
+        DBI::dbExecute(w_conn, sprintf(
+          "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
+          to_barriers, grad_tbl))
+        if (!is.null(wsg_code)) {
+          DBI::dbExecute(w_conn, sprintf(
+            "DELETE FROM %s WHERE blue_line_key IN (
+               SELECT DISTINCT blue_line_key FROM %s)",
+            to_barriers, grad_tbl))
+        }
+        DBI::dbExecute(w_conn, sprintf(
+          "INSERT INTO %s SELECT * FROM %s",
+          to_barriers, grad_tbl))
+      }
+
       DBI::dbExecute(w_conn, sprintf(
         "DROP TABLE IF EXISTS %s", paste0(streams_tbl, "_breaks")))
       for (tbl in barrier_tables) {
@@ -630,7 +673,7 @@ frs_habitat <- function(conn, wsg = NULL,
       measure_precision = measure_precision,
       barrier_overrides = barrier_overrides,
       params = params, params_fresh = params_fresh,
-      to_streams = to_streams, to_habitat = to_habitat,
+      to_streams = to_streams, to_habitat = to_habitat, to_barriers = to_barriers,
       gate = gate, label_block = label_block,
       verbose = verbose)[]
 
@@ -650,7 +693,7 @@ frs_habitat <- function(conn, wsg = NULL,
         gradient_recompute = gradient_recompute,
         measure_precision = measure_precision,
         params = params, params_fresh = params_fresh,
-        to_streams = to_streams, to_habitat = to_habitat,
+        to_streams = to_streams, to_habitat = to_habitat, to_barriers = to_barriers,
         verbose = verbose)
       if (verbose) {
         cat("  ", res$label, ": ", res$n_segments, " segs, ",

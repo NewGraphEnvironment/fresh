@@ -254,3 +254,73 @@ test_that("integration: wsg + aoi does not scan entire province", {
   expect_lt(n, 15000)
   expect_gt(n, 5000)
 })
+
+# --- Integration tests: to_barriers parameter ---
+
+test_that("integration: to_barriers persists gradient barriers table", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+
+  on.exit({
+    for (tbl in c("working.persist_barriers_143",
+                  "working.persist_barriers_143_s",
+                  "working.persist_barriers_143_h")) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+    }
+    DBI::dbDisconnect(conn)
+  })
+
+  frs_habitat(conn,
+    aoi = aoi, species = "BT", label = "b143",
+    to_streams = "working.persist_barriers_143_s",
+    to_habitat = "working.persist_barriers_143_h",
+    to_barriers = "working.persist_barriers_143",
+    verbose = FALSE)
+
+  # Barriers table should exist and have rows
+  n <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM working.persist_barriers_143")$n
+  expect_gt(n, 0)
+
+  # Should have expected columns
+  cols <- DBI::dbGetQuery(conn,
+    "SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'working' AND table_name = 'persist_barriers_143'
+     ORDER BY ordinal_position")$column_name
+  expect_true("blue_line_key" %in% cols)
+  expect_true("downstream_route_measure" %in% cols)
+  expect_true("gradient_class" %in% cols)
+  expect_true("label" %in% cols)
+  expect_true("wscode_ltree" %in% cols)
+  expect_true("localcode_ltree" %in% cols)
+})
+
+test_that("integration: NULL to_barriers does not persist", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+
+  on.exit({
+    DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.persist_null_143_s CASCADE")
+    DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.persist_null_143_h CASCADE")
+    DBI::dbDisconnect(conn)
+  })
+
+  frs_habitat(conn,
+    aoi = aoi, species = "BT", label = "n143",
+    to_streams = "working.persist_null_143_s",
+    to_habitat = "working.persist_null_143_h",
+    to_barriers = NULL,
+    verbose = FALSE)
+
+  # No barriers table should exist
+  exists <- DBI::dbGetQuery(conn,
+    "SELECT EXISTS (
+       SELECT 1 FROM information_schema.tables
+       WHERE table_schema = 'working' AND table_name = 'barriers_n143_gradient'
+     ) AS e")$e
+  expect_false(exists)
+})
