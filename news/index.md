@@ -1,5 +1,19 @@
 # Changelog
 
+## fresh 0.13.3
+
+Two-phase connected spawning and multi-label breaks.
+
+- Two-phase connected spawning for lake-rearing species (SK, KO)
+  matching bcfishpass v0.5.0: downstream trace from lake outlets (3km
+  cap, gradient stop) + upstream cluster with lake polygon proximity
+  (`ST_DWithin`). Auto-dispatched when rearing rules include
+  `waterbody_type: L`
+  ([\#147](https://github.com/NewGraphEnvironment/fresh/issues/147))
+- Multiple labels per break position preserved — a gradient_15 and a
+  falls at the same measure both survive in `streams_breaks`
+  ([\#145](https://github.com/NewGraphEnvironment/fresh/issues/145))
+
 ## fresh 0.13.2
 
 Preserve multiple labels per break position.

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,12 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.13.3" id="fresh-0133">fresh 0.13.3<a class="anchor" aria-label="anchor" href="#fresh-0133"></a></h2>
+<p>Two-phase connected spawning and multi-label breaks.</p>
+<ul><li>Two-phase connected spawning for lake-rearing species (SK, KO) matching bcfishpass v0.5.0: downstream trace from lake outlets (3km cap, gradient stop) + upstream cluster with lake polygon proximity (<code>ST_DWithin</code>). Auto-dispatched when rearing rules include <code>waterbody_type: L</code> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/147" class="external-link">#147</a>)</li>
+<li>Multiple labels per break position preserved — a gradient_15 and a falls at the same measure both survive in <code>streams_breaks</code> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/145" class="external-link">#145</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.2" id="fresh-0132">fresh 0.13.2<a class="anchor" aria-label="anchor" href="#fresh-0132"></a></h2>
 <p>Preserve multiple labels per break position.</p>
