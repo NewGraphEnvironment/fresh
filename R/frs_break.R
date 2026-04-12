@@ -23,6 +23,15 @@
 #'   Default `0` (keep all islands — a 30m waterfall at 20% gradient is
 #'   a real barrier). Set to `100` to restore pre-0.12.2 behavior where
 #'   short steep sections were filtered out.
+#' @param classes Named numeric vector or `NULL`. Gradient class lower
+#'   bounds for multi-class detection (matching bcfishpass v0.5.0).
+#'   Names are class labels (used in `gradient_class` column), values
+#'   are lower gradient bounds. When provided, `threshold` is ignored
+#'   and all classes are detected in one pass.
+#'   Example: `c("5" = 0.05, "7" = 0.07, "15" = 0.15, "25" = 0.25)`.
+#' @param blk_filter Logical. If `TRUE` (default), only sample main
+#'   flow lines (`blue_line_key = watershed_key`). Matches bcfishpass.
+#'   `FALSE` samples all edge types including side channels.
 #' @param overwrite Logical. If `TRUE`, drop `to` before creating.
 #'   Default `TRUE`.
 #'
@@ -67,12 +76,17 @@ frs_break_find <- function(conn, table, to = "working.breaks",
                            attribute = NULL, threshold = NULL,
                            interval = 100L, distance = 100L,
                            min_length = 0L,
+                           classes = NULL,
+                           blk_filter = TRUE,
                            overwrite = TRUE) {
   .frs_validate_identifier(table, "source table")
   .frs_validate_identifier(to, "destination table")
 
-  if (is.null(attribute) || is.null(threshold)) {
-    stop("attribute and threshold are required", call. = FALSE)
+  if (is.null(attribute)) {
+    stop("attribute is required", call. = FALSE)
+  }
+  if (is.null(threshold) && is.null(classes)) {
+    stop("threshold or classes is required", call. = FALSE)
   }
 
   if (overwrite) {
@@ -80,45 +94,70 @@ frs_break_find <- function(conn, table, to = "working.breaks",
   }
 
   .frs_break_find_attribute(conn, table, to, attribute, threshold,
-                             interval, distance, min_length)
+                             interval, distance, min_length,
+                             classes, blk_filter)
 
   invisible(conn)
 }
 
 
-#' Find gradient breaks using island detection
+#' Find gradient breaks using multi-class island detection
 #'
 #' Computes gradient at every FWA vertex over a `distance` metre
-#' upstream window. Groups consecutive above-threshold vertices into
-#' "islands" (minimum `distance` metres long) and creates one break
-#' at the entry of each island — where gradient first exceeds the
-#' threshold for a sustained section.
+#' upstream window, assigns each vertex to a gradient class, and
+#' groups consecutive same-class vertices into islands. Places one
+#' barrier at the entry of each class island.
 #'
-#' Adapted from bcfishpass `gradient_barriers_load.sql` island
-#' approach. Entry-only breaks are appropriate for access barriers
-#' (everything upstream of the entry is blocked). For habitat
-#' classification, segments are classified by their own gradient
-#' attribute, not by break presence.
+#' Adapted from bcfishpass `gradient_barriers_load.sql`. Class-based
+#' detection catches transitions WITHIN a steep section (e.g. where
+#' gradient jumps from 15% to 25%), which boolean above/below misses.
+#'
+#' When `threshold` is provided (legacy single-threshold mode), falls
+#' back to boolean detection for backward compatibility.
 #'
 #' @param conn DBI connection.
 #' @param table Working streams table (for BLK list).
 #' @param to Output breaks table name.
 #' @param attribute Column name (currently only "gradient" supported).
-#' @param threshold Numeric. Gradient threshold.
+#' @param threshold Numeric or NULL. Single threshold for boolean
+#'   mode (legacy). NULL uses multi-class mode via `classes`.
 #' @param interval Not used (kept for API compatibility).
 #' @param distance Integer. Upstream window in metres for gradient
 #'   computation. Default 100.
 #' @param min_length Integer. Minimum island length to keep. Default 0.
+#' @param classes Named numeric vector or NULL. Gradient class lower
+#'   bounds. Names are the class labels (used in `gradient_class` column).
+#'   Default bcfishpass v0.5.0 classes. NULL falls back to
+#'   single-threshold mode.
+#' @param blk_filter Logical. If TRUE, only sample main flow lines
+#'   (`blue_line_key = watershed_key`). Default TRUE (matches
+#'   bcfishpass). FALSE samples all edge types.
 #' @noRd
 .frs_break_find_attribute <- function(conn, table, to, attribute, threshold,
-                                      interval, distance, min_length) {
+                                      interval, distance, min_length,
+                                      classes = NULL, blk_filter = TRUE) {
   .frs_validate_identifier(attribute, "attribute column")
-  stopifnot(is.numeric(threshold), length(threshold) == 1)
   stopifnot(is.numeric(distance), length(distance) == 1)
   stopifnot(is.numeric(min_length), length(min_length) == 1)
 
   dist <- as.integer(distance)
   min_len <- as.integer(min_length)
+
+  # Multi-class mode: build CASE statement from classes vector
+  if (!is.null(classes) && is.null(threshold)) {
+    .frs_break_find_multiclass(conn, table, to, dist, min_len,
+                               classes, blk_filter)
+    return(invisible(NULL))
+  }
+
+  # Legacy single-threshold mode
+  stopifnot(is.numeric(threshold), length(threshold) == 1)
+
+  blk_where <- if (isTRUE(blk_filter)) {
+    "AND s.blue_line_key = s.watershed_key"
+  } else {
+    ""
+  }
 
   sql <- sprintf(
     "CREATE TABLE %s AS
@@ -126,7 +165,6 @@ frs_break_find <- function(conn, table, to = "working.breaks",
        SELECT DISTINCT blue_line_key FROM %s
      ),
 
-     -- Gradient at every vertex over %dm upstream window
      vertex_grades AS (
        SELECT
          sv.blue_line_key,
@@ -145,6 +183,7 @@ frs_break_find <- function(conn, table, to = "working.breaks",
          FROM whse_basemapping.fwa_stream_networks_sp s
          WHERE s.blue_line_key IN (SELECT blue_line_key FROM working_blks)
            AND s.edge_type IN (1000,1050,1100,1150,1250,1350,1410,2000,2300)
+           %s
        ) sv
        INNER JOIN whse_basemapping.fwa_stream_networks_sp s2
          ON sv.blue_line_key = s2.blue_line_key
@@ -153,15 +192,12 @@ frs_break_find <- function(conn, table, to = "working.breaks",
        WHERE s2.edge_type != 6010
      ),
 
-     -- Flag above threshold
      flagged AS (
        SELECT blue_line_key, downstream_route_measure,
          CASE WHEN gradient > %s THEN TRUE ELSE FALSE END AS above
        FROM vertex_grades
      ),
 
-     -- Group consecutive above-threshold vertices into islands
-     -- via lag/count window (bcfishpass pattern)
      islands AS (
        SELECT
          blue_line_key,
@@ -186,7 +222,6 @@ frs_break_find <- function(conn, table, to = "working.breaks",
        GROUP BY blue_line_key, grp
      )
 
-     -- Entry point of each island >= minimum length
      SELECT DISTINCT
        blue_line_key,
        downstream_route_measure,
@@ -195,10 +230,156 @@ frs_break_find <- function(conn, table, to = "working.breaks",
      FROM islands
      WHERE island_length >= %d",
     to, table,
-    dist, dist, dist, dist, dist,
+    dist, dist, blk_where, dist, dist,
     .frs_sql_num(threshold),
     min_len
   )
+  .frs_db_execute(conn, sql)
+}
+
+
+#' Multi-class gradient barrier detection
+#'
+#' One-pass class-based approach matching bcfishpass v0.5.0. Tags
+#' every vertex with a gradient class, groups consecutive same-class
+#' vertices into islands, places one barrier at each class transition.
+#'
+#' @noRd
+.frs_break_find_multiclass <- function(conn, table, to, dist, min_len,
+                                       classes, blk_filter) {
+  # Build CASE statement from classes vector
+  # classes is named numeric: c("5" = 0.05, "7" = 0.07, ...)
+  # Sort by value descending so highest class matches first
+  cls <- sort(classes, decreasing = TRUE)
+  cls_names <- names(cls)
+  cls_vals <- unname(cls)
+
+  case_parts <- character(0)
+  for (i in seq_along(cls)) {
+    if (i < length(cls)) {
+      # Not the highest class: bounded range
+      case_parts <- c(case_parts, sprintf(
+        "WHEN gradient >= %s AND gradient < %s THEN %s",
+        .frs_sql_num(cls_vals[i]),
+        .frs_sql_num(cls_vals[i - 1]),
+        cls_names[i]))
+    } else {
+      # Lowest remaining class — everything below the next lower bound
+      # Actually this is the highest after sort desc... let me re-think
+    }
+  }
+
+  # Simpler: sort ascending, build ranges with explicit upper bounds
+  cls <- sort(classes)
+  cls_names <- names(cls)
+  cls_vals <- unname(cls)
+  n <- length(cls)
+
+  case_parts <- character(0)
+  for (i in seq_len(n)) {
+    if (i < n) {
+      case_parts <- c(case_parts, sprintf(
+        "WHEN gradient >= %s AND gradient < %s THEN %s",
+        .frs_sql_num(cls_vals[i]),
+        .frs_sql_num(cls_vals[i + 1]),
+        cls_names[i]))
+    } else {
+      # Last (highest) class: open-ended
+      case_parts <- c(case_parts, sprintf(
+        "WHEN gradient >= %s THEN %s",
+        .frs_sql_num(cls_vals[i]),
+        cls_names[i]))
+    }
+  }
+
+  case_sql <- paste("CASE", paste(case_parts, collapse = " "),
+                    "ELSE 0 END")
+
+  blk_where <- if (isTRUE(blk_filter)) {
+    "AND s.blue_line_key = s.watershed_key"
+  } else {
+    ""
+  }
+
+  sql <- sprintf(
+    "CREATE TABLE %s AS
+     WITH working_blks AS (
+       SELECT DISTINCT blue_line_key FROM %s
+     ),
+
+     vertex_grades AS (
+       SELECT
+         sv.blue_line_key,
+         ROUND(sv.downstream_route_measure::numeric, 2) AS downstream_route_measure,
+         ROUND(((ST_Z((ST_Dump(ST_LocateAlong(
+           s2.geom, sv.downstream_route_measure + %d
+         ))).geom) - sv.elevation) / %d)::numeric, 4) AS gradient
+       FROM (
+         SELECT
+           s.blue_line_key,
+           ((ST_LineLocatePoint(s.geom,
+             ST_PointN(s.geom, generate_series(1, ST_NPoints(s.geom) - 1)))
+             * s.length_metre) + s.downstream_route_measure
+           ) AS downstream_route_measure,
+           ST_Z(ST_PointN(s.geom, generate_series(1, ST_NPoints(s.geom) - 1))) AS elevation
+         FROM whse_basemapping.fwa_stream_networks_sp s
+         WHERE s.blue_line_key IN (SELECT blue_line_key FROM working_blks)
+           AND s.edge_type IN (1000,1050,1100,1150,1250,1350,1410,2000,2300)
+           %s
+       ) sv
+       INNER JOIN whse_basemapping.fwa_stream_networks_sp s2
+         ON sv.blue_line_key = s2.blue_line_key
+         AND sv.downstream_route_measure + %d >= s2.downstream_route_measure
+         AND sv.downstream_route_measure + %d < s2.upstream_route_measure
+       WHERE s2.edge_type != 6010
+     ),
+
+     gradeclass AS (
+       SELECT
+         blue_line_key,
+         downstream_route_measure,
+         %s AS grade_class
+       FROM vertex_grades
+     ),
+
+     islands AS (
+       SELECT
+         blue_line_key,
+         min(downstream_route_measure) AS downstream_route_measure,
+         grade_class AS gradient_class,
+         max(downstream_route_measure) - min(downstream_route_measure) AS island_length
+       FROM (
+         SELECT blue_line_key, downstream_route_measure, grade_class,
+           count(step OR NULL) OVER (
+             ORDER BY blue_line_key, downstream_route_measure
+           ) AS grp
+         FROM (
+           SELECT blue_line_key, downstream_route_measure, grade_class,
+             lag(grade_class, 1, grade_class) OVER (
+               ORDER BY blue_line_key, downstream_route_measure
+             ) <> grade_class AS step
+           FROM gradeclass
+         ) sub1
+         WHERE grade_class != 0
+       ) sub2
+       GROUP BY blue_line_key, grade_class, grp
+     )
+
+     SELECT
+       i.blue_line_key,
+       i.downstream_route_measure,
+       max(i.gradient_class) AS gradient_class,
+       'gradient' AS label,
+       'attribute' AS source
+     FROM islands i
+     WHERE i.island_length >= %d
+     GROUP BY i.blue_line_key, i.downstream_route_measure",
+    to, table,
+    dist, dist, blk_where, dist, dist,
+    case_sql,
+    min_len
+  )
+
   .frs_db_execute(conn, sql)
 }
 

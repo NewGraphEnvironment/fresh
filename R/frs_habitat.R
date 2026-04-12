@@ -381,18 +381,31 @@ frs_habitat <- function(conn, wsg = NULL,
     all_sources <- if (!is.null(break_sources)) break_sources else list()
     barrier_tables <- character(0)
 
-    for (thr in all_thresholds) {
-      thr_label <- .frs_gradient_label(thr)
-      thr_tbl <- sprintf("working.barriers_%s_%s",
-                         job_label, sub("^gradient_", "", thr_label))
-      frs_break_find(w_conn, tmp_tbl,
-        attribute = "gradient", threshold = thr,
-        to = thr_tbl)
-      all_sources <- c(all_sources, list(list(
-        table = thr_tbl,
-        label = thr_label)))
-      barrier_tables <- c(barrier_tables, thr_tbl)
-    }
+    # Build gradient class breaks from all_thresholds
+    # Each threshold becomes a class boundary. Names are the gradient_NNNN
+    # labels used for accessibility parsing.
+    grad_classes <- all_thresholds
+    names(grad_classes) <- vapply(all_thresholds, function(t) {
+      as.character(as.integer(round(t * 10000)))
+    }, character(1))
+
+    grad_tbl <- sprintf("working.barriers_%s_gradient", job_label)
+    frs_break_find(w_conn, tmp_tbl,
+      attribute = "gradient",
+      classes = grad_classes,
+      to = grad_tbl)
+
+    # Add gradient_NNNN label column based on gradient_class
+    .frs_db_execute(w_conn, sprintf(
+      "ALTER TABLE %s ADD COLUMN IF NOT EXISTS label text", grad_tbl))
+    .frs_db_execute(w_conn, sprintf(
+      "UPDATE %s SET label = 'gradient_' || lpad(gradient_class::text, 4, '0')",
+      grad_tbl))
+
+    all_sources <- c(all_sources, list(list(
+      table = grad_tbl,
+      label_col = "label")))
+    barrier_tables <- c(barrier_tables, grad_tbl)
 
     .frs_db_execute(w_conn, sprintf("DROP TABLE IF EXISTS %s", tmp_tbl))
 
@@ -526,17 +539,28 @@ frs_habitat <- function(conn, wsg = NULL,
 
       all_sources <- if (!is.null(break_sources)) break_sources else list()
       barrier_tables <- character(0)
-      for (thr in all_thresholds) {
-        thr_label <- .frs_gradient_label(thr)
-        thr_tbl <- sprintf("working.barriers_%s_%s",
-                           job_label, sub("^gradient_", "", thr_label))
-        frs_break_find(w_conn, tmp_tbl,
-          attribute = "gradient", threshold = thr, to = thr_tbl)
-        all_sources <- c(all_sources, list(list(
-          table = thr_tbl,
-          label = thr_label)))
-        barrier_tables <- c(barrier_tables, thr_tbl)
-      }
+
+      grad_classes <- all_thresholds
+      names(grad_classes) <- vapply(all_thresholds, function(t) {
+        as.character(as.integer(round(t * 10000)))
+      }, character(1))
+
+      grad_tbl <- sprintf("working.barriers_%s_gradient", job_label)
+      frs_break_find(w_conn, tmp_tbl,
+        attribute = "gradient",
+        classes = grad_classes,
+        to = grad_tbl)
+
+      DBI::dbExecute(w_conn, sprintf(
+        "ALTER TABLE %s ADD COLUMN IF NOT EXISTS label text", grad_tbl))
+      DBI::dbExecute(w_conn, sprintf(
+        "UPDATE %s SET label = 'gradient_' || lpad(gradient_class::text, 4, '0')",
+        grad_tbl))
+
+      all_sources <- c(all_sources, list(list(
+        table = grad_tbl,
+        label_col = "label")))
+      barrier_tables <- c(barrier_tables, grad_tbl)
 
       DBI::dbExecute(w_conn, sprintf("DROP TABLE IF EXISTS %s", tmp_tbl))
 
