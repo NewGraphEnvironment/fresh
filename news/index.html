@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.6" id="fresh-0126">fresh 0.12.6<a class="anchor" aria-label="anchor" href="#fresh-0126"></a></h2>
+<p>Multi-class gradient barrier detection.</p>
+<ul><li>
+<code>frs_break_find(classes =)</code> — single-pass multi-class gradient detection matching bcfishpass v0.5.0. Tags every vertex with its gradient class, groups consecutive same-class vertices into islands, places one barrier at each class transition. Catches transitions WITHIN steep sections that boolean above/below missed (<a href="https://github.com/NewGraphEnvironment/fresh/issues/127" class="external-link">#127</a>)</li>
+<li>
+<code>frs_break_find(blk_filter =)</code> — restrict to main flow lines (<code>blue_line_key = watershed_key</code>). Default TRUE (matches bcfishpass)</li>
+<li>
+<code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> now calls <code><a href="../reference/frs_break_find.html">frs_break_find()</a></code> once with all gradient classes instead of looping per threshold. Simpler, faster, more barriers detected.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.5" id="fresh-0125">fresh 0.12.5<a class="anchor" aria-label="anchor" href="#fresh-0125"></a></h2>
 <p>Observation-based access override.</p>

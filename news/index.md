@@ -1,5 +1,23 @@
 # Changelog
 
+## fresh 0.12.6
+
+Multi-class gradient barrier detection.
+
+- `frs_break_find(classes =)` — single-pass multi-class gradient
+  detection matching bcfishpass v0.5.0. Tags every vertex with its
+  gradient class, groups consecutive same-class vertices into islands,
+  places one barrier at each class transition. Catches transitions
+  WITHIN steep sections that boolean above/below missed
+  ([\#127](https://github.com/NewGraphEnvironment/fresh/issues/127))
+- `frs_break_find(blk_filter =)` — restrict to main flow lines
+  (`blue_line_key = watershed_key`). Default TRUE (matches bcfishpass)
+- [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  now calls
+  [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
+  once with all gradient classes instead of looping per threshold.
+  Simpler, faster, more barriers detected.
+
 ## fresh 0.12.5
 
 Observation-based access override.
