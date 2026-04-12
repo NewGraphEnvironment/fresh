@@ -249,27 +249,7 @@ frs_break_find <- function(conn, table, to = "working.breaks",
                                        classes, blk_filter) {
   # Build CASE statement from classes vector
   # classes is named numeric: c("5" = 0.05, "7" = 0.07, ...)
-  # Sort by value descending so highest class matches first
-  cls <- sort(classes, decreasing = TRUE)
-  cls_names <- names(cls)
-  cls_vals <- unname(cls)
-
-  case_parts <- character(0)
-  for (i in seq_along(cls)) {
-    if (i < length(cls)) {
-      # Not the highest class: bounded range
-      case_parts <- c(case_parts, sprintf(
-        "WHEN gradient >= %s AND gradient < %s THEN %s",
-        .frs_sql_num(cls_vals[i]),
-        .frs_sql_num(cls_vals[i - 1]),
-        cls_names[i]))
-    } else {
-      # Lowest remaining class — everything below the next lower bound
-      # Actually this is the highest after sort desc... let me re-think
-    }
-  }
-
-  # Simpler: sort ascending, build ranges with explicit upper bounds
+  # Sort ascending, each class spans from its value to the next class
   cls <- sort(classes)
   cls_names <- names(cls)
   cls_vals <- unname(cls)
@@ -351,12 +331,14 @@ frs_break_find <- function(conn, table, to = "working.breaks",
        FROM (
          SELECT blue_line_key, downstream_route_measure, grade_class,
            count(step OR NULL) OVER (
-             ORDER BY blue_line_key, downstream_route_measure
+             PARTITION BY blue_line_key
+             ORDER BY downstream_route_measure
            ) AS grp
          FROM (
            SELECT blue_line_key, downstream_route_measure, grade_class,
              lag(grade_class, 1, grade_class) OVER (
-               ORDER BY blue_line_key, downstream_route_measure
+               PARTITION BY blue_line_key
+               ORDER BY downstream_route_measure
              ) <> grade_class AS step
            FROM gradeclass
          ) sub1
