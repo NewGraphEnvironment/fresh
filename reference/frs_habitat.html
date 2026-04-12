@@ -64,7 +64,7 @@ habitat via <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a>
 <span>  label_block <span class="op">=</span> <span class="st">"blocked"</span>,</span>
 <span>  rules <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  gradient_recompute <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  observations <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  barrier_overrides <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  params <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  params_fresh <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">1L</span>,</span>
@@ -158,16 +158,13 @@ child segments inherit the parent gradient. See
 <code><a href="frs_network_segment.html">frs_network_segment()</a></code> for details.</p></dd>
 
 
-<dt id="arg-observations">observations<a class="anchor" aria-label="anchor" href="#arg-observations"></a></dt>
-<dd><p>Character or <code>NULL</code>. Schema-qualified table of
-fish observations (e.g. <code>"bcfishobs.observations"</code>). Must have
-columns <code>species_code</code>, <code>blue_line_key</code>,
-<code>downstream_route_measure</code>, <code>observation_date</code>. When provided,
-barriers with enough qualifying observations upstream are
-excluded from per-species access gating. Thresholds come from
-<code>parameters_fresh.csv</code> (<code>observation_threshold</code>,
-<code>observation_date_min</code>, <code>observation_buffer_m</code>,
-<code>observation_species</code>). Default <code>NULL</code> (no observation override).</p></dd>
+<dt id="arg-barrier-overrides">barrier_overrides<a class="anchor" aria-label="anchor" href="#arg-barrier-overrides"></a></dt>
+<dd><p>Character or <code>NULL</code>. Schema-qualified table
+of barrier overrides prepared by link via
+<code>lnk_barrier_overrides()</code>. Must have columns <code>blue_line_key</code>,
+<code>downstream_route_measure</code>, <code>species_code</code>. When provided,
+matched barriers are excluded from per-species access gating.
+Default <code>NULL</code> (no overrides).</p></dd>
 
 
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
