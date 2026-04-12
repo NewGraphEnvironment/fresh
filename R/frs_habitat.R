@@ -1181,8 +1181,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       logical(1)))
 
     if (has_rc && isTRUE(fp$cluster_spawning)) {
-      # Determine what label_cluster connects to and extract
-      # connected_distance_max from the first matching rule
+      # Extract connected_distance_max and bridge_gradient from rules
       rc_target <- NULL
       rc_distance <- NULL
       for (rule in spawn_rules) {
@@ -1193,34 +1192,41 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
         }
       }
       if (!is.null(rc_target)) {
-        dir <- if (is.na(fp$cluster_spawn_direction)) "both" else
-          fp$cluster_spawn_direction
         bg <- if (is.na(fp$cluster_spawn_bridge_gradient)) 0.05 else
           fp$cluster_spawn_bridge_gradient
-        # connected_distance_max from YAML overrides CSV bridge_distance
-        bd <- if (!is.null(rc_distance)) {
-          rc_distance
-        } else if (is.na(fp$cluster_spawn_bridge_distance)) {
-          3000
-        } else {
-          fp$cluster_spawn_bridge_distance
-        }
-        cm <- if (is.na(fp$cluster_spawn_confluence_m)) 10 else
-          fp$cluster_spawn_confluence_m
-        frs_cluster(conn, table, habitat,
-          label_cluster = "spawning", label_connect = rc_target,
-          species = sp, direction = dir,
-          bridge_gradient = bg, bridge_distance = bd,
-          confluence_m = cm, verbose = verbose)
+        bd <- if (!is.null(rc_distance)) rc_distance else
+          if (is.na(fp$cluster_spawn_bridge_distance)) 3000 else
+            fp$cluster_spawn_bridge_distance
 
-        # Post-cluster distance filter: remove classified segments
-        # further than connected_distance_max from the nearest
-        # connected segment.
-        if (!is.null(rc_distance)) {
-          .frs_distance_filter(conn, table, habitat,
+        # Detect lake-connected rearing: use two-phase approach
+        rear_rules <- ps[["rules"]][["rear"]]
+        has_lake_rear <- length(rear_rules) > 0 && any(vapply(
+          rear_rules,
+          function(r) identical(r[["waterbody_type"]], "L"),
+          logical(1)))
+
+        if (has_lake_rear) {
+          # Two-phase: downstream trace + upstream lake proximity
+          .frs_connected_spawning(conn, table, habitat,
+            species = sp, bridge_gradient = bg,
+            distance_max = bd, verbose = verbose)
+        } else {
+          # Generic cluster approach for non-lake rearing
+          dir <- if (is.na(fp$cluster_spawn_direction)) "both" else
+            fp$cluster_spawn_direction
+          cm <- if (is.na(fp$cluster_spawn_confluence_m)) 10 else
+            fp$cluster_spawn_confluence_m
+          frs_cluster(conn, table, habitat,
             label_cluster = "spawning", label_connect = rc_target,
-            species = sp, max_distance = rc_distance,
-            verbose = verbose)
+            species = sp, direction = dir,
+            bridge_gradient = bg, bridge_distance = bd,
+            confluence_m = cm, verbose = verbose)
+          if (!is.null(rc_distance)) {
+            .frs_distance_filter(conn, table, habitat,
+              label_cluster = "spawning", label_connect = rc_target,
+              species = sp, max_distance = rc_distance,
+              verbose = verbose)
+          }
         }
       }
     }
@@ -1312,5 +1318,156 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     cat("  ", species, ": ", n_before - n_after,
         " beyond ", max_distance, "m removed (",
         n_after, " ", label_cluster, " remaining)\n", sep = "")
+  }
+}
+
+
+#' Two-phase connected spawning for lake-rearing species
+#'
+#' Replaces the generic frs_cluster approach for species where
+#' `requires_connected: rearing` targets lake-type rearing (SK, KO).
+#'
+#' Phase 1 (downstream): trace downstream from rearing lake outlets
+#' via `fwa_downstreamtrace()`, cap at `distance_max`, stop at first
+#' segment with gradient > `bridge_gradient`. Mainstem only.
+#'
+#' Phase 2 (upstream): find spawn-eligible segments upstream of
+#' rearing via `FWA_Upstream()`, cluster with `ST_ClusterDBSCAN`,
+#' keep only clusters within 2m of a qualifying lake polygon
+#' (`fwa_lakes_poly` with `area_ha >= lake_ha_min`).
+#'
+#' @noRd
+.frs_connected_spawning <- function(conn, table, habitat,
+                                    species, bridge_gradient = 0.05,
+                                    distance_max = 3000,
+                                    lake_ha_min = 200,
+                                    verbose = TRUE) {
+  sp_quoted <- .frs_quote_string(species)
+  bg <- .frs_sql_num(bridge_gradient)
+  dm <- .frs_sql_num(distance_max)
+  lhm <- .frs_sql_num(lake_ha_min)
+
+  n_before <- 0L
+  if (verbose) {
+    n_before <- DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*) FILTER (WHERE spawning)::int AS n FROM %s
+       WHERE species_code = %s", habitat, sp_quoted))$n
+  }
+
+  # Build a temp table of qualifying segment IDs from both phases.
+  # Then set spawning = FALSE for segments NOT in the temp table.
+  # This preserves spawn thresholds from frs_habitat_classify().
+  qual_tbl <- sprintf("pg_temp.frs_qual_spawn_%s", tolower(species))
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", qual_tbl))
+  .frs_db_execute(conn, sprintf("CREATE TEMP TABLE %s (id_segment integer)",
+                                qual_tbl))
+
+  # Phase 1: Downstream — trace from rearing lake outlets,
+  # cap at distance_max, stop at first gradient > bridge_gradient
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (id_segment)
+     WITH lake_outlets AS (
+       SELECT DISTINCT ON (s2.waterbody_key)
+         s2.blue_line_key, s2.downstream_route_measure
+       FROM %s s2
+       INNER JOIN %s hr ON s2.id_segment = hr.id_segment
+       WHERE hr.species_code = %s AND hr.rearing IS TRUE
+       ORDER BY s2.waterbody_key, s2.downstream_route_measure ASC
+     ),
+     downstream AS (
+       SELECT lo.blue_line_key AS lake_blk,
+         t.linear_feature_id, t.gradient, t.wscode,
+         t.downstream_route_measure,
+         -t.length_metre + SUM(t.length_metre) OVER (
+           PARTITION BY lo.blue_line_key
+           ORDER BY t.wscode DESC, t.downstream_route_measure DESC
+         ) AS dist_to_lake
+       FROM lake_outlets lo
+       CROSS JOIN LATERAL whse_basemapping.fwa_downstreamtrace(
+         lo.blue_line_key, lo.downstream_route_measure) t
+       WHERE t.blue_line_key = t.watershed_key
+     ),
+     downstream_capped AS (
+       SELECT row_number() OVER (
+         PARTITION BY lake_blk
+         ORDER BY wscode DESC, downstream_route_measure DESC
+       ) AS rn, *
+       FROM downstream WHERE dist_to_lake < %s
+     ),
+     nearest_barrier AS (
+       SELECT DISTINCT ON (lake_blk) *
+       FROM downstream_capped WHERE gradient > %s
+       ORDER BY lake_blk, wscode DESC, downstream_route_measure DESC
+     ),
+     valid_downstream AS (
+       SELECT d.linear_feature_id FROM downstream_capped d
+       LEFT JOIN nearest_barrier nb ON d.lake_blk = nb.lake_blk
+       WHERE nb.rn IS NULL OR d.rn < nb.rn
+     )
+     SELECT seg.id_segment FROM %s seg
+     WHERE seg.linear_feature_id IN (
+       SELECT linear_feature_id FROM valid_downstream)",
+    qual_tbl, table, habitat, sp_quoted, dm, bg, table))
+
+  # Phase 2: Upstream — spawn-eligible segments upstream of rearing,
+  # clustered, kept only if cluster touches qualifying lake polygon
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (id_segment)
+     WITH rearing_segs AS (
+       SELECT s2.wscode_ltree, s2.localcode_ltree,
+              s2.blue_line_key, s2.downstream_route_measure
+       FROM %s s2
+       INNER JOIN %s hr ON s2.id_segment = hr.id_segment
+       WHERE hr.species_code = %s AND hr.rearing IS TRUE
+     ),
+     spawn_upstream AS (
+       SELECT s3.id_segment, s3.geom
+       FROM %s s3
+       INNER JOIN %s hs ON s3.id_segment = hs.id_segment
+       WHERE hs.species_code = %s AND hs.spawning IS TRUE
+         AND EXISTS (
+           SELECT 1 FROM rearing_segs r
+           WHERE fwa_upstream(r.wscode_ltree, r.localcode_ltree,
+                              s3.wscode_ltree, s3.localcode_ltree)
+             OR (r.blue_line_key = s3.blue_line_key
+                 AND s3.downstream_route_measure >= r.downstream_route_measure))
+     ),
+     clustered AS (
+       SELECT id_segment,
+         ST_ClusterDBSCAN(geom, 1, 1) OVER () AS cluster_id
+       FROM spawn_upstream
+     ),
+     cluster_geoms AS (
+       SELECT cluster_id, ST_Collect(su.geom) AS geom
+       FROM clustered c
+       INNER JOIN spawn_upstream su ON c.id_segment = su.id_segment
+       GROUP BY cluster_id
+     ),
+     valid_clusters AS (
+       SELECT cg.cluster_id FROM cluster_geoms cg
+       WHERE EXISTS (
+         SELECT 1 FROM whse_basemapping.fwa_lakes_poly lp
+         WHERE lp.area_ha >= %s AND ST_DWithin(cg.geom, lp.geom, 2))
+     )
+     SELECT c.id_segment FROM clustered c
+     WHERE c.cluster_id IN (SELECT cluster_id FROM valid_clusters)",
+    qual_tbl, table, habitat, sp_quoted,
+    table, habitat, sp_quoted, lhm))
+
+  # Subtractive: remove spawning NOT found in either phase
+  .frs_db_execute(conn, sprintf(
+    "UPDATE %s SET spawning = FALSE
+     WHERE species_code = %s AND spawning IS TRUE
+       AND id_segment NOT IN (SELECT id_segment FROM %s)",
+    habitat, sp_quoted, qual_tbl))
+
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", qual_tbl))
+
+  if (verbose) {
+    n_after <- DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*) FILTER (WHERE spawning)::int AS n FROM %s
+       WHERE species_code = %s", habitat, sp_quoted))$n
+    cat("  ", species, ": connected spawning ",
+        n_before, " -> ", n_after, "\n", sep = "")
   }
 }
