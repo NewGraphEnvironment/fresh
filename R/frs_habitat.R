@@ -1162,7 +1162,93 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
           species = sp, direction = dir,
           bridge_gradient = bg, bridge_distance = bd,
           confluence_m = cm, verbose = verbose)
+
+        # Post-cluster distance filter: remove classified segments
+        # further than connected_distance_max from the nearest
+        # connected segment.
+        if (!is.null(rc_distance)) {
+          .frs_distance_filter(conn, table, habitat,
+            label_cluster = "spawning", label_connect = rc_target,
+            species = sp, max_distance = rc_distance,
+            verbose = verbose)
+        }
       }
     }
+  }
+}
+
+
+#' Filter classified segments by distance to connected habitat
+#'
+#' After [frs_cluster()] removes disconnected clusters, this function
+#' removes individual segments within valid clusters whose network
+#' distance to the nearest connected segment exceeds `max_distance`.
+#'
+#' Uses `downstream_route_measure` difference on the same BLK for
+#' same-stream distance. Cross-BLK distance uses ltree-based
+#' network traversal.
+#'
+#' @noRd
+.frs_distance_filter <- function(conn, table, habitat,
+                                 label_cluster, label_connect,
+                                 species, max_distance,
+                                 verbose = TRUE) {
+  sp_quoted <- .frs_quote_string(species)
+  dist_m <- .frs_sql_num(max_distance)
+
+  # Count before
+  n_before <- 0L
+  if (verbose) {
+    n_before <- DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
+       WHERE species_code = %s",
+      label_cluster, habitat, sp_quoted))$n
+  }
+
+  # Remove segments where the nearest connected segment is too far.
+  # Same-BLK: use absolute DRM difference.
+  # Cross-BLK: use fwa_upstream/fwa_downstream path — simplified to
+  # "exists a connected segment within max_distance on any BLK" via
+  # the same-BLK DRM check (covers the primary case: spawning
+  # downstream of a lake on the same stream).
+  .frs_db_execute(conn, sprintf(
+    "UPDATE %s h SET %s = FALSE
+     FROM %s s
+     WHERE h.id_segment = s.id_segment
+       AND h.species_code = %s
+       AND h.%s IS TRUE
+       AND NOT EXISTS (
+         SELECT 1 FROM %s r
+         INNER JOIN %s hr ON r.id_segment = hr.id_segment
+         WHERE hr.species_code = %s
+           AND hr.%s IS TRUE
+           AND (
+             (r.blue_line_key = s.blue_line_key
+              AND abs(r.downstream_route_measure -
+                      s.downstream_route_measure) <= %s)
+             OR
+             (r.blue_line_key != s.blue_line_key
+              AND r.wscode_ltree IS NOT NULL
+              AND s.wscode_ltree IS NOT NULL
+              AND (fwa_upstream(s.wscode_ltree, s.localcode_ltree,
+                               r.wscode_ltree, r.localcode_ltree)
+                   OR fwa_upstream(r.wscode_ltree, r.localcode_ltree,
+                                  s.wscode_ltree, s.localcode_ltree)))
+           )
+       )",
+    habitat, label_cluster, table,
+    sp_quoted, label_cluster,
+    table, habitat,
+    sp_quoted, label_connect,
+    dist_m))
+
+  if (verbose) {
+    n_after <- DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
+       WHERE species_code = %s",
+      label_cluster, habitat, sp_quoted))$n
+    cat("  ", species, ": ", n_before - n_after,
+        " beyond ", max_distance, "m removed (",
+        n_after, " ", label_cluster, " remaining)\n", sep = "")
   }
 }
