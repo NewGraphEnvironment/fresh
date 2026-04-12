@@ -26,6 +26,7 @@ frs_habitat(
   gradient_recompute = TRUE,
   measure_precision = 0L,
   barrier_overrides = NULL,
+  to_barriers = NULL,
   params = NULL,
   params_fresh = NULL,
   workers = 1L,
@@ -138,6 +139,14 @@ frs_habitat(
   `blue_line_key`, `downstream_route_measure`, `species_code`. When
   provided, matched barriers are excluded from per-species access
   gating. Default `NULL` (no overrides).
+
+- to_barriers:
+
+  Character or `NULL`. Schema-qualified table for persisting gradient
+  barriers. Includes `blue_line_key`, `downstream_route_measure`,
+  `gradient_class`, `label`, `wscode_ltree`, `localcode_ltree`. Useful
+  for link's `lnk_barrier_overrides()`. Default `NULL` (barriers dropped
+  after segmentation).
 
 - params:
 

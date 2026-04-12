@@ -66,6 +66,7 @@ habitat via <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a>
 <span>  gradient_recompute <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  measure_precision <span class="op">=</span> <span class="fl">0L</span>,</span>
 <span>  barrier_overrides <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  to_barriers <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  params <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  params_fresh <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">1L</span>,</span>
@@ -166,6 +167,15 @@ of barrier overrides prepared by link via
 <code>downstream_route_measure</code>, <code>species_code</code>. When provided,
 matched barriers are excluded from per-species access gating.
 Default <code>NULL</code> (no overrides).</p></dd>
+
+
+<dt id="arg-to-barriers">to_barriers<a class="anchor" aria-label="anchor" href="#arg-to-barriers"></a></dt>
+<dd><p>Character or <code>NULL</code>. Schema-qualified table for
+persisting gradient barriers. Includes <code>blue_line_key</code>,
+<code>downstream_route_measure</code>, <code>gradient_class</code>, <code>label</code>,
+<code>wscode_ltree</code>, <code>localcode_ltree</code>. Useful for link's
+<code>lnk_barrier_overrides()</code>. Default <code>NULL</code> (barriers dropped after
+segmentation).</p></dd>
 
 
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
