@@ -1,5 +1,27 @@
 # Changelog
 
+## fresh 0.12.9
+
+Post-cluster distance filter, measure rounding, and lake threshold
+auto-skip.
+
+- `connected_distance_max` now caps habitat EXTENT from connected
+  segments (not just search distance). Post-cluster filter removes
+  individual segments beyond the cap. SK spawning 112 km → ~74 km
+  ([\#133](https://github.com/NewGraphEnvironment/fresh/issues/133))
+- `measure_precision` parameter on
+  [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
+  and
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  — controls decimal places for break measure rounding. Default `0`
+  (integer, matching bcfishpass). Breaks table rounded and deduped
+  before splitting
+  ([\#135](https://github.com/NewGraphEnvironment/fresh/issues/135))
+- Auto-skip gradient/channel_width inheritance on
+  `waterbody_type: L`/`W` rules — lake/wetland flow lines are routing
+  lines
+  ([\#131](https://github.com/NewGraphEnvironment/fresh/issues/131))
+
 ## fresh 0.12.8
 
 Lake/wetland threshold auto-skip and connected distance cap.

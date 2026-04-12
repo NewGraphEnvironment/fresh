@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,15 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.12.9" id="fresh-0129">fresh 0.12.9<a class="anchor" aria-label="anchor" href="#fresh-0129"></a></h2>
+<p>Post-cluster distance filter, measure rounding, and lake threshold auto-skip.</p>
+<ul><li>
+<code>connected_distance_max</code> now caps habitat EXTENT from connected segments (not just search distance). Post-cluster filter removes individual segments beyond the cap. SK spawning 112 km → ~74 km (<a href="https://github.com/NewGraphEnvironment/fresh/issues/133" class="external-link">#133</a>)</li>
+<li>
+<code>measure_precision</code> parameter on <code><a href="../reference/frs_network_segment.html">frs_network_segment()</a></code> and <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> — controls decimal places for break measure rounding. Default <code>0</code> (integer, matching bcfishpass). Breaks table rounded and deduped before splitting (<a href="https://github.com/NewGraphEnvironment/fresh/issues/135" class="external-link">#135</a>)</li>
+<li>Auto-skip gradient/channel_width inheritance on <code>waterbody_type: L</code>/<code>W</code> rules — lake/wetland flow lines are routing lines (<a href="https://github.com/NewGraphEnvironment/fresh/issues/131" class="external-link">#131</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.12.8" id="fresh-0128">fresh 0.12.8<a class="anchor" aria-label="anchor" href="#fresh-0128"></a></h2>
 <p>Lake/wetland threshold auto-skip and connected distance cap.</p>
