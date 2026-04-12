@@ -1205,12 +1205,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       label_cluster, habitat, sp_quoted))$n
   }
 
-  # Remove segments where the nearest connected segment on the same
-  # blue_line_key is further than max_distance (via DRM difference).
-  # Cross-BLK distance is not computed — segments with no same-BLK
-  # connected segment within range are removed. This is correct for
-  # the primary case (SK spawning downstream of lake on the same
-  # stream) and conservative for cross-BLK cases.
+  # Remove segments where the nearest connected segment is further
+  # than max_distance. Two distance measures:
+  #   Same-BLK: abs(DRM difference) — exact network distance.
+  #   Cross-BLK: ST_Distance on geometries — Euclidean approximation.
+  #     Underestimates network distance (straight line < river path)
+  #     so slightly more habitat survives than a true network cap.
   .frs_db_execute(conn, sprintf(
     "UPDATE %s h SET %s = FALSE
      FROM %s s
@@ -1222,15 +1222,20 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
          INNER JOIN %s hr ON r.id_segment = hr.id_segment
          WHERE hr.species_code = %s
            AND hr.%s IS TRUE
-           AND r.blue_line_key = s.blue_line_key
-           AND abs(r.downstream_route_measure -
-                   s.downstream_route_measure) <= %s
+           AND (
+             (r.blue_line_key = s.blue_line_key
+              AND abs(r.downstream_route_measure -
+                      s.downstream_route_measure) <= %s)
+             OR
+             (r.blue_line_key != s.blue_line_key
+              AND ST_Distance(s.geom, r.geom) <= %s)
+           )
        )",
     habitat, label_cluster, table,
     sp_quoted, label_cluster,
     table, habitat,
     sp_quoted, label_connect,
-    dist_m))
+    dist_m, dist_m))
 
   if (verbose) {
     n_after <- DBI::dbGetQuery(conn, sprintf(
