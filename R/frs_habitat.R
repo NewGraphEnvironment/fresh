@@ -1206,10 +1206,20 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
           logical(1)))
 
         if (has_lake_rear) {
+          # Extract lake_ha_min from the first lake rearing rule
+          lhm <- 200  # default
+          for (rr in rear_rules) {
+            if (identical(rr[["waterbody_type"]], "L") &&
+                !is.null(rr[["lake_ha_min"]])) {
+              lhm <- rr[["lake_ha_min"]]
+              break
+            }
+          }
           # Two-phase: downstream trace + upstream lake proximity
           .frs_connected_spawning(conn, table, habitat,
             species = sp, bridge_gradient = bg,
-            distance_max = bd, verbose = verbose)
+            distance_max = bd, lake_ha_min = lhm,
+            verbose = verbose)
         } else {
           # Generic cluster approach for non-lake rearing
           dir <- if (is.na(fp$cluster_spawn_direction)) "both" else
