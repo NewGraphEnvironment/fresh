@@ -25,6 +25,10 @@
 #'   segments inherit the parent segment gradient. Use `FALSE` to match
 #'   bcfishpass behavior where gradient is assigned from the original
 #'   FWA segment, not recomputed per sub-segment.
+#' @param measure_precision Integer. Number of decimal places to round
+#'   break point measures before splitting. Default `0` (integer
+#'   rounding, matching bcfishpass v0.5.0). Also rounds the breaks
+#'   table and deduplicates collapsed measures.
 #' @param overwrite Logical. If `TRUE`, drop `to` before creating.
 #'   Default `TRUE`.
 #' @param verbose Logical. Print progress. Default `TRUE`.
@@ -105,6 +109,7 @@ frs_network_segment <- function(conn, aoi, to,
                                 source = "whse_basemapping.fwa_stream_networks_sp",
                                 break_sources = NULL,
                                 gradient_recompute = TRUE,
+                                measure_precision = 0L,
                                 overwrite = TRUE,
                                 verbose = TRUE) {
   .frs_validate_identifier(to, "output table")
@@ -176,13 +181,28 @@ frs_network_segment <- function(conn, aoi, to,
       }
     }
 
+    # Round break measures and deduplicate (collapse near-duplicates)
+    mp <- as.integer(measure_precision)
+    .frs_db_execute(conn, sprintf(
+      "UPDATE %s SET downstream_route_measure =
+         round(downstream_route_measure::numeric, %d)",
+      breaks_tbl, mp))
+    # Remove duplicates at the same rounded position on same BLK
+    .frs_db_execute(conn, sprintf(
+      "DELETE FROM %s a USING %s b
+       WHERE a.ctid > b.ctid
+         AND a.blue_line_key = b.blue_line_key
+         AND a.downstream_route_measure = b.downstream_route_measure",
+      breaks_tbl, breaks_tbl))
+
     # Enrich breaks with ltree for classify + index
     .frs_enrich_breaks(conn, breaks_tbl)
     .frs_index_working(conn, breaks_tbl)
 
     # Apply breaks to geometry
     t1 <- proc.time()
-    frs_break_apply(conn, to, breaks = breaks_tbl, segment_id = "id_segment")
+    frs_break_apply(conn, to, breaks = breaks_tbl,
+      segment_id = "id_segment", measure_precision = mp)
 
     if (verbose) {
       n <- DBI::dbGetQuery(conn,
