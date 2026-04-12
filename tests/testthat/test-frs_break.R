@@ -1,9 +1,16 @@
 # --- Unit tests: frs_break_find ---
 
-test_that("frs_break_find requires attribute and threshold", {
+test_that("frs_break_find requires attribute", {
   expect_error(
     frs_break_find("mock", "working.streams"),
-    "attribute and threshold are required"
+    "attribute is required"
+  )
+})
+
+test_that("frs_break_find requires threshold or classes", {
+  expect_error(
+    frs_break_find("mock", "working.streams", attribute = "gradient"),
+    "threshold or classes is required"
   )
 })
 

@@ -13,6 +13,8 @@ frs_break_find(
   interval = 100L,
   distance = 100L,
   min_length = 0L,
+  classes = NULL,
+  blk_filter = TRUE,
   overwrite = TRUE
 )
 }
@@ -40,6 +42,17 @@ computation at each vertex. Default \code{100}.}
 Default \code{0} (keep all islands — a 30m waterfall at 20\% gradient is
 a real barrier). Set to \code{100} to restore pre-0.12.2 behavior where
 short steep sections were filtered out.}
+
+\item{classes}{Named numeric vector or \code{NULL}. Gradient class lower
+bounds for multi-class detection (matching bcfishpass v0.5.0).
+Names are class labels (used in \code{gradient_class} column), values
+are lower gradient bounds. When provided, \code{threshold} is ignored
+and all classes are detected in one pass.
+Example: \code{c("5" = 0.05, "7" = 0.07, "15" = 0.15, "25" = 0.25)}.}
+
+\item{blk_filter}{Logical. If \code{TRUE} (default), only sample main
+flow lines (\code{blue_line_key = watershed_key}). Matches bcfishpass.
+\code{FALSE} samples all edge types including side channels.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
