@@ -13,7 +13,7 @@ frs_habitat_classify(
   params_fresh = NULL,
   gate = TRUE,
   label_block = "blocked",
-  observations = NULL,
+  barrier_overrides = NULL,
   overwrite = TRUE,
   verbose = TRUE
 )
