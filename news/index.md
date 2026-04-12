@@ -1,5 +1,16 @@
 # Changelog
 
+## fresh 0.13.2
+
+Preserve multiple labels per break position.
+
+- Multiple labels at the same
+  `(blue_line_key, downstream_route_measure)` now survive in
+  `streams_breaks` — a gradient_15 and a falls at the same measure are
+  both preserved. Enables per-barrier overrides, access reporting, and
+  habitat reporting by barrier type
+  ([\#145](https://github.com/NewGraphEnvironment/fresh/issues/145))
+
 ## fresh 0.13.1
 
 Persist gradient barriers and downstream-only distance fix.
