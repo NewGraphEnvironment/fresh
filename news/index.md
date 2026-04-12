@@ -1,5 +1,21 @@
 # Changelog
 
+## fresh 0.13.1
+
+Persist gradient barriers and downstream-only distance fix.
+
+- `to_barriers` parameter on
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  — persist gradient barriers table with ltree enrichment for link’s
+  `lnk_barrier_overrides()`
+  ([\#143](https://github.com/NewGraphEnvironment/fresh/issues/143))
+- `connected_distance_max` distance filter now downstream-only with
+  correct `fwa_upstream` direction
+  ([\#133](https://github.com/NewGraphEnvironment/fresh/issues/133))
+- Fix `aoi` + `wsg` interaction — character aoi ANDed with WSG filter
+  instead of replacing it
+  ([\#141](https://github.com/NewGraphEnvironment/fresh/issues/141))
+
 ## fresh 0.13.0
 
 Distance filter, aoi fix, and measure rounding.

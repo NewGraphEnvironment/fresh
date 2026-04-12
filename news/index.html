@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,15 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.13.1" id="fresh-0131">fresh 0.13.1<a class="anchor" aria-label="anchor" href="#fresh-0131"></a></h2>
+<p>Persist gradient barriers and downstream-only distance fix.</p>
+<ul><li>
+<code>to_barriers</code> parameter on <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> — persist gradient barriers table with ltree enrichment for link’s <code>lnk_barrier_overrides()</code> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/143" class="external-link">#143</a>)</li>
+<li>
+<code>connected_distance_max</code> distance filter now downstream-only with correct <code>fwa_upstream</code> direction (<a href="https://github.com/NewGraphEnvironment/fresh/issues/133" class="external-link">#133</a>)</li>
+<li>Fix <code>aoi</code> + <code>wsg</code> interaction — character aoi ANDed with WSG filter instead of replacing it (<a href="https://github.com/NewGraphEnvironment/fresh/issues/141" class="external-link">#141</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.0" id="fresh-0130">fresh 0.13.0<a class="anchor" aria-label="anchor" href="#fresh-0130"></a></h2>
 <p>Distance filter, aoi fix, and measure rounding.</p>
