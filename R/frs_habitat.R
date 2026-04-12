@@ -189,6 +189,7 @@ frs_habitat <- function(conn, wsg = NULL,
                         label_block = "blocked",
                         rules = NULL,
                         gradient_recompute = TRUE,
+                        measure_precision = 0L,
                         barrier_overrides = NULL,
                         params = NULL,
                         params_fresh = NULL,
@@ -297,8 +298,8 @@ frs_habitat <- function(conn, wsg = NULL,
 
   # -- Per-job worker function -------------------------------------------------
   .run_job <- function(spec, conn_params, break_sources, breaks_gradient,
-                       gradient_recompute, params, params_fresh,
-                       to_streams, to_habitat, verbose) {
+                       gradient_recompute, measure_precision, params,
+                       params_fresh, to_streams, to_habitat, verbose) {
     # Connect (parallel) or reuse (sequential)
     if (!is.null(conn_params)) {
       library(fresh)
@@ -411,6 +412,7 @@ frs_habitat <- function(conn, wsg = NULL,
       to = streams_tbl,
       break_sources = all_sources,
       gradient_recompute = gradient_recompute,
+      measure_precision = measure_precision,
       verbose = verbose && is.null(conn_params))
 
     n_seg <- DBI::dbGetQuery(w_conn,
@@ -563,7 +565,8 @@ frs_habitat <- function(conn, wsg = NULL,
 
       frs_network_segment(w_conn, aoi = job_aoi,
         to = streams_tbl, break_sources = all_sources,
-        gradient_recompute = gradient_recompute, verbose = FALSE)
+        gradient_recompute = gradient_recompute,
+        measure_precision = measure_precision, verbose = FALSE)
 
       n_seg <- DBI::dbGetQuery(w_conn,
         sprintf("SELECT count(*)::int AS n FROM %s", streams_tbl))$n
@@ -614,6 +617,7 @@ frs_habitat <- function(conn, wsg = NULL,
       conn_params = conn_params, break_sources = break_sources,
       breaks_gradient = breaks_gradient,
       gradient_recompute = gradient_recompute,
+      measure_precision = measure_precision,
       barrier_overrides = barrier_overrides,
       params = params, params_fresh = params_fresh,
       to_streams = to_streams, to_habitat = to_habitat,
@@ -634,6 +638,7 @@ frs_habitat <- function(conn, wsg = NULL,
         break_sources = break_sources,
         breaks_gradient = breaks_gradient,
         gradient_recompute = gradient_recompute,
+        measure_precision = measure_precision,
         params = params, params_fresh = params_fresh,
         to_streams = to_streams, to_habitat = to_habitat,
         verbose = verbose)

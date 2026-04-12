@@ -18,6 +18,7 @@ frs_habitat(
   label_block = "blocked",
   rules = NULL,
   gradient_recompute = TRUE,
+  measure_precision = 0L,
   barrier_overrides = NULL,
   params = NULL,
   params_fresh = NULL,

@@ -578,10 +578,14 @@ frs_break_validate <- function(conn, breaks, evidence_table,
 #' DBI::dbDisconnect(conn)
 #' }
 frs_break_apply <- function(conn, table, breaks,
-                            segment_id = "linear_feature_id") {
+                            segment_id = "linear_feature_id",
+                            measure_precision = 0L) {
   .frs_validate_identifier(table, "stream table")
   .frs_validate_identifier(breaks, "breaks table")
   .frs_validate_identifier(segment_id, "segment_id column")
+  stopifnot(is.numeric(measure_precision), length(measure_precision) == 1)
+
+  mp <- as.integer(measure_precision)
 
   # Step 1: Create temp table with new segments from break points
   # Following bcfishpass break_streams() pattern:
@@ -594,7 +598,7 @@ frs_break_apply <- function(conn, table, breaks,
      WITH breakpoints AS (
        SELECT DISTINCT
          blue_line_key,
-         round(downstream_route_measure::numeric)::integer AS downstream_route_measure
+         round(downstream_route_measure::numeric, %d) AS downstream_route_measure
        FROM %s
      ),
      to_break AS (
@@ -627,7 +631,7 @@ frs_break_apply <- function(conn, table, breaks,
        ))).geom AS geom
      FROM new_measures n
      INNER JOIN %s s ON n.seg_id = s.%s",
-    breaks, sid, table, table, sid
+    mp, breaks, sid, table, table, sid
   )
   .frs_db_execute(conn, sql_temp)
 

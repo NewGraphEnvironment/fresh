@@ -11,6 +11,7 @@ frs_network_segment(
   source = "whse_basemapping.fwa_stream_networks_sp",
   break_sources = NULL,
   gradient_recompute = TRUE,
+  measure_precision = 0L,
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -37,6 +38,11 @@ gradient from DEM vertices after splitting. If \code{FALSE}, child
 segments inherit the parent segment gradient. Use \code{FALSE} to match
 bcfishpass behavior where gradient is assigned from the original
 FWA segment, not recomputed per sub-segment.}
+
+\item{measure_precision}{Integer. Number of decimal places to round
+break point measures before splitting. Default \code{0} (integer
+rounding, matching bcfishpass v0.5.0). Also rounds the breaks
+table and deduplicates collapsed measures.}
 
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
