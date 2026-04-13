@@ -6,9 +6,9 @@
 - [x] Commit + code-check
 
 ## Phase 2: Index input tables in `frs_habitat_classify`
-- [ ] Call `.frs_index_working(conn, table)` and `.frs_index_working(conn, breaks_tbl)` before access gating loop
-- [ ] Add test: `frs_habitat_classify` on unindexed table succeeds (existing tests cover this implicitly)
-- [ ] Commit + code-check
+- [x] Call `.frs_index_working(conn, table)` and `.frs_index_working(conn, breaks_tbl)` before access gating loop
+- [x] Guard breaks indexing with `if (gate)` — breaks table may not exist when `gate = FALSE`
+- [x] Commit + code-check
 
 ## Phase 3: PR
 - [ ] Push branch, create PR with SRED tag
