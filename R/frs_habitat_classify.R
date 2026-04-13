@@ -108,6 +108,11 @@ frs_habitat_classify <- function(conn, table, to,
       "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
   }
 
+  # Ensure input tables are indexed — critical when called directly
+  # (bypassing frs_habitat which indexes during frs_network_segment)
+  .frs_index_working(conn, table)
+  if (gate) .frs_index_working(conn, breaks_tbl)
+
   # Get WSG codes from streams table (for idempotent delete)
   wsg_codes <- DBI::dbGetQuery(conn, sprintf(
     "SELECT DISTINCT watershed_group_code FROM %s", table

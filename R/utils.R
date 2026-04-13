@@ -326,45 +326,69 @@
     .frs_quote_string(schema), .frs_quote_string(tbl)
   ))$column_name
 
-  # Build index statements based on available columns
+  # Build index statements based on available columns.
+  # Uses IF NOT EXISTS so callers can index the same table multiple times
+
+  # safely (e.g. frs_network_segment indexes, then frs_habitat_classify
+  # re-indexes the same inputs).
   idx <- character(0)
 
   if ("blue_line_key" %in% cols) {
-    idx <- c(idx, sprintf("CREATE INDEX ON %s (blue_line_key)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_blk_idx ON %s (blue_line_key)",
+      tbl, table))
   }
   if (all(c("blue_line_key", "downstream_route_measure") %in% cols)) {
     idx <- c(idx, sprintf(
-      "CREATE INDEX ON %s (blue_line_key, downstream_route_measure)", table))
+      "CREATE INDEX IF NOT EXISTS %s_blk_drm_idx ON %s (blue_line_key, downstream_route_measure)",
+      tbl, table))
   }
+
   if ("wscode_ltree" %in% cols) {
     idx <- c(idx, sprintf(
-      "CREATE INDEX ON %s USING gist (wscode_ltree)", table))
+      "CREATE INDEX IF NOT EXISTS %s_wscode_gist_idx ON %s USING gist (wscode_ltree)",
+      tbl, table))
     idx <- c(idx, sprintf(
-      "CREATE INDEX ON %s USING btree (wscode_ltree)", table))
+      "CREATE INDEX IF NOT EXISTS %s_wscode_btree_idx ON %s USING btree (wscode_ltree)",
+      tbl, table))
   }
   if ("localcode_ltree" %in% cols) {
     idx <- c(idx, sprintf(
-      "CREATE INDEX ON %s USING gist (localcode_ltree)", table))
+      "CREATE INDEX IF NOT EXISTS %s_localcode_gist_idx ON %s USING gist (localcode_ltree)",
+      tbl, table))
     idx <- c(idx, sprintf(
-      "CREATE INDEX ON %s USING btree (localcode_ltree)", table))
+      "CREATE INDEX IF NOT EXISTS %s_localcode_btree_idx ON %s USING btree (localcode_ltree)",
+      tbl, table))
   }
   if ("linear_feature_id" %in% cols) {
-    idx <- c(idx, sprintf("CREATE INDEX ON %s (linear_feature_id)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_lfid_idx ON %s (linear_feature_id)",
+      tbl, table))
   }
   if ("watershed_group_code" %in% cols) {
-    idx <- c(idx, sprintf("CREATE INDEX ON %s (watershed_group_code)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_wsg_idx ON %s (watershed_group_code)",
+      tbl, table))
   }
   if ("label" %in% cols) {
-    idx <- c(idx, sprintf("CREATE INDEX ON %s (label)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_label_idx ON %s (label)",
+      tbl, table))
     if ("blue_line_key" %in% cols) {
-      idx <- c(idx, sprintf("CREATE INDEX ON %s (label, blue_line_key)", table))
+      idx <- c(idx, sprintf(
+        "CREATE INDEX IF NOT EXISTS %s_label_blk_idx ON %s (label, blue_line_key)",
+        tbl, table))
     }
   }
   if ("id_segment" %in% cols) {
-    idx <- c(idx, sprintf("CREATE INDEX ON %s (id_segment)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_id_segment_idx ON %s (id_segment)",
+      tbl, table))
   }
   if ("species_code" %in% cols) {
-    idx <- c(idx, sprintf("CREATE INDEX ON %s (species_code)", table))
+    idx <- c(idx, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_species_code_idx ON %s (species_code)",
+      tbl, table))
   }
 
   for (sql in idx) {
