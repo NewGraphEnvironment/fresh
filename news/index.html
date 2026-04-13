@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,14 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.13.4" id="fresh-0134">fresh 0.13.4<a class="anchor" aria-label="anchor" href="#fresh-0134"></a></h2>
+<p>Index input tables for standalone <code>frs_habitat_classify</code> performance.</p>
+<ul><li>
+<code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> now indexes input tables before the access gating loop — 35x speedup when called directly (bypassing <code>frs_habitat</code>) (<a href="https://github.com/NewGraphEnvironment/fresh/issues/150" class="external-link">#150</a>)</li>
+<li>
+<code>.frs_index_working()</code> is now idempotent with <code>IF NOT EXISTS</code> — safe to call multiple times on the same table (<a href="https://github.com/NewGraphEnvironment/fresh/issues/150" class="external-link">#150</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.3" id="fresh-0133">fresh 0.13.3<a class="anchor" aria-label="anchor" href="#fresh-0133"></a></h2>
 <p>Two-phase connected spawning and multi-label breaks.</p>
