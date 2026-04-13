@@ -1,3 +1,10 @@
+# fresh 0.13.4
+
+Index input tables for standalone `frs_habitat_classify` performance.
+
+- `frs_habitat_classify()` now indexes input tables before the access gating loop — 35x speedup when called directly (bypassing `frs_habitat`) ([#150](https://github.com/NewGraphEnvironment/fresh/issues/150))
+- `.frs_index_working()` is now idempotent with `IF NOT EXISTS` — safe to call multiple times on the same table ([#150](https://github.com/NewGraphEnvironment/fresh/issues/150))
+
 # fresh 0.13.3
 
 Two-phase connected spawning and multi-label breaks.
