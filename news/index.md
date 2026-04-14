@@ -1,5 +1,27 @@
 # Changelog
 
+## fresh 0.13.5
+
+Fix lake outlet ordering and extract reusable downstream trace.
+
+- Fix multi-BLK lake outlet selection: use `wscode_ltree` network
+  topology instead of `downstream_route_measure` (meaningless across
+  BLKs). BULK SK spawning -22.6% to +0.1% vs bcfishpass
+  ([\#147](https://github.com/NewGraphEnvironment/fresh/issues/147))
+- Fix cumulative distance partitioning: partition by `waterbody_key`
+  instead of `blue_line_key` so distance accumulates per lake, not per
+  BLK ([\#147](https://github.com/NewGraphEnvironment/fresh/issues/147))
+- Extract `.frs_trace_downstream()` — reusable downstream trace with
+  distance cap and gradient stop
+  ([\#147](https://github.com/NewGraphEnvironment/fresh/issues/147))
+- Rename `.frs_connected_spawning()` to `.frs_connected_waterbody()` —
+  parameterized for any waterbody type
+  ([\#147](https://github.com/NewGraphEnvironment/fresh/issues/147))
+- `waterbody_type: L` now includes reservoirs
+  (`fwa_manmade_waterbodies_poly`) via shared `.frs_waterbody_tables()`
+  helper — the FWA table split is digitization origin, not ecology
+  ([\#147](https://github.com/NewGraphEnvironment/fresh/issues/147))
+
 ## fresh 0.13.4
 
 Index input tables for standalone `frs_habitat_classify` performance.

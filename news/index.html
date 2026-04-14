@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.13.5" id="fresh-0135">fresh 0.13.5<a class="anchor" aria-label="anchor" href="#fresh-0135"></a></h2>
+<p>Fix lake outlet ordering and extract reusable downstream trace.</p>
+<ul><li>Fix multi-BLK lake outlet selection: use <code>wscode_ltree</code> network topology instead of <code>downstream_route_measure</code> (meaningless across BLKs). BULK SK spawning -22.6% to +0.1% vs bcfishpass (<a href="https://github.com/NewGraphEnvironment/fresh/issues/147" class="external-link">#147</a>)</li>
+<li>Fix cumulative distance partitioning: partition by <code>waterbody_key</code> instead of <code>blue_line_key</code> so distance accumulates per lake, not per BLK (<a href="https://github.com/NewGraphEnvironment/fresh/issues/147" class="external-link">#147</a>)</li>
+<li>Extract <code>.frs_trace_downstream()</code> — reusable downstream trace with distance cap and gradient stop (<a href="https://github.com/NewGraphEnvironment/fresh/issues/147" class="external-link">#147</a>)</li>
+<li>Rename <code>.frs_connected_spawning()</code> to <code>.frs_connected_waterbody()</code> — parameterized for any waterbody type (<a href="https://github.com/NewGraphEnvironment/fresh/issues/147" class="external-link">#147</a>)</li>
+<li>
+<code>waterbody_type: L</code> now includes reservoirs (<code>fwa_manmade_waterbodies_poly</code>) via shared <code>.frs_waterbody_tables()</code> helper — the FWA table split is digitization origin, not ecology (<a href="https://github.com/NewGraphEnvironment/fresh/issues/147" class="external-link">#147</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.4" id="fresh-0134">fresh 0.13.4<a class="anchor" aria-label="anchor" href="#fresh-0134"></a></h2>
 <p>Index input tables for standalone <code>frs_habitat_classify</code> performance.</p>
