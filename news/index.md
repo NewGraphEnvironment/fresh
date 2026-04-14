@@ -1,5 +1,17 @@
 # Changelog
 
+## fresh 0.13.7
+
+Apply bridge gradient along downstream path in `frs_cluster`.
+
+- [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md)
+  downstream check now applies `bridge_gradient` and `bridge_distance`
+  segment-by-segment along the `fwa_downstreamtrace` path. Upstream
+  check remains boolean — `FWA_Upstream` returns tributaries that
+  interleave with mainstem in `row_number()` ordering, making path
+  gradient unreliable on branching networks
+  ([\#153](https://github.com/NewGraphEnvironment/fresh/issues/153))
+
 ## fresh 0.13.6
 
 Support `spawn_connected` rules for waterbody-adjacent spawning.

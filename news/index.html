@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,12 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.13.7" id="fresh-0137">fresh 0.13.7<a class="anchor" aria-label="anchor" href="#fresh-0137"></a></h2>
+<p>Apply bridge gradient along downstream path in <code>frs_cluster</code>.</p>
+<ul><li>
+<code><a href="../reference/frs_cluster.html">frs_cluster()</a></code> downstream check now applies <code>bridge_gradient</code> and <code>bridge_distance</code> segment-by-segment along the <code>fwa_downstreamtrace</code> path. Upstream check remains boolean — <code>FWA_Upstream</code> returns tributaries that interleave with mainstem in <code>row_number()</code> ordering, making path gradient unreliable on branching networks (<a href="https://github.com/NewGraphEnvironment/fresh/issues/153" class="external-link">#153</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.6" id="fresh-0136">fresh 0.13.6<a class="anchor" aria-label="anchor" href="#fresh-0136"></a></h2>
 <p>Support <code>spawn_connected</code> rules for waterbody-adjacent spawning.</p>
