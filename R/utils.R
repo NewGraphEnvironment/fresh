@@ -155,6 +155,27 @@
 }
 
 
+#' Resolve waterbody type to FWA polygon table(s)
+#'
+#' Maps a single-character waterbody type code to the FWA polygon table(s)
+#' that contain those features. `"L"` returns both natural lakes and
+#' manmade waterbodies (reservoirs) — the FWA splits them by digitization
+#' origin, not ecology.
+#'
+#' @param type Character. One of `"L"` (lakes + reservoirs), `"R"` (rivers),
+#'   `"W"` (wetlands).
+#' @return Character vector of schema-qualified table names.
+#' @noRd
+.frs_waterbody_tables <- function(type) {
+  switch(type,
+    "L" = c("whse_basemapping.fwa_lakes_poly",
+            "whse_basemapping.fwa_manmade_waterbodies_poly"),
+    "R" = "whse_basemapping.fwa_rivers_poly",
+    "W" = "whse_basemapping.fwa_wetlands_poly",
+    stop("Unknown waterbody_type: ", type))
+}
+
+
 #' Convert a single rule to a SQL AND predicate
 #'
 #' Translates one habitat rule (a list of predicates) into a
@@ -211,19 +232,18 @@
   }
 
   if (!is.null(rule[["waterbody_type"]])) {
-    wb_table <- switch(rule[["waterbody_type"]],
-      "L" = "whse_basemapping.fwa_lakes_poly",
-      "R" = "whse_basemapping.fwa_rivers_poly",
-      "W" = "whse_basemapping.fwa_wetlands_poly")
+    wb_tables <- .frs_waterbody_tables(rule[["waterbody_type"]])
     if (!is.null(rule[["lake_ha_min"]])) {
-      # Already validated as L by parser
-      parts <- c(parts, sprintf(
-        "s.waterbody_key IN (SELECT waterbody_key FROM %s WHERE area_ha >= %s)",
-        wb_table, .frs_sql_num(rule[["lake_ha_min"]])))
+      ha_sql <- .frs_sql_num(rule[["lake_ha_min"]])
+      wb_sql <- paste(vapply(wb_tables, function(wt) {
+        sprintf("SELECT waterbody_key FROM %s WHERE area_ha >= %s", wt, ha_sql)
+      }, character(1)), collapse = " UNION ALL ")
+      parts <- c(parts, sprintf("s.waterbody_key IN (%s)", wb_sql))
     } else {
-      parts <- c(parts, sprintf(
-        "s.waterbody_key IN (SELECT waterbody_key FROM %s)",
-        wb_table))
+      wb_sql <- paste(vapply(wb_tables, function(wt) {
+        sprintf("SELECT waterbody_key FROM %s", wt)
+      }, character(1)), collapse = " UNION ALL ")
+      parts <- c(parts, sprintf("s.waterbody_key IN (%s)", wb_sql))
     }
   }
 

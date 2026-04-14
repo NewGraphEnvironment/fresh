@@ -1212,9 +1212,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
         }
 
         if (!is.null(wb_type)) {
-          wb_poly <- switch(wb_type,
-            "L" = "whse_basemapping.fwa_lakes_poly",
-            "W" = "whse_basemapping.fwa_wetlands_poly")
+          wb_poly <- .frs_waterbody_tables(wb_type)
           .frs_connected_waterbody(conn, table, habitat,
             species = sp, waterbody_poly = wb_poly,
             waterbody_ha_min = wb_ha_min, bridge_gradient = bg,
@@ -1422,8 +1420,10 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' @param table Character. Schema-qualified streams table.
 #' @param habitat Character. Schema-qualified habitat table.
 #' @param species Character. Species code.
-#' @param waterbody_poly Character. Schema-qualified waterbody polygon table
-#'   (e.g. `"whse_basemapping.fwa_lakes_poly"`).
+#' @param waterbody_poly Character vector. Schema-qualified waterbody polygon
+#'   table(s) (e.g. `c("whse_basemapping.fwa_lakes_poly",
+#'   "whse_basemapping.fwa_manmade_waterbodies_poly")`). Multiple tables are
+#'   checked via UNION ALL — a cluster near ANY qualifying polygon qualifies.
 #' @param waterbody_ha_min Numeric. Minimum area (ha) for qualifying
 #'   waterbody polygons.
 #' @param bridge_gradient Numeric. Gradient threshold for downstream trace
@@ -1482,6 +1482,14 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 
   # Phase 2: Upstream — spawn-eligible segments upstream of rearing,
   # clustered, kept only if cluster touches qualifying waterbody polygon
+  # Build EXISTS clause that checks all waterbody polygon tables (UNION ALL)
+  wb_exists <- paste(vapply(waterbody_poly, function(wt) {
+    sprintf(
+      "EXISTS (SELECT 1 FROM %s lp
+       WHERE lp.area_ha >= %s AND ST_DWithin(cg.geom, lp.geom, 2))",
+      wt, lhm)
+  }, character(1)), collapse = " OR ")
+
   .frs_db_execute(conn, sprintf(
     "INSERT INTO %s (id_segment)
      WITH rearing_segs AS (
@@ -1516,14 +1524,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
      ),
      valid_clusters AS (
        SELECT cg.cluster_id FROM cluster_geoms cg
-       WHERE EXISTS (
-         SELECT 1 FROM %s lp
-         WHERE lp.area_ha >= %s AND ST_DWithin(cg.geom, lp.geom, 2))
+       WHERE %s
      )
      SELECT c.id_segment FROM clustered c
      WHERE c.cluster_id IN (SELECT cluster_id FROM valid_clusters)",
     qual_tbl, table, habitat, sp_quoted,
-    table, habitat, sp_quoted, waterbody_poly, lhm))
+    table, habitat, sp_quoted, wb_exists))
 
   # Subtractive: remove spawning NOT found in either phase
   .frs_db_execute(conn, sprintf(

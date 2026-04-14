@@ -20,5 +20,10 @@ Two fundamentally different algorithms (downstream trace vs upstream cluster) ca
 
 ## Refactor: decompose into reusable pieces
 - `.frs_trace_downstream(conn, origins_sql, target, distance_max, gradient_max)` — generic downstream trace. Takes any origins SQL producing `(origin_id, blue_line_key, downstream_route_measure)`. Returns `linear_feature_id`s into a target table. Reusable for any downstream trace use case (waterbody outlets, barrier impacts, reach delineation).
-- `.frs_connected_waterbody()` replaces `.frs_connected_spawning()` — name reflects mechanism (waterbody connection) not use-case (spawning). Takes `waterbody_poly` param so the same function works for lakes (`fwa_lakes_poly`) or wetlands (`fwa_wetlands_poly`).
+- `.frs_connected_waterbody()` replaces `.frs_connected_spawning()` — name reflects mechanism (waterbody connection) not use-case (spawning). Takes `waterbody_poly` as a character vector so multiple FWA tables can be checked.
 - Caller in `.frs_run_connectivity()` detects `waterbody_type` from rearing rules generically — not hardcoded to `L`. Supports `L` and `W`; `R` (rivers) excluded since river polygons don't have area thresholds in the same way.
+
+## Reservoirs are lakes (FWA digitization artifact)
+`fwa_lakes_poly` = natural lakes, `fwa_manmade_waterbodies_poly` = reservoirs. The split is digitization origin, not ecology — a 200ha reservoir functions identically to a 200ha lake for fish rearing. bcfishpass checks BOTH in `load_habitat_linear_sk.sql` lines 217-240 (UNION of lakes + reservoirs in `clusters_near_rearing`).
+
+Resolution: `.frs_waterbody_tables("L")` returns both table names. One helper, used by both `.frs_rule_to_sql()` (rearing classification) and `.frs_connected_waterbody()` (upstream cluster proximity). The rules YAML stays `waterbody_type: L` — users don't need to know about FWA table structure.

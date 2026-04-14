@@ -13,3 +13,10 @@
 - [x] Parameterize `waterbody_poly` — dispatch from `waterbody_type` in rules (L, W)
 - [x] Caller detects waterbody type generically, not hardcoded to lakes
 - [x] Commit + code-check
+
+## Phase 3: Reservoir support via shared helper
+- [x] Add `.frs_waterbody_tables(type)` helper — L resolves to lakes + reservoirs
+- [x] Update `.frs_rule_to_sql()` to use helper (UNION ALL for multi-table types)
+- [x] Update `.frs_connected_waterbody()` Phase 2 to accept vector of poly tables
+- [x] Update caller to use helper instead of hardcoded switch
+- [x] Commit + code-check
