@@ -17,7 +17,8 @@
 #'   `inst/extdata/parameters_habitat_rules.yaml`. Pass `NULL` to skip
 #'   rules entirely (every species falls through to the CSV ranges
 #'   path used pre-0.12.0). When a rules file is loaded, each species
-#'   listed in the file gets `$rules$spawn` and `$rules$rear` attached
+#'   listed in the file gets `$rules$spawn`, `$rules$rear`, and
+#'   optionally `$rules$spawn_connected` attached
 #'   to its params entry. Species not listed in the file fall through
 #'   to the CSV ranges path. See the `parameters_habitat_rules.yaml`
 #'   header for the rule format.
@@ -139,10 +140,14 @@ frs_params <- function(conn = NULL,
   for (sp in names(raw)) {
     sp_block <- raw[[sp]]
     for (habitat in names(sp_block)) {
-      if (!habitat %in% c("spawn", "rear")) {
+      if (!habitat %in% c("spawn", "rear", "spawn_connected")) {
         stop(sprintf(
-          "rules YAML for species %s has unknown habitat block '%s' (expected 'spawn' or 'rear')",
+          "rules YAML for species %s has unknown habitat block '%s' (expected 'spawn', 'rear', or 'spawn_connected')",
           sp, habitat), call. = FALSE)
+      }
+      if (habitat == "spawn_connected") {
+        .frs_validate_spawn_connected(sp_block[[habitat]], sp)
+        next
       }
       rule_list <- sp_block[[habitat]]
       if (is.null(rule_list) || length(rule_list) == 0) next
@@ -284,6 +289,75 @@ frs_params <- function(conn = NULL,
           "rules YAML %s/%s rule %d %s must be a numeric vector of length 2 [min, max]",
           sp, habitat, idx, field), call. = FALSE)
       }
+    }
+  }
+}
+
+
+#' Validate a spawn_connected configuration block
+#'
+#' Unlike spawn/rear (which are lists of rules), spawn_connected is a
+#' single configuration block with fixed keys. Errors on unknown keys,
+#' missing required keys, or invalid values.
+#'
+#' @param block Named list from the YAML.
+#' @param sp Character. Species code (for error messages).
+#' @noRd
+.frs_validate_spawn_connected <- function(block, sp) {
+  if (!is.list(block) || is.null(names(block))) {
+    stop(sprintf(
+      "rules YAML %s/spawn_connected must be a named mapping",
+      sp), call. = FALSE)
+  }
+
+  valid_keys <- c("direction", "waterbody_type", "gradient_max",
+                   "channel_width_min", "distance_max", "bridge_gradient",
+                   "edge_types", "edge_types_explicit")
+  unknown <- setdiff(names(block), valid_keys)
+  if (length(unknown) > 0) {
+    stop(sprintf(
+      "rules YAML %s/spawn_connected has unknown keys: %s. Valid: %s",
+      sp, paste(unknown, collapse = ", "),
+      paste(valid_keys, collapse = ", ")), call. = FALSE)
+  }
+
+  # Required keys
+  required <- c("direction", "waterbody_type", "gradient_max",
+                 "distance_max", "bridge_gradient")
+  missing_keys <- setdiff(required, names(block))
+  if (length(missing_keys) > 0) {
+    stop(sprintf(
+      "rules YAML %s/spawn_connected missing required keys: %s",
+      sp, paste(missing_keys, collapse = ", ")), call. = FALSE)
+  }
+
+  if (!block[["direction"]] %in% c("upstream", "downstream", "both")) {
+    stop(sprintf(
+      "rules YAML %s/spawn_connected direction must be 'upstream', 'downstream', or 'both'",
+      sp), call. = FALSE)
+  }
+
+  if (!block[["waterbody_type"]] %in% c("L", "R", "W")) {
+    stop(sprintf(
+      "rules YAML %s/spawn_connected waterbody_type must be L, R, or W",
+      sp), call. = FALSE)
+  }
+
+  for (key in c("gradient_max", "distance_max", "bridge_gradient")) {
+    val <- block[[key]]
+    if (!is.numeric(val) || length(val) != 1) {
+      stop(sprintf(
+        "rules YAML %s/spawn_connected %s must be a numeric scalar",
+        sp, key), call. = FALSE)
+    }
+  }
+
+  if (!is.null(block[["channel_width_min"]])) {
+    val <- block[["channel_width_min"]]
+    if (!is.numeric(val) || length(val) != 1) {
+      stop(sprintf(
+        "rules YAML %s/spawn_connected channel_width_min must be a numeric scalar",
+        sp), call. = FALSE)
     }
   }
 }
