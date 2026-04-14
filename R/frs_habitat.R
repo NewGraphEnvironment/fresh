@@ -1198,28 +1198,27 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
           if (is.na(fp$cluster_spawn_bridge_distance)) 3000 else
             fp$cluster_spawn_bridge_distance
 
-        # Detect lake-connected rearing: use two-phase approach
+        # Detect waterbody-connected rearing: use two-phase approach
         rear_rules <- ps[["rules"]][["rear"]]
-        has_lake_rear <- length(rear_rules) > 0 && any(vapply(
-          rear_rules,
-          function(r) identical(r[["waterbody_type"]], "L"),
-          logical(1)))
-
-        if (has_lake_rear) {
-          # Extract lake_ha_min from the first lake rearing rule
-          lhm <- 200  # default
-          for (rr in rear_rules) {
-            if (identical(rr[["waterbody_type"]], "L") &&
-                !is.null(rr[["lake_ha_min"]])) {
-              lhm <- rr[["lake_ha_min"]]
-              break
-            }
+        wb_type <- NULL
+        wb_ha_min <- 200
+        for (rr in rear_rules) {
+          wt <- rr[["waterbody_type"]]
+          if (!is.null(wt) && wt %in% c("L", "W")) {
+            wb_type <- wt
+            if (!is.null(rr[["lake_ha_min"]])) wb_ha_min <- rr[["lake_ha_min"]]
+            break
           }
-          # Two-phase: downstream trace + upstream lake proximity
-          .frs_connected_spawning(conn, table, habitat,
-            species = sp, bridge_gradient = bg,
-            distance_max = bd, lake_ha_min = lhm,
-            verbose = verbose)
+        }
+
+        if (!is.null(wb_type)) {
+          wb_poly <- switch(wb_type,
+            "L" = "whse_basemapping.fwa_lakes_poly",
+            "W" = "whse_basemapping.fwa_wetlands_poly")
+          .frs_connected_waterbody(conn, table, habitat,
+            species = sp, waterbody_poly = wb_poly,
+            waterbody_ha_min = wb_ha_min, bridge_gradient = bg,
+            distance_max = bd, verbose = verbose)
         } else {
           # Generic cluster approach for non-lake rearing
           dir <- if (is.na(fp$cluster_spawn_direction)) "both" else
@@ -1347,15 +1346,99 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' (`fwa_lakes_poly` with `area_ha >= lake_ha_min`).
 #'
 #' @noRd
-.frs_connected_spawning <- function(conn, table, habitat,
-                                    species, bridge_gradient = 0.05,
-                                    distance_max = 3000,
-                                    lake_ha_min = 200,
-                                    verbose = TRUE) {
-  sp_quoted <- .frs_quote_string(species)
-  bg <- .frs_sql_num(bridge_gradient)
+#' Trace downstream from origins with distance cap and gradient stop
+#'
+#' Given a set of origin points (waterbody outlets), trace downstream via
+#' `fwa_downstreamtrace`, accumulate distance per origin group, cap at
+#' `distance_max`, and stop at the first segment exceeding `gradient_max`.
+#' Returns qualifying `linear_feature_id`s into a target table.
+#'
+#' @param conn DBI connection.
+#' @param origins_sql Character. SQL that produces columns: `origin_id`
+#'   (grouping key), `blue_line_key`, `downstream_route_measure`.
+#' @param target Character. Table to INSERT `linear_feature_id` results into.
+#' @param distance_max Numeric. Maximum cumulative trace distance (metres).
+#' @param gradient_max Numeric. Gradient threshold — trace stops at the first
+#'   segment exceeding this value.
+#' @noRd
+.frs_trace_downstream <- function(conn, origins_sql, target,
+                                  distance_max, gradient_max) {
   dm <- .frs_sql_num(distance_max)
-  lhm <- .frs_sql_num(lake_ha_min)
+  gm <- .frs_sql_num(gradient_max)
+
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (linear_feature_id)
+     WITH origins AS (%s),
+     downstream AS (
+       SELECT o.origin_id,
+         t.linear_feature_id, t.gradient, t.wscode,
+         t.downstream_route_measure,
+         -t.length_metre + SUM(t.length_metre) OVER (
+           PARTITION BY o.origin_id
+           ORDER BY t.wscode DESC, t.downstream_route_measure DESC
+         ) AS dist_to_origin
+       FROM origins o
+       CROSS JOIN LATERAL whse_basemapping.fwa_downstreamtrace(
+         o.blue_line_key, o.downstream_route_measure) t
+       WHERE t.blue_line_key = t.watershed_key
+     ),
+     downstream_capped AS (
+       SELECT row_number() OVER (
+         PARTITION BY origin_id
+         ORDER BY wscode DESC, downstream_route_measure DESC
+       ) AS rn, *
+       FROM downstream WHERE dist_to_origin < %s
+     ),
+     nearest_barrier AS (
+       SELECT DISTINCT ON (origin_id) *
+       FROM downstream_capped WHERE gradient > %s
+       ORDER BY origin_id, wscode DESC, downstream_route_measure DESC
+     ),
+     valid_downstream AS (
+       SELECT d.linear_feature_id FROM downstream_capped d
+       LEFT JOIN nearest_barrier nb ON d.origin_id = nb.origin_id
+       WHERE nb.rn IS NULL OR d.rn < nb.rn
+     )
+     SELECT DISTINCT linear_feature_id FROM valid_downstream",
+    target, origins_sql, dm, gm))
+}
+
+
+#' Filter spawning to segments connected to a qualifying waterbody
+#'
+#' Two-phase connectivity check for species whose spawning depends on
+#' proximity to a waterbody (e.g. SK/KO lake-connected spawning):
+#'
+#' Phase 1: Trace downstream from waterbody outlets, capped at
+#' `distance_max`, stopped at first gradient exceeding `bridge_gradient`.
+#'
+#' Phase 2: Find spawn-eligible segments upstream of rearing, cluster
+#' spatially, keep clusters within 2m of a qualifying waterbody polygon.
+#'
+#' Subtractive: sets `spawning = FALSE` for segments not found in either
+#' phase, preserving threshold classification from `frs_habitat_classify()`.
+#'
+#' @param conn DBI connection.
+#' @param table Character. Schema-qualified streams table.
+#' @param habitat Character. Schema-qualified habitat table.
+#' @param species Character. Species code.
+#' @param waterbody_poly Character. Schema-qualified waterbody polygon table
+#'   (e.g. `"whse_basemapping.fwa_lakes_poly"`).
+#' @param waterbody_ha_min Numeric. Minimum area (ha) for qualifying
+#'   waterbody polygons.
+#' @param bridge_gradient Numeric. Gradient threshold for downstream trace
+#'   barrier detection.
+#' @param distance_max Numeric. Maximum downstream trace distance (metres).
+#' @param verbose Logical. Print before/after counts.
+#' @noRd
+.frs_connected_waterbody <- function(conn, table, habitat,
+                                     species, waterbody_poly,
+                                     waterbody_ha_min = 200,
+                                     bridge_gradient = 0.05,
+                                     distance_max = 3000,
+                                     verbose = TRUE) {
+  sp_quoted <- .frs_quote_string(species)
+  lhm <- .frs_sql_num(waterbody_ha_min)
 
   n_before <- 0L
   if (verbose) {
@@ -1364,64 +1447,41 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        WHERE species_code = %s", habitat, sp_quoted))$n
   }
 
-  # Build a temp table of qualifying segment IDs from both phases.
-  # Then set spawning = FALSE for segments NOT in the temp table.
-  # This preserves spawn thresholds from frs_habitat_classify().
+  # Temp table for qualifying segment IDs from both phases
   qual_tbl <- sprintf("pg_temp.frs_qual_spawn_%s", tolower(species))
+  lfid_tbl <- sprintf("pg_temp.frs_trace_lfid_%s", tolower(species))
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", qual_tbl))
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", lfid_tbl))
   .frs_db_execute(conn, sprintf("CREATE TEMP TABLE %s (id_segment integer)",
                                 qual_tbl))
+  .frs_db_execute(conn, sprintf(
+    "CREATE TEMP TABLE %s (linear_feature_id bigint)", lfid_tbl))
 
-  # Phase 1: Downstream — trace from rearing lake outlets,
-  # cap at distance_max, stop at first gradient > bridge_gradient
+  # Phase 1: Downstream trace from waterbody outlets
+  origins_sql <- sprintf(
+    "SELECT DISTINCT ON (s2.waterbody_key)
+       s2.waterbody_key AS origin_id,
+       s2.blue_line_key, s2.downstream_route_measure
+     FROM %s s2
+     INNER JOIN %s hr ON s2.id_segment = hr.id_segment
+     WHERE hr.species_code = %s AND hr.rearing IS TRUE
+     ORDER BY s2.waterbody_key, s2.wscode_ltree, s2.localcode_ltree,
+             s2.downstream_route_measure",
+    table, habitat, sp_quoted)
+
+  .frs_trace_downstream(conn, origins_sql, lfid_tbl,
+                         distance_max, bridge_gradient)
+
+  # Map traced linear_feature_ids back to id_segments
   .frs_db_execute(conn, sprintf(
     "INSERT INTO %s (id_segment)
-     WITH lake_outlets AS (
-       SELECT DISTINCT ON (s2.waterbody_key)
-         s2.waterbody_key, s2.blue_line_key, s2.downstream_route_measure
-       FROM %s s2
-       INNER JOIN %s hr ON s2.id_segment = hr.id_segment
-       WHERE hr.species_code = %s AND hr.rearing IS TRUE
-       ORDER BY s2.waterbody_key, s2.wscode_ltree, s2.localcode_ltree,
-               s2.downstream_route_measure
-     ),
-     downstream AS (
-       SELECT lo.waterbody_key AS lake_wbk,
-         t.linear_feature_id, t.gradient, t.wscode,
-         t.downstream_route_measure,
-         -t.length_metre + SUM(t.length_metre) OVER (
-           PARTITION BY lo.waterbody_key
-           ORDER BY t.wscode DESC, t.downstream_route_measure DESC
-         ) AS dist_to_lake
-       FROM lake_outlets lo
-       CROSS JOIN LATERAL whse_basemapping.fwa_downstreamtrace(
-         lo.blue_line_key, lo.downstream_route_measure) t
-       WHERE t.blue_line_key = t.watershed_key
-     ),
-     downstream_capped AS (
-       SELECT row_number() OVER (
-         PARTITION BY lake_wbk
-         ORDER BY wscode DESC, downstream_route_measure DESC
-       ) AS rn, *
-       FROM downstream WHERE dist_to_lake < %s
-     ),
-     nearest_barrier AS (
-       SELECT DISTINCT ON (lake_wbk) *
-       FROM downstream_capped WHERE gradient > %s
-       ORDER BY lake_wbk, wscode DESC, downstream_route_measure DESC
-     ),
-     valid_downstream AS (
-       SELECT d.linear_feature_id FROM downstream_capped d
-       LEFT JOIN nearest_barrier nb ON d.lake_wbk = nb.lake_wbk
-       WHERE nb.rn IS NULL OR d.rn < nb.rn
-     )
      SELECT seg.id_segment FROM %s seg
-     WHERE seg.linear_feature_id IN (
-       SELECT linear_feature_id FROM valid_downstream)",
-    qual_tbl, table, habitat, sp_quoted, dm, bg, table))
+     WHERE seg.linear_feature_id IN (SELECT linear_feature_id FROM %s)",
+    qual_tbl, table, lfid_tbl))
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", lfid_tbl))
 
   # Phase 2: Upstream — spawn-eligible segments upstream of rearing,
-  # clustered, kept only if cluster touches qualifying lake polygon
+  # clustered, kept only if cluster touches qualifying waterbody polygon
   .frs_db_execute(conn, sprintf(
     "INSERT INTO %s (id_segment)
      WITH rearing_segs AS (
@@ -1457,13 +1517,13 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
      valid_clusters AS (
        SELECT cg.cluster_id FROM cluster_geoms cg
        WHERE EXISTS (
-         SELECT 1 FROM whse_basemapping.fwa_lakes_poly lp
+         SELECT 1 FROM %s lp
          WHERE lp.area_ha >= %s AND ST_DWithin(cg.geom, lp.geom, 2))
      )
      SELECT c.id_segment FROM clustered c
      WHERE c.cluster_id IN (SELECT cluster_id FROM valid_clusters)",
     qual_tbl, table, habitat, sp_quoted,
-    table, habitat, sp_quoted, lhm))
+    table, habitat, sp_quoted, waterbody_poly, lhm))
 
   # Subtractive: remove spawning NOT found in either phase
   .frs_db_execute(conn, sprintf(
@@ -1478,7 +1538,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     n_after <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE spawning)::int AS n FROM %s
        WHERE species_code = %s", habitat, sp_quoted))$n
-    cat("  ", species, ": connected spawning ",
+    cat("  ", species, ": connected waterbody ",
         n_before, " -> ", n_after, "\n", sep = "")
   }
 }

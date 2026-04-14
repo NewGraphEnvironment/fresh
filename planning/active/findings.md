@@ -17,3 +17,8 @@
 
 ## Key lesson from original implementation
 Two fundamentally different algorithms (downstream trace vs upstream cluster) can't be replicated by a single generic `frs_cluster` call. The downstream phase uses `fwa_downstreamtrace` with cumulative distance; the upstream phase uses network traversal + spatial clustering + lake polygon proximity.
+
+## Refactor: decompose into reusable pieces
+- `.frs_trace_downstream(conn, origins_sql, target, distance_max, gradient_max)` — generic downstream trace. Takes any origins SQL producing `(origin_id, blue_line_key, downstream_route_measure)`. Returns `linear_feature_id`s into a target table. Reusable for any downstream trace use case (waterbody outlets, barrier impacts, reach delineation).
+- `.frs_connected_waterbody()` replaces `.frs_connected_spawning()` — name reflects mechanism (waterbody connection) not use-case (spawning). Takes `waterbody_poly` param so the same function works for lakes (`fwa_lakes_poly`) or wetlands (`fwa_wetlands_poly`).
+- Caller in `.frs_run_connectivity()` detects `waterbody_type` from rearing rules generically — not hardcoded to `L`. Supports `L` and `W`; `R` (rivers) excluded since river polygons don't have area thresholds in the same way.
