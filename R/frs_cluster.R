@@ -25,9 +25,11 @@
 #'   `"upstream"`.
 #' @param bridge_gradient Numeric. Maximum gradient on any single segment
 #'   between cluster and connection. Applied segment-by-segment along
-#'   the trace path. Default `0.05` (5%).
+#'   the downstream trace path. Upstream check is boolean (no gradient
+#'   constraint) because the branching network makes path ordering
+#'   unreliable. Default `0.05` (5%).
 #' @param bridge_distance Numeric. Maximum cumulative network distance in
-#'   metres to search for connection. Default `10000` (10 km).
+#'   metres to search for connection downstream. Default `10000` (10 km).
 #' @param confluence_m Numeric. Confluence tolerance in metres. When a
 #'   cluster's most-downstream point is within this distance of a
 #'   confluence, the upstream check also considers the parent stream.
@@ -149,8 +151,7 @@ frs_cluster <- function(conn, table, habitat,
         confluence_m, bridge_gradient, bridge_distance)
     } else if (direction == "upstream") {
       .frs_cluster_upstream(conn, table, habitat,
-        label_cluster, label_connect, sp, confluence_m,
-        bridge_gradient, bridge_distance)
+        label_cluster, label_connect, sp, confluence_m)
     } else {
       .frs_cluster_downstream(conn, table, habitat,
         label_cluster, label_connect, sp,
@@ -175,27 +176,25 @@ frs_cluster <- function(conn, table, habitat,
 
 #' Upstream cluster connectivity check
 #'
-#' For each cluster of `label_cluster` segments, trace upstream from the
-#' cluster's most-upstream point through the streams table. Check if
-#' `label_connect` exists within `bridge_distance`, with no segment
-#' exceeding `bridge_gradient` between the cluster and the connection.
+#' For each cluster of `label_cluster` segments, check if `label_connect`
+#' exists upstream of the cluster's most-downstream point. Sets
+#' `label_cluster = FALSE` for segments in clusters that fail.
 #'
-#' Uses `FWA_Upstream()` as a join predicate to get upstream segments,
-#' then orders ascending (walking upstream) and applies the same
-#' row_number + gradient stop + distance cap pattern as downstream.
+#' Uses 8-arg `FWA_Upstream()` for positional precision. When the
+#' cluster minimum is within `confluence_m` of a confluence, also
+#' checks the parent stream via `subpath(wscode_ltree, 0, -1)`.
 #'
-#' When the cluster maximum is within `confluence_m` of a confluence,
-#' also checks the parent stream via `subpath(wscode_ltree, 0, -1)`.
+#' Note: upstream check is boolean (spawning exists anywhere upstream),
+#' not path-based. FWA_Upstream returns all upstream segments including
+#' tributaries — row_number ordering interleaves tributaries with
+#' mainstem, making path gradient checks unreliable.
 #'
 #' @noRd
 .frs_cluster_upstream <- function(conn, table, habitat,
                                   label_cluster, label_connect,
-                                  species, confluence_m,
-                                  bridge_gradient, bridge_distance) {
+                                  species, confluence_m) {
   sp_quoted <- .frs_quote_string(species)
   conf_m <- .frs_sql_num(confluence_m)
-  bg <- .frs_sql_num(bridge_gradient)
-  bd <- .frs_sql_num(bridge_distance)
 
   sql <- sprintf(
     "WITH clustering AS (
@@ -212,7 +211,7 @@ frs_cluster <- function(conn, table, habitat,
          AND h.%s IS TRUE
      ),
 
-     cluster_maximums AS (
+     cluster_minimums AS (
        SELECT DISTINCT ON (cluster_id)
          cluster_id,
          wscode_ltree,
@@ -221,30 +220,18 @@ frs_cluster <- function(conn, table, habitat,
          downstream_route_measure
        FROM clustering
        ORDER BY cluster_id,
-                wscode_ltree DESC,
-                localcode_ltree DESC,
-                downstream_route_measure DESC
+                wscode_ltree ASC,
+                localcode_ltree ASC,
+                downstream_route_measure ASC
      ),
 
-     upstream AS (
-       SELECT
-         cm.cluster_id,
-         st.linear_feature_id,
-         st.gradient,
-         st.wscode_ltree,
-         st.downstream_route_measure,
-         EXISTS (
-           SELECT 1 FROM %s h2
-           WHERE h2.id_segment = st.id_segment
-             AND h2.species_code = %s
-             AND h2.%s IS TRUE
-         ) AS has_connect,
-         SUM(st.length_metre) OVER (
-           PARTITION BY cm.cluster_id
-           ORDER BY st.wscode_ltree ASC, st.downstream_route_measure ASC
-         ) AS dist_to_cluster
-       FROM cluster_maximums cm
-       INNER JOIN %s st ON
+     valid_clusters AS (
+       SELECT DISTINCT cm.cluster_id
+       FROM cluster_minimums cm
+       INNER JOIN %s h2 ON h2.species_code = %s
+         AND h2.%s IS TRUE
+       INNER JOIN %s st ON h2.id_segment = st.id_segment
+       WHERE
          FWA_Upstream(
            cm.blue_line_key, cm.downstream_route_measure,
            cm.wscode_ltree, cm.localcode_ltree,
@@ -258,38 +245,6 @@ frs_cluster <- function(conn, table, habitat,
              st.wscode_ltree, st.localcode_ltree
            )
          )
-     ),
-
-     upstream_capped AS (
-       SELECT
-         row_number() OVER (
-           PARTITION BY cluster_id
-           ORDER BY wscode_ltree ASC, downstream_route_measure ASC
-         ) AS rn,
-         *
-       FROM upstream
-       WHERE dist_to_cluster < %s
-     ),
-
-     nearest_connect AS (
-       SELECT DISTINCT ON (cluster_id) *
-       FROM upstream_capped
-       WHERE has_connect IS TRUE
-       ORDER BY cluster_id, wscode_ltree ASC, downstream_route_measure ASC
-     ),
-
-     nearest_barrier AS (
-       SELECT DISTINCT ON (cluster_id) *
-       FROM upstream_capped
-       WHERE gradient >= %s
-       ORDER BY cluster_id, wscode_ltree ASC, downstream_route_measure ASC
-     ),
-
-     valid_clusters AS (
-       SELECT a.cluster_id
-       FROM nearest_connect a
-       LEFT JOIN nearest_barrier b ON a.cluster_id = b.cluster_id
-       WHERE b.rn IS NULL OR b.rn > a.rn
      )
 
      UPDATE %s h
@@ -299,10 +254,8 @@ frs_cluster <- function(conn, table, habitat,
        AND h.species_code = %s
        AND c.cluster_id NOT IN (SELECT cluster_id FROM valid_clusters)",
     habitat, table, sp_quoted, label_cluster,
-    habitat, sp_quoted, label_connect,
-    table, conf_m,
-    bd,
-    bg,
+    habitat, sp_quoted, label_connect, table,
+    conf_m,
     habitat, label_cluster, sp_quoted)
 
   .frs_db_execute(conn, sql)
@@ -468,80 +421,38 @@ frs_cluster <- function(conn, table, habitat,
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX ON %s (cluster_id)", tmp_clusters))
 
-  # Upstream valid clusters — trace upstream with gradient/distance constraints
+  # Upstream valid clusters — boolean check (spawning exists anywhere upstream)
   sql_upstream <- sprintf(
-    "WITH cluster_maximums AS (
+    "WITH cluster_minimums AS (
        SELECT DISTINCT ON (cluster_id)
          cluster_id, wscode_ltree, localcode_ltree,
          blue_line_key, downstream_route_measure
        FROM %s
-       ORDER BY cluster_id, wscode_ltree DESC, localcode_ltree DESC,
-                downstream_route_measure DESC
-     ),
-     upstream AS (
-       SELECT
-         cm.cluster_id,
-         st.linear_feature_id,
-         st.gradient,
-         st.wscode_ltree,
-         st.downstream_route_measure,
-         EXISTS (
-           SELECT 1 FROM %s h2
-           WHERE h2.id_segment = st.id_segment
-             AND h2.species_code = %s
-             AND h2.%s IS TRUE
-         ) AS has_connect,
-         SUM(st.length_metre) OVER (
-           PARTITION BY cm.cluster_id
-           ORDER BY st.wscode_ltree ASC, st.downstream_route_measure ASC
-         ) AS dist_to_cluster
-       FROM cluster_maximums cm
-       INNER JOIN %s st ON
-         FWA_Upstream(
-           cm.blue_line_key, cm.downstream_route_measure,
-           cm.wscode_ltree, cm.localcode_ltree,
-           st.blue_line_key, st.downstream_route_measure,
+       ORDER BY cluster_id, wscode_ltree ASC, localcode_ltree ASC,
+                downstream_route_measure ASC
+     )
+     SELECT DISTINCT cm.cluster_id
+     FROM cluster_minimums cm
+     INNER JOIN %s h2 ON h2.species_code = %s
+       AND h2.%s IS TRUE
+     INNER JOIN %s st ON h2.id_segment = st.id_segment
+     WHERE
+       FWA_Upstream(
+         cm.blue_line_key, cm.downstream_route_measure,
+         cm.wscode_ltree, cm.localcode_ltree,
+         st.blue_line_key, st.downstream_route_measure,
+         st.wscode_ltree, st.localcode_ltree
+       )
+       OR (
+         cm.downstream_route_measure < %s
+         AND FWA_Upstream(
+           subpath(cm.wscode_ltree, 0, -1), cm.wscode_ltree,
            st.wscode_ltree, st.localcode_ltree
          )
-         OR (
-           cm.downstream_route_measure < %s
-           AND FWA_Upstream(
-             subpath(cm.wscode_ltree, 0, -1), cm.wscode_ltree,
-             st.wscode_ltree, st.localcode_ltree
-           )
-         )
-     ),
-     upstream_capped AS (
-       SELECT
-         row_number() OVER (
-           PARTITION BY cluster_id
-           ORDER BY wscode_ltree ASC, downstream_route_measure ASC
-         ) AS rn,
-         *
-       FROM upstream
-       WHERE dist_to_cluster < %s
-     ),
-     nearest_connect AS (
-       SELECT DISTINCT ON (cluster_id) *
-       FROM upstream_capped
-       WHERE has_connect IS TRUE
-       ORDER BY cluster_id, wscode_ltree ASC, downstream_route_measure ASC
-     ),
-     nearest_barrier AS (
-       SELECT DISTINCT ON (cluster_id) *
-       FROM upstream_capped
-       WHERE gradient >= %s
-       ORDER BY cluster_id, wscode_ltree ASC, downstream_route_measure ASC
-     )
-     SELECT a.cluster_id
-     FROM nearest_connect a
-     LEFT JOIN nearest_barrier b ON a.cluster_id = b.cluster_id
-     WHERE b.rn IS NULL OR b.rn > a.rn",
+       )",
     tmp_clusters,
-    habitat, sp_quoted, label_connect,
-    table, conf_m,
-    bd,
-    bg)
+    habitat, sp_quoted, label_connect, table,
+    conf_m)
 
   valid_up <- DBI::dbGetQuery(conn, sql_upstream)$cluster_id
 

@@ -1,25 +1,17 @@
 # Findings
 
-## Current architecture
-- `frs_cluster(direction="both")` evaluates upstream and downstream independently
-- **Downstream** (`.frs_cluster_downstream`): traces via `fwa_downstreamtrace`, applies `bridge_gradient` and `bridge_distance` segment-by-segment. Correct.
-- **Upstream** (`.frs_cluster_upstream`): uses `FWA_Upstream()` to check if spawning exists ANYWHERE upstream. No gradient or distance constraint. Too permissive.
-- **Both** (`.frs_cluster_both`): cluster valid if connected in EITHER direction. Upstream check passes clusters that downstream would reject.
+## Root cause: upstream path gradient is fundamentally broken
+FWA_Upstream() returns ALL upstream segments including tributaries. For one ADMS cluster, this is 4,770 segments. row_number() ordered by wscode places tributary segments between adjacent mainstem segments. A steep tributary gets a lower row_number than nearby spawning on the mainstem, incorrectly disconnecting rearing that has spawning 123m away with zero gradient.
 
-## Root cause hypothesis
-CH uses `direction=both`. A rearing cluster downstream of a >5% gradient has spawning far upstream past the steep section. The upstream check says "yes, spawning exists upstream" (ignoring gradient). The downstream check would reject it (gradient barrier before spawning). But `both` keeps it because upstream passed.
+The downstream trace (fwa_downstreamtrace) is linear — it follows the mainstem only. row_number works because there are no branches. The upstream network branches — path gradient can't work with row_number on a tree.
 
-The upstream check needs the same bridge_gradient/bridge_distance constraints as downstream, but applied in the upstream direction.
+## Resolution
+- **Upstream**: boolean FWA_Upstream check (spawning exists anywhere upstream). No gradient/distance constraint.
+- **Downstream**: path-based gradient check via fwa_downstreamtrace. Segment-by-segment, row_number works because trace is linear.
+- **Both**: upstream boolean + downstream path gradient. Valid if connected in either direction.
 
-## bcfishpass approach (load_habitat_linear_ch.sql Phase 3)
-1. Cluster rearing with ST_ClusterDBSCAN
-2. Trace downstream from each cluster minimum via FWA_Downstream
-3. Cap at 10km (bridge_distance), assign row_number() sequentially
-4. Find first segment with gradient >= 0.05 (bridge_gradient)
-5. Find nearest downstream spawning
-6. Keep cluster only if spawning rn < gradient_barrier rn
-
-Key difference: bcfishpass only traces DOWNSTREAM for CH rearing cluster validation. It doesn't check upstream at all. The `direction=both` in our params may be wrong for this species, or the upstream check needs gradient constraints.
+## Why downstream-only path gradient is correct
+bcfishpass only applies path gradient checking downstream. The downstream trace follows the mainstem via fwa_downstreamtrace which returns segments in network order. The upstream check is always boolean. The CH rearing +6% excess is from the downstream check — this issue adds the path gradient/distance constraints to the downstream trace in frs_cluster (already present in .frs_cluster_downstream, just needs to be exercised via direction="both").
 
 ## Species with cluster_rearing = TRUE
 | Species | Direction | bridge_gradient | bridge_distance |

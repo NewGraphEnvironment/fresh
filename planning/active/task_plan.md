@@ -1,22 +1,26 @@
-# Task Plan: Issue #153 — frs_cluster bridge_gradient/distance along path
+# Task Plan: Issue #153 — frs_cluster bridge along downstream path
 
 ## Phase 1: Investigate root cause
 - [x] Confirmed: upstream check ignores gradient/distance — uses FWA_Upstream as boolean only
 - [x] Document findings
 
-## Phase 2: Apply bridge constraints to upstream check
-- [x] Add bridge_gradient and bridge_distance to `.frs_cluster_upstream()` signature
-- [x] Query upstream segments via FWA_Upstream join, order ASC, apply row_number + gradient/distance
-- [x] Mirror pattern in `.frs_cluster_both()` upstream query
-- [x] Use cluster_maximums (most-upstream point) as trace start
-- [x] Update test assertions (cluster_maximums, nearest_connect, nearest_barrier)
-- [x] 698 tests pass, code-check clean
-- [x] Commit + code-check
+## Phase 2: Apply bridge constraints to upstream check (REVERTED)
+- [x] Implemented path-based upstream gradient check (81e48c3)
+- [x] **Reverted**: FWA_Upstream returns all upstream segments including tributaries. row_number interleaves tributary segments with mainstem, making path gradient unreliable.
 
-## Phase 3: Verify convergence
-- [ ] BULK CH rearing count matches bcfishpass within tolerance
-- [ ] Other species with cluster_rearing=TRUE (CO, SK, ST, WCT) unaffected or improved
+## Phase 3: Keep downstream path gradient only
+- [x] Revert `.frs_cluster_upstream` to boolean (0.13.5 version)
+- [x] Revert `.frs_cluster_both` upstream query to boolean
+- [x] Keep `.frs_cluster_downstream` path gradient (trace is linear, row_number works)
+- [x] direction="both": upstream boolean + downstream path gradient
+- [x] Update roxygen to document why upstream is boolean
+- [x] Revert test assertions to cluster_minimums
 - [ ] Commit + code-check
 
-## Phase 4: PR
+## Phase 4: Test with link
+- [ ] ADMS: must not regress from 0.13.6 baseline
+- [ ] BULK: CH rearing should improve from +6%
+- [ ] Commit + code-check
+
+## Phase 5: PR
 - [ ] Push, create PR with SRED tag
