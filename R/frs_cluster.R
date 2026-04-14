@@ -24,11 +24,12 @@
 #'   the cluster: `"upstream"`, `"downstream"`, or `"both"`. Default
 #'   `"upstream"`.
 #' @param bridge_gradient Numeric. Maximum gradient on any single segment
-#'   between cluster and connection. Only applies to `"downstream"`
-#'   direction. Default `0.05` (5%).
-#' @param bridge_distance Numeric. Maximum network distance in metres to
-#'   search for connection. Only applies to `"downstream"` direction.
-#'   Default `10000` (10 km).
+#'   between cluster and connection. Applied segment-by-segment along
+#'   the downstream trace path. Upstream check is boolean (no gradient
+#'   constraint) because the branching network makes path ordering
+#'   unreliable. Default `0.05` (5%).
+#' @param bridge_distance Numeric. Maximum cumulative network distance in
+#'   metres to search for connection downstream. Default `10000` (10 km).
 #' @param confluence_m Numeric. Confluence tolerance in metres. When a
 #'   cluster's most-downstream point is within this distance of a
 #'   confluence, the upstream check also considers the parent stream.
@@ -182,6 +183,11 @@ frs_cluster <- function(conn, table, habitat,
 #' Uses 8-arg `FWA_Upstream()` for positional precision. When the
 #' cluster minimum is within `confluence_m` of a confluence, also
 #' checks the parent stream via `subpath(wscode_ltree, 0, -1)`.
+#'
+#' Note: upstream check is boolean (spawning exists anywhere upstream),
+#' not path-based. FWA_Upstream returns all upstream segments including
+#' tributaries — row_number ordering interleaves tributaries with
+#' mainstem, making path gradient checks unreliable.
 #'
 #' @noRd
 .frs_cluster_upstream <- function(conn, table, habitat,
@@ -415,7 +421,7 @@ frs_cluster <- function(conn, table, habitat,
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX ON %s (cluster_id)", tmp_clusters))
 
-  # Upstream valid clusters
+  # Upstream valid clusters — boolean check (spawning exists anywhere upstream)
   sql_upstream <- sprintf(
     "WITH cluster_minimums AS (
        SELECT DISTINCT ON (cluster_id)
