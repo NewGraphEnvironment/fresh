@@ -82,7 +82,9 @@ test_that("upstream SQL includes FWA_Upstream and confluence check", {
   expect_match(sql_log[1], "ST_ClusterDBSCAN")
   expect_match(sql_log[1], "FWA_Upstream")
   expect_match(sql_log[1], "subpath")
-  expect_match(sql_log[1], "cluster_minimums")
+  expect_match(sql_log[1], "cluster_maximums")
+  expect_match(sql_log[1], "nearest_connect")
+  expect_match(sql_log[1], "nearest_barrier")
   expect_match(sql_log[1], "SET rearing = FALSE")
 })
 

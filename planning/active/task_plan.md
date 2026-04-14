@@ -1,15 +1,17 @@
 # Task Plan: Issue #153 — frs_cluster bridge_gradient/distance along path
 
 ## Phase 1: Investigate root cause
-- [ ] Confirm: is the issue upstream check ignoring gradient/distance, or downstream trace bug?
-- [ ] Run comparison query on BULK CH to verify the 97/180 excess
-- [ ] Document findings
+- [x] Confirmed: upstream check ignores gradient/distance — uses FWA_Upstream as boolean only
+- [x] Document findings
 
 ## Phase 2: Apply bridge constraints to upstream check
-- [ ] Add bridge_gradient and bridge_distance to `.frs_cluster_upstream()` signature
-- [ ] Trace upstream path segment-by-segment (or reuse `.frs_trace_downstream` in reverse?)
-- [ ] Tests
-- [ ] Commit + code-check
+- [x] Add bridge_gradient and bridge_distance to `.frs_cluster_upstream()` signature
+- [x] Query upstream segments via FWA_Upstream join, order ASC, apply row_number + gradient/distance
+- [x] Mirror pattern in `.frs_cluster_both()` upstream query
+- [x] Use cluster_maximums (most-upstream point) as trace start
+- [x] Update test assertions (cluster_maximums, nearest_connect, nearest_barrier)
+- [x] 698 tests pass, code-check clean
+- [x] Commit + code-check
 
 ## Phase 3: Verify convergence
 - [ ] BULK CH rearing count matches bcfishpass within tolerance
