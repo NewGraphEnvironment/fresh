@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,12 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.13.6" id="fresh-0136">fresh 0.13.6<a class="anchor" aria-label="anchor" href="#fresh-0136"></a></h2>
+<p>Support <code>spawn_connected</code> rules for waterbody-adjacent spawning.</p>
+<ul><li>Parse <code>spawn_connected</code> block in rules YAML — permissive spawn thresholds for segments in the downstream trace from waterbody outlets. Own validation separate from spawn/rear rules (<a href="https://github.com/NewGraphEnvironment/fresh/issues/154" class="external-link">#154</a>)</li>
+<li>Additive step in <code>.frs_connected_waterbody()</code>: accessible segments in the trace meeting <code>spawn_connected</code> thresholds get <code>spawning = TRUE</code> even if they failed standard classification. BULK SK spawning -9.6% to -0.7% vs bcfishpass (<a href="https://github.com/NewGraphEnvironment/fresh/issues/154" class="external-link">#154</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.5" id="fresh-0135">fresh 0.13.5<a class="anchor" aria-label="anchor" href="#fresh-0135"></a></h2>
 <p>Fix lake outlet ordering and extract reusable downstream trace.</p>

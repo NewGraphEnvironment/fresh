@@ -1,5 +1,19 @@
 # Changelog
 
+## fresh 0.13.6
+
+Support `spawn_connected` rules for waterbody-adjacent spawning.
+
+- Parse `spawn_connected` block in rules YAML — permissive spawn
+  thresholds for segments in the downstream trace from waterbody
+  outlets. Own validation separate from spawn/rear rules
+  ([\#154](https://github.com/NewGraphEnvironment/fresh/issues/154))
+- Additive step in `.frs_connected_waterbody()`: accessible segments in
+  the trace meeting `spawn_connected` thresholds get `spawning = TRUE`
+  even if they failed standard classification. BULK SK spawning -9.6% to
+  -0.7% vs bcfishpass
+  ([\#154](https://github.com/NewGraphEnvironment/fresh/issues/154))
+
 ## fresh 0.13.5
 
 Fix lake outlet ordering and extract reusable downstream trace.
