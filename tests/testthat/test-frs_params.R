@@ -193,6 +193,97 @@ test_that(".frs_load_rules errors on non-character edge_types", {
 })
 
 
+# --- spawn_connected validation tests ---
+
+test_that(".frs_load_rules accepts valid spawn_connected block", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn:",
+    "  - edge_types:",
+    "    - stream",
+    "  rear:",
+    "  - waterbody_type: L",
+    "    lake_ha_min: 200",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    channel_width_min: 0.0",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05"), tmp)
+  expect_silent(rules <- .frs_load_rules(tmp))
+  expect_true("spawn_connected" %in% names(rules$SK))
+  expect_equal(rules$SK$spawn_connected$direction, "downstream")
+  expect_equal(rules$SK$spawn_connected$gradient_max, 0.05)
+})
+
+test_that(".frs_load_rules errors on unknown spawn_connected keys", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05",
+    "    bogus_key: 42"), tmp)
+  expect_error(.frs_load_rules(tmp), "unknown keys.*bogus_key")
+})
+
+test_that(".frs_load_rules errors on missing required spawn_connected keys", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L"), tmp)
+  expect_error(.frs_load_rules(tmp), "missing required keys")
+})
+
+test_that(".frs_load_rules errors on invalid spawn_connected direction", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn_connected:",
+    "    direction: sideways",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05"), tmp)
+  expect_error(.frs_load_rules(tmp), "direction must be")
+})
+
+test_that("frs_params attaches spawn_connected to species params", {
+  csv <- system.file("extdata", "parameters_habitat_thresholds.csv",
+                     package = "fresh")
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn:",
+    "  - edge_types:",
+    "    - stream",
+    "  rear:",
+    "  - waterbody_type: L",
+    "    lake_ha_min: 200",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05"), tmp)
+  params <- frs_params(csv = csv, rules_yaml = tmp)
+  expect_true(!is.null(params[["SK"]]$rules$spawn_connected))
+  expect_equal(params[["SK"]]$rules$spawn_connected$gradient_max, 0.05)
+})
+
+
 # --- Rule evaluator tests ---
 
 test_that(".frs_rule_to_sql edge_types translates via frs_edge_types", {

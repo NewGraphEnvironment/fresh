@@ -1,11 +1,12 @@
 # Task Plan: Issue #154 — spawn_connected rules
 
 ## Phase 1: Parser — recognize spawn_connected block
-- [ ] Add `spawn_connected` as valid habitat block in `.frs_load_rules()` (alongside `spawn`, `rear`)
-- [ ] Add `.frs_validate_spawn_connected()` — validate fixed keys: `direction`, `waterbody_type`, `gradient_max`, `channel_width_min`, `distance_max`, `bridge_gradient`
-- [ ] Attach `$rules$spawn_connected` to species params (single block, not list of rules)
-- [ ] Tests: parse valid spawn_connected, error on unknown keys, error on missing required keys
-- [ ] Commit + code-check
+- [x] Add `spawn_connected` as valid habitat block in `.frs_load_rules()` (alongside `spawn`, `rear`)
+- [x] Add `.frs_validate_spawn_connected()` — validate fixed keys
+- [x] Attach `$rules$spawn_connected` to species params (flows through existing attachment code)
+- [x] Tests: 5 new tests (valid parse, unknown keys, missing keys, invalid direction, params attachment)
+- [x] 102 params tests pass, code-check clean
+- [x] Commit + code-check
 
 ## Phase 2: Additive step in .frs_connected_waterbody
 - [ ] Keep `lfid_tbl` alive past Phase 1 (currently dropped after mapping to id_segments)
