@@ -8,23 +8,15 @@
 - [x] 102 params tests pass, code-check clean
 - [x] Commit + code-check
 
-## Phase 2: Additive step in .frs_connected_waterbody
-- [ ] Keep `lfid_tbl` alive past Phase 1 (currently dropped after mapping to id_segments)
-- [ ] After Phase 2 (subtractive), add Phase 3: UPDATE spawning = TRUE for segments where:
-  - `linear_feature_id IN lfid_tbl` (in the downstream trace)
-  - `accessible IS TRUE` (from habitat table)
-  - `gradient <= gradient_max`
-  - `channel_width >= channel_width_min` (or channel_width_min = 0 skips check)
-  - edge_type filter if present in spawn_connected
-- [ ] Pass spawn_connected config into `.frs_connected_waterbody()`
-- [ ] Drop `lfid_tbl` after Phase 3
-- [ ] Tests
-- [ ] Commit + code-check
-
-## Phase 3: Wire through frs_habitat dispatcher
-- [ ] Read `spawn_connected` from `params[[sp]]$rules$spawn_connected`
-- [ ] Pass to `.frs_connected_waterbody()` call
-- [ ] Commit + code-check
+## Phase 2+3: Additive step + wire through dispatcher
+- [x] Keep `lfid_tbl` alive past Phase 1 for Phase 3
+- [x] Add `spawn_connected` param to `.frs_connected_waterbody()`
+- [x] Phase 3 additive UPDATE: spawning = TRUE for accessible segments in trace meeting permissive thresholds
+- [x] Edge type filter (optional), channel_width_min (skip if 0), gradient_max (always)
+- [x] Wire through: `ps[["rules"]][["spawn_connected"]]` → `.frs_connected_waterbody(spawn_connected=)`
+- [x] Drop lfid_tbl after Phase 3
+- [x] 705 tests pass, code-check clean
+- [x] Commit + code-check
 
 ## Phase 4: PR
 - [ ] Push, create PR with SRED tag

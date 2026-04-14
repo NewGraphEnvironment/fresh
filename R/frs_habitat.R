@@ -1213,10 +1213,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 
         if (!is.null(wb_type)) {
           wb_poly <- .frs_waterbody_tables(wb_type)
+          sc <- ps[["rules"]][["spawn_connected"]]
           .frs_connected_waterbody(conn, table, habitat,
             species = sp, waterbody_poly = wb_poly,
             waterbody_ha_min = wb_ha_min, bridge_gradient = bg,
-            distance_max = bd, verbose = verbose)
+            distance_max = bd, spawn_connected = sc,
+            verbose = verbose)
         } else {
           # Generic cluster approach for non-lake rearing
           dir <- if (is.na(fp$cluster_spawn_direction)) "both" else
@@ -1429,6 +1431,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' @param bridge_gradient Numeric. Gradient threshold for downstream trace
 #'   barrier detection.
 #' @param distance_max Numeric. Maximum downstream trace distance (metres).
+#' @param spawn_connected Named list or `NULL`. Permissive spawn thresholds
+#'   for the additive step (Phase 3). When non-NULL, accessible segments
+#'   in the downstream trace that meet these thresholds get `spawning = TRUE`
+#'   even if they failed standard classification. Keys: `gradient_max`,
+#'   `channel_width_min`, `edge_types`, `edge_types_explicit`.
 #' @param verbose Logical. Print before/after counts.
 #' @noRd
 .frs_connected_waterbody <- function(conn, table, habitat,
@@ -1436,6 +1443,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
                                      waterbody_ha_min = 200,
                                      bridge_gradient = 0.05,
                                      distance_max = 3000,
+                                     spawn_connected = NULL,
                                      verbose = TRUE) {
   sp_quoted <- .frs_quote_string(species)
   lhm <- .frs_sql_num(waterbody_ha_min)
@@ -1478,7 +1486,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
      SELECT seg.id_segment FROM %s seg
      WHERE seg.linear_feature_id IN (SELECT linear_feature_id FROM %s)",
     qual_tbl, table, lfid_tbl))
-  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", lfid_tbl))
+  # Keep lfid_tbl alive for Phase 3 additive step
 
   # Phase 2: Upstream — spawn-eligible segments upstream of rearing,
   # clustered, kept only if cluster touches qualifying waterbody polygon
@@ -1538,6 +1546,46 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        AND id_segment NOT IN (SELECT id_segment FROM %s)",
     habitat, sp_quoted, qual_tbl))
 
+  # Phase 3: Additive — promote accessible segments in the downstream
+  # trace that meet spawn_connected thresholds but failed standard
+  # classification. Uses permissive gradient/channel_width from the
+  # spawn_connected config.
+  if (!is.null(spawn_connected)) {
+    sc_where <- sprintf(
+      "s.gradient <= %s",
+      .frs_sql_num(spawn_connected[["gradient_max"]]))
+
+    cw_min <- spawn_connected[["channel_width_min"]]
+    if (!is.null(cw_min) && cw_min > 0) {
+      sc_where <- paste(sc_where, "AND", sprintf(
+        "s.channel_width >= %s", .frs_sql_num(cw_min)))
+    }
+
+    # Edge type filter if present
+    if (!is.null(spawn_connected[["edge_types"]])) {
+      et_codes <- frs_edge_types(spawn_connected[["edge_types"]])
+      sc_where <- paste(sc_where, "AND", sprintf(
+        "s.edge_type IN (%s)", paste(et_codes, collapse = ", ")))
+    }
+    if (!is.null(spawn_connected[["edge_types_explicit"]])) {
+      codes <- as.integer(spawn_connected[["edge_types_explicit"]])
+      sc_where <- paste(sc_where, "AND", sprintf(
+        "s.edge_type IN (%s)", paste(codes, collapse = ", ")))
+    }
+
+    .frs_db_execute(conn, sprintf(
+      "UPDATE %s h SET spawning = TRUE
+       FROM %s s
+       WHERE h.id_segment = s.id_segment
+         AND h.species_code = %s
+         AND h.accessible IS TRUE
+         AND h.spawning IS FALSE
+         AND s.linear_feature_id IN (SELECT linear_feature_id FROM %s)
+         AND %s",
+      habitat, table, sp_quoted, lfid_tbl, sc_where))
+  }
+
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", lfid_tbl))
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", qual_tbl))
 
   if (verbose) {
