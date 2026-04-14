@@ -1378,18 +1378,19 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     "INSERT INTO %s (id_segment)
      WITH lake_outlets AS (
        SELECT DISTINCT ON (s2.waterbody_key)
-         s2.blue_line_key, s2.downstream_route_measure
+         s2.waterbody_key, s2.blue_line_key, s2.downstream_route_measure
        FROM %s s2
        INNER JOIN %s hr ON s2.id_segment = hr.id_segment
        WHERE hr.species_code = %s AND hr.rearing IS TRUE
-       ORDER BY s2.waterbody_key, s2.downstream_route_measure ASC
+       ORDER BY s2.waterbody_key, s2.wscode_ltree, s2.localcode_ltree,
+               s2.downstream_route_measure
      ),
      downstream AS (
-       SELECT lo.blue_line_key AS lake_blk,
+       SELECT lo.waterbody_key AS lake_wbk,
          t.linear_feature_id, t.gradient, t.wscode,
          t.downstream_route_measure,
          -t.length_metre + SUM(t.length_metre) OVER (
-           PARTITION BY lo.blue_line_key
+           PARTITION BY lo.waterbody_key
            ORDER BY t.wscode DESC, t.downstream_route_measure DESC
          ) AS dist_to_lake
        FROM lake_outlets lo
@@ -1399,19 +1400,19 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
      ),
      downstream_capped AS (
        SELECT row_number() OVER (
-         PARTITION BY lake_blk
+         PARTITION BY lake_wbk
          ORDER BY wscode DESC, downstream_route_measure DESC
        ) AS rn, *
        FROM downstream WHERE dist_to_lake < %s
      ),
      nearest_barrier AS (
-       SELECT DISTINCT ON (lake_blk) *
+       SELECT DISTINCT ON (lake_wbk) *
        FROM downstream_capped WHERE gradient > %s
-       ORDER BY lake_blk, wscode DESC, downstream_route_measure DESC
+       ORDER BY lake_wbk, wscode DESC, downstream_route_measure DESC
      ),
      valid_downstream AS (
        SELECT d.linear_feature_id FROM downstream_capped d
-       LEFT JOIN nearest_barrier nb ON d.lake_blk = nb.lake_blk
+       LEFT JOIN nearest_barrier nb ON d.lake_wbk = nb.lake_wbk
        WHERE nb.rn IS NULL OR d.rn < nb.rn
      )
      SELECT seg.id_segment FROM %s seg
