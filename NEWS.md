@@ -1,3 +1,11 @@
+# fresh 0.13.8
+
+Three-phase cluster connectivity for rearing.
+
+- Phase 1: on-spawning segments (both rearing AND spawning) excluded from clustering — always valid. Prevents over-removal of rearing on spawning streams ([#153](https://github.com/NewGraphEnvironment/fresh/issues/153))
+- Phase 3: `FWA_Downstream()` on the broken streams table (mainstem only) replaces `fwa_downstreamtrace()` on raw FWA. Finds spawning downstream of rearing clusters with path gradient + distance constraints ([#153](https://github.com/NewGraphEnvironment/fresh/issues/153))
+- BULK CH rearing +6.0% → +2.6%, BT rearing +1.3% → -2.2%. All species within 5% across 4 WSGs
+
 # fresh 0.13.7
 
 Apply bridge gradient along downstream path in `frs_cluster`.
