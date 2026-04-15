@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.13.8" id="fresh-0138">fresh 0.13.8<a class="anchor" aria-label="anchor" href="#fresh-0138"></a></h2>
+<p>Three-phase cluster connectivity for rearing.</p>
+<ul><li>Phase 1: on-spawning segments (both rearing AND spawning) excluded from clustering — always valid. Prevents over-removal of rearing on spawning streams (<a href="https://github.com/NewGraphEnvironment/fresh/issues/153" class="external-link">#153</a>)</li>
+<li>Phase 3: <code>FWA_Downstream()</code> on the broken streams table (mainstem only) replaces <code>fwa_downstreamtrace()</code> on raw FWA. Finds spawning downstream of rearing clusters with path gradient + distance constraints (<a href="https://github.com/NewGraphEnvironment/fresh/issues/153" class="external-link">#153</a>)</li>
+<li>BULK CH rearing +6.0% → +2.6%, BT rearing +1.3% → -2.2%. All species within 5% across 4 WSGs</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.7" id="fresh-0137">fresh 0.13.7<a class="anchor" aria-label="anchor" href="#fresh-0137"></a></h2>
 <p>Apply bridge gradient along downstream path in <code>frs_cluster</code>.</p>
