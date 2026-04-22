@@ -4,7 +4,13 @@
 \alias{frs_break_apply}
 \title{Apply Break Points to Split Stream Geometry}
 \usage{
-frs_break_apply(conn, table, breaks, segment_id = "linear_feature_id")
+frs_break_apply(
+  conn,
+  table,
+  breaks,
+  segment_id = "linear_feature_id",
+  measure_precision = 0L
+)
 }
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
@@ -93,6 +99,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
 \code{\link{frs_classify}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},

@@ -42,12 +42,13 @@ the cluster: \code{"upstream"}, \code{"downstream"}, or \code{"both"}. Default
 \code{"upstream"}.}
 
 \item{bridge_gradient}{Numeric. Maximum gradient on any single segment
-between cluster and connection. Only applies to \code{"downstream"}
-direction. Default \code{0.05} (5\%).}
+between cluster and connection. Applied segment-by-segment along
+the downstream trace path. Upstream check is boolean (no gradient
+constraint) because the branching network makes path ordering
+unreliable. Default \code{0.05} (5\%).}
 
-\item{bridge_distance}{Numeric. Maximum network distance in metres to
-search for connection. Only applies to \code{"downstream"} direction.
-Default \code{10000} (10 km).}
+\item{bridge_distance}{Numeric. Maximum cumulative network distance in
+metres to search for connection downstream. Default \code{10000} (10 km).}
 
 \item{confluence_m}{Numeric. Confluence tolerance in metres. When a
 cluster's most-downstream point is within this distance of a

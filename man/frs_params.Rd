@@ -27,7 +27,8 @@ file. Default reads the bundled
 \code{inst/extdata/parameters_habitat_rules.yaml}. Pass \code{NULL} to skip
 rules entirely (every species falls through to the CSV ranges
 path used pre-0.12.0). When a rules file is loaded, each species
-listed in the file gets \verb{$rules$spawn} and \verb{$rules$rear} attached
+listed in the file gets \verb{$rules$spawn}, \verb{$rules$rear}, and
+optionally \verb{$rules$spawn_connected} attached
 to its params entry. Species not listed in the file fall through
 to the CSV ranges path. See the \code{parameters_habitat_rules.yaml}
 header for the rule format.}

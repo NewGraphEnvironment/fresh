@@ -192,6 +192,7 @@ Other habitat:
 \code{\link{frs_break_find}()},
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
