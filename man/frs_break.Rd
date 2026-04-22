@@ -41,7 +41,7 @@ gradient exceeds this produce a break point at the entry.}
 \item{interval}{Integer. Not used (kept for compatibility). Default \code{100}.}
 
 \item{distance}{Integer. Upstream window in metres for gradient
-computation AND minimum island length. Default \code{100}.}
+computation at each vertex. Default \code{100}.}
 
 \item{points_where}{Character or \code{NULL}. SQL predicate to filter rows from
 \code{points_table} (e.g. \code{"barrier_ind = TRUE"}). Passed to
@@ -136,6 +136,7 @@ Other habitat:
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
 \code{\link{frs_classify}()},
+\code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},
 \code{\link{frs_col_join}()},
 \code{\link{frs_extract}()},
