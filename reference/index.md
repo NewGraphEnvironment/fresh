@@ -4,6 +4,8 @@
 
 - [`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md)
   : Aggregate Features Along the Network from Points
+- [`frs_barriers_minimal()`](https://newgraphenvironment.github.io/fresh/reference/frs_barriers_minimal.md)
+  : Reduce Barriers to Downstream-Most Per Flow Path
 - [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md)
   : Break Stream Network at Threshold or Point Locations
 - [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md)

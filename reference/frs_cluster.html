@@ -11,7 +11,7 @@ clusters have their label set to FALSE."><meta property="og:image" content="http
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.14.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -107,14 +107,15 @@ the cluster: <code>"upstream"</code>, <code>"downstream"</code>, or <code>"both"
 
 <dt id="arg-bridge-gradient">bridge_gradient<a class="anchor" aria-label="anchor" href="#arg-bridge-gradient"></a></dt>
 <dd><p>Numeric. Maximum gradient on any single segment
-between cluster and connection. Only applies to <code>"downstream"</code>
-direction. Default <code>0.05</code> (5%).</p></dd>
+between cluster and connection. Applied segment-by-segment along
+the downstream trace path. Upstream check is boolean (no gradient
+constraint) because the branching network makes path ordering
+unreliable. Default <code>0.05</code> (5%).</p></dd>
 
 
 <dt id="arg-bridge-distance">bridge_distance<a class="anchor" aria-label="anchor" href="#arg-bridge-distance"></a></dt>
-<dd><p>Numeric. Maximum network distance in metres to
-search for connection. Only applies to <code>"downstream"</code> direction.
-Default <code>10000</code> (10 km).</p></dd>
+<dd><p>Numeric. Maximum cumulative network distance in
+metres to search for connection downstream. Default <code>10000</code> (10 km).</p></dd>
 
 
 <dt id="arg-confluence-m">confluence_m<a class="anchor" aria-label="anchor" href="#arg-confluence-m"></a></dt>

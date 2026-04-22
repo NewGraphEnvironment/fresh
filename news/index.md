@@ -1,5 +1,16 @@
 # Changelog
 
+## fresh 0.14.0
+
+- Add
+  [`frs_barriers_minimal()`](https://newgraphenvironment.github.io/fresh/reference/frs_barriers_minimal.md)
+  — reduce barrier points to the downstream-most per flow path via
+  `fwa_upstream()` self-join. Extracts the bcfishpass “non-minimal
+  removal” pattern from link’s compare pipeline into a reusable fresh
+  function. Typical reduction ~27,000 raw gradient barriers → ~700
+  minimal on a full watershed group
+  ([\#160](https://github.com/NewGraphEnvironment/fresh/issues/160))
+
 ## fresh 0.13.8
 
 Three-phase cluster connectivity for rearing.

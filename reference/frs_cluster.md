@@ -66,13 +66,14 @@ frs_cluster(
 - bridge_gradient:
 
   Numeric. Maximum gradient on any single segment between cluster and
-  connection. Only applies to `"downstream"` direction. Default `0.05`
-  (5%).
+  connection. Applied segment-by-segment along the downstream trace
+  path. Upstream check is boolean (no gradient constraint) because the
+  branching network makes path ordering unreliable. Default `0.05` (5%).
 
 - bridge_distance:
 
-  Numeric. Maximum network distance in metres to search for connection.
-  Only applies to `"downstream"` direction. Default `10000` (10 km).
+  Numeric. Maximum cumulative network distance in metres to search for
+  connection downstream. Default `10000` (10 km).
 
 - confluence_m:
 

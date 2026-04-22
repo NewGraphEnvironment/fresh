@@ -13,7 +13,7 @@ frs_classify() pipeline."><meta property="og:image" content="https://newgraphenv
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.14.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -87,7 +87,8 @@ file. Default reads the bundled
 <code>inst/extdata/parameters_habitat_rules.yaml</code>. Pass <code>NULL</code> to skip
 rules entirely (every species falls through to the CSV ranges
 path used pre-0.12.0). When a rules file is loaded, each species
-listed in the file gets <code>$rules$spawn</code> and <code>$rules$rear</code> attached
+listed in the file gets <code>$rules$spawn</code>, <code>$rules$rear</code>, and
+optionally <code>$rules$spawn_connected</code> attached
 to its params entry. Species not listed in the file fall through
 to the CSV ranges path. See the <code>parameters_habitat_rules.yaml</code>
 header for the rule format.</p></dd>

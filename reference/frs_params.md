@@ -48,10 +48,10 @@ frs_params(
   the bundled `inst/extdata/parameters_habitat_rules.yaml`. Pass `NULL`
   to skip rules entirely (every species falls through to the CSV ranges
   path used pre-0.12.0). When a rules file is loaded, each species
-  listed in the file gets `$rules$spawn` and `$rules$rear` attached to
-  its params entry. Species not listed in the file fall through to the
-  CSV ranges path. See the `parameters_habitat_rules.yaml` header for
-  the rule format.
+  listed in the file gets `$rules$spawn`, `$rules$rear`, and optionally
+  `$rules$spawn_connected` attached to its params entry. Species not
+  listed in the file fall through to the CSV ranges path. See the
+  `parameters_habitat_rules.yaml` header for the rule format.
 
 ## Value
 

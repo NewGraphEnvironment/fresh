@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.14.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,10 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.14.0" id="fresh-0140">fresh 0.14.0<a class="anchor" aria-label="anchor" href="#fresh-0140"></a></h2>
+<ul><li>Add <code><a href="../reference/frs_barriers_minimal.html">frs_barriers_minimal()</a></code> — reduce barrier points to the downstream-most per flow path via <code>fwa_upstream()</code> self-join. Extracts the bcfishpass “non-minimal removal” pattern from link’s compare pipeline into a reusable fresh function. Typical reduction ~27,000 raw gradient barriers → ~700 minimal on a full watershed group (<a href="https://github.com/NewGraphEnvironment/fresh/issues/160" class="external-link">#160</a>)</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.13.8" id="fresh-0138">fresh 0.13.8<a class="anchor" aria-label="anchor" href="#fresh-0138"></a></h2>
 <p>Three-phase cluster connectivity for rearing.</p>
