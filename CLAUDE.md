@@ -63,8 +63,6 @@ R/
   frs_stream_fetch.R         — fetch stream segments
   frs_lake_fetch.R           — fetch lakes
   frs_wetland_fetch.R        — fetch wetlands
-  frs_fish_habitat.R         — fetch bcfishpass habitat linear reference
-  frs_fish_obs.R             — fetch bcfishobs observations
   frs_order_filter.R         — filter on stream order / order_parent
   frs_params.R               — load species habitat parameters
   frs_wsg_species.R          — species presence per watershed group
