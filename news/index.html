@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.16.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.17.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.17.0" id="fresh-0170">fresh 0.17.0<a class="anchor" aria-label="anchor" href="#fresh-0170"></a></h2>
+<ul><li>
+<code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> now honours the <code>waterbody_type: L</code> / <code>waterbody_type: W</code> entries under a species’ <code>rear:</code> rules in the rules YAML. Previously the <code>lake_rearing</code> / <code>wetland_rearing</code> booleans were set whenever a segment fell in the species’ rear channel-width window and matched a lake/wetland <code>waterbody_key</code> — regardless of whether the species had a lake/wetland rear rule declared. Now the flag is <code>FALSE</code> unless the species has the matching rule, and the rule’s optional <code>lake_ha_min</code> / <code>wetland_ha_min</code> threshold filters the polygon join to exclude waterbodies below that area (<a href="https://github.com/NewGraphEnvironment/fresh/issues/165" class="external-link">#165</a>). Surfaced in link#51 when every species in link’s bcfishpass and default bundles produced bit-identical <code>lake_rearing_ha</code> totals despite the bundles declaring different rear rules.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.16.0" id="fresh-0160">fresh 0.16.0<a class="anchor" aria-label="anchor" href="#fresh-0160"></a></h2>
 <ul><li>
