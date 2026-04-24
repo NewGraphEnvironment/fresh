@@ -69,9 +69,9 @@ these species in the output table. Default \code{TRUE}.}
 \description{
 Fish-habitat convenience wrapper. Classifies segments in a segmented
 stream network for one or more species into a fixed output schema of
-\code{accessible / spawning / rearing / lake_rearing} booleans keyed by
-\code{species_code}. Produces long-format output: one row per segment x
-species.
+\code{accessible / spawning / rearing / lake_rearing / wetland_rearing}
+booleans keyed by \code{species_code}. Produces long-format output: one
+row per segment x species.
 }
 \details{
 For non-fish domains — thermal refugia, riparian connectivity,
@@ -114,7 +114,7 @@ DBI::dbGetQuery(conn, "
 # Join geometry back for mapping — id_segment links the two tables
 DBI::dbExecute(conn, "
   CREATE OR REPLACE VIEW fresh.streams_co_vw AS
-  SELECT s.*, h.accessible, h.spawning, h.rearing, h.lake_rearing
+  SELECT s.*, h.accessible, h.spawning, h.rearing, h.lake_rearing, h.wetland_rearing
   FROM fresh.streams s
   JOIN fresh.streams_habitat h ON s.id_segment = h.id_segment
   WHERE h.species_code = 'CO'")
