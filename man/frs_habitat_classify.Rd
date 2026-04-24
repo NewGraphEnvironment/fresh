@@ -67,12 +67,20 @@ these species in the output table. Default \code{TRUE}.}
 \code{conn} invisibly, for pipe chaining.
 }
 \description{
-Classify segments in a segmented stream network for one or more
-species. Produces a long-format output table with one row per
-segment x species, containing accessibility and habitat type
-booleans.
+Fish-habitat convenience wrapper. Classifies segments in a segmented
+stream network for one or more species into a fixed output schema of
+\code{accessible / spawning / rearing / lake_rearing} booleans keyed by
+\code{species_code}. Produces long-format output: one row per segment x
+species.
 }
 \details{
+For non-fish domains — thermal refugia, riparian connectivity,
+sediment-transport models, any classification that doesn't fit the
+fixed output schema above — compose \code{\link[=frs_classify]{frs_classify()}} directly on
+your own output table. \code{frs_classify()} is pipeable, takes any
+\code{label} column name, and has no assumptions about what's being
+modelled.
+
 Requires a segmented streams table (from \code{\link[=frs_network_segment]{frs_network_segment()}})
 with \code{id_segment}, gradient, channel width, and ltree columns, plus
 a breaks table (\verb{\{streams_table\}_breaks}) for accessibility checks.

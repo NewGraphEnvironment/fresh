@@ -1,9 +1,17 @@
 #' Classify Habitat for Multiple Species
 #'
-#' Classify segments in a segmented stream network for one or more
-#' species. Produces a long-format output table with one row per
-#' segment x species, containing accessibility and habitat type
-#' booleans.
+#' Fish-habitat convenience wrapper. Classifies segments in a segmented
+#' stream network for one or more species into a fixed output schema of
+#' `accessible / spawning / rearing / lake_rearing` booleans keyed by
+#' `species_code`. Produces long-format output: one row per segment x
+#' species.
+#'
+#' For non-fish domains — thermal refugia, riparian connectivity,
+#' sediment-transport models, any classification that doesn't fit the
+#' fixed output schema above — compose [frs_classify()] directly on
+#' your own output table. `frs_classify()` is pipeable, takes any
+#' `label` column name, and has no assumptions about what's being
+#' modelled.
 #'
 #' Requires a segmented streams table (from [frs_network_segment()])
 #' with `id_segment`, gradient, channel width, and ltree columns, plus

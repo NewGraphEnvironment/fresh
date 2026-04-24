@@ -74,6 +74,16 @@ frs_habitat(conn,
 
 See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for vignettes and function reference.
 
+## Primitives vs domain wrappers
+
+fresh has two layers:
+
+**Generic primitives** — `frs_classify()`, `frs_break_find()`, `frs_break_apply()`, `frs_network_segment()`, `frs_barriers_minimal()`, `frs_col_generate()`, `frs_col_join()`, `frs_aggregate()`, `frs_cluster()`. Domain-neutral building blocks. Classify on any attribute into any label column. Break at any position. Cluster by any connectivity rule. No assumptions about what's being modelled.
+
+**Fish-habitat wrapper** — `frs_habitat_classify()`, `frs_habitat()`, `frs_params()`. Convenience wrappers that classify segments as `accessible / spawning / rearing / lake_rearing` per `species_code`, driven by a per-species rules YAML. The output schema is fish-specific.
+
+For non-fish domains — thermal refugia, riparian connectivity, sediment-transport models, custom classifications — compose the primitives directly on your own output schema. `frs_classify()` is pipeable and takes any `label` column name. The wrappers are a convenience, not the only way in.
+
 ## Using with link
 
 For fish habitat and fish passage work, fresh pairs with [link](https://github.com/NewGraphEnvironment/link). link interprets features — crossings, observations, falls, user-definite barriers, habitat confirmations — and produces the two inputs that drive `frs_habitat_classify()`:

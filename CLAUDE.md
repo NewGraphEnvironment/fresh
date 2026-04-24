@@ -78,15 +78,18 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output
 ## Key Patterns
 
 - All exported functions prefixed `frs_`, named noun-first: `frs_network_segment()`, `frs_habitat_classify()`, `frs_feature_find()`
-- `frs_habitat()` is the main orchestrator — wraps `frs_network_segment()` + `frs_habitat_classify()` with mirai parallel workers
+- **Two layers:**
+  - **Generic primitives (domain-neutral):** `frs_classify()`, `frs_break_find()`, `frs_break_apply()`, `frs_network_segment()`, `frs_barriers_minimal()`, `frs_col_generate()`, `frs_col_join()`, `frs_aggregate()`, `frs_cluster()`. Classify on any attribute into any label column, break at any position, cluster by any rule. No assumptions about what's being modelled.
+  - **Fish-habitat wrappers (domain-coupled):** `frs_habitat_classify()`, `frs_habitat()`, `frs_params()`. Output schema is fixed: `accessible / spawning / rearing / lake_rearing` booleans per `species_code`. Parameters YAML is species-keyed with `spawn / rear / spawn_connected` rule sections. For non-fish domains, compose the primitives on your own output schema rather than shoehorning through these wrappers.
+- `frs_habitat()` is the fish-workflow orchestrator — wraps `frs_network_segment()` + `frs_habitat_classify()` with mirai parallel workers
 - `frs_network_segment()` is domain-agnostic — segments any network at any break points
 - `frs_habitat_classify()` produces long-format output: one row per segment × species, joined to geometry via `id_segment`
 - `break_sources` with `label`, `label_col`, `label_map` for flexible network-referenced classification
-- `label_block` controls which labels restrict access (default `"blocked"`, configurable)
+- `label_block` controls which labels restrict access (default `"blocked"`, configurable — pass your own domain labels)
 - `gate = FALSE` skips accessibility for raw habitat potential
 - Direct SQL via DBI/RPostgres against fwapg PostgreSQL
 - Returns sf objects for spatial results
-- Requires PostgreSQL with fwapg only (bcfishpass/bcfishobs optional)
+- Requires PostgreSQL with fwapg (bcfishpass/bcfishobs optional, per-function)
 - Vignette data cached in `inst/extdata/` with `update_gis` YAML param (FALSE = cached, TRUE = live DB)
 
 ## Dependencies
