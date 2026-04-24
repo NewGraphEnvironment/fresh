@@ -2,9 +2,9 @@
 #'
 #' Fish-habitat convenience wrapper. Classifies segments in a segmented
 #' stream network for one or more species into a fixed output schema of
-#' `accessible / spawning / rearing / lake_rearing` booleans keyed by
-#' `species_code`. Produces long-format output: one row per segment x
-#' species.
+#' `accessible / spawning / rearing / lake_rearing / wetland_rearing`
+#' booleans keyed by `species_code`. Produces long-format output: one
+#' row per segment x species.
 #'
 #' For non-fish domains — thermal refugia, riparian connectivity,
 #' sediment-transport models, any classification that doesn't fit the
@@ -86,7 +86,7 @@
 #' # Join geometry back for mapping — id_segment links the two tables
 #' DBI::dbExecute(conn, "
 #'   CREATE OR REPLACE VIEW fresh.streams_co_vw AS
-#'   SELECT s.*, h.accessible, h.spawning, h.rearing, h.lake_rearing
+#'   SELECT s.*, h.accessible, h.spawning, h.rearing, h.lake_rearing, h.wetland_rearing
 #'   FROM fresh.streams s
 #'   JOIN fresh.streams_habitat h ON s.id_segment = h.id_segment
 #'   WHERE h.species_code = 'CO'")
@@ -144,7 +144,8 @@ frs_habitat_classify <- function(conn, table, to,
        accessible boolean,
        spawning boolean,
        rearing boolean,
-       lake_rearing boolean
+       lake_rearing boolean,
+       wetland_rearing boolean
      )", to))
 
   # Delete existing rows for these WSGs — fast column filter, no subquery
@@ -340,9 +341,23 @@ frs_habitat_classify <- function(conn, table, to,
         .frs_sql_num(cw[1]), .frs_sql_num(cw[2]))
     }
 
+    # Wetland rearing — mirrors lake rearing, joined to fwa_wetlands_poly
+    # instead. Per-species opt-in via rules YAML / dimensions.csv lands on
+    # top of this column; this is the raw "segment is a wetland under the
+    # species' rear channel-width window" flag.
+    wetland_rear_cond <- "FALSE"
+    if (!is.null(params_sp$ranges$rear$channel_width)) {
+      cw <- params_sp$ranges$rear$channel_width
+      wetland_rear_cond <- sprintf(
+        "s.channel_width >= %s AND s.channel_width <= %s
+         AND s.waterbody_key IN (
+           SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly)",
+        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]))
+    }
+
     # INSERT joining pre-computed accessibility
     sql <- sprintf(
-      "INSERT INTO %s (id_segment, watershed_group_code, species_code, accessible, spawning, rearing, lake_rearing)
+      "INSERT INTO %s (id_segment, watershed_group_code, species_code, accessible, spawning, rearing, lake_rearing, wetland_rearing)
        SELECT
          s.id_segment,
          s.watershed_group_code,
@@ -350,11 +365,12 @@ frs_habitat_classify <- function(conn, table, to,
          a.accessible,
          CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END,
          CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END,
+         CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END,
          CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END
        FROM %s s
        INNER JOIN %s a ON s.id_segment = a.id_segment",
       to, .frs_quote_string(sp),
-      spawn_cond, rear_cond, lake_rear_cond,
+      spawn_cond, rear_cond, lake_rear_cond, wetland_rear_cond,
       table, acc_tbl_sp)
 
     .frs_db_execute(conn, sql)
