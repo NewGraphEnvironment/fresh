@@ -88,17 +88,44 @@ frs_habitat(conn,
 See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for
 vignettes and function reference.
 
+## Using with link
+
+For fish habitat and fish passage work, fresh pairs with
+[link](https://github.com/NewGraphEnvironment/link). link interprets
+features — crossings, observations, falls, user-definite barriers,
+habitat confirmations — and produces the two inputs that drive
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md):
+
+- **Break sources** (via
+  [`lnk_source()`](https://newgraphenvironment.github.io/link/reference/lnk_source.html)
+  and the per-table specs fresh consumes).
+- **Barrier overrides** — a per-species skip list produced by
+  [`lnk_barrier_overrides()`](https://newgraphenvironment.github.io/link/reference/lnk_barrier_overrides.html).
+  Passed to `frs_habitat_classify(barrier_overrides = "...")`.
+
+link’s `lnk_pipeline_*()` helpers wrap the six-phase network-modelling
+flow end-to-end for a given config bundle, reproducing bcfishpass’s
+classification method on BC’s Freshwater Atlas. See link’s [Reproducing
+bcfishpass](https://newgraphenvironment.github.io/link/articles/reproducing-bcfishpass.html)
+vignette for a worked example.
+
+Fresh still runs standalone on any break sources you construct yourself
+— link is a convenient on-ramp, not a requirement.
+
 ## Ecosystem
 
-| Package                                                   | Role                                                                      |
-|-----------------------------------------------------------|---------------------------------------------------------------------------|
-| **fresh**                                                 | Stream network modelling engine (this package)                            |
-| [link](https://github.com/NewGraphEnvironment/link)       | Crossing connectivity interpretation — scoring, overrides, prioritization |
-| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks                |
-| [drift](https://github.com/NewGraphEnvironment/drift)     | Track land cover change within floodplains over time                      |
+| Package                                                   | Role                                                                                                                                                                                  |
+|-----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **fresh**                                                 | Stream network modelling engine (this package) — segment, classify, cluster, aggregate                                                                                                |
+| [link](https://github.com/NewGraphEnvironment/link)       | Feature-to-network interpretation — load + validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing pipelines |
+| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks                                                                                                                            |
+| [drift](https://github.com/NewGraphEnvironment/drift)     | Track land cover change within floodplains over time                                                                                                                                  |
 
-Pipeline: fresh (network + habitat) → flooded (floodplains) → drift
-(land cover change)
+**Pipelines:**
+
+- Fish habitat: **link → fresh**
+- Land cover change: fresh (network) → flooded (floodplains) → drift
+  (land cover change)
 
 ## License
 
@@ -144,10 +171,6 @@ MIT
   : Find Features on a Stream Network
 - [`frs_feature_index()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_index.md)
   : Index Upstream/Downstream Features for Stream Segments
-- [`frs_fish_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_habitat.md)
-  : Fetch Modelled Fish Habitat from bcfishpass
-- [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md)
-  : Fetch Fish Observations
 - [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
   : Run Habitat Pipeline
 - [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)

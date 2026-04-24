@@ -117,6 +117,18 @@ threshold-aware regardless of this parameter. Set to
 <code>c("blocked", "potential")</code> for conservative analysis.</p></dd>
 
 
+<dt id="arg-barrier-overrides">barrier_overrides<a class="anchor" aria-label="anchor" href="#arg-barrier-overrides"></a></dt>
+<dd><p>Character or <code>NULL</code>. Schema-qualified table
+of per-species barrier overrides (a "skip list") with columns
+<code>blue_line_key</code>, <code>downstream_route_measure</code>, <code>species_code</code>.
+Prepared by <code>link::lnk_barrier_overrides()</code> or equivalent. When
+provided and <code>gate = TRUE</code>, any blocking break whose position +
+species matches a row in this table is ignored during access
+gating — observations or habitat confirmations upstream have
+overridden the barrier for that species. Default <code>NULL</code> (no
+overrides; every blocking break restricts access).</p></dd>
+
+
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, replace existing rows for
 these species in the output table. Default <code>TRUE</code>.</p></dd>

@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Freshwater Referenced Spatial Hydrology">
-<meta name="description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg. bcfishpass, and bcfishobs.">
-<meta property="og:description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg. bcfishpass, and bcfishobs.">
+<meta name="description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg.">
+<meta property="og:description" content="Stream network-aware spatial operations via direct SQL against fwapg. Segment networks at break points, classify habitat by species, aggregate upstream features, and query network-referenced lakes, wetlands, and streams from the BC Freshwater Atlas. Requires PostgreSQL with fwapg.">
 <meta property="og:image" content="https://newgraphenvironment.github.io/fresh/logo.png">
 </head>
 <body>
@@ -127,6 +127,19 @@
 <p>See the <a href="https://newgraphenvironment.github.io/fresh/">pkgdown site</a> for vignettes and function reference.</p>
 </div>
 <div class="section level2">
+<h2 id="using-with-link">Using with link<a class="anchor" aria-label="anchor" href="#using-with-link"></a>
+</h2>
+<p>For fish habitat and fish passage work, fresh pairs with <a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a>. link interprets features — crossings, observations, falls, user-definite barriers, habitat confirmations — and produces the two inputs that drive <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>:</p>
+<ul>
+<li>
+<strong>Break sources</strong> (via <a href="https://newgraphenvironment.github.io/link/reference/lnk_source.html" class="external-link"><code>lnk_source()</code></a> and the per-table specs fresh consumes).</li>
+<li>
+<strong>Barrier overrides</strong> — a per-species skip list produced by <a href="https://newgraphenvironment.github.io/link/reference/lnk_barrier_overrides.html" class="external-link"><code>lnk_barrier_overrides()</code></a>. Passed to <code>frs_habitat_classify(barrier_overrides = "...")</code>.</li>
+</ul>
+<p>link’s <code>lnk_pipeline_*()</code> helpers wrap the six-phase network-modelling flow end-to-end for a given config bundle, reproducing bcfishpass’s classification method on BC’s Freshwater Atlas. See link’s <a href="https://newgraphenvironment.github.io/link/articles/reproducing-bcfishpass.html" class="external-link">Reproducing bcfishpass</a> vignette for a worked example.</p>
+<p>Fresh still runs standalone on any break sources you construct yourself — link is a convenient on-ramp, not a requirement.</p>
+</div>
+<div class="section level2">
 <h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a>
 </h2>
 <table class="table">
@@ -141,11 +154,11 @@
 <tbody>
 <tr class="odd">
 <td><strong>fresh</strong></td>
-<td>Stream network modelling engine (this package)</td>
+<td>Stream network modelling engine (this package) — segment, classify, cluster, aggregate</td>
 </tr>
 <tr class="even">
 <td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>
-<td>Crossing connectivity interpretation — scoring, overrides, prioritization</td>
+<td>Feature-to-network interpretation — load + validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing pipelines</td>
 </tr>
 <tr class="odd">
 <td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
@@ -157,7 +170,12 @@
 </tr>
 </tbody>
 </table>
-<p>Pipeline: fresh (network + habitat) → flooded (floodplains) → drift (land cover change)</p>
+<p><strong>Pipelines:</strong></p>
+<ul>
+<li>Fish habitat: <strong>link → fresh</strong>
+</li>
+<li>Land cover change: fresh (network) → flooded (floodplains) → drift (land cover change)</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>

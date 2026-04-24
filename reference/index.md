@@ -38,10 +38,6 @@
   : Find Features on a Stream Network
 - [`frs_feature_index()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_index.md)
   : Index Upstream/Downstream Features for Stream Segments
-- [`frs_fish_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_habitat.md)
-  : Fetch Modelled Fish Habitat from bcfishpass
-- [`frs_fish_obs()`](https://newgraphenvironment.github.io/fresh/reference/frs_fish_obs.md)
-  : Fetch Fish Observations
 - [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
   : Run Habitat Pipeline
 - [`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.md)

@@ -72,6 +72,18 @@ frs_habitat_classify(
   of this parameter. Set to `c("blocked", "potential")` for conservative
   analysis.
 
+- barrier_overrides:
+
+  Character or `NULL`. Schema-qualified table of per-species barrier
+  overrides (a "skip list") with columns `blue_line_key`,
+  `downstream_route_measure`, `species_code`. Prepared by
+  `link::lnk_barrier_overrides()` or equivalent. When provided and
+  `gate = TRUE`, any blocking break whose position + species matches a
+  row in this table is ignored during access gating — observations or
+  habitat confirmations upstream have overridden the barrier for that
+  species. Default `NULL` (no overrides; every blocking break restricts
+  access).
+
 - overwrite:
 
   Logical. If `TRUE`, replace existing rows for these species in the

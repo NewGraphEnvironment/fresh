@@ -43,16 +43,17 @@
 <p>Freshwater Referenced Spatial Hydrology. A composable stream network modelling engine. Query and extract stream networks, classify habitat by gradient and channel width, segment networks at barriers and break points, aggregate features upstream or downstream, and run multi-species habitat modelling with parallel workers.</p>
 <div class="section level2">
 <h2 id="repository-context">Repository Context<a class="anchor" aria-label="anchor" href="#repository-context"></a></h2>
-<p><strong>Repository:</strong> NewGraphEnvironment/fresh <strong>Primary Language:</strong> R (package) <strong>Version:</strong> 0.9.0 <strong>License:</strong> MIT</p>
+<p><strong>Repository:</strong> NewGraphEnvironment/fresh <strong>Primary Language:</strong> R (package) <strong>Version:</strong> 0.14.0 <strong>License:</strong> MIT</p>
 </div>
 <div class="section level2">
 <h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a></h2>
 <table class="table"><colgroup><col width="60%"><col width="40%"></colgroup><thead><tr class="header"><th>Package</th>
 <th>Role</th>
 </tr></thead><tbody><tr class="odd"><td><strong>fresh</strong></td>
-<td>Stream network modelling engine (this package)</td>
+<td>Stream network modelling engine (this package) — segment networks, classify habitat, cluster, aggregate</td>
 </tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>
-<td>Crossing connectivity interpretation — scoring, overrides, prioritization</td>
+<td>Feature-to-network interpretation — load and validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing six-phase pipelines via <code>lnk_pipeline_*()</code> + <code>lnk_config()</code>
+</td>
 </tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
 <td>Delineate floodplain extents from DEMs and stream networks</td>
 </tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
@@ -61,32 +62,47 @@
 <td>Estimate airphoto footprints and select optimal coverage for a study area</td>
 </tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/diggs" class="external-link">diggs</a></td>
 <td>Interactive explorer for fly airphoto selections (Shiny app)</td>
-</tr></tbody></table><p>Pipeline: fresh (network data) → flooded (floodplains) → drift (land cover change)</p>
-</div>
+</tr></tbody></table><p><strong>Pipelines:</strong></p>
+<ul><li>Fish habitat / connectivity: <strong>link → fresh</strong>. link’s <code>lnk_pipeline_*()</code> helpers interpret features (crossings, observations, falls, user-definite barriers, habitat confirmations) and produce the <code>break_sources</code> and <code>barrier_overrides</code> table that feed <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>. Without link, fresh still runs on any break sources you construct yourself.</li>
+<li>Land cover change: fresh (network) → flooded (floodplains) → drift (land cover change).</li>
+</ul></div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
+<p>Legend: <code>[link]</code> = building block used directly by <code>link</code> (called by <code>lnk_pipeline_*()</code> rather than via <code><a href="reference/frs_habitat.html">frs_habitat()</a></code>).</p>
 <pre><code>R/
   fresh-package.R            — package-level doc, imports
   frs_db_conn.R              — DB connection via PG_*_SHARE env vars
   frs_db_query.R             — execute SQL, return sf
   frs_habitat.R              — orchestrator: multi-WSG/AOI habitat pipeline
-  frs_habitat_classify.R     — long-format habitat classification per species
+  frs_habitat_classify.R     — long-format habitat classification per species [link]
   frs_network_segment.R      — domain-agnostic network segmentation
   frs_feature_find.R         — locate point features on network
   frs_feature_index.R        — upstream/downstream relationship indexing
-  frs_break.R                — gradient break detection (island method)
+  frs_break.R                — gradient break detection (island method);
+                               exports frs_break_find/frs_break_apply/
+                               frs_break_validate [link]
+  frs_barriers_minimal.R     — per-flowpath minimal barrier reduction [link]
   frs_classify.R             — segment classification by attributes/breaks
+  frs_categorize.R           — bin continuous attributes to categorical classes
+  frs_cluster.R              — connectivity clustering (rearing/spawning linkage) [link]
   frs_extract.R              — extract streams to working table
-  frs_col_join.R             — join attributes (channel width, discharge)
-  frs_col_generate.R         — recompute gradient from geometry
+  frs_clip.R                 — clip a table to an AOI
+  frs_aggregate.R            — upstream/downstream feature aggregation [link]
+  frs_col_join.R             — join attributes (channel width, discharge) [link]
+  frs_col_generate.R         — recompute gradient from geometry [link]
   frs_network.R              — unified multi-table network traversal
   frs_network_upstream.R     — upstream network query (ltree)
   frs_network_downstream.R   — downstream network query (ltree)
+  frs_network_prune.R        — prune network to connected-waterbody constraints
+  frs_waterbody_network.R    — build the waterbody-only network subset
+  frs_watershed_at_measure.R — watershed polygon at a blue-line position
+  frs_watershed_split.R      — split a watershed polygon at a position
   frs_point_snap.R           — snap points to nearest stream
   frs_point_locate.R         — locate point on stream network
   frs_stream_fetch.R         — fetch stream segments
   frs_lake_fetch.R           — fetch lakes
   frs_wetland_fetch.R        — fetch wetlands
+  frs_order_filter.R         — filter on stream order / order_parent
   frs_params.R               — load species habitat parameters
   frs_wsg_species.R          — species presence per watershed group
   frs_edge_types.R           — FWA edge type lookup
