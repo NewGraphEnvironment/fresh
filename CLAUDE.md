@@ -9,7 +9,7 @@ habitat modelling with parallel workers.
 ## Repository Context
 
 **Repository:** NewGraphEnvironment/fresh **Primary Language:** R
-(package) **Version:** 0.14.0 **License:** MIT
+(package) **Version:** 0.15.0 **License:** MIT
 
 ## Ecosystem
 
