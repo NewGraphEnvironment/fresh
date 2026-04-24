@@ -1,5 +1,17 @@
 # Changelog
 
+## fresh 0.17.1
+
+- Params validator accepts `wetland_ha_min` predicate on rear rules with
+  `waterbody_type: W` — mirrors the existing `lake_ha_min` /
+  `waterbody_type: L` rule. The classifier in 0.17.0 already read
+  `wetland_ha_min` from rear rules to filter the fwa_wetlands_poly join;
+  the validator predicate allowlist hadn’t been extended so rules YAML
+  with the key was rejected. Surfaced in
+  [link#51](https://github.com/NewGraphEnvironment/link/issues/51) when
+  `lnk_rules_build()` started emitting `waterbody_type: W` rules with
+  the threshold.
+
 ## fresh 0.17.0
 
 - [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)

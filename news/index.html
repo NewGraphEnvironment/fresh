@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.17.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.17.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,10 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.17.1" id="fresh-0171">fresh 0.17.1<a class="anchor" aria-label="anchor" href="#fresh-0171"></a></h2>
+<ul><li>Params validator accepts <code>wetland_ha_min</code> predicate on rear rules with <code>waterbody_type: W</code> — mirrors the existing <code>lake_ha_min</code> / <code>waterbody_type: L</code> rule. The classifier in 0.17.0 already read <code>wetland_ha_min</code> from rear rules to filter the fwa_wetlands_poly join; the validator predicate allowlist hadn’t been extended so rules YAML with the key was rejected. Surfaced in <a href="https://github.com/NewGraphEnvironment/link/issues/51" class="external-link">link#51</a> when <code>lnk_rules_build()</code> started emitting <code>waterbody_type: W</code> rules with the threshold.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.17.0" id="fresh-0170">fresh 0.17.0<a class="anchor" aria-label="anchor" href="#fresh-0170"></a></h2>
 <ul><li>
