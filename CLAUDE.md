@@ -6,23 +6,28 @@ Freshwater Referenced Spatial Hydrology. A composable stream network modelling e
 
 **Repository:** NewGraphEnvironment/fresh
 **Primary Language:** R (package)
-**Version:** 0.9.0
+**Version:** 0.14.0
 **License:** MIT
 
 ## Ecosystem
 
 | Package | Role |
 |---------|------|
-| **fresh** | Stream network modelling engine (this package) |
-| [link](https://github.com/NewGraphEnvironment/link) | Crossing connectivity interpretation — scoring, overrides, prioritization |
+| **fresh** | Stream network modelling engine (this package) — segment networks, classify habitat, cluster, aggregate |
+| [link](https://github.com/NewGraphEnvironment/link) | Feature-to-network interpretation — load and validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing six-phase pipelines via `lnk_pipeline_*()` + `lnk_config()` |
 | [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks |
 | [drift](https://github.com/NewGraphEnvironment/drift) | Track land cover change within floodplains over time |
 | [fly](https://github.com/NewGraphEnvironment/fly) | Estimate airphoto footprints and select optimal coverage for a study area |
 | [diggs](https://github.com/NewGraphEnvironment/diggs) | Interactive explorer for fly airphoto selections (Shiny app) |
 
-Pipeline: fresh (network data) → flooded (floodplains) → drift (land cover change)
+**Pipelines:**
+
+- Fish habitat / connectivity: **link → fresh**. link's `lnk_pipeline_*()` helpers interpret features (crossings, observations, falls, user-definite barriers, habitat confirmations) and produce the `break_sources` and `barrier_overrides` table that feed `frs_habitat_classify()`. Without link, fresh still runs on any break sources you construct yourself.
+- Land cover change: fresh (network) → flooded (floodplains) → drift (land cover change).
 
 ## Architecture
+
+Legend: `[link]` = building block used directly by `link` (called by `lnk_pipeline_*()` rather than via `frs_habitat()`).
 
 ```
 R/
@@ -30,23 +35,35 @@ R/
   frs_db_conn.R              — DB connection via PG_*_SHARE env vars
   frs_db_query.R             — execute SQL, return sf
   frs_habitat.R              — orchestrator: multi-WSG/AOI habitat pipeline
-  frs_habitat_classify.R     — long-format habitat classification per species
+  frs_habitat_classify.R     — long-format habitat classification per species [link]
   frs_network_segment.R      — domain-agnostic network segmentation
   frs_feature_find.R         — locate point features on network
   frs_feature_index.R        — upstream/downstream relationship indexing
-  frs_break.R                — gradient break detection (island method)
+  frs_break.R                — gradient break detection (island method);
+                               exports frs_break_find/frs_break_apply/
+                               frs_break_validate [link]
+  frs_barriers_minimal.R     — per-flowpath minimal barrier reduction [link]
   frs_classify.R             — segment classification by attributes/breaks
+  frs_categorize.R           — bin continuous attributes to categorical classes
+  frs_cluster.R              — connectivity clustering (rearing/spawning linkage) [link]
   frs_extract.R              — extract streams to working table
-  frs_col_join.R             — join attributes (channel width, discharge)
-  frs_col_generate.R         — recompute gradient from geometry
+  frs_clip.R                 — clip a table to an AOI
+  frs_aggregate.R            — upstream/downstream feature aggregation [link]
+  frs_col_join.R             — join attributes (channel width, discharge) [link]
+  frs_col_generate.R         — recompute gradient from geometry [link]
   frs_network.R              — unified multi-table network traversal
   frs_network_upstream.R     — upstream network query (ltree)
   frs_network_downstream.R   — downstream network query (ltree)
+  frs_network_prune.R        — prune network to connected-waterbody constraints
+  frs_waterbody_network.R    — build the waterbody-only network subset
+  frs_watershed_at_measure.R — watershed polygon at a blue-line position
+  frs_watershed_split.R      — split a watershed polygon at a position
   frs_point_snap.R           — snap points to nearest stream
   frs_point_locate.R         — locate point on stream network
   frs_stream_fetch.R         — fetch stream segments
   frs_lake_fetch.R           — fetch lakes
   frs_wetland_fetch.R        — fetch wetlands
+  frs_order_filter.R         — filter on stream order / order_parent
   frs_params.R               — load species habitat parameters
   frs_wsg_species.R          — species presence per watershed group
   frs_edge_types.R           — FWA edge type lookup

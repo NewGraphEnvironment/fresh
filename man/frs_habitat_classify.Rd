@@ -48,6 +48,16 @@ the canonical 4-digit basis-point format like \code{gradient_1500} for
 threshold-aware regardless of this parameter. Set to
 \code{c("blocked", "potential")} for conservative analysis.}
 
+\item{barrier_overrides}{Character or \code{NULL}. Schema-qualified table
+of per-species barrier overrides (a "skip list") with columns
+\code{blue_line_key}, \code{downstream_route_measure}, \code{species_code}.
+Prepared by \code{\link[link:lnk_barrier_overrides]{link::lnk_barrier_overrides()}} or equivalent. When
+provided and \code{gate = TRUE}, any blocking break whose position +
+species matches a row in this table is ignored during access
+gating — observations or habitat confirmations upstream have
+overridden the barrier for that species. Default \code{NULL} (no
+overrides; every blocking break restricts access).}
+
 \item{overwrite}{Logical. If \code{TRUE}, replace existing rows for
 these species in the output table. Default \code{TRUE}.}
 
