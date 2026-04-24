@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.16.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.16.0" id="fresh-0160">fresh 0.16.0<a class="anchor" aria-label="anchor" href="#fresh-0160"></a></h2>
+<ul><li>
+<code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> output schema gains a <code>wetland_rearing</code> boolean column, mirroring <code>lake_rearing</code> but joined to <code>whse_basemapping.fwa_wetlands_poly</code> on <code>waterbody_key</code> (<a href="https://github.com/NewGraphEnvironment/fresh/pull/164" class="external-link">#164</a>). Additive schema change — existing callers are unaffected; <code>lake_rearing</code> semantics unchanged. Prerequisite for link’s compound rearing rollup (link#51).</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.15.0" id="fresh-0150">fresh 0.15.0<a class="anchor" aria-label="anchor" href="#fresh-0150"></a></h2>
 <ul><li>Remove unused <code>frs_fish_habitat()</code> and <code>frs_fish_obs()</code>. Both were BC-specific fetchers hard-coded to bcfishpass/bcfishobs table names and had no callers in fresh or link. If BC-specific fetchers become useful later they belong in link where the domain context lives (<a href="https://github.com/NewGraphEnvironment/fresh/pull/162" class="external-link">#162</a>)</li>

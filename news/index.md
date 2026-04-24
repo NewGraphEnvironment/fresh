@@ -1,5 +1,16 @@
 # Changelog
 
+## fresh 0.16.0
+
+- [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  output schema gains a `wetland_rearing` boolean column, mirroring
+  `lake_rearing` but joined to `whse_basemapping.fwa_wetlands_poly` on
+  `waterbody_key`
+  ([\#164](https://github.com/NewGraphEnvironment/fresh/pull/164)).
+  Additive schema change — existing callers are unaffected;
+  `lake_rearing` semantics unchanged. Prerequisite for link’s compound
+  rearing rollup (link#51).
+
 ## fresh 0.15.0
 
 - Remove unused `frs_fish_habitat()` and `frs_fish_obs()`. Both were
