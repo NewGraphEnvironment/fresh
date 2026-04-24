@@ -1,3 +1,7 @@
+# fresh 0.17.1
+
+- Params validator accepts `wetland_ha_min` predicate on rear rules with `waterbody_type: W` — mirrors the existing `lake_ha_min` / `waterbody_type: L` rule. The classifier in 0.17.0 already read `wetland_ha_min` from rear rules to filter the fwa_wetlands_poly join; the validator predicate allowlist hadn't been extended so rules YAML with the key was rejected. Surfaced in [link#51](https://github.com/NewGraphEnvironment/link/issues/51) when `lnk_rules_build()` started emitting `waterbody_type: W` rules with the threshold.
+
 # fresh 0.17.0
 
 - `frs_habitat_classify()` now honours the `waterbody_type: L` / `waterbody_type: W` entries under a species' `rear:` rules in the rules YAML. Previously the `lake_rearing` / `wetland_rearing` booleans were set whenever a segment fell in the species' rear channel-width window and matched a lake/wetland `waterbody_key` — regardless of whether the species had a lake/wetland rear rule declared. Now the flag is `FALSE` unless the species has the matching rule, and the rule's optional `lake_ha_min` / `wetland_ha_min` threshold filters the polygon join to exclude waterbodies below that area ([#165](https://github.com/NewGraphEnvironment/fresh/issues/165)). Surfaced in link#51 when every species in link's bcfishpass and default bundles produced bit-identical `lake_rearing_ha` totals despite the bundles declaring different rear rules.

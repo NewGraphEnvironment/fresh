@@ -133,8 +133,8 @@ frs_params <- function(conn = NULL,
   }
 
   valid_predicates <- c("edge_types", "edge_types_explicit",
-                        "waterbody_type", "lake_ha_min", "thresholds",
-                        "gradient", "channel_width",
+                        "waterbody_type", "lake_ha_min", "wetland_ha_min",
+                        "thresholds", "gradient", "channel_width",
                         "requires_connected", "connected_distance_max")
 
   for (sp in names(raw)) {
@@ -218,6 +218,22 @@ frs_params <- function(conn = NULL,
         length(rule[["lake_ha_min"]]) != 1) {
       stop(sprintf(
         "rules YAML %s/%s rule %d lake_ha_min must be a numeric scalar",
+        sp, habitat, idx), call. = FALSE)
+    }
+  }
+
+  if (!is.null(rule[["wetland_ha_min"]])) {
+    if (is.null(rule[["waterbody_type"]]) ||
+        rule[["waterbody_type"]] != "W") {
+      stop(sprintf(
+        paste0("rules YAML %s/%s rule %d uses wetland_ha_min without ",
+               "waterbody_type: W"),
+        sp, habitat, idx), call. = FALSE)
+    }
+    if (!is.numeric(rule[["wetland_ha_min"]]) ||
+        length(rule[["wetland_ha_min"]]) != 1) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d wetland_ha_min must be a numeric scalar",
         sp, habitat, idx), call. = FALSE)
     }
   }
