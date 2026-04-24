@@ -73,3 +73,50 @@ test_that("frs_db_conn stops on missing env vars", {
   expect_error(frs_db_conn(dbname = "x", host = "x", port = ""), "PG_PORT_SHARE")
   expect_error(frs_db_conn(dbname = "x", host = "x", port = "5432", user = ""), "PG_USER_SHARE")
 })
+
+# -- .frs_find_waterbody_rule --------------------------------------------------
+
+test_that(".frs_find_waterbody_rule returns matching L rule", {
+  rules <- list(
+    list(edge_types = c("stream", "canal")),
+    list(waterbody_type = "R", channel_width = c(0, 9999)),
+    list(waterbody_type = "L", lake_ha_min = 100)
+  )
+  r <- .frs_find_waterbody_rule(rules, "L")
+  expect_type(r, "list")
+  expect_equal(r$waterbody_type, "L")
+  expect_equal(r$lake_ha_min, 100)
+})
+
+test_that(".frs_find_waterbody_rule returns matching W rule", {
+  rules <- list(
+    list(edge_types = "wetland", thresholds = FALSE),
+    list(waterbody_type = "W", wetland_ha_min = 5)
+  )
+  r <- .frs_find_waterbody_rule(rules, "W")
+  expect_equal(r$waterbody_type, "W")
+  expect_equal(r$wetland_ha_min, 5)
+})
+
+test_that(".frs_find_waterbody_rule returns NULL when no matching rule", {
+  rules <- list(
+    list(edge_types = c("stream", "canal")),
+    list(waterbody_type = "R", channel_width = c(0, 9999))
+  )
+  expect_null(.frs_find_waterbody_rule(rules, "L"))
+  expect_null(.frs_find_waterbody_rule(rules, "W"))
+})
+
+test_that(".frs_find_waterbody_rule handles NULL / empty rules", {
+  expect_null(.frs_find_waterbody_rule(NULL, "L"))
+  expect_null(.frs_find_waterbody_rule(list(), "L"))
+})
+
+test_that(".frs_find_waterbody_rule returns the first match if multiple", {
+  rules <- list(
+    list(waterbody_type = "L", lake_ha_min = 50),
+    list(waterbody_type = "L", lake_ha_min = 200)
+  )
+  r <- .frs_find_waterbody_rule(rules, "L")
+  expect_equal(r$lake_ha_min, 50)
+})

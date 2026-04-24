@@ -330,29 +330,45 @@ frs_habitat_classify <- function(conn, table, to,
         sp_label_filter, sp, acc_tbl)
     }
 
-    # Lake rearing
+    # Lake / wetland rearing — gated per-species on the rules YAML.
+    # A species is classified as lake-rearing only if its `rear:` rules
+    # include a `waterbody_type: L` entry; optional `lake_ha_min` filters
+    # the lake area. Same pattern for wetlands via `waterbody_type: W`.
+    # Segments must still fall within the species' rear channel-width
+    # window. Without a matching rule, the boolean stays FALSE.
+    lake_rule    <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "L")
+    wetland_rule <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "W")
+
     lake_rear_cond <- "FALSE"
-    if (!is.null(params_sp$ranges$rear$channel_width)) {
+    if (!is.null(lake_rule) && !is.null(params_sp$ranges$rear$channel_width)) {
       cw <- params_sp$ranges$rear$channel_width
+      ha_min <- lake_rule[["lake_ha_min"]]
+      area_clause <- if (!is.null(ha_min) && !is.na(ha_min)) {
+        sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
+      } else {
+        ""
+      }
       lake_rear_cond <- sprintf(
         "s.channel_width >= %s AND s.channel_width <= %s
          AND s.waterbody_key IN (
-           SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly)",
-        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]))
+           SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly%s)",
+        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]), area_clause)
     }
 
-    # Wetland rearing — mirrors lake rearing, joined to fwa_wetlands_poly
-    # instead. Per-species opt-in via rules YAML / dimensions.csv lands on
-    # top of this column; this is the raw "segment is a wetland under the
-    # species' rear channel-width window" flag.
     wetland_rear_cond <- "FALSE"
-    if (!is.null(params_sp$ranges$rear$channel_width)) {
+    if (!is.null(wetland_rule) && !is.null(params_sp$ranges$rear$channel_width)) {
       cw <- params_sp$ranges$rear$channel_width
+      ha_min <- wetland_rule[["wetland_ha_min"]]
+      area_clause <- if (!is.null(ha_min) && !is.na(ha_min)) {
+        sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
+      } else {
+        ""
+      }
       wetland_rear_cond <- sprintf(
         "s.channel_width >= %s AND s.channel_width <= %s
          AND s.waterbody_key IN (
-           SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly)",
-        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]))
+           SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly%s)",
+        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]), area_clause)
     }
 
     # INSERT joining pre-computed accessibility

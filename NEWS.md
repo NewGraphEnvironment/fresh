@@ -1,3 +1,7 @@
+# fresh 0.17.0
+
+- `frs_habitat_classify()` now honours the `waterbody_type: L` / `waterbody_type: W` entries under a species' `rear:` rules in the rules YAML. Previously the `lake_rearing` / `wetland_rearing` booleans were set whenever a segment fell in the species' rear channel-width window and matched a lake/wetland `waterbody_key` — regardless of whether the species had a lake/wetland rear rule declared. Now the flag is `FALSE` unless the species has the matching rule, and the rule's optional `lake_ha_min` / `wetland_ha_min` threshold filters the polygon join to exclude waterbodies below that area ([#165](https://github.com/NewGraphEnvironment/fresh/issues/165)). Surfaced in link#51 when every species in link's bcfishpass and default bundles produced bit-identical `lake_rearing_ha` totals despite the bundles declaring different rear rules.
+
 # fresh 0.16.0
 
 - `frs_habitat_classify()` output schema gains a `wetland_rearing` boolean column, mirroring `lake_rearing` but joined to `whse_basemapping.fwa_wetlands_poly` on `waterbody_key` ([#164](https://github.com/NewGraphEnvironment/fresh/pull/164)). Additive schema change — existing callers are unaffected; `lake_rearing` semantics unchanged. Prerequisite for link's compound rearing rollup (link#51).

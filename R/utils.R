@@ -301,6 +301,30 @@
 }
 
 
+#' Find a waterbody-type rule in a species' rear rules list
+#'
+#' Returns the first rear rule entry whose `waterbody_type` matches
+#' `wb_code` (typically `"L"` for lakes or `"W"` for wetlands), or
+#' `NULL` if the species has no such rule. Used by
+#' [frs_habitat_classify()] to gate `lake_rearing` / `wetland_rearing`
+#' flags on the rules-YAML declaration rather than classifying by
+#' channel-width alone.
+#'
+#' @param rules The `rear:` rules list from a species' entry in the
+#'   parsed rules YAML (e.g. `params_sp$rules$rear`).
+#' @param wb_code Character. One of `"L"` (lake), `"W"` (wetland).
+#' @return The matching rule (a named list) or `NULL` if none.
+#' @noRd
+.frs_find_waterbody_rule <- function(rules, wb_code) {
+  if (is.null(rules) || length(rules) == 0) return(NULL)
+  for (r in rules) {
+    wt <- r[["waterbody_type"]]
+    if (!is.null(wt) && identical(wt, wb_code)) return(r)
+  }
+  NULL
+}
+
+
 #' Add id_segment column to a working table
 #'
 #' Assigns a unique integer ID to every row. Uses `linear_feature_id`
