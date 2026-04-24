@@ -1,3 +1,10 @@
+# fresh 0.15.0
+
+- Remove unused `frs_fish_habitat()` and `frs_fish_obs()`. Both were BC-specific fetchers hard-coded to bcfishpass/bcfishobs table names and had no callers in fresh or link. If BC-specific fetchers become useful later they belong in link where the domain context lives ([#162](https://github.com/NewGraphEnvironment/fresh/pull/162))
+- Exported function count: 41 → 39.
+- Add missing `@param barrier_overrides` docstring on `frs_habitat_classify()` — the parameter was already in the signature but absent from roxygen so the rendered help didn't describe link's main integration point.
+- Docs role-clarity refresh: README + CLAUDE.md ecosystem tables updated to describe link's full scope; pipeline wording split into fish-habitat (link → fresh) and land-cover-change (fresh → flooded → drift); CLAUDE.md version + architecture file list brought current.
+
 # fresh 0.14.0
 
 - Add `frs_barriers_minimal()` — reduce barrier points to the downstream-most per flow path via `fwa_upstream()` self-join. Extracts the bcfishpass "non-minimal removal" pattern from link's compare pipeline into a reusable fresh function. Typical reduction ~27,000 raw gradient barriers → ~700 minimal on a full watershed group ([#160](https://github.com/NewGraphEnvironment/fresh/issues/160))
