@@ -127,6 +127,14 @@
 <p>See the <a href="https://newgraphenvironment.github.io/fresh/">pkgdown site</a> for vignettes and function reference.</p>
 </div>
 <div class="section level2">
+<h2 id="primitives-vs-domain-wrappers">Primitives vs domain wrappers<a class="anchor" aria-label="anchor" href="#primitives-vs-domain-wrappers"></a>
+</h2>
+<p>fresh has two layers:</p>
+<p><strong>Generic primitives</strong> — <code><a href="reference/frs_classify.html">frs_classify()</a></code>, <code><a href="reference/frs_break_find.html">frs_break_find()</a></code>, <code><a href="reference/frs_break_apply.html">frs_break_apply()</a></code>, <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code>, <code><a href="reference/frs_barriers_minimal.html">frs_barriers_minimal()</a></code>, <code><a href="reference/frs_col_generate.html">frs_col_generate()</a></code>, <code><a href="reference/frs_col_join.html">frs_col_join()</a></code>, <code><a href="reference/frs_aggregate.html">frs_aggregate()</a></code>, <code><a href="reference/frs_cluster.html">frs_cluster()</a></code>. Domain-neutral building blocks. Classify on any attribute into any label column. Break at any position. Cluster by any connectivity rule. No assumptions about what’s being modelled.</p>
+<p><strong>Fish-habitat wrapper</strong> — <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>, <code><a href="reference/frs_habitat.html">frs_habitat()</a></code>, <code><a href="reference/frs_params.html">frs_params()</a></code>. Convenience wrappers that classify segments as <code>accessible / spawning / rearing / lake_rearing</code> per <code>species_code</code>, driven by a per-species rules YAML. The output schema is fish-specific.</p>
+<p>For non-fish domains — thermal refugia, riparian connectivity, sediment-transport models, custom classifications — compose the primitives directly on your own output schema. <code><a href="reference/frs_classify.html">frs_classify()</a></code> is pipeable and takes any <code>label</code> column name. The wrappers are a convenience, not the only way in.</p>
+</div>
+<div class="section level2">
 <h2 id="using-with-link">Using with link<a class="anchor" aria-label="anchor" href="#using-with-link"></a>
 </h2>
 <p>For fish habitat and fish passage work, fresh pairs with <a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a>. link interprets features — crossings, observations, falls, user-definite barriers, habitat confirmations — and produces the two inputs that drive <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>:</p>

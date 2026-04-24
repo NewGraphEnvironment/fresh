@@ -91,8 +91,32 @@ Legend: `[link]` = building block used directly by `link` (called by
   [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md),
   [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),
   [`frs_feature_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_find.md)
+- **Two layers:**
+  - **Generic primitives (domain-neutral):**
+    [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+    [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
+    [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
+    [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md),
+    [`frs_barriers_minimal()`](https://newgraphenvironment.github.io/fresh/reference/frs_barriers_minimal.md),
+    [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
+    [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
+    [`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md),
+    [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md).
+    Classify on any attribute into any label column, break at any
+    position, cluster by any rule. No assumptions about what’s being
+    modelled.
+  - **Fish-habitat wrappers (domain-coupled):**
+    [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),
+    [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md),
+    [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md).
+    Output schema is fixed:
+    `accessible / spawning / rearing / lake_rearing` booleans per
+    `species_code`. Parameters YAML is species-keyed with
+    `spawn / rear / spawn_connected` rule sections. For non-fish
+    domains, compose the primitives on your own output schema rather
+    than shoehorning through these wrappers.
 - [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
-  is the main orchestrator — wraps
+  is the fish-workflow orchestrator — wraps
   [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md) +
   [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
   with mirai parallel workers
@@ -104,11 +128,12 @@ Legend: `[link]` = building block used directly by `link` (called by
 - `break_sources` with `label`, `label_col`, `label_map` for flexible
   network-referenced classification
 - `label_block` controls which labels restrict access (default
-  `"blocked"`, configurable)
+  `"blocked"`, configurable — pass your own domain labels)
 - `gate = FALSE` skips accessibility for raw habitat potential
 - Direct SQL via DBI/RPostgres against fwapg PostgreSQL
 - Returns sf objects for spatial results
-- Requires PostgreSQL with fwapg only (bcfishpass/bcfishobs optional)
+- Requires PostgreSQL with fwapg (bcfishpass/bcfishobs optional,
+  per-function)
 - Vignette data cached in `inst/extdata/` with `update_gis` YAML param
   (FALSE = cached, TRUE = live DB)
 

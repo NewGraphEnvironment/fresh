@@ -118,7 +118,14 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <ul><li>All exported functions prefixed <code>frs_</code>, named noun-first: <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code>, <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>, <code><a href="reference/frs_feature_find.html">frs_feature_find()</a></code>
 </li>
 <li>
-<code><a href="reference/frs_habitat.html">frs_habitat()</a></code> is the main orchestrator — wraps <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code> + <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> with mirai parallel workers</li>
+<strong>Two layers:</strong>
+<ul><li>
+<strong>Generic primitives (domain-neutral):</strong> <code><a href="reference/frs_classify.html">frs_classify()</a></code>, <code><a href="reference/frs_break_find.html">frs_break_find()</a></code>, <code><a href="reference/frs_break_apply.html">frs_break_apply()</a></code>, <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code>, <code><a href="reference/frs_barriers_minimal.html">frs_barriers_minimal()</a></code>, <code><a href="reference/frs_col_generate.html">frs_col_generate()</a></code>, <code><a href="reference/frs_col_join.html">frs_col_join()</a></code>, <code><a href="reference/frs_aggregate.html">frs_aggregate()</a></code>, <code><a href="reference/frs_cluster.html">frs_cluster()</a></code>. Classify on any attribute into any label column, break at any position, cluster by any rule. No assumptions about what’s being modelled.</li>
+<li>
+<strong>Fish-habitat wrappers (domain-coupled):</strong> <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>, <code><a href="reference/frs_habitat.html">frs_habitat()</a></code>, <code><a href="reference/frs_params.html">frs_params()</a></code>. Output schema is fixed: <code>accessible / spawning / rearing / lake_rearing</code> booleans per <code>species_code</code>. Parameters YAML is species-keyed with <code>spawn / rear / spawn_connected</code> rule sections. For non-fish domains, compose the primitives on your own output schema rather than shoehorning through these wrappers.</li>
+</ul></li>
+<li>
+<code><a href="reference/frs_habitat.html">frs_habitat()</a></code> is the fish-workflow orchestrator — wraps <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code> + <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> with mirai parallel workers</li>
 <li>
 <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code> is domain-agnostic — segments any network at any break points</li>
 <li>
@@ -127,12 +134,12 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <li>
 <code>break_sources</code> with <code>label</code>, <code>label_col</code>, <code>label_map</code> for flexible network-referenced classification</li>
 <li>
-<code>label_block</code> controls which labels restrict access (default <code>"blocked"</code>, configurable)</li>
+<code>label_block</code> controls which labels restrict access (default <code>"blocked"</code>, configurable — pass your own domain labels)</li>
 <li>
 <code>gate = FALSE</code> skips accessibility for raw habitat potential</li>
 <li>Direct SQL via DBI/RPostgres against fwapg PostgreSQL</li>
 <li>Returns sf objects for spatial results</li>
-<li>Requires PostgreSQL with fwapg only (bcfishpass/bcfishobs optional)</li>
+<li>Requires PostgreSQL with fwapg (bcfishpass/bcfishobs optional, per-function)</li>
 <li>Vignette data cached in <code>inst/extdata/</code> with <code>update_gis</code> YAML param (FALSE = cached, TRUE = live DB)</li>
 </ul></div>
 <div class="section level2">

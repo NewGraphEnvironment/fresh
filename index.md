@@ -88,6 +88,39 @@ frs_habitat(conn,
 See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for
 vignettes and function reference.
 
+## Primitives vs domain wrappers
+
+fresh has two layers:
+
+**Generic primitives** —
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+[`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
+[`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
+[`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md),
+[`frs_barriers_minimal()`](https://newgraphenvironment.github.io/fresh/reference/frs_barriers_minimal.md),
+[`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
+[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
+[`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md),
+[`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md).
+Domain-neutral building blocks. Classify on any attribute into any label
+column. Break at any position. Cluster by any connectivity rule. No
+assumptions about what’s being modelled.
+
+**Fish-habitat wrapper** —
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md),
+[`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md).
+Convenience wrappers that classify segments as
+`accessible / spawning / rearing / lake_rearing` per `species_code`,
+driven by a per-species rules YAML. The output schema is fish-specific.
+
+For non-fish domains — thermal refugia, riparian connectivity,
+sediment-transport models, custom classifications — compose the
+primitives directly on your own output schema.
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
+is pipeable and takes any `label` column name. The wrappers are a
+convenience, not the only way in.
+
 ## Using with link
 
 For fish habitat and fish passage work, fresh pairs with
