@@ -33,16 +33,16 @@ Mirrors `barrier_overrides` parameter naming + `frs_habitat_classify` signature 
 
 ## Phases
 
-- [ ] Phase 1 — PWF baseline (this file + findings.md + progress.md)
-- [ ] Phase 2 — Decide known-table column convention (per-species columns vs long-format)
-- [ ] Phase 3 — Implement `frs_habitat_known()` in `R/frs_habitat_known.R`
-- [ ] Phase 4 — Robust unit tests (mocked SQL; column mapping; verbose; edge cases)
-- [ ] Phase 5 — Integration test on small fixture (real DB; flips a known segment from FALSE → TRUE)
-- [ ] Phase 6 — Add to NAMESPACE via roxygen `@export`
-- [ ] Phase 7 — `devtools::document()` + lintr clean
+- [x] Phase 1 — PWF baseline (this file + findings.md + progress.md)
+- [x] Phase 2 — Decide known-table column convention (per-species columns vs long-format)
+- [x] Phase 3 — Implement `frs_habitat_known()` in `R/frs_habitat_known.R`
+- [x] Phase 4 — Robust unit tests (mocked SQL; column mapping; verbose; edge cases)
+- [x] Phase 5 — Integration test on small fixture (real DB; flips a known segment from FALSE → TRUE)
+- [x] Phase 6 — Add to NAMESPACE via roxygen `@export`
+- [x] Phase 7 — `devtools::document()` + lintr clean
 - [ ] Phase 8 — `/code-check` on staged diff (per session-start instruction)
-- [ ] Phase 9 — Full `devtools::test()` via rtj harness
-- [ ] Phase 10 — NEWS entry + version bump → 0.18.0
+- [x] Phase 9 — Full `devtools::test()` via rtj harness — 749 PASS / 0 FAIL / 13m20s
+- [x] Phase 10 — NEWS entry + version bump → 0.18.0
 - [ ] Phase 11 — PR to fresh
 
 ## Critical files
