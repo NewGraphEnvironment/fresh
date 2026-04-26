@@ -1,4 +1,4 @@
-# Unit tests: frs_habitat_known
+# Unit tests: frs_habitat_overlay
 #
 # Mocked tests cover argument validation, column-skip behaviour, SQL
 # shape. Integration tests at the bottom hit a small fixture on a
@@ -31,27 +31,27 @@ TBL_DEFAULT <- c("id_segment", "species_code",
 
 # -- Argument validation -------------------------------------------------------
 
-test_that("frs_habitat_known validates conn", {
+test_that("frs_habitat_overlay validates conn", {
   expect_error(
-    frs_habitat_known("not a conn", "x.y", "x.z"),
+    frs_habitat_overlay("not a conn", "x.y", "x.z"),
     "DBIConnection")
 })
 
-test_that("frs_habitat_known validates table / known are schema-qualified strings", {
+test_that("frs_habitat_overlay validates table / known are schema-qualified strings", {
   fake <- structure(list(), class = "DBIConnection")
-  expect_error(frs_habitat_known(fake, "", "x.y"))
-  expect_error(frs_habitat_known(fake, "x.y", ""))
-  expect_error(frs_habitat_known(fake, c("a", "b"), "x.y"))
+  expect_error(frs_habitat_overlay(fake, "", "x.y"))
+  expect_error(frs_habitat_overlay(fake, "x.y", ""))
+  expect_error(frs_habitat_overlay(fake, c("a", "b"), "x.y"))
 })
 
-test_that("frs_habitat_known requires schema-qualified known table", {
+test_that("frs_habitat_overlay requires schema-qualified known table", {
   fake <- structure(list(), class = "DBIConnection")
   # `table = "ws.h"` so the table_cols mock branch matches; known is
   # the unqualified one being tested.
-  mockery::stub(frs_habitat_known, "DBI::dbGetQuery",
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
     mk_dbq("CO", TBL_DEFAULT, character(0)))
   expect_error(
-    frs_habitat_known(fake, "ws.h", "no_schema",
+    frs_habitat_overlay(fake, "ws.h", "no_schema",
                       species = "CO"),
     "schema-qualified")
 })
@@ -61,7 +61,7 @@ test_that("frs_habitat_known requires schema-qualified known table", {
 test_that("empty table -> early return without error", {
   fake <- structure(list(), class = "DBIConnection")
 
-  mockery::stub(frs_habitat_known, "DBI::dbGetQuery", function(conn, sql) {
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery", function(conn, sql) {
     if (grepl("DISTINCT species_code", sql)) {
       data.frame(species_code = character(0))
     } else if (grepl("information_schema", sql) && grepl("table_name = 'h'", sql)) {
@@ -74,7 +74,7 @@ test_that("empty table -> early return without error", {
   })
 
   expect_silent(suppressMessages(
-    frs_habitat_known(fake, "ws.h", "ws.k", verbose = FALSE)
+    frs_habitat_overlay(fake, "ws.h", "ws.k", verbose = FALSE)
   ))
 })
 
@@ -84,20 +84,20 @@ test_that("missing per-species column is skipped, not an error", {
   fake <- structure(list(), class = "DBIConnection")
   exec_calls <- list()
 
-  mockery::stub(frs_habitat_known, "DBI::dbGetQuery",
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
     mk_dbq(
       species     = "CT",
       table_cols  = TBL_DEFAULT,
       known_cols  = c("blue_line_key", "downstream_route_measure",
                        "spawning_bt", "rearing_bt",
                        "spawning_co", "rearing_co")))
-  mockery::stub(frs_habitat_known, ".frs_db_execute", function(conn, sql) {
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
     exec_calls[[length(exec_calls) + 1L]] <<- sql
     0L
   })
 
   out <- expect_output(
-    frs_habitat_known(fake, "ws.h", "ws.k", species = "CT", verbose = TRUE),
+    frs_habitat_overlay(fake, "ws.h", "ws.k", species = "CT", verbose = TRUE),
     "skip CT/spawning")
 
   # No UPDATEs should have run for CT (no matching columns)
@@ -110,15 +110,15 @@ test_that("UPDATE SQL ORs in TRUE on matching segments only", {
   fake <- structure(list(), class = "DBIConnection")
   captured <- list()
 
-  mockery::stub(frs_habitat_known, "DBI::dbGetQuery",
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
     mk_dbq("CO", TBL_DEFAULT,
            c("blue_line_key", "downstream_route_measure", "spawning_co")))
-  mockery::stub(frs_habitat_known, ".frs_db_execute", function(conn, sql) {
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
     captured[[length(captured) + 1L]] <<- sql
     3L
   })
 
-  invisible(frs_habitat_known(fake, "ws.h", "ws.k",
+  invisible(frs_habitat_overlay(fake, "ws.h", "ws.k",
                               species = "CO",
                               habitat_types = "spawning",
                               verbose = FALSE))
@@ -141,16 +141,16 @@ test_that("UPDATE SQL ORs in TRUE on matching segments only", {
 test_that("rejects malformed species codes (non-alphabetic)", {
   fake <- structure(list(), class = "DBIConnection")
   expect_error(
-    frs_habitat_known(fake, "ws.h", "ws.k", species = "CO; DROP --"),
+    frs_habitat_overlay(fake, "ws.h", "ws.k", species = "CO; DROP --"),
     "alphabetic")
   expect_error(
-    frs_habitat_known(fake, "ws.h", "ws.k", species = c("CO", "BAD CODE")),
+    frs_habitat_overlay(fake, "ws.h", "ws.k", species = c("CO", "BAD CODE")),
     "alphabetic")
 })
 
 test_that("rejects habitat_types not in target table", {
   fake <- structure(list(), class = "DBIConnection")
-  mockery::stub(frs_habitat_known, "DBI::dbGetQuery", function(conn, sql) {
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery", function(conn, sql) {
     if (grepl("information_schema", sql)) {
       data.frame(column_name = c("id_segment", "species_code", "spawning"))
     } else {
@@ -158,7 +158,7 @@ test_that("rejects habitat_types not in target table", {
     }
   })
   expect_error(
-    frs_habitat_known(fake, "ws.h", "ws.k", species = "CO",
+    frs_habitat_overlay(fake, "ws.h", "ws.k", species = "CO",
                       habitat_types = c("spawning", "rearing"),
                       verbose = FALSE),
     "habitat_types not found")
@@ -170,13 +170,13 @@ test_that("custom by= produces matching join predicate", {
   fake <- structure(list(), class = "DBIConnection")
   captured <- character(0)
 
-  mockery::stub(frs_habitat_known, "DBI::dbGetQuery",
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
     mk_dbq("CO", TBL_DEFAULT, c("id_segment", "spawning_co")))
-  mockery::stub(frs_habitat_known, ".frs_db_execute", function(conn, sql) {
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
     captured <<- c(captured, sql); 0L
   })
 
-  frs_habitat_known(fake, "ws.h", "ws.k",
+  frs_habitat_overlay(fake, "ws.h", "ws.k",
                     species = "CO",
                     habitat_types = "spawning",
                     by = "id_segment",
@@ -193,11 +193,11 @@ test_that("NULL species pulls from table.species_code", {
   fake <- structure(list(), class = "DBIConnection")
 
   species_seen <- character(0)
-  mockery::stub(frs_habitat_known, "DBI::dbGetQuery",
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
     mk_dbq(c("BT", "CO"), TBL_DEFAULT,
            c("blue_line_key", "downstream_route_measure",
              "spawning_bt", "spawning_co")))
-  mockery::stub(frs_habitat_known, ".frs_db_execute", function(conn, sql) {
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
     if (grepl("species_code = '([A-Z]+)'", sql)) {
       m <- regmatches(sql, regexpr("species_code = '([A-Z]+)'", sql))
       species_seen <<- c(species_seen, sub(".*'([A-Z]+)'.*", "\\1", m))
@@ -205,7 +205,7 @@ test_that("NULL species pulls from table.species_code", {
     1L
   })
 
-  frs_habitat_known(fake, "ws.h", "ws.k",
+  frs_habitat_overlay(fake, "ws.h", "ws.k",
                     habitat_types = "spawning",
                     verbose = FALSE)
 
@@ -217,11 +217,11 @@ test_that("NULL species pulls from table.species_code", {
 test_that("malicious identifiers are rejected by validator", {
   fake <- structure(list(), class = "DBIConnection")
   expect_error(
-    frs_habitat_known(fake, "ws.h; DROP TABLE x; --", "ws.k"))
+    frs_habitat_overlay(fake, "ws.h; DROP TABLE x; --", "ws.k"))
   expect_error(
-    frs_habitat_known(fake, "ws.h", "ws.k", by = "bad-name"))
+    frs_habitat_overlay(fake, "ws.h", "ws.k", by = "bad-name"))
   expect_error(
-    frs_habitat_known(fake, "ws.h", "ws.k", habitat_types = "spawn'; DROP --"))
+    frs_habitat_overlay(fake, "ws.h", "ws.k", habitat_types = "spawn'; DROP --"))
 })
 
 # -- Integration: real DB, small fixture --------------------------------------
@@ -265,7 +265,7 @@ test_that("integration: known segment flips FALSE -> TRUE on a fixture", {
        (100, 20.0, FALSE, TRUE),
        (100, 30.0, FALSE, FALSE)")
 
-  invisible(frs_habitat_known(conn,
+  invisible(frs_habitat_overlay(conn,
     table = "working.test_known_h",
     known = "working.test_known_k",
     species = "CO",
@@ -314,7 +314,7 @@ test_that("integration: already-TRUE rows are not re-touched (additive-only)", {
   # capture rowcount via verbose path: the cat() output reports
   # `<sp>/<hab>: <n> segments flipped`. Use direct dbExecute to read
   # the matching count.
-  invisible(frs_habitat_known(conn,
+  invisible(frs_habitat_overlay(conn,
     table = "working.test_known_h3",
     known = "working.test_known_k3",
     species = "CO", habitat_types = "spawning",
@@ -355,10 +355,10 @@ test_that("integration: idempotent on second call", {
   DBI::dbExecute(conn,
     "INSERT INTO working.test_known_k2 VALUES (100, 10.0, TRUE)")
 
-  invisible(frs_habitat_known(conn, "working.test_known_h2",
+  invisible(frs_habitat_overlay(conn, "working.test_known_h2",
     "working.test_known_k2", species = "CO",
     habitat_types = "spawning", verbose = FALSE))
-  invisible(frs_habitat_known(conn, "working.test_known_h2",
+  invisible(frs_habitat_overlay(conn, "working.test_known_h2",
     "working.test_known_k2", species = "CO",
     habitat_types = "spawning", verbose = FALSE))
 
