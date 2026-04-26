@@ -12,11 +12,21 @@
 #' flag from `TRUE` to `FALSE`. Callers wanting "known beats model"
 #' semantics should preprocess the known table before calling.
 #'
-#' Expects the known-habitat table to be wide-format with one row per
-#' segment and a column per `{habitat_type}_{species_lower}` pair (e.g.
-#' `spawning_sk`, `rearing_co`). Boolean or NULL. Missing columns are
-#' skipped with a verbose message; they are not an error — many species
-#' have known data only for certain habitat types.
+#' Two known-table shapes supported via the `format` argument:
+#'
+#' - **`"wide"`** (default) — one row per segment, columns named
+#'   `{habitat_type}_{species_lower}` (e.g. `spawning_sk`, `rearing_co`).
+#'   Boolean or NULL. Matches the bcfishpass `streams_habitat_known`
+#'   convention. Missing per-species columns are skipped with a verbose
+#'   message — many species have known data only for certain habitat
+#'   types.
+#'
+#' - **`"long"`** — one row per (segment × species × habitat_type),
+#'   with a `species_code` column, a `habitat_type` column, and an
+#'   indicator column (`habitat_ind`) holding `'TRUE'`/`'FALSE'` (text)
+#'   or boolean. Matches link's `user_habitat_classification.csv`
+#'   shape. The function filters by species + habitat_type before the
+#'   join.
 #'
 #' Segments are matched between `table` and `known` using a join on the
 #' columns named in `by` (default `c("blue_line_key", "downstream_route_measure")`).
@@ -26,9 +36,10 @@
 #'   update in place. Must have columns `id_segment`, `species_code`,
 #'   plus boolean columns named in `habitat_types`, plus the join keys
 #'   in `by`.
-#' @param known Character. Schema-qualified wide-format known-habitat
-#'   table. Must have the join keys in `by`, plus per-species columns
-#'   named `{habitat_type}_{species_lower}`.
+#' @param known Character. Schema-qualified known-habitat table.
+#'   Wide-format: join keys + per-species columns. Long-format: join
+#'   keys + `species_code` + `habitat_type` + the indicator column
+#'   named in `long_value_col`.
 #' @param species Character vector. Species codes to ingest. `NULL`
 #'   (default) processes every species code present in `table`.
 #' @param habitat_types Character vector. Habitat-type columns to OR
@@ -37,6 +48,13 @@
 #'   columns present in `table`.
 #' @param by Character vector. Columns used to join `table` to `known`.
 #'   Default `c("blue_line_key", "downstream_route_measure")`.
+#' @param format Character. `"wide"` (default) or `"long"` — see
+#'   description.
+#' @param long_value_col Character. For `format = "long"`, the column
+#'   name in `known` that holds the indicator. Default `"habitat_ind"`.
+#'   Accepts: boolean values, OR text values `'TRUE'`/`'true'`/`'t'`
+#'   (case + whitespace insensitive). Anything else (NULL, `'FALSE'`,
+#'   `'1'`, `'yes'`, ...) skips the row.
 #' @param verbose Logical. Print per-species per-habitat summary.
 #'   Default `TRUE`.
 #'
@@ -62,7 +80,11 @@ frs_habitat_overlay <- function(conn, table, known,
                               habitat_types = c("spawning", "rearing",
                                                 "lake_rearing", "wetland_rearing"),
                               by = c("blue_line_key", "downstream_route_measure"),
+                              format = c("wide", "long"),
+                              long_value_col = "habitat_ind",
                               verbose = TRUE) {
+
+  format <- match.arg(format)
 
   # --- Argument validation ---
   stopifnot(
@@ -70,8 +92,10 @@ frs_habitat_overlay <- function(conn, table, known,
     is.character(table), length(table) == 1L, nchar(table) > 0,
     is.character(known), length(known) == 1L, nchar(known) > 0,
     is.character(habitat_types), length(habitat_types) > 0,
-    is.character(by), length(by) > 0
+    is.character(by), length(by) > 0,
+    is.character(long_value_col), length(long_value_col) == 1L
   )
+  .frs_validate_identifier(long_value_col, "long_value_col")
   if (!is.null(species)) {
     stopifnot(is.character(species), length(species) > 0)
   }
@@ -134,34 +158,66 @@ frs_habitat_overlay <- function(conn, table, known,
          call. = FALSE)
   }
 
-  # --- OR in flags per (habitat_type, species) where the column exists ---
+  # --- Long format: validate required columns up front ---
+  if (format == "long") {
+    required_long <- c(by, "species_code", "habitat_type", long_value_col)
+    missing_long <- setdiff(required_long, known_cols)
+    if (length(missing_long) > 0) {
+      stop(sprintf(
+        "long-format known table %s missing required columns: %s",
+        known, paste(missing_long, collapse = ", ")), call. = FALSE)
+    }
+  }
+
+  join_pred <- paste(sprintf("h.%s = k.%s", by, by), collapse = " AND ")
+
+  # --- OR in flags per (habitat_type, species) ---
   total_updates <- 0L
   for (sp in species) {
     sp_lower <- tolower(sp)
     for (hab in habitat_types) {
-      col <- paste0(hab, "_", sp_lower)
-      if (!col %in% known_cols) {
-        if (verbose) {
-          cat(sprintf("  skip %s/%s (no column `%s` in %s)\n",
-                      sp, hab, col, known))
+
+      sql <- if (format == "wide") {
+        col <- paste0(hab, "_", sp_lower)
+        if (!col %in% known_cols) {
+          if (verbose) {
+            cat(sprintf("  skip %s/%s (no column `%s` in %s)\n",
+                        sp, hab, col, known))
+          }
+          next
         }
-        next
+        sprintf(
+          "UPDATE %s AS h
+           SET %s = TRUE
+           FROM %s AS k
+           WHERE %s
+             AND h.species_code = %s
+             AND k.%s IS TRUE
+             AND (h.%s IS NULL OR h.%s = FALSE)",
+          table, hab, known, join_pred,
+          .frs_quote_string(sp),
+          col, hab, hab)
+      } else {
+        # long format: filter by species + habitat_type, accept boolean
+        # OR text 'TRUE' for the indicator column.
+        sprintf(
+          "UPDATE %s AS h
+           SET %s = TRUE
+           FROM %s AS k
+           WHERE %s
+             AND h.species_code = %s
+             AND k.species_code = %s
+             AND k.habitat_type = %s
+             AND (lower(trim(k.%s::text)) IN ('true', 't'))
+             AND (h.%s IS NULL OR h.%s = FALSE)",
+          table, hab, known, join_pred,
+          .frs_quote_string(sp),
+          .frs_quote_string(sp),
+          .frs_quote_string(hab),
+          long_value_col,
+          hab, hab)
       }
-      join_pred <- paste(sprintf("h.%s = k.%s", by, by), collapse = " AND ")
-      sql <- sprintf(
-        "UPDATE %s AS h
-         SET %s = TRUE
-         FROM %s AS k
-         WHERE %s
-           AND h.species_code = %s
-           AND k.%s IS TRUE
-           AND (h.%s IS NULL OR h.%s = FALSE)",
-        table, hab,
-        known,
-        join_pred,
-        .frs_quote_string(sp),
-        col,
-        hab, hab)
+
       n <- .frs_db_execute(conn, sql)
       total_updates <- total_updates + n
       if (verbose) {
