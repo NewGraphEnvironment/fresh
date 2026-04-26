@@ -1,9 +1,38 @@
 # Changelog
 
+## fresh 0.19.0
+
+Decompose
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+into composable pieces; rename `frs_habitat_known()` →
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md).
+Pre-1.0, breaking changes accepted to set the right shape before
+external use.
+
+- New exported `frs_habitat_predicates(sp_params)` — pure-R helper that
+  takes a single species’ params and returns a named list of SQL boolean
+  predicates (`spawn`, `rear`, `lake_rear`, `wetland_rear`) ready to
+  embed in `CASE WHEN <pred> THEN TRUE ELSE FALSE END`. Extracted from
+  [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)’s
+  per-species loop. Testable without a DB; 33 unit tests cover both
+  rules-YAML and CSV-ranges paths, edge_type filters, and the
+  lake/wetland W-rule gating.
+- [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  shrinks from 551 → ~447 lines and gains a `known = NULL` parameter —
+  when supplied, calls
+  [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
+  automatically as a post-step. Rule-based classification + observation
+  overlay can now be a single call.
+- **Breaking:** `frs_habitat_known()` renamed to
+  [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md).
+  The mechanism is overlay (additive OR-in); “known” presupposed
+  provenance the function doesn’t enforce. No deprecation alias —
+  pre-1.0, no external users.
+
 ## fresh 0.18.0
 
 - New
-  [`frs_habitat_known()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_known.md)
+  [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
   — stitches known-habitat boolean flags from a wide-format lookup table
   INTO an existing `streams_habitat` classified by
   [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md).
@@ -21,7 +50,7 @@
   break-points + barrier overrides but never propagated its flags into
   `fresh.streams_habitat`. After this lands, link’s
   `lnk_pipeline_classify` can call
-  [`frs_habitat_known()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_known.md)
+  [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
   as a post-step.
 
 ## fresh 0.17.1

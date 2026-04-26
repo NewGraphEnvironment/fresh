@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.18.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.19.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,8 +38,17 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.19.0" id="fresh-0190">fresh 0.19.0<a class="anchor" aria-label="anchor" href="#fresh-0190"></a></h2>
+<p>Decompose <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> into composable pieces; rename <code>frs_habitat_known()</code> → <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code>. Pre-1.0, breaking changes accepted to set the right shape before external use.</p>
+<ul><li>New exported <code>frs_habitat_predicates(sp_params)</code> — pure-R helper that takes a single species’ params and returns a named list of SQL boolean predicates (<code>spawn</code>, <code>rear</code>, <code>lake_rear</code>, <code>wetland_rear</code>) ready to embed in <code>CASE WHEN &lt;pred&gt; THEN TRUE ELSE FALSE END</code>. Extracted from <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>’s per-species loop. Testable without a DB; 33 unit tests cover both rules-YAML and CSV-ranges paths, edge_type filters, and the lake/wetland W-rule gating.</li>
+<li>
+<code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> shrinks from 551 → ~447 lines and gains a <code>known = NULL</code> parameter — when supplied, calls <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> automatically as a post-step. Rule-based classification + observation overlay can now be a single call.</li>
+<li>
+<strong>Breaking:</strong> <code>frs_habitat_known()</code> renamed to <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code>. The mechanism is overlay (additive OR-in); “known” presupposed provenance the function doesn’t enforce. No deprecation alias — pre-1.0, no external users.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.18.0" id="fresh-0180">fresh 0.18.0<a class="anchor" aria-label="anchor" href="#fresh-0180"></a></h2>
-<ul><li>New <code><a href="../reference/frs_habitat_known.html">frs_habitat_known()</a></code> — stitches known-habitat boolean flags from a wide-format lookup table INTO an existing <code>streams_habitat</code> classified by <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>. Mirrors the bcfishpass blend of model output (<code>habitat_linear_&lt;sp&gt;</code>) with manual / observation-based knowns (<code>streams_habitat_known</code>) into the published <code>streams_habitat_linear</code> integer encoding. Purely additive (<code>FALSE → TRUE</code> only). Per-species columns <code>{habitat}_{species_lower}</code> matched against the species code in <code>streams_habitat</code>; missing per-species columns skip with a verbose message rather than erroring. Compound join key parameterisable via <code>by</code> (default <code>c("blue_line_key", "downstream_route_measure")</code>). Surfaced as a need in <a href="https://github.com/NewGraphEnvironment/link/issues/55" class="external-link">link#55</a> — link’s pipeline loaded <code>user_habitat_classification.csv</code> for break-points + barrier overrides but never propagated its flags into <code>fresh.streams_habitat</code>. After this lands, link’s <code>lnk_pipeline_classify</code> can call <code><a href="../reference/frs_habitat_known.html">frs_habitat_known()</a></code> as a post-step.</li>
+<ul><li>New <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> — stitches known-habitat boolean flags from a wide-format lookup table INTO an existing <code>streams_habitat</code> classified by <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>. Mirrors the bcfishpass blend of model output (<code>habitat_linear_&lt;sp&gt;</code>) with manual / observation-based knowns (<code>streams_habitat_known</code>) into the published <code>streams_habitat_linear</code> integer encoding. Purely additive (<code>FALSE → TRUE</code> only). Per-species columns <code>{habitat}_{species_lower}</code> matched against the species code in <code>streams_habitat</code>; missing per-species columns skip with a verbose message rather than erroring. Compound join key parameterisable via <code>by</code> (default <code>c("blue_line_key", "downstream_route_measure")</code>). Surfaced as a need in <a href="https://github.com/NewGraphEnvironment/link/issues/55" class="external-link">link#55</a> — link’s pipeline loaded <code>user_habitat_classification.csv</code> for break-points + barrier overrides but never propagated its flags into <code>fresh.streams_habitat</code>. After this lands, link’s <code>lnk_pipeline_classify</code> can call <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> as a post-step.</li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.17.1" id="fresh-0171">fresh 0.17.1<a class="anchor" aria-label="anchor" href="#fresh-0171"></a></h2>

@@ -44,10 +44,12 @@
   : Compute Access Breaks at a Gradient Threshold
 - [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
   : Classify Habitat for Multiple Species
-- [`frs_habitat_known()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_known.md)
-  : Stitch known-habitat flags into a classified streams_habitat table
+- [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
+  : Overlay known-habitat flags onto a classified streams_habitat table
 - [`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md)
   : Prepare a Partition for Habitat Classification
+- [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)
+  : Build SQL predicates for one species' habitat classification
 - [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)
   : Classify Habitat for One Species
 - [`frs_lake_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_lake_fetch.md)
