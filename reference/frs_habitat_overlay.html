@@ -19,7 +19,7 @@ into the published streams_habitat_linear."><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.19.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.20.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,6 +69,8 @@ into the published <code>streams_habitat_linear</code>.</p>
 <span>  species <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  habitat_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"spawning"</span>, <span class="st">"rearing"</span>, <span class="st">"lake_rearing"</span>, <span class="st">"wetland_rearing"</span><span class="op">)</span>,</span>
 <span>  by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"blue_line_key"</span>, <span class="st">"downstream_route_measure"</span><span class="op">)</span>,</span>
+<span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"wide"</span>, <span class="st">"long"</span><span class="op">)</span>,</span>
+<span>  long_value_col <span class="op">=</span> <span class="st">"habitat_ind"</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -89,9 +91,10 @@ in <code>by</code>.</p></dd>
 
 
 <dt id="arg-known">known<a class="anchor" aria-label="anchor" href="#arg-known"></a></dt>
-<dd><p>Character. Schema-qualified wide-format known-habitat
-table. Must have the join keys in <code>by</code>, plus per-species columns
-named <code>{habitat_type}_{species_lower}</code>.</p></dd>
+<dd><p>Character. Schema-qualified known-habitat table.
+Wide-format: join keys + per-species columns. Long-format: join
+keys + <code>species_code</code> + <code>habitat_type</code> + the indicator column
+named in <code>long_value_col</code>.</p></dd>
 
 
 <dt id="arg-species">species<a class="anchor" aria-label="anchor" href="#arg-species"></a></dt>
@@ -110,6 +113,19 @@ columns present in <code>table</code>.</p></dd>
 Default <code>c("blue_line_key", "downstream_route_measure")</code>.</p></dd>
 
 
+<dt id="arg-format">format<a class="anchor" aria-label="anchor" href="#arg-format"></a></dt>
+<dd><p>Character. <code>"wide"</code> (default) or <code>"long"</code> — see
+description.</p></dd>
+
+
+<dt id="arg-long-value-col">long_value_col<a class="anchor" aria-label="anchor" href="#arg-long-value-col"></a></dt>
+<dd><p>Character. For <code>format = "long"</code>, the column
+name in <code>known</code> that holds the indicator. Default <code>"habitat_ind"</code>.
+Accepts: boolean values, OR text values <code>'TRUE'</code>/<code>'true'</code>/<code>'t'</code>
+(case + whitespace insensitive). Anything else (NULL, <code>'FALSE'</code>,
+<code>'1'</code>, <code>'yes'</code>, ...) skips the row.</p></dd>
+
+
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. Print per-species per-habitat summary.
 Default <code>TRUE</code>.</p></dd>
@@ -124,12 +140,19 @@ Default <code>TRUE</code>.</p></dd>
     <p>Known-habitat is <strong>purely additive</strong>: this function never sets a
 flag from <code>TRUE</code> to <code>FALSE</code>. Callers wanting "known beats model"
 semantics should preprocess the known table before calling.</p>
-<p>Expects the known-habitat table to be wide-format with one row per
-segment and a column per <code>{habitat_type}_{species_lower}</code> pair (e.g.
-<code>spawning_sk</code>, <code>rearing_co</code>). Boolean or NULL. Missing columns are
-skipped with a verbose message; they are not an error — many species
-have known data only for certain habitat types.</p>
-<p>Segments are matched between <code>table</code> and <code>known</code> using a join on the
+<p>Two known-table shapes supported via the <code>format</code> argument:</p><ul><li><p><strong><code>"wide"</code></strong> (default) — one row per segment, columns named
+<code>{habitat_type}_{species_lower}</code> (e.g. <code>spawning_sk</code>, <code>rearing_co</code>).
+Boolean or NULL. Matches the bcfishpass <code>streams_habitat_known</code>
+convention. Missing per-species columns are skipped with a verbose
+message — many species have known data only for certain habitat
+types.</p></li>
+<li><p><strong><code>"long"</code></strong> — one row per (segment × species × habitat_type),
+with a <code>species_code</code> column, a <code>habitat_type</code> column, and an
+indicator column (<code>habitat_ind</code>) holding <code>'TRUE'</code>/<code>'FALSE'</code> (text)
+or boolean. Matches link's <code>user_habitat_classification.csv</code>
+shape. The function filters by species + habitat_type before the
+join.</p></li>
+</ul><p>Segments are matched between <code>table</code> and <code>known</code> using a join on the
 columns named in <code>by</code> (default <code>c("blue_line_key", "downstream_route_measure")</code>).</p>
     </div>
     <div class="section level2">

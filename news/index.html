@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.19.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.20.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.20.0" id="fresh-0200">fresh 0.20.0<a class="anchor" aria-label="anchor" href="#fresh-0200"></a></h2>
+<p><code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> accepts long-format known-habitat tables in addition to the original wide-format. Backward-compatible: the new <code>format</code> arg defaults to <code>"wide"</code>.</p>
+<ul><li>New args: <code>format = c("wide", "long")</code> and <code>long_value_col = "habitat_ind"</code>.</li>
+<li>Long-format expects: join keys (per <code>by</code>) + <code>species_code</code> + <code>habitat_type</code> + a boolean / text indicator column. Each row is one (segment × species × habitat_type) tuple. Matches link’s <code>user_habitat_classification.csv</code> shape, which is the bcfishpass <code>user_habitat_classification.csv</code> source format (before bcfishpass pivots it to wide for <code>streams_habitat_known</code>).</li>
+<li>Indicator accepts boolean OR text — <code>'TRUE'</code> / <code>'t'</code> / <code>'true'</code> all qualify. Non-matching values (e.g. <code>'FALSE'</code>, NULL) skip.</li>
+<li>Up-front validation: long-format known table must have all required columns (join keys + <code>species_code</code> + <code>habitat_type</code> + indicator). Errors clearly if missing.</li>
+<li>Wide-format path unchanged. 11 new tests covering long-format unit + integration; previous wide tests all still pass (42 total on <code>frs_habitat_overlay</code>).</li>
+</ul><p>Surfaced in <a href="https://github.com/NewGraphEnvironment/link/issues/55" class="external-link">link#55</a> — link’s <code>user_habitat_classification</code> table is loaded long-format by <code>lnk_pipeline_prepare</code>. Forcing a pivot in link to satisfy the wide-format assumption was special-case overhead. Now fresh handles either shape so callers use whichever they have.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.19.0" id="fresh-0190">fresh 0.19.0<a class="anchor" aria-label="anchor" href="#fresh-0190"></a></h2>
 <p>Decompose <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> into composable pieces; rename <code>frs_habitat_known()</code> → <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code>. Pre-1.0, breaking changes accepted to set the right shape before external use.</p>

@@ -20,6 +20,8 @@ frs_habitat_overlay(
   species = NULL,
   habitat_types = c("spawning", "rearing", "lake_rearing", "wetland_rearing"),
   by = c("blue_line_key", "downstream_route_measure"),
+  format = c("wide", "long"),
+  long_value_col = "habitat_ind",
   verbose = TRUE
 )
 ```
@@ -40,9 +42,9 @@ frs_habitat_overlay(
 
 - known:
 
-  Character. Schema-qualified wide-format known-habitat table. Must have
-  the join keys in `by`, plus per-species columns named
-  `{habitat_type}_{species_lower}`.
+  Character. Schema-qualified known-habitat table. Wide-format: join
+  keys + per-species columns. Long-format: join keys + `species_code` +
+  `habitat_type` + the indicator column named in `long_value_col`.
 
 - species:
 
@@ -61,6 +63,18 @@ frs_habitat_overlay(
   Character vector. Columns used to join `table` to `known`. Default
   `c("blue_line_key", "downstream_route_measure")`.
 
+- format:
+
+  Character. `"wide"` (default) or `"long"` — see description.
+
+- long_value_col:
+
+  Character. For `format = "long"`, the column name in `known` that
+  holds the indicator. Default `"habitat_ind"`. Accepts: boolean values,
+  OR text values `'TRUE'`/`'true'`/`'t'` (case + whitespace
+  insensitive). Anything else (NULL, `'FALSE'`, `'1'`, `'yes'`, ...)
+  skips the row.
+
 - verbose:
 
   Logical. Print per-species per-habitat summary. Default `TRUE`.
@@ -75,11 +89,19 @@ Known-habitat is **purely additive**: this function never sets a flag
 from `TRUE` to `FALSE`. Callers wanting "known beats model" semantics
 should preprocess the known table before calling.
 
-Expects the known-habitat table to be wide-format with one row per
-segment and a column per `{habitat_type}_{species_lower}` pair (e.g.
-`spawning_sk`, `rearing_co`). Boolean or NULL. Missing columns are
-skipped with a verbose message; they are not an error — many species
-have known data only for certain habitat types.
+Two known-table shapes supported via the `format` argument:
+
+- **`"wide"`** (default) — one row per segment, columns named
+  `{habitat_type}_{species_lower}` (e.g. `spawning_sk`, `rearing_co`).
+  Boolean or NULL. Matches the bcfishpass `streams_habitat_known`
+  convention. Missing per-species columns are skipped with a verbose
+  message — many species have known data only for certain habitat types.
+
+- **`"long"`** — one row per (segment × species × habitat_type), with a
+  `species_code` column, a `habitat_type` column, and an indicator
+  column (`habitat_ind`) holding `'TRUE'`/`'FALSE'` (text) or boolean.
+  Matches link's `user_habitat_classification.csv` shape. The function
+  filters by species + habitat_type before the join.
 
 Segments are matched between `table` and `known` using a join on the
 columns named in `by` (default

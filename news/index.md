@@ -1,5 +1,36 @@
 # Changelog
 
+## fresh 0.20.0
+
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
+accepts long-format known-habitat tables in addition to the original
+wide-format. Backward-compatible: the new `format` arg defaults to
+`"wide"`.
+
+- New args: `format = c("wide", "long")` and
+  `long_value_col = "habitat_ind"`.
+- Long-format expects: join keys (per `by`) + `species_code` +
+  `habitat_type` + a boolean / text indicator column. Each row is one
+  (segment × species × habitat_type) tuple. Matches link’s
+  `user_habitat_classification.csv` shape, which is the bcfishpass
+  `user_habitat_classification.csv` source format (before bcfishpass
+  pivots it to wide for `streams_habitat_known`).
+- Indicator accepts boolean OR text — `'TRUE'` / `'t'` / `'true'` all
+  qualify. Non-matching values (e.g. `'FALSE'`, NULL) skip.
+- Up-front validation: long-format known table must have all required
+  columns (join keys + `species_code` + `habitat_type` + indicator).
+  Errors clearly if missing.
+- Wide-format path unchanged. 11 new tests covering long-format unit +
+  integration; previous wide tests all still pass (42 total on
+  `frs_habitat_overlay`).
+
+Surfaced in
+[link#55](https://github.com/NewGraphEnvironment/link/issues/55) —
+link’s `user_habitat_classification` table is loaded long-format by
+`lnk_pipeline_prepare`. Forcing a pivot in link to satisfy the
+wide-format assumption was special-case overhead. Now fresh handles
+either shape so callers use whichever they have.
+
 ## fresh 0.19.0
 
 Decompose
