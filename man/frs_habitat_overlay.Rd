@@ -2,12 +2,13 @@
 % Please edit documentation in R/frs_habitat_overlay.R
 \name{frs_habitat_overlay}
 \alias{frs_habitat_overlay}
-\title{Overlay known-habitat flags onto a classified streams_habitat table}
+\title{Overlay flags from one table onto another}
 \usage{
 frs_habitat_overlay(
   conn,
-  table,
-  known,
+  from,
+  to,
+  bridge = NULL,
   species = NULL,
   habitat_types = c("spawning", "rearing", "lake_rearing", "wetland_rearing"),
   by = c("blue_line_key", "downstream_route_measure"),
@@ -19,34 +20,43 @@ frs_habitat_overlay(
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object.}
 
-\item{table}{Character. Schema-qualified streams_habitat table to
-update in place. Must have columns \code{id_segment}, \code{species_code},
-plus boolean columns named in \code{habitat_types}, plus the join keys
-in \code{by}.}
+\item{from}{Character. Schema-qualified source table providing
+the flags to overlay. Wide- or long-format per \code{format}.}
 
-\item{known}{Character. Schema-qualified known-habitat table.
-Wide-format: join keys + per-species columns. Long-format: join
-keys + \code{species_code} + \code{habitat_type} + the indicator column
-named in \code{long_value_col}.}
+\item{to}{Character. Schema-qualified destination table to UPDATE
+in place. Must have boolean columns named in \code{habitat_types}
+plus a \code{species_code} column. Either has the join keys (\code{by})
+directly, or only \code{id_segment} (use \code{bridge} to resolve).}
+
+\item{bridge}{Character or \code{NULL}. Optional schema-qualified
+segments table providing \code{id_segment} + the join keys in \code{by}
+\itemize{
+\item \code{downstream_route_measure} + \code{upstream_route_measure}. When
+provided, switches to a 3-way range-containment join. Default
+\code{NULL} (direct point-match join — \code{to} must have the join keys).
+\strong{Note:} the range column names are currently hardcoded to FWA
+convention (\code{downstream_route_measure} / \code{upstream_route_measure}).
+\code{from} and \code{bridge} must both use these names; non-FWA segment
+schemas would need a follow-up parameterisation.
+}}
 
 \item{species}{Character vector. Species codes to ingest. \code{NULL}
-(default) processes every species code present in \code{table}.}
+(default) processes every species code present in \code{to}.}
 
 \item{habitat_types}{Character vector. Habitat-type columns to OR
-in. Defaults to the four standard ones: \code{c("spawning", "rearing", "lake_rearing", "wetland_rearing")}. Must be a subset of the
-columns present in \code{table}.}
+in. Defaults to the four standard ones: \code{c("spawning", "rearing", "lake_rearing", "wetland_rearing")}. Must be a
+subset of the columns present in \code{to}.}
 
-\item{by}{Character vector. Columns used to join \code{table} to \code{known}.
+\item{by}{Character vector. Columns used to match \code{from} to either
+\code{to} (when \code{bridge = NULL}) or to \code{bridge} (when bridge supplied).
 Default \code{c("blue_line_key", "downstream_route_measure")}.}
 
-\item{format}{Character. \code{"wide"} (default) or \code{"long"} — see
-description.}
+\item{format}{Character. \code{"wide"} (default) or \code{"long"}.}
 
 \item{long_value_col}{Character. For \code{format = "long"}, the column
-name in \code{known} that holds the indicator. Default \code{"habitat_ind"}.
-Accepts: boolean values, OR text values \code{'TRUE'}/\code{'true'}/\code{'t'}
-(case + whitespace insensitive). Anything else (NULL, \code{'FALSE'},
-\code{'1'}, \code{'yes'}, ...) skips the row.}
+name in \code{from} that holds the indicator. Default
+\code{"habitat_ind"}. Accepts boolean or \code{'true'}/\code{'t'} text
+(case + whitespace insensitive).}
 
 \item{verbose}{Logical. Print per-species per-habitat summary.
 Default \code{TRUE}.}
@@ -55,48 +65,67 @@ Default \code{TRUE}.}
 \code{conn} invisibly (for piping).
 }
 \description{
-After \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} populates per-segment per-species
-habitat booleans from rules, \code{frs_habitat_overlay()} ORs in additional
-TRUE flags from a wide-format known-habitat table — capturing field
-observations / expert review / manual additions that the rule-based
-classifier doesn't reach. Mirrors the bcfishpass pipeline's blend of
-\verb{habitat_linear_<sp>} (model) with \code{streams_habitat_known} (knowns)
-into the published \code{streams_habitat_linear}.
+OR-in boolean flags from a source table (\code{from}) onto an existing
+classified table (\code{to}), purely additively (\verb{FALSE → TRUE} only,
+never reversed). Surfaced for the bcfishpass / link blend of
+rule-based classification (\code{frs_habitat_classify()}) with
+manually-curated knowns (\code{user_habitat_classification.csv}), but
+the mechanism is generic: any boolean-flagged source over any
+boolean-flagged target.
 }
 \details{
-Known-habitat is \strong{purely additive}: this function never sets a
-flag from \code{TRUE} to \code{FALSE}. Callers wanting "known beats model"
-semantics should preprocess the known table before calling.
-
-Two known-table shapes supported via the \code{format} argument:
+Two source-table shapes (\code{format}):
 \itemize{
-\item \strong{\code{"wide"}} (default) — one row per segment, columns named
-\verb{\{habitat_type\}_\{species_lower\}} (e.g. \code{spawning_sk}, \code{rearing_co}).
-Boolean or NULL. Matches the bcfishpass \code{streams_habitat_known}
-convention. Missing per-species columns are skipped with a verbose
-message — many species have known data only for certain habitat
-types.
+\item \strong{\code{"wide"}} — one row per segment, columns named
+\verb{\{habitat_type\}_\{species_lower\}} (e.g. \code{spawning_sk}). Boolean.
+Matches the bcfishpass \code{streams_habitat_known} convention.
 \item \strong{\code{"long"}} — one row per (segment × species × habitat_type),
-with a \code{species_code} column, a \code{habitat_type} column, and an
-indicator column (\code{habitat_ind}) holding \code{'TRUE'}/\code{'FALSE'} (text)
-or boolean. Matches link's \code{user_habitat_classification.csv}
-shape. The function filters by species + habitat_type before the
-join.
+with \code{species_code}, \code{habitat_type}, and an indicator column
+(\code{long_value_col}, default \code{habitat_ind}). Indicator can be
+boolean or text (\code{'TRUE'}/\code{'true'}/\code{'t'} case + whitespace
+insensitive). Matches link's \code{user_habitat_classification}
+table.
 }
 
-Segments are matched between \code{table} and \code{known} using a join on the
-columns named in \code{by} (default \code{c("blue_line_key", "downstream_route_measure")}).
+Two join modes (\code{bridge}):
+\itemize{
+\item \strong{Direct (\code{bridge = NULL})} — the \code{to} table has the join keys
+directly. SQL does \verb{to.<by> = from.<by>} (point match).
+\item \strong{Bridged (\code{bridge = "<segments_table>"})} — the \code{to} table is
+keyed by \code{id_segment} (e.g. \code{fresh.streams_habitat}) and lacks
+the geographic keys in \code{by}. The bridge table provides the
+link, with id_segment + range columns. SQL does a 3-way join:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{to.id_segment = bridge.id_segment
+AND bridge.<by[1]> = from.<by[1]>
+AND bridge.downstream_route_measure >= from.downstream_route_measure
+AND bridge.upstream_route_measure   <= from.upstream_route_measure
+}\if{html}{\out{</div>}}
+
+Range containment, not point match — covers the case where one
+\code{from} row's \verb{[drm, urm]} range maps to multiple bridge segments
+(e.g. when other break sources fall inside the range).
+}
+
+Future bridges aren't required to be \code{fresh.streams} — any table
+providing \code{id_segment} + the join-key columns + range columns
+works. Use cases include lake / wetland centerline segments or
+cottonwood-polygon segmentations pinned to a hydrology network.
 }
 \examples{
 \dontrun{
-conn <- frs_db_conn()
-
-# After frs_habitat_classify() populated working.streams_habitat,
-# OR in known habitat from a CSV-loaded table.
+# Direct join (target has the keys):
 frs_habitat_overlay(conn,
-  table   = "working.streams_habitat",
-  known   = "working.user_habitat_classification",
-  species = c("CO", "SK", "CH"))
+  from = "ws.user_habitat_classification",
+  to   = "ws.streams_habitat_keyed",
+  format = "long")
+
+# Bridged join (target is fresh.streams_habitat, keyed by id_segment):
+frs_habitat_overlay(conn,
+  from   = "ws.user_habitat_classification",
+  to     = "fresh.streams_habitat",
+  bridge = "fresh.streams",
+  format = "long")
 }
 }
 \seealso{

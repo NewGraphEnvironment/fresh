@@ -6,8 +6,8 @@
 
 # Helper: build a dbGetQuery mock that returns
 # - species list for `SELECT DISTINCT species_code`
-# - target table columns when the info_schema query targets `table_name = 'h'`
-# - known table columns when targeting `table_name = 'k'`
+# - destination (`to`) table columns when info_schema targets `table_name = 'h'`
+# - source (`from`) table columns when targeting `table_name = 'k'`
 mk_dbq <- function(species, table_cols, known_cols) {
   function(conn, sql) {
     if (grepl("DISTINCT species_code", sql)) {
@@ -33,15 +33,23 @@ TBL_DEFAULT <- c("id_segment", "species_code",
 
 test_that("frs_habitat_overlay validates conn", {
   expect_error(
-    frs_habitat_overlay("not a conn", "x.y", "x.z"),
+    frs_habitat_overlay("not a conn", from = "x.z", to = "x.y"),
     "DBIConnection")
 })
 
-test_that("frs_habitat_overlay validates table / known are schema-qualified strings", {
+test_that("frs_habitat_overlay validates from / to are schema-qualified strings", {
   fake <- structure(list(), class = "DBIConnection")
-  expect_error(frs_habitat_overlay(fake, "", "x.y"))
-  expect_error(frs_habitat_overlay(fake, "x.y", ""))
+  expect_error(frs_habitat_overlay(fake, from = "x.y", to = ""))
+  expect_error(frs_habitat_overlay(fake, from = "", to = "x.y"))
   expect_error(frs_habitat_overlay(fake, c("a", "b"), "x.y"))
+})
+
+test_that("frs_habitat_overlay rejects malicious from / to identifiers", {
+  fake <- structure(list(), class = "DBIConnection")
+  expect_error(
+    frs_habitat_overlay(fake, from = "ws.k; DROP TABLE x; --", to = "ws.h"))
+  expect_error(
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h; DROP TABLE x; --"))
 })
 
 test_that("frs_habitat_overlay requires schema-qualified known table", {
@@ -51,7 +59,7 @@ test_that("frs_habitat_overlay requires schema-qualified known table", {
   mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
     mk_dbq("CO", TBL_DEFAULT, character(0)))
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "no_schema",
+    frs_habitat_overlay(fake, from = "no_schema", to = "ws.h",
                       species = "CO"),
     "schema-qualified")
 })
@@ -74,7 +82,7 @@ test_that("empty table -> early return without error", {
   })
 
   expect_silent(suppressMessages(
-    frs_habitat_overlay(fake, "ws.h", "ws.k", verbose = FALSE)
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", verbose = FALSE)
   ))
 })
 
@@ -97,7 +105,7 @@ test_that("missing per-species column is skipped, not an error", {
   })
 
   out <- expect_output(
-    frs_habitat_overlay(fake, "ws.h", "ws.k", species = "CT", verbose = TRUE),
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", species = "CT", verbose = TRUE),
     "skip CT/spawning")
 
   # No UPDATEs should have run for CT (no matching columns)
@@ -118,7 +126,7 @@ test_that("UPDATE SQL ORs in TRUE on matching segments only", {
     3L
   })
 
-  invisible(frs_habitat_overlay(fake, "ws.h", "ws.k",
+  invisible(frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
                               species = "CO",
                               habitat_types = "spawning",
                               verbose = FALSE))
@@ -141,10 +149,10 @@ test_that("UPDATE SQL ORs in TRUE on matching segments only", {
 test_that("rejects malformed species codes (non-alphabetic)", {
   fake <- structure(list(), class = "DBIConnection")
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "ws.k", species = "CO; DROP --"),
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", species = "CO; DROP --"),
     "alphabetic")
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "ws.k", species = c("CO", "BAD CODE")),
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", species = c("CO", "BAD CODE")),
     "alphabetic")
 })
 
@@ -158,7 +166,7 @@ test_that("rejects habitat_types not in target table", {
     }
   })
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "ws.k", species = "CO",
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", species = "CO",
                       habitat_types = c("spawning", "rearing"),
                       verbose = FALSE),
     "habitat_types not found")
@@ -176,7 +184,7 @@ test_that("custom by= produces matching join predicate", {
     captured <<- c(captured, sql); 0L
   })
 
-  frs_habitat_overlay(fake, "ws.h", "ws.k",
+  frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
                     species = "CO",
                     habitat_types = "spawning",
                     by = "id_segment",
@@ -205,7 +213,7 @@ test_that("NULL species pulls from table.species_code", {
     1L
   })
 
-  frs_habitat_overlay(fake, "ws.h", "ws.k",
+  frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
                     habitat_types = "spawning",
                     verbose = FALSE)
 
@@ -219,9 +227,9 @@ test_that("malicious identifiers are rejected by validator", {
   expect_error(
     frs_habitat_overlay(fake, "ws.h; DROP TABLE x; --", "ws.k"))
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "ws.k", by = "bad-name"))
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", by = "bad-name"))
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "ws.k", habitat_types = "spawn'; DROP --"))
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", habitat_types = "spawn'; DROP --"))
 })
 
 # -- Integration: real DB, small fixture --------------------------------------
@@ -266,8 +274,8 @@ test_that("integration: known segment flips FALSE -> TRUE on a fixture", {
        (100, 30.0, FALSE, FALSE)")
 
   invisible(frs_habitat_overlay(conn,
-    table = "working.test_known_h",
-    known = "working.test_known_k",
+    to = "working.test_known_h",
+    from = "working.test_known_k",
     species = "CO",
     habitat_types = c("spawning", "rearing"),
     verbose = FALSE))
@@ -315,8 +323,8 @@ test_that("integration: already-TRUE rows are not re-touched (additive-only)", {
   # `<sp>/<hab>: <n> segments flipped`. Use direct dbExecute to read
   # the matching count.
   invisible(frs_habitat_overlay(conn,
-    table = "working.test_known_h3",
-    known = "working.test_known_k3",
+    to = "working.test_known_h3",
+    from = "working.test_known_k3",
     species = "CO", habitat_types = "spawning",
     verbose = FALSE))
 
@@ -355,12 +363,14 @@ test_that("integration: idempotent on second call", {
   DBI::dbExecute(conn,
     "INSERT INTO working.test_known_k2 VALUES (100, 10.0, TRUE)")
 
-  invisible(frs_habitat_overlay(conn, "working.test_known_h2",
-    "working.test_known_k2", species = "CO",
-    habitat_types = "spawning", verbose = FALSE))
-  invisible(frs_habitat_overlay(conn, "working.test_known_h2",
-    "working.test_known_k2", species = "CO",
-    habitat_types = "spawning", verbose = FALSE))
+  invisible(frs_habitat_overlay(conn,
+    from = "working.test_known_k2",
+    to   = "working.test_known_h2",
+    species = "CO", habitat_types = "spawning", verbose = FALSE))
+  invisible(frs_habitat_overlay(conn,
+    from = "working.test_known_k2",
+    to   = "working.test_known_h2",
+    species = "CO", habitat_types = "spawning", verbose = FALSE))
 
   result <- DBI::dbGetQuery(conn,
     "SELECT spawning FROM working.test_known_h2")
@@ -375,7 +385,7 @@ test_that("long format: required columns checked up front", {
     mk_dbq("CO", TBL_DEFAULT,
            c("blue_line_key", "downstream_route_measure")))  # missing species_code, habitat_type, habitat_ind
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "ws.k",
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
                         species = "CO", format = "long"),
     "missing required columns")
 })
@@ -390,7 +400,7 @@ test_that("long format: SQL filters by species_code + habitat_type", {
   mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
     captured[[length(captured) + 1L]] <<- sql; 0L
   })
-  invisible(frs_habitat_overlay(fake, "ws.h", "ws.k",
+  invisible(frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
     species = "CO", habitat_types = "spawning",
     format = "long", verbose = FALSE))
 
@@ -414,7 +424,7 @@ test_that("long format: custom long_value_col interpolated", {
   mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
     captured <<- c(captured, sql); 0L
   })
-  frs_habitat_overlay(fake, "ws.h", "ws.k",
+  frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
     species = "CO", habitat_types = "spawning",
     format = "long", long_value_col = "is_known", verbose = FALSE)
 
@@ -425,7 +435,7 @@ test_that("long format: custom long_value_col interpolated", {
 test_that("long format: malicious long_value_col rejected by validator", {
   fake <- structure(list(), class = "DBIConnection")
   expect_error(
-    frs_habitat_overlay(fake, "ws.h", "ws.k",
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
                         format = "long", long_value_col = "bad'; DROP --"))
 })
 
@@ -462,8 +472,8 @@ test_that("integration (long): text 'TRUE' indicator flips segment", {
        (100, 20.0, 'CO', 'spawning', 'FALSE')")
 
   invisible(frs_habitat_overlay(conn,
-    table = "working.test_known_long_h",
-    known = "working.test_known_long_k",
+    to = "working.test_known_long_h",
+    from = "working.test_known_long_k",
     species = "CO", habitat_types = "spawning",
     format = "long", verbose = FALSE))
 
@@ -507,12 +517,144 @@ test_that("integration (long): boolean-typed indicator works", {
        (100, 20.0, 'CO', 'spawning', FALSE)")
 
   invisible(frs_habitat_overlay(conn,
-    table = "working.test_known_long_bool_h",
-    known = "working.test_known_long_bool_k",
+    to = "working.test_known_long_bool_h",
+    from = "working.test_known_long_bool_k",
     species = "CO", habitat_types = "spawning",
     format = "long", verbose = FALSE))
 
   result <- DBI::dbGetQuery(conn,
     "SELECT id_segment, spawning FROM working.test_known_long_bool_h ORDER BY id_segment")
   expect_equal(result$spawning, c(TRUE, FALSE))
+})
+
+# -- Bridge: range-containment 3-way join -------------------------------------
+
+test_that("bridge requires schema-qualified name", {
+  fake <- structure(list(), class = "DBIConnection")
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
+    mk_dbq("CO", TBL_DEFAULT,
+           c("blue_line_key", "downstream_route_measure", "spawning_co")))
+  expect_error(
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h",
+                        bridge = "no_schema", species = "CO"),
+    "schema-qualified")
+})
+
+test_that("bridge: missing required columns errors clearly", {
+  fake <- structure(list(), class = "DBIConnection")
+  # Helper that returns different cols depending on which info_schema query
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery", function(conn, sql) {
+    if (grepl("DISTINCT species_code", sql)) {
+      data.frame(species_code = "CO")
+    } else if (grepl("table_name = 'h'", sql)) {
+      data.frame(column_name = TBL_DEFAULT)
+    } else if (grepl("table_name = 'k'", sql)) {
+      data.frame(column_name = c("blue_line_key", "downstream_route_measure",
+                                  "spawning_co"))
+    } else {
+      data.frame(column_name = c("id_segment"))  # bridge missing range cols
+    }
+  })
+  expect_error(
+    frs_habitat_overlay(fake,
+                        from = "ws.k", to = "ws.h", bridge = "ws.s",
+                        species = "CO"),
+    "bridge table.*missing required columns")
+})
+
+test_that("bridge: SQL emits 3-way range-containment join", {
+  fake <- structure(list(), class = "DBIConnection")
+  captured <- character(0)
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery", function(conn, sql) {
+    if (grepl("DISTINCT species_code", sql)) {
+      data.frame(species_code = "CO")
+    } else if (grepl("table_name = 'h'", sql)) {
+      data.frame(column_name = TBL_DEFAULT)
+    } else if (grepl("table_name = 'k'", sql)) {
+      data.frame(column_name = c("blue_line_key", "downstream_route_measure",
+                                  "spawning_co"))
+    } else {
+      data.frame(column_name = c("id_segment", "blue_line_key",
+                                  "downstream_route_measure",
+                                  "upstream_route_measure"))
+    }
+  })
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
+    captured <<- c(captured, sql); 0L
+  })
+
+  frs_habitat_overlay(fake,
+    from = "ws.k", to = "ws.h", bridge = "ws.s",
+    species = "CO", habitat_types = "spawning", verbose = FALSE)
+
+  expect_length(captured, 1)
+  sql <- captured[[1]]
+  expect_match(sql, "FROM ws\\.s AS s, ws\\.k AS k")
+  expect_match(sql, "h\\.id_segment = s\\.id_segment")
+  expect_match(sql, "s\\.blue_line_key = k\\.blue_line_key")
+  expect_match(sql, "s\\.downstream_route_measure >= k\\.downstream_route_measure")
+  expect_match(sql, "s\\.upstream_route_measure   <= k\\.upstream_route_measure")
+})
+
+test_that("integration (bridge): range-containment flips contained segments", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit({
+    .frs_test_drop(conn, "working.test_bridge_to")
+    .frs_test_drop(conn, "working.test_bridge_from")
+    .frs_test_drop(conn, "working.test_bridge_streams")
+    DBI::dbDisconnect(conn)
+  })
+
+  # Target: streams_habitat-style, keyed by id_segment only
+  DBI::dbExecute(conn,
+    "CREATE TABLE working.test_bridge_to (
+       id_segment integer, species_code text,
+       spawning boolean, rearing boolean,
+       lake_rearing boolean, wetland_rearing boolean)")
+  # Three segments on BLK 100: drm 0-50, 50-100, 100-200
+  DBI::dbExecute(conn,
+    "INSERT INTO working.test_bridge_to VALUES
+       (1, 'CO', FALSE, FALSE, FALSE, FALSE),
+       (2, 'CO', FALSE, FALSE, FALSE, FALSE),
+       (3, 'CO', FALSE, FALSE, FALSE, FALSE)")
+
+  # Bridge: streams network with id_segment + ranges
+  DBI::dbExecute(conn,
+    "CREATE TABLE working.test_bridge_streams (
+       id_segment integer, blue_line_key bigint,
+       downstream_route_measure double precision,
+       upstream_route_measure double precision)")
+  DBI::dbExecute(conn,
+    "INSERT INTO working.test_bridge_streams VALUES
+       (1, 100, 0.0, 50.0),
+       (2, 100, 50.0, 100.0),
+       (3, 100, 100.0, 200.0)")
+
+  # From: long-format, says CO spawning over drm [40, 110]
+  # — should include segment 2 (50-100) only;
+  #   segment 1 starts at 0 (< 40) so urm 50 > drm 40 means it's
+  #   PARTIALLY before — fails containment (drm 0 < 40), so excluded;
+  #   segment 3 ends at 200 > 110, also fails containment.
+  DBI::dbExecute(conn,
+    "CREATE TABLE working.test_bridge_from (
+       blue_line_key bigint,
+       downstream_route_measure double precision,
+       upstream_route_measure double precision,
+       species_code text, habitat_type text, habitat_ind text)")
+  DBI::dbExecute(conn,
+    "INSERT INTO working.test_bridge_from VALUES
+       (100, 40.0, 110.0, 'CO', 'spawning', 'TRUE')")
+
+  invisible(frs_habitat_overlay(conn,
+    from   = "working.test_bridge_from",
+    to     = "working.test_bridge_to",
+    bridge = "working.test_bridge_streams",
+    species = "CO", habitat_types = "spawning",
+    format = "long", verbose = FALSE))
+
+  result <- DBI::dbGetQuery(conn,
+    "SELECT id_segment, spawning FROM working.test_bridge_to ORDER BY id_segment")
+  # Segment 2 (50-100) is the only one fully contained in [40, 110]
+  expect_equal(result$spawning, c(FALSE, TRUE, FALSE))
 })
