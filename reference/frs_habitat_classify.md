@@ -19,7 +19,6 @@ frs_habitat_classify(
   gate = TRUE,
   label_block = "blocked",
   barrier_overrides = NULL,
-  known = NULL,
   overwrite = TRUE,
   verbose = TRUE
 )

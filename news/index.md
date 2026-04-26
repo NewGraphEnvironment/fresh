@@ -1,5 +1,49 @@
 # Changelog
 
+## fresh 0.21.0
+
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
+rename + 3-way bridge join. Pre-1.0 cleanup driven by review of v0.20.0;
+no deprecation alias.
+
+- **Param renames** (breaking):
+  - `table` → `to` (matches fresh’s “destination” convention)
+  - `known` → `from` (matches “source” convention; also detaches from
+    the “known habitat” provenance framing — function is the abstract
+    overlay mechanism)
+- **New `bridge = NULL` parameter** for 3-way joins. When supplied, the
+  SQL becomes `to ← bridge ← from` with range containment:
+  `bridge.downstream_route_measure >= from.downstream_route_measure AND bridge.upstream_route_measure <= from.upstream_route_measure`.
+  Lets `to` tables keyed by `id_segment` (e.g. `fresh.streams_habitat`)
+  overlay from sources keyed by `(blue_line_key, drm)` ranges.
+- **Range columns auto-stripped from `by` in bridge mode** —
+  `downstream_route_measure` / `upstream_route_measure` are handled by
+  the range predicates, so they don’t need to be (and shouldn’t be) in
+  the equality `by` clause.
+- [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)’s
+  `known = NULL` shortcut **dropped** (also breaking). Convenience hid
+  configurability now that overlay has format + bridge knobs. Caller
+  pattern is now explicitly two-step:
+  [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  then
+  [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md).
+- Reads as a sentence:
+  `frs_habitat_overlay(from = X, to = Y, bridge = Z)` — “overlay flags
+  from X to Y via this bridge.” Domain-agnostic — bridge isn’t required
+  to be `fresh.streams`; any segments table providing `id_segment` +
+  range columns works (lake centerlines, wetland shorelines, future
+  cottonwood-pinned segmentations).
+
+Surfaced in
+[link#55](https://github.com/NewGraphEnvironment/link/issues/55) when
+`fresh.streams_habitat` (keyed by `id_segment` only) needed overlay from
+`user_habitat_classification` (keyed by `(blue_line_key, drm)` with
+range `[drm, urm]`).
+
+Tests: 52 (was 43 in v0.20.0) — added bridge schema validation, SQL
+shape verification, range-containment integration test on a 3-segment
+fixture.
+
 ## fresh 0.20.0
 
 [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)

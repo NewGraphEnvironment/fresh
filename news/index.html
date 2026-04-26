@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.20.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.21.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,26 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.21.0" id="fresh-0210">fresh 0.21.0<a class="anchor" aria-label="anchor" href="#fresh-0210"></a></h2>
+<p><code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> rename + 3-way bridge join. Pre-1.0 cleanup driven by review of v0.20.0; no deprecation alias.</p>
+<ul><li>
+<strong>Param renames</strong> (breaking):
+<ul><li>
+<code>table</code> → <code>to</code> (matches fresh’s “destination” convention)</li>
+<li>
+<code>known</code> → <code>from</code> (matches “source” convention; also detaches from the “known habitat” provenance framing — function is the abstract overlay mechanism)</li>
+</ul></li>
+<li>
+<strong>New <code>bridge = NULL</code> parameter</strong> for 3-way joins. When supplied, the SQL becomes <code>to ← bridge ← from</code> with range containment: <code>bridge.downstream_route_measure &gt;= from.downstream_route_measure AND bridge.upstream_route_measure &lt;= from.upstream_route_measure</code>. Lets <code>to</code> tables keyed by <code>id_segment</code> (e.g. <code>fresh.streams_habitat</code>) overlay from sources keyed by <code>(blue_line_key, drm)</code> ranges.</li>
+<li>
+<strong>Range columns auto-stripped from <code>by</code> in bridge mode</strong> — <code>downstream_route_measure</code> / <code>upstream_route_measure</code> are handled by the range predicates, so they don’t need to be (and shouldn’t be) in the equality <code>by</code> clause.</li>
+<li>
+<code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>’s <code>known = NULL</code> shortcut <strong>dropped</strong> (also breaking). Convenience hid configurability now that overlay has format + bridge knobs. Caller pattern is now explicitly two-step: <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> then <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code>.</li>
+<li>Reads as a sentence: <code>frs_habitat_overlay(from = X, to = Y, bridge = Z)</code> — “overlay flags from X to Y via this bridge.” Domain-agnostic — bridge isn’t required to be <code>fresh.streams</code>; any segments table providing <code>id_segment</code> + range columns works (lake centerlines, wetland shorelines, future cottonwood-pinned segmentations).</li>
+</ul><p>Surfaced in <a href="https://github.com/NewGraphEnvironment/link/issues/55" class="external-link">link#55</a> when <code>fresh.streams_habitat</code> (keyed by <code>id_segment</code> only) needed overlay from <code>user_habitat_classification</code> (keyed by <code>(blue_line_key, drm)</code> with range <code>[drm, urm]</code>).</p>
+<p>Tests: 52 (was 43 in v0.20.0) — added bridge schema validation, SQL shape verification, range-containment integration test on a 3-segment fixture.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.20.0" id="fresh-0200">fresh 0.20.0<a class="anchor" aria-label="anchor" href="#fresh-0200"></a></h2>
 <p><code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> accepts long-format known-habitat tables in addition to the original wide-format. Backward-compatible: the new <code>format</code> arg defaults to <code>"wide"</code>.</p>
