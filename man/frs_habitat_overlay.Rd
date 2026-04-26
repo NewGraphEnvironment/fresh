@@ -11,6 +11,8 @@ frs_habitat_overlay(
   species = NULL,
   habitat_types = c("spawning", "rearing", "lake_rearing", "wetland_rearing"),
   by = c("blue_line_key", "downstream_route_measure"),
+  format = c("wide", "long"),
+  long_value_col = "habitat_ind",
   verbose = TRUE
 )
 }
@@ -22,9 +24,10 @@ update in place. Must have columns \code{id_segment}, \code{species_code},
 plus boolean columns named in \code{habitat_types}, plus the join keys
 in \code{by}.}
 
-\item{known}{Character. Schema-qualified wide-format known-habitat
-table. Must have the join keys in \code{by}, plus per-species columns
-named \verb{\{habitat_type\}_\{species_lower\}}.}
+\item{known}{Character. Schema-qualified known-habitat table.
+Wide-format: join keys + per-species columns. Long-format: join
+keys + \code{species_code} + \code{habitat_type} + the indicator column
+named in \code{long_value_col}.}
 
 \item{species}{Character vector. Species codes to ingest. \code{NULL}
 (default) processes every species code present in \code{table}.}
@@ -35,6 +38,15 @@ columns present in \code{table}.}
 
 \item{by}{Character vector. Columns used to join \code{table} to \code{known}.
 Default \code{c("blue_line_key", "downstream_route_measure")}.}
+
+\item{format}{Character. \code{"wide"} (default) or \code{"long"} — see
+description.}
+
+\item{long_value_col}{Character. For \code{format = "long"}, the column
+name in \code{known} that holds the indicator. Default \code{"habitat_ind"}.
+Accepts: boolean values, OR text values \code{'TRUE'}/\code{'true'}/\code{'t'}
+(case + whitespace insensitive). Anything else (NULL, \code{'FALSE'},
+\code{'1'}, \code{'yes'}, ...) skips the row.}
 
 \item{verbose}{Logical. Print per-species per-habitat summary.
 Default \code{TRUE}.}
@@ -56,11 +68,21 @@ Known-habitat is \strong{purely additive}: this function never sets a
 flag from \code{TRUE} to \code{FALSE}. Callers wanting "known beats model"
 semantics should preprocess the known table before calling.
 
-Expects the known-habitat table to be wide-format with one row per
-segment and a column per \verb{\{habitat_type\}_\{species_lower\}} pair (e.g.
-\code{spawning_sk}, \code{rearing_co}). Boolean or NULL. Missing columns are
-skipped with a verbose message; they are not an error — many species
-have known data only for certain habitat types.
+Two known-table shapes supported via the \code{format} argument:
+\itemize{
+\item \strong{\code{"wide"}} (default) — one row per segment, columns named
+\verb{\{habitat_type\}_\{species_lower\}} (e.g. \code{spawning_sk}, \code{rearing_co}).
+Boolean or NULL. Matches the bcfishpass \code{streams_habitat_known}
+convention. Missing per-species columns are skipped with a verbose
+message — many species have known data only for certain habitat
+types.
+\item \strong{\code{"long"}} — one row per (segment × species × habitat_type),
+with a \code{species_code} column, a \code{habitat_type} column, and an
+indicator column (\code{habitat_ind}) holding \code{'TRUE'}/\code{'FALSE'} (text)
+or boolean. Matches link's \code{user_habitat_classification.csv}
+shape. The function filters by species + habitat_type before the
+join.
+}
 
 Segments are matched between \code{table} and \code{known} using a join on the
 columns named in \code{by} (default \code{c("blue_line_key", "downstream_route_measure")}).

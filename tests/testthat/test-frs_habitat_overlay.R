@@ -366,3 +366,153 @@ test_that("integration: idempotent on second call", {
     "SELECT spawning FROM working.test_known_h2")
   expect_true(result$spawning)
 })
+
+# -- Long format -----------------------------------------------------------
+
+test_that("long format: required columns checked up front", {
+  fake <- structure(list(), class = "DBIConnection")
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
+    mk_dbq("CO", TBL_DEFAULT,
+           c("blue_line_key", "downstream_route_measure")))  # missing species_code, habitat_type, habitat_ind
+  expect_error(
+    frs_habitat_overlay(fake, "ws.h", "ws.k",
+                        species = "CO", format = "long"),
+    "missing required columns")
+})
+
+test_that("long format: SQL filters by species_code + habitat_type", {
+  fake <- structure(list(), class = "DBIConnection")
+  captured <- list()
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
+    mk_dbq("CO", TBL_DEFAULT,
+           c("blue_line_key", "downstream_route_measure",
+             "species_code", "habitat_type", "habitat_ind")))
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
+    captured[[length(captured) + 1L]] <<- sql; 0L
+  })
+  invisible(frs_habitat_overlay(fake, "ws.h", "ws.k",
+    species = "CO", habitat_types = "spawning",
+    format = "long", verbose = FALSE))
+
+  expect_length(captured, 1)
+  sql <- captured[[1]]
+  expect_match(sql, "h\\.species_code = 'CO'")
+  expect_match(sql, "k\\.species_code = 'CO'")
+  expect_match(sql, "k\\.habitat_type = 'spawning'")
+  expect_match(sql, "lower\\(trim\\(k\\.habitat_ind::text\\)\\) IN \\('true', 't'\\)")
+  # Same additive guard
+  expect_match(sql, "AND \\(h\\.spawning IS NULL OR h\\.spawning = FALSE\\)")
+})
+
+test_that("long format: custom long_value_col interpolated", {
+  fake <- structure(list(), class = "DBIConnection")
+  captured <- character(0)
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
+    mk_dbq("CO", TBL_DEFAULT,
+           c("blue_line_key", "downstream_route_measure",
+             "species_code", "habitat_type", "is_known")))
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
+    captured <<- c(captured, sql); 0L
+  })
+  frs_habitat_overlay(fake, "ws.h", "ws.k",
+    species = "CO", habitat_types = "spawning",
+    format = "long", long_value_col = "is_known", verbose = FALSE)
+
+  expect_match(captured, "lower\\(trim\\(k\\.is_known::text\\)\\) IN \\(")
+  expect_no_match(captured, "habitat_ind")
+})
+
+test_that("long format: malicious long_value_col rejected by validator", {
+  fake <- structure(list(), class = "DBIConnection")
+  expect_error(
+    frs_habitat_overlay(fake, "ws.h", "ws.k",
+                        format = "long", long_value_col = "bad'; DROP --"))
+})
+
+# -- Integration: long format with text TRUE/FALSE indicator -----------------
+
+test_that("integration (long): text 'TRUE' indicator flips segment", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit({
+    .frs_test_drop(conn, "working.test_known_long_h")
+    .frs_test_drop(conn, "working.test_known_long_k")
+    DBI::dbDisconnect(conn)
+  })
+
+  DBI::dbExecute(conn,
+    "CREATE TABLE working.test_known_long_h (
+       id_segment integer, species_code text,
+       blue_line_key bigint, downstream_route_measure double precision,
+       spawning boolean, rearing boolean,
+       lake_rearing boolean, wetland_rearing boolean)")
+  DBI::dbExecute(conn,
+    "INSERT INTO working.test_known_long_h VALUES
+       (1, 'CO', 100, 10.0, FALSE, FALSE, FALSE, FALSE),
+       (2, 'CO', 100, 20.0, FALSE, FALSE, FALSE, FALSE)")
+
+  # Long-format known table: text indicator
+  DBI::dbExecute(conn,
+    "CREATE TABLE working.test_known_long_k (
+       blue_line_key bigint, downstream_route_measure double precision,
+       species_code text, habitat_type text, habitat_ind text)")
+  DBI::dbExecute(conn,
+    "INSERT INTO working.test_known_long_k VALUES
+       (100, 10.0, 'CO', 'spawning', 'TRUE'),
+       (100, 20.0, 'CO', 'spawning', 'FALSE')")
+
+  invisible(frs_habitat_overlay(conn,
+    table = "working.test_known_long_h",
+    known = "working.test_known_long_k",
+    species = "CO", habitat_types = "spawning",
+    format = "long", verbose = FALSE))
+
+  result <- DBI::dbGetQuery(conn,
+    "SELECT id_segment, spawning FROM working.test_known_long_h ORDER BY id_segment")
+  # Segment 1 flips (habitat_ind = 'TRUE'); segment 2 stays (habitat_ind = 'FALSE')
+  expect_equal(result$spawning, c(TRUE, FALSE))
+})
+
+test_that("integration (long): boolean-typed indicator works", {
+  # Locks in the contract that long format accepts a boolean column,
+  # not just text. Postgres casts boolean to text as 'true'/'false'
+  # which the SQL filter normalises to lowercase before matching.
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit({
+    .frs_test_drop(conn, "working.test_known_long_bool_h")
+    .frs_test_drop(conn, "working.test_known_long_bool_k")
+    DBI::dbDisconnect(conn)
+  })
+
+  DBI::dbExecute(conn,
+    "CREATE TABLE working.test_known_long_bool_h (
+       id_segment integer, species_code text,
+       blue_line_key bigint, downstream_route_measure double precision,
+       spawning boolean, rearing boolean,
+       lake_rearing boolean, wetland_rearing boolean)")
+  DBI::dbExecute(conn,
+    "INSERT INTO working.test_known_long_bool_h VALUES
+       (1, 'CO', 100, 10.0, FALSE, FALSE, FALSE, FALSE),
+       (2, 'CO', 100, 20.0, FALSE, FALSE, FALSE, FALSE)")
+
+  # Long-format known table: BOOLEAN indicator (not text)
+  DBI::dbExecute(conn,
+    "CREATE TABLE working.test_known_long_bool_k (
+       blue_line_key bigint, downstream_route_measure double precision,
+       species_code text, habitat_type text, habitat_ind boolean)")
+  DBI::dbExecute(conn,
+    "INSERT INTO working.test_known_long_bool_k VALUES
+       (100, 10.0, 'CO', 'spawning', TRUE),
+       (100, 20.0, 'CO', 'spawning', FALSE)")
+
+  invisible(frs_habitat_overlay(conn,
+    table = "working.test_known_long_bool_h",
+    known = "working.test_known_long_bool_k",
+    species = "CO", habitat_types = "spawning",
+    format = "long", verbose = FALSE))
+
+  result <- DBI::dbGetQuery(conn,
+    "SELECT id_segment, spawning FROM working.test_known_long_bool_h ORDER BY id_segment")
+  expect_equal(result$spawning, c(TRUE, FALSE))
+})
