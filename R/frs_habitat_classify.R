@@ -103,7 +103,6 @@ frs_habitat_classify <- function(conn, table, to,
                                  gate = TRUE,
                                  label_block = "blocked",
                                  barrier_overrides = NULL,
-                                 known = NULL,
                                  overwrite = TRUE,
                                  verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
@@ -112,9 +111,6 @@ frs_habitat_classify <- function(conn, table, to,
   stopifnot(is.logical(gate), length(gate) == 1)
   if (!is.null(barrier_overrides)) {
     .frs_validate_identifier(barrier_overrides, "barrier_overrides table")
-  }
-  if (!is.null(known)) {
-    .frs_validate_identifier(known, "known table")
   }
 
   breaks_tbl <- paste0(table, "_breaks")
@@ -317,15 +313,6 @@ frs_habitat_classify <- function(conn, table, to,
   }
 
   .frs_index_working(conn, to)
-
-  # Optional overlay: stitch known-habitat flags from a wide-format
-  # lookup table (e.g. user_habitat_classification) onto the rule-based
-  # classification. Purely additive — see frs_habitat_overlay().
-  if (!is.null(known)) {
-    if (verbose) cat("frs_habitat_classify: overlaying known habitat from ", known, "\n", sep = "")
-    frs_habitat_overlay(conn, table = to, known = known,
-                        species = species, verbose = verbose)
-  }
 
   invisible(conn)
 }
