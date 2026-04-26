@@ -14,6 +14,7 @@ frs_habitat_classify(
   gate = TRUE,
   label_block = "blocked",
   barrier_overrides = NULL,
+  known = NULL,
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -142,7 +143,9 @@ Other habitat:
 \code{\link{frs_feature_index}()},
 \code{\link{frs_habitat}()},
 \code{\link{frs_habitat_access}()},
+\code{\link{frs_habitat_overlay}()},
 \code{\link{frs_habitat_partition}()},
+\code{\link{frs_habitat_predicates}()},
 \code{\link{frs_habitat_species}()},
 \code{\link{frs_network_segment}()}
 }

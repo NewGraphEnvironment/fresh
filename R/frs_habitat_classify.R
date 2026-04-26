@@ -103,6 +103,7 @@ frs_habitat_classify <- function(conn, table, to,
                                  gate = TRUE,
                                  label_block = "blocked",
                                  barrier_overrides = NULL,
+                                 known = NULL,
                                  overwrite = TRUE,
                                  verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
@@ -111,6 +112,9 @@ frs_habitat_classify <- function(conn, table, to,
   stopifnot(is.logical(gate), length(gate) == 1)
   if (!is.null(barrier_overrides)) {
     .frs_validate_identifier(barrier_overrides, "barrier_overrides table")
+  }
+  if (!is.null(known)) {
+    .frs_validate_identifier(known, "known table")
   }
 
   breaks_tbl <- paste0(table, "_breaks")
@@ -245,77 +249,14 @@ frs_habitat_classify <- function(conn, table, to,
     acc_tbl <- access_tables[[thr_key]]
     params_sp <- sp_params$params_sp
 
-    # Edge type filter helper
-    edge_filter <- function(types_str) {
-      if (is.null(types_str) || is.na(types_str) || !nzchar(types_str)) {
-        return(NULL)
-      }
-      cats <- trimws(strsplit(types_str, ",")[[1]])
-      codes <- unlist(lapply(cats, function(cat) {
-        frs_edge_types(category = cat)$edge_type
-      }))
-      if (length(codes) == 0) return(NULL)
-      sprintf("s.edge_type IN (%s)", paste(codes, collapse = ", "))
-    }
-
-    # Spawning — rules YAML path or CSV ranges path
-    if (!is.null(params_sp[["rules"]]) &&
-        !is.null(params_sp[["rules"]][["spawn"]])) {
-      # Rules path: build CSV thresholds (with spawn min) for inheritance
-      csv_thresholds_spawn <- list(
-        gradient = c(sp_params$spawn_gradient_min,
-                     sp_params$spawn_gradient_max),
-        channel_width = params_sp$ranges$spawn$channel_width)
-      spawn_cond <- .frs_rules_to_sql(params_sp[["rules"]][["spawn"]],
-                                      csv_thresholds_spawn)
-    } else {
-      # CSV ranges path (pre-rules behavior)
-      spawn_cond <- sprintf("s.gradient >= %s AND s.gradient <= %s",
-        .frs_sql_num(sp_params$spawn_gradient_min),
-        .frs_sql_num(sp_params$spawn_gradient_max))
-      if (!is.null(params_sp$ranges$spawn$channel_width)) {
-        cw <- params_sp$ranges$spawn$channel_width
-        spawn_cond <- paste0(spawn_cond, sprintf(
-          " AND s.channel_width >= %s AND s.channel_width <= %s",
-          .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
-      }
-      spawn_et <- edge_filter(params_sp$spawn_edge_types)
-      if (!is.null(spawn_et)) {
-        spawn_cond <- paste(spawn_cond, "AND", spawn_et)
-      }
-    }
-
-    # Rearing — rules YAML path or CSV ranges path
-    if (!is.null(params_sp[["rules"]]) &&
-        !is.null(params_sp[["rules"]][["rear"]])) {
-      # Rules path: csv_thresholds use rear gradient (min=0) and cw
-      rear_g <- params_sp$ranges$rear$gradient
-      csv_thresholds_rear <- list(
-        gradient = if (is.null(rear_g)) NULL else c(0, rear_g[2]),
-        channel_width = params_sp$ranges$rear$channel_width)
-      rear_cond <- .frs_rules_to_sql(params_sp[["rules"]][["rear"]],
-                                     csv_thresholds_rear)
-    } else {
-      # CSV ranges path (pre-rules behavior)
-      rear_cond <- "FALSE"
-      if (!is.null(params_sp$ranges$rear)) {
-        parts <- character(0)
-        if (!is.null(params_sp$ranges$rear$gradient)) {
-          g <- params_sp$ranges$rear$gradient
-          parts <- c(parts, sprintf("s.gradient <= %s",
-                                    .frs_sql_num(g[2])))
-        }
-        if (!is.null(params_sp$ranges$rear$channel_width)) {
-          cw <- params_sp$ranges$rear$channel_width
-          parts <- c(parts, sprintf(
-            "s.channel_width >= %s AND s.channel_width <= %s",
-            .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
-        }
-        rear_et <- edge_filter(params_sp$rear_edge_types)
-        if (!is.null(rear_et)) parts <- c(parts, rear_et)
-        if (length(parts) > 0) rear_cond <- paste(parts, collapse = " AND ")
-      }
-    }
+    # Build per-species SQL predicates (pure-R, no DB).
+    # Returns list(spawn, rear, lake_rear, wetland_rear) ready to embed
+    # in CASE WHEN ... THEN TRUE ELSE FALSE END.
+    preds <- frs_habitat_predicates(sp_params)
+    spawn_cond        <- preds$spawn
+    rear_cond         <- preds$rear
+    lake_rear_cond    <- preds$lake_rear
+    wetland_rear_cond <- preds$wetland_rear
 
     # Barrier overrides: if a barrier_overrides table is provided,
     # recompute access for this species excluding overridden barriers.
@@ -328,47 +269,6 @@ frs_habitat_classify <- function(conn, table, to,
       acc_tbl_sp <- .frs_access_with_overrides(
         conn, table, breaks_tbl, barrier_overrides,
         sp_label_filter, sp, acc_tbl)
-    }
-
-    # Lake / wetland rearing — gated per-species on the rules YAML.
-    # A species is classified as lake-rearing only if its `rear:` rules
-    # include a `waterbody_type: L` entry; optional `lake_ha_min` filters
-    # the lake area. Same pattern for wetlands via `waterbody_type: W`.
-    # Segments must still fall within the species' rear channel-width
-    # window. Without a matching rule, the boolean stays FALSE.
-    lake_rule    <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "L")
-    wetland_rule <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "W")
-
-    lake_rear_cond <- "FALSE"
-    if (!is.null(lake_rule) && !is.null(params_sp$ranges$rear$channel_width)) {
-      cw <- params_sp$ranges$rear$channel_width
-      ha_min <- lake_rule[["lake_ha_min"]]
-      area_clause <- if (!is.null(ha_min) && !is.na(ha_min)) {
-        sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
-      } else {
-        ""
-      }
-      lake_rear_cond <- sprintf(
-        "s.channel_width >= %s AND s.channel_width <= %s
-         AND s.waterbody_key IN (
-           SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly%s)",
-        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]), area_clause)
-    }
-
-    wetland_rear_cond <- "FALSE"
-    if (!is.null(wetland_rule) && !is.null(params_sp$ranges$rear$channel_width)) {
-      cw <- params_sp$ranges$rear$channel_width
-      ha_min <- wetland_rule[["wetland_ha_min"]]
-      area_clause <- if (!is.null(ha_min) && !is.na(ha_min)) {
-        sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
-      } else {
-        ""
-      }
-      wetland_rear_cond <- sprintf(
-        "s.channel_width >= %s AND s.channel_width <= %s
-         AND s.waterbody_key IN (
-           SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly%s)",
-        .frs_sql_num(cw[1]), .frs_sql_num(cw[2]), area_clause)
     }
 
     # INSERT joining pre-computed accessibility
@@ -417,6 +317,15 @@ frs_habitat_classify <- function(conn, table, to,
   }
 
   .frs_index_working(conn, to)
+
+  # Optional overlay: stitch known-habitat flags from a wide-format
+  # lookup table (e.g. user_habitat_classification) onto the rule-based
+  # classification. Purely additive — see frs_habitat_overlay().
+  if (!is.null(known)) {
+    if (verbose) cat("frs_habitat_classify: overlaying known habitat from ", known, "\n", sep = "")
+    frs_habitat_overlay(conn, table = to, known = known,
+                        species = species, verbose = verbose)
+  }
 
   invisible(conn)
 }

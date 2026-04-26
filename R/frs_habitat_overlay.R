@@ -1,7 +1,7 @@
-#' Stitch known-habitat flags into a classified streams_habitat table
+#' Overlay known-habitat flags onto a classified streams_habitat table
 #'
 #' After [frs_habitat_classify()] populates per-segment per-species
-#' habitat booleans from rules, `frs_habitat_known()` ORs in additional
+#' habitat booleans from rules, `frs_habitat_overlay()` ORs in additional
 #' TRUE flags from a wide-format known-habitat table — capturing field
 #' observations / expert review / manual additions that the rule-based
 #' classifier doesn't reach. Mirrors the bcfishpass pipeline's blend of
@@ -52,12 +52,12 @@
 #'
 #' # After frs_habitat_classify() populated working.streams_habitat,
 #' # OR in known habitat from a CSV-loaded table.
-#' frs_habitat_known(conn,
+#' frs_habitat_overlay(conn,
 #'   table   = "working.streams_habitat",
 #'   known   = "working.user_habitat_classification",
 #'   species = c("CO", "SK", "CH"))
 #' }
-frs_habitat_known <- function(conn, table, known,
+frs_habitat_overlay <- function(conn, table, known,
                               species = NULL,
                               habitat_types = c("spawning", "rearing",
                                                 "lake_rearing", "wetland_rearing"),
@@ -113,7 +113,7 @@ frs_habitat_known <- function(conn, table, known,
       "SELECT DISTINCT species_code FROM %s ORDER BY species_code",
       table))$species_code
     if (length(species) == 0) {
-      if (verbose) cat("frs_habitat_known: table is empty, nothing to do.\n")
+      if (verbose) cat("frs_habitat_overlay: table is empty, nothing to do.\n")
       return(invisible(conn))
     }
   }
@@ -172,7 +172,7 @@ frs_habitat_known <- function(conn, table, known,
   }
 
   if (verbose) {
-    cat(sprintf("frs_habitat_known: %d total updates across %d species, %d habitat types\n",
+    cat(sprintf("frs_habitat_overlay: %d total updates across %d species, %d habitat types\n",
                 total_updates, length(species), length(habitat_types)))
   }
   invisible(conn)
