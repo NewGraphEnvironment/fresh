@@ -1,5 +1,29 @@
 # Changelog
 
+## fresh 0.18.0
+
+- New
+  [`frs_habitat_known()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_known.md)
+  — stitches known-habitat boolean flags from a wide-format lookup table
+  INTO an existing `streams_habitat` classified by
+  [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md).
+  Mirrors the bcfishpass blend of model output (`habitat_linear_<sp>`)
+  with manual / observation-based knowns (`streams_habitat_known`) into
+  the published `streams_habitat_linear` integer encoding. Purely
+  additive (`FALSE → TRUE` only). Per-species columns
+  `{habitat}_{species_lower}` matched against the species code in
+  `streams_habitat`; missing per-species columns skip with a verbose
+  message rather than erroring. Compound join key parameterisable via
+  `by` (default `c("blue_line_key", "downstream_route_measure")`).
+  Surfaced as a need in
+  [link#55](https://github.com/NewGraphEnvironment/link/issues/55) —
+  link’s pipeline loaded `user_habitat_classification.csv` for
+  break-points + barrier overrides but never propagated its flags into
+  `fresh.streams_habitat`. After this lands, link’s
+  `lnk_pipeline_classify` can call
+  [`frs_habitat_known()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_known.md)
+  as a post-step.
+
 ## fresh 0.17.1
 
 - Params validator accepts `wetland_ha_min` predicate on rear rules with
@@ -579,9 +603,8 @@ on BULK.
   [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)
   — classify one species with pre-computed access and habitat breaks
 - Both Phase 1 (partition prep across WSGs) and Phase 2 (species
-  classification) parallelize via
-  [`furrr::future_map()`](https://furrr.futureverse.org/reference/future_map.html)
-  when `workers > 1`
+  classification) parallelize via `furrr::future_map()` when
+  `workers > 1`
 - Benchmark scripts and logs in `scripts/habitat/`
 
 ## fresh 0.5.0

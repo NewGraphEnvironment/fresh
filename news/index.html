@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.17.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.18.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,10 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.18.0" id="fresh-0180">fresh 0.18.0<a class="anchor" aria-label="anchor" href="#fresh-0180"></a></h2>
+<ul><li>New <code><a href="../reference/frs_habitat_known.html">frs_habitat_known()</a></code> — stitches known-habitat boolean flags from a wide-format lookup table INTO an existing <code>streams_habitat</code> classified by <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>. Mirrors the bcfishpass blend of model output (<code>habitat_linear_&lt;sp&gt;</code>) with manual / observation-based knowns (<code>streams_habitat_known</code>) into the published <code>streams_habitat_linear</code> integer encoding. Purely additive (<code>FALSE → TRUE</code> only). Per-species columns <code>{habitat}_{species_lower}</code> matched against the species code in <code>streams_habitat</code>; missing per-species columns skip with a verbose message rather than erroring. Compound join key parameterisable via <code>by</code> (default <code>c("blue_line_key", "downstream_route_measure")</code>). Surfaced as a need in <a href="https://github.com/NewGraphEnvironment/link/issues/55" class="external-link">link#55</a> — link’s pipeline loaded <code>user_habitat_classification.csv</code> for break-points + barrier overrides but never propagated its flags into <code>fresh.streams_habitat</code>. After this lands, link’s <code>lnk_pipeline_classify</code> can call <code><a href="../reference/frs_habitat_known.html">frs_habitat_known()</a></code> as a post-step.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.17.1" id="fresh-0171">fresh 0.17.1<a class="anchor" aria-label="anchor" href="#fresh-0171"></a></h2>
 <ul><li>Params validator accepts <code>wetland_ha_min</code> predicate on rear rules with <code>waterbody_type: W</code> — mirrors the existing <code>lake_ha_min</code> / <code>waterbody_type: L</code> rule. The classifier in 0.17.0 already read <code>wetland_ha_min</code> from rear rules to filter the fwa_wetlands_poly join; the validator predicate allowlist hadn’t been extended so rules YAML with the key was rejected. Surfaced in <a href="https://github.com/NewGraphEnvironment/link/issues/51" class="external-link">link#51</a> when <code>lnk_rules_build()</code> started emitting <code>waterbody_type: W</code> rules with the threshold.</li>
@@ -324,7 +328,7 @@
 <li>Add <code><a href="../reference/frs_habitat_access.html">frs_habitat_access()</a></code> — gradient + falls barrier computation at a threshold, deduplicated across species sharing the same <code>access_gradient_max</code>
 </li>
 <li>Add <code><a href="../reference/frs_habitat_species.html">frs_habitat_species()</a></code> — classify one species with pre-computed access and habitat breaks</li>
-<li>Both Phase 1 (partition prep across WSGs) and Phase 2 (species classification) parallelize via <code><a href="https://furrr.futureverse.org/reference/future_map.html" class="external-link">furrr::future_map()</a></code> when <code>workers &gt; 1</code>
+<li>Both Phase 1 (partition prep across WSGs) and Phase 2 (species classification) parallelize via <code>furrr::future_map()</code> when <code>workers &gt; 1</code>
 </li>
 <li>Benchmark scripts and logs in <code>scripts/habitat/</code>
 </li>
