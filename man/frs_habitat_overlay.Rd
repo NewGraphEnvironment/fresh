@@ -12,8 +12,7 @@ frs_habitat_overlay(
   species = NULL,
   habitat_types = c("spawning", "rearing", "lake_rearing", "wetland_rearing"),
   by = c("blue_line_key", "downstream_route_measure"),
-  format = c("wide", "long"),
-  long_value_col = "habitat_ind",
+  species_col = "species_code",
   verbose = TRUE
 )
 }
@@ -21,7 +20,8 @@ frs_habitat_overlay(
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object.}
 
 \item{from}{Character. Schema-qualified source table providing
-the flags to overlay. Wide- or long-format per \code{format}.}
+the flags to overlay. Must follow the canonical shape — see
+"Source-table shape" above.}
 
 \item{to}{Character. Schema-qualified destination table to UPDATE
 in place. Must have boolean columns named in \code{habitat_types}
@@ -44,19 +44,16 @@ schemas would need a follow-up parameterisation.
 (default) processes every species code present in \code{to}.}
 
 \item{habitat_types}{Character vector. Habitat-type columns to OR
-in. Defaults to the four standard ones: \code{c("spawning", "rearing", "lake_rearing", "wetland_rearing")}. Must be a
-subset of the columns present in \code{to}.}
+in. Defaults to the four standard ones: \code{c("spawning", "rearing", "lake_rearing", "wetland_rearing")}. Each must be
+present in both \code{to} (as a boolean column) and \code{from} (as a
+per-row indicator column).}
 
 \item{by}{Character vector. Columns used to match \code{from} to either
 \code{to} (when \code{bridge = NULL}) or to \code{bridge} (when bridge supplied).
 Default \code{c("blue_line_key", "downstream_route_measure")}.}
 
-\item{format}{Character. \code{"wide"} (default) or \code{"long"}.}
-
-\item{long_value_col}{Character. For \code{format = "long"}, the column
-name in \code{from} that holds the indicator. Default
-\code{"habitat_ind"}. Accepts boolean or \code{'true'}/\code{'t'} text
-(case + whitespace insensitive).}
+\item{species_col}{Character. Name of the column in \code{from} carrying
+the species code per row. Default \code{"species_code"}.}
 
 \item{verbose}{Logical. Print per-species per-habitat summary.
 Default \code{TRUE}.}
@@ -74,27 +71,36 @@ the mechanism is generic: any boolean-flagged source over any
 boolean-flagged target.
 }
 \details{
-Two source-table shapes (\code{format}):
+\subsection{Source-table shape}{
+
+One row per (segment × species). Each row has:
 \itemize{
-\item \strong{\code{"wide"}} — one row per segment, columns named
-\verb{\{habitat_type\}_\{species_lower\}} (e.g. \code{spawning_sk}). Boolean.
-Matches the bcfishpass \code{streams_habitat_known} convention.
-\item \strong{\code{"long"}} — one row per (segment × species × habitat_type),
-with \code{species_code}, \code{habitat_type}, and an indicator column
-(\code{long_value_col}, default \code{habitat_ind}). Indicator can be
-boolean or text (\code{'TRUE'}/\code{'true'}/\code{'t'} case + whitespace
-insensitive). Matches link's \code{user_habitat_classification}
-table.
+\item the join keys named in \code{by} (default \code{c("blue_line_key", "downstream_route_measure")})
+\item a column carrying the species code (named in \code{species_col},
+default \code{"species_code"})
+\item one column per habitat type (named in \code{habitat_types}, default
+\code{c("spawning", "rearing", "lake_rearing", "wetland_rearing")})
 }
 
-Two join modes (\code{bridge}):
+Indicator columns can be integer (\code{1} truthy, \code{0}/\code{NULL} falsy),
+text (\code{'true'}/\code{'t'}/\code{'1'} truthy, anything else falsy, case +
+whitespace insensitive), or boolean.
+
+Sources in other shapes — bcfishpass's pre-2026-04-26 long format
+(\code{habitat_type} rows + \code{habitat_ind} indicator), or the
+per-species-suffixed wide layout (\code{spawning_sk}, \code{rearing_sk}) —
+transform first via a SQL view or \verb{data-raw/} script, then call
+overlay. Shape-translation lives with the consumer.
+}
+
+\subsection{Two join modes (\code{bridge})}{
 \itemize{
 \item \strong{Direct (\code{bridge = NULL})} — the \code{to} table has the join keys
 directly. SQL does \verb{to.<by> = from.<by>} (point match).
 \item \strong{Bridged (\code{bridge = "<segments_table>"})} — the \code{to} table is
 keyed by \code{id_segment} (e.g. \code{fresh.streams_habitat}) and lacks
 the geographic keys in \code{by}. The bridge table provides the
-link, with id_segment + range columns. SQL does a 3-way join:
+link, with \code{id_segment} + range columns. SQL does a 3-way join:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{to.id_segment = bridge.id_segment
 AND bridge.<by[1]> = from.<by[1]>
@@ -112,20 +118,36 @@ providing \code{id_segment} + the join-key columns + range columns
 works. Use cases include lake / wetland centerline segments or
 cottonwood-polygon segmentations pinned to a hydrology network.
 }
+}
 \examples{
 \dontrun{
 # Direct join (target has the keys):
 frs_habitat_overlay(conn,
   from = "ws.user_habitat_classification",
-  to   = "ws.streams_habitat_keyed",
-  format = "long")
+  to   = "ws.streams_habitat_keyed")
 
 # Bridged join (target is fresh.streams_habitat, keyed by id_segment):
 frs_habitat_overlay(conn,
   from   = "ws.user_habitat_classification",
   to     = "fresh.streams_habitat",
-  bridge = "fresh.streams",
-  format = "long")
+  bridge = "fresh.streams")
+
+# Source uses a non-canonical shape (e.g. legacy long format):
+# transform first via a SQL view, then overlay against the view.
+DBI::dbExecute(conn, "
+  CREATE OR REPLACE VIEW ws.uhc_canonical AS
+  SELECT blue_line_key, downstream_route_measure,
+         upstream_route_measure, species_code,
+         MAX(CASE WHEN habitat_type = 'spawning'
+                  THEN habitat_ind::text END) AS spawning,
+         MAX(CASE WHEN habitat_type = 'rearing'
+                  THEN habitat_ind::text END) AS rearing
+  FROM ws.user_habitat_classification_long
+  GROUP BY 1,2,3,4")
+frs_habitat_overlay(conn,
+  from   = "ws.uhc_canonical",
+  to     = "fresh.streams_habitat",
+  bridge = "fresh.streams")
 }
 }
 \seealso{
