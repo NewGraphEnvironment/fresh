@@ -8,26 +8,35 @@
 #' the mechanism is generic: any boolean-flagged source over any
 #' boolean-flagged target.
 #'
-#' Two source-table shapes (`format`):
+#' ## Source-table shape
 #'
-#' - **`"wide"`** — one row per segment, columns named
-#'   `{habitat_type}_{species_lower}` (e.g. `spawning_sk`). Boolean.
-#'   Matches the bcfishpass `streams_habitat_known` convention.
-#' - **`"long"`** — one row per (segment × species × habitat_type),
-#'   with `species_code`, `habitat_type`, and an indicator column
-#'   (`long_value_col`, default `habitat_ind`). Indicator can be
-#'   boolean or text (`'TRUE'`/`'true'`/`'t'` case + whitespace
-#'   insensitive). Matches link's `user_habitat_classification`
-#'   table.
+#' One row per (segment × species). Each row has:
 #'
-#' Two join modes (`bridge`):
+#' - the join keys named in `by` (default `c("blue_line_key",
+#'   "downstream_route_measure")`)
+#' - a column carrying the species code (named in `species_col`,
+#'   default `"species_code"`)
+#' - one column per habitat type (named in `habitat_types`, default
+#'   `c("spawning", "rearing", "lake_rearing", "wetland_rearing")`)
+#'
+#' Indicator columns can be integer (`1` truthy, `0`/`NULL` falsy),
+#' text (`'true'`/`'t'`/`'1'` truthy, anything else falsy, case +
+#' whitespace insensitive), or boolean.
+#'
+#' Sources in other shapes — bcfishpass's pre-2026-04-26 long format
+#' (`habitat_type` rows + `habitat_ind` indicator), or the
+#' per-species-suffixed wide layout (`spawning_sk`, `rearing_sk`) —
+#' transform first via a SQL view or `data-raw/` script, then call
+#' overlay. Shape-translation lives with the consumer.
+#'
+#' ## Two join modes (`bridge`)
 #'
 #' - **Direct (`bridge = NULL`)** — the `to` table has the join keys
 #'   directly. SQL does `to.<by> = from.<by>` (point match).
 #' - **Bridged (`bridge = "<segments_table>"`)** — the `to` table is
 #'   keyed by `id_segment` (e.g. `fresh.streams_habitat`) and lacks
 #'   the geographic keys in `by`. The bridge table provides the
-#'   link, with id_segment + range columns. SQL does a 3-way join:
+#'   link, with `id_segment` + range columns. SQL does a 3-way join:
 #'
 #'   ```
 #'   to.id_segment = bridge.id_segment
@@ -47,7 +56,8 @@
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param from Character. Schema-qualified source table providing
-#'   the flags to overlay. Wide- or long-format per `format`.
+#'   the flags to overlay. Must follow the canonical shape — see
+#'   "Source-table shape" above.
 #' @param to Character. Schema-qualified destination table to UPDATE
 #'   in place. Must have boolean columns named in `habitat_types`
 #'   plus a `species_code` column. Either has the join keys (`by`)
@@ -65,16 +75,14 @@
 #'   (default) processes every species code present in `to`.
 #' @param habitat_types Character vector. Habitat-type columns to OR
 #'   in. Defaults to the four standard ones: `c("spawning",
-#'   "rearing", "lake_rearing", "wetland_rearing")`. Must be a
-#'   subset of the columns present in `to`.
+#'   "rearing", "lake_rearing", "wetland_rearing")`. Each must be
+#'   present in both `to` (as a boolean column) and `from` (as a
+#'   per-row indicator column).
 #' @param by Character vector. Columns used to match `from` to either
 #'   `to` (when `bridge = NULL`) or to `bridge` (when bridge supplied).
 #'   Default `c("blue_line_key", "downstream_route_measure")`.
-#' @param format Character. `"wide"` (default) or `"long"`.
-#' @param long_value_col Character. For `format = "long"`, the column
-#'   name in `from` that holds the indicator. Default
-#'   `"habitat_ind"`. Accepts boolean or `'true'`/`'t'` text
-#'   (case + whitespace insensitive).
+#' @param species_col Character. Name of the column in `from` carrying
+#'   the species code per row. Default `"species_code"`.
 #' @param verbose Logical. Print per-species per-habitat summary.
 #'   Default `TRUE`.
 #'
@@ -88,15 +96,30 @@
 #' # Direct join (target has the keys):
 #' frs_habitat_overlay(conn,
 #'   from = "ws.user_habitat_classification",
-#'   to   = "ws.streams_habitat_keyed",
-#'   format = "long")
+#'   to   = "ws.streams_habitat_keyed")
 #'
 #' # Bridged join (target is fresh.streams_habitat, keyed by id_segment):
 #' frs_habitat_overlay(conn,
 #'   from   = "ws.user_habitat_classification",
 #'   to     = "fresh.streams_habitat",
-#'   bridge = "fresh.streams",
-#'   format = "long")
+#'   bridge = "fresh.streams")
+#'
+#' # Source uses a non-canonical shape (e.g. legacy long format):
+#' # transform first via a SQL view, then overlay against the view.
+#' DBI::dbExecute(conn, "
+#'   CREATE OR REPLACE VIEW ws.uhc_canonical AS
+#'   SELECT blue_line_key, downstream_route_measure,
+#'          upstream_route_measure, species_code,
+#'          MAX(CASE WHEN habitat_type = 'spawning'
+#'                   THEN habitat_ind::text END) AS spawning,
+#'          MAX(CASE WHEN habitat_type = 'rearing'
+#'                   THEN habitat_ind::text END) AS rearing
+#'   FROM ws.user_habitat_classification_long
+#'   GROUP BY 1,2,3,4")
+#' frs_habitat_overlay(conn,
+#'   from   = "ws.uhc_canonical",
+#'   to     = "fresh.streams_habitat",
+#'   bridge = "fresh.streams")
 #' }
 frs_habitat_overlay <- function(conn, from, to,
                                 bridge = NULL,
@@ -104,11 +127,8 @@ frs_habitat_overlay <- function(conn, from, to,
                                 habitat_types = c("spawning", "rearing",
                                                   "lake_rearing", "wetland_rearing"),
                                 by = c("blue_line_key", "downstream_route_measure"),
-                                format = c("wide", "long"),
-                                long_value_col = "habitat_ind",
+                                species_col = "species_code",
                                 verbose = TRUE) {
-
-  format <- match.arg(format)
 
   # --- Argument validation ---
   stopifnot(
@@ -117,7 +137,7 @@ frs_habitat_overlay <- function(conn, from, to,
     is.character(to),   length(to)   == 1L, nchar(to)   > 0,
     is.character(habitat_types), length(habitat_types) > 0,
     is.character(by), length(by) > 0,
-    is.character(long_value_col), length(long_value_col) == 1L
+    is.character(species_col), length(species_col) == 1L, nchar(species_col) > 0
   )
   if (!is.null(bridge)) {
     stopifnot(is.character(bridge), length(bridge) == 1L, nchar(bridge) > 0)
@@ -125,7 +145,7 @@ frs_habitat_overlay <- function(conn, from, to,
   }
   .frs_validate_identifier(from, "from")
   .frs_validate_identifier(to,   "to")
-  .frs_validate_identifier(long_value_col, "long_value_col")
+  .frs_validate_identifier(species_col, "species_col")
   for (b in by) .frs_validate_identifier(b, "by column")
   for (h in habitat_types) .frs_validate_identifier(h, "habitat_types entry")
   if (!is.null(species)) {
@@ -137,8 +157,7 @@ frs_habitat_overlay <- function(conn, from, to,
     }
   }
 
-  # Validate habitat_types are columns in `to` so we don't UPDATE
-  # mid-loop and crash on a missing column halfway through.
+  # --- Validate target columns ---
   to_parts <- strsplit(to, "\\.", fixed = FALSE)[[1]]
   if (length(to_parts) != 2L) {
     stop("`to` must be schema-qualified (e.g. 'working.streams_habitat')",
@@ -167,7 +186,7 @@ frs_habitat_overlay <- function(conn, from, to,
     }
   }
 
-  # --- Discover from-table columns ---
+  # --- Validate source columns ---
   from_parts <- strsplit(from, "\\.", fixed = FALSE)[[1]]
   if (length(from_parts) != 2L) {
     stop("`from` must be schema-qualified (e.g. 'working.user_habitat_classification')",
@@ -182,19 +201,15 @@ frs_habitat_overlay <- function(conn, from, to,
     stop(sprintf("from table %s not found or has no columns", from),
          call. = FALSE)
   }
-
-  # --- Long-format: validate required columns up front ---
-  if (format == "long") {
-    required_long <- c(by, "species_code", "habitat_type", long_value_col)
-    missing_long <- setdiff(required_long, from_cols)
-    if (length(missing_long) > 0) {
-      stop(sprintf(
-        "long-format `from` table %s missing required columns: %s",
-        from, paste(missing_long, collapse = ", ")), call. = FALSE)
-    }
+  required <- c(by, species_col, habitat_types)
+  missing_required <- setdiff(required, from_cols)
+  if (length(missing_required) > 0) {
+    stop(sprintf(
+      "`from` table %s missing required columns: %s",
+      from, paste(missing_required, collapse = ", ")), call. = FALSE)
   }
 
-  # --- Bridge validation: must have id_segment + by + range columns ---
+  # --- Validate bridge if provided ---
   if (!is.null(bridge)) {
     bridge_parts <- strsplit(bridge, "\\.", fixed = FALSE)[[1]]
     if (length(bridge_parts) != 2L) {
@@ -218,15 +233,12 @@ frs_habitat_overlay <- function(conn, from, to,
 
   # --- Build join clause once ---
   if (is.null(bridge)) {
-    # Direct: to ↔ from on by columns
     from_clause <- sprintf("FROM %s AS k", from)
     join_pred   <- paste(sprintf("h.%s = k.%s", by, by), collapse = " AND ")
   } else {
     # 3-way: to.id_segment = bridge.id_segment + bridge ranges contain from.
     # Range columns are handled by the >= / <= predicates below; strip
-    # them from the equality `by` clause so we don't double-constrain
-    # (point match on drm would always fail when the from range is
-    # wider than the bridge segment).
+    # them from the equality `by` clause so we don't double-constrain.
     range_cols <- c("downstream_route_measure", "upstream_route_measure")
     by_eq <- setdiff(by, range_cols)
     if (length(by_eq) == 0) {
@@ -244,48 +256,21 @@ frs_habitat_overlay <- function(conn, from, to,
   # --- OR in flags per (habitat_type, species) ---
   total_updates <- 0L
   for (sp in species) {
-    sp_lower <- tolower(sp)
     for (hab in habitat_types) {
-
-      sql <- if (format == "wide") {
-        col <- paste0(hab, "_", sp_lower)
-        if (!col %in% from_cols) {
-          if (verbose) {
-            cat(sprintf("  skip %s/%s (no column `%s` in %s)\n",
-                        sp, hab, col, from))
-          }
-          next
-        }
-        sprintf(
-          "UPDATE %s AS h
-           SET %s = TRUE
-           %s
-           WHERE %s
-             AND h.species_code = %s
-             AND k.%s IS TRUE
-             AND (h.%s IS NULL OR h.%s = FALSE)",
-          to, hab, from_clause, join_pred,
-          .frs_quote_string(sp),
-          col, hab, hab)
-      } else {
-        # long format
-        sprintf(
-          "UPDATE %s AS h
-           SET %s = TRUE
-           %s
-           WHERE %s
-             AND h.species_code = %s
-             AND k.species_code = %s
-             AND k.habitat_type = %s
-             AND (lower(trim(k.%s::text)) IN ('true', 't'))
-             AND (h.%s IS NULL OR h.%s = FALSE)",
-          to, hab, from_clause, join_pred,
-          .frs_quote_string(sp),
-          .frs_quote_string(sp),
-          .frs_quote_string(hab),
-          long_value_col,
-          hab, hab)
-      }
+      sql <- sprintf(
+        "UPDATE %s AS h
+         SET %s = TRUE
+         %s
+         WHERE %s
+           AND h.species_code = %s
+           AND k.%s = %s
+           AND lower(trim(k.%s::text)) IN ('true', 't', '1')
+           AND (h.%s IS NULL OR h.%s = FALSE)",
+        to, hab, from_clause, join_pred,
+        .frs_quote_string(sp),
+        species_col, .frs_quote_string(sp),
+        hab,
+        hab, hab)
 
       n <- .frs_db_execute(conn, sql)
       total_updates <- total_updates + n
