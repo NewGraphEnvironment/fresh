@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.21.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.22.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,22 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.22.0" id="fresh-0220">fresh 0.22.0<a class="anchor" aria-label="anchor" href="#fresh-0220"></a></h2>
+<p><code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> simplified — drop <code>format</code> and <code>long_value_col</code> parameters; accept only the canonical source-table shape (<a href="https://github.com/NewGraphEnvironment/fresh/issues/177" class="external-link">#177</a>).</p>
+<ul><li>
+<strong>Canonical shape</strong>: one row per (segment × species), with join keys in <code>by</code>, the species code in <code>species_col</code> (default <code>"species_code"</code>), and one indicator column per habitat type. Indicator coercion accepts integer 1, text <code>'true'</code>/<code>'t'</code>/<code>'1'</code> (case + whitespace insensitive), boolean.</li>
+<li>
+<strong>Dropped paths</strong> (breaking, pre-1.0): <code>format = "wide"</code> per-species-suffix layout (<code>spawning_sk</code>, <code>rearing_sk</code>) and <code>format = "long"</code> (<code>habitat_type</code> rows + <code>habitat_ind</code> indicator). Neither had current production consumers — the wide-suffix layout was scoped for direct reads of <code>bcfishpass.streams_habitat_known</code> (never integrated); the long format was link’s read of bcfishpass’s pre-2026-04-26 CSV (bcfishpass moved to a different shape on 2026-04-26).</li>
+<li>
+<strong>New parameter</strong>: <code>species_col</code> (default <code>"species_code"</code>). Was added in PR <a href="https://github.com/NewGraphEnvironment/fresh/issues/176" class="external-link">#176</a>’s first attempt as an additive bolt-on; this release lands it as the only path.</li>
+<li>
+<strong>Non-canonical sources</strong>: transform first via a SQL view, R pivot, or upstream adapter (e.g., link’s forthcoming <code>lnk_ingest_bcfishpass()</code>), then call overlay against the canonical-shape view. Shape-translation lives with the consumer; fresh stays a thin SQL adapter.</li>
+<li>
+<strong>Bridge mode</strong> (<code>bridge = NULL</code>) unchanged — orthogonal to source shape.</li>
+<li>Tests: dropped wide-suffix and long-format paths; canonical-shape integration tests exercise integer + text + boolean indicators, additive guard, custom <code>species_col</code>, custom <code>by</code>, and bridge mode.</li>
+</ul><p>Coordinated link release (0.12.0) updates the call site in <code>lnk_pipeline_classify</code>.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.21.0" id="fresh-0210">fresh 0.21.0<a class="anchor" aria-label="anchor" href="#fresh-0210"></a></h2>
 <p><code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> rename + 3-way bridge join. Pre-1.0 cleanup driven by review of v0.20.0; no deprecation alias.</p>

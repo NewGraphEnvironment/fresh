@@ -20,8 +20,7 @@ frs_habitat_overlay(
   species = NULL,
   habitat_types = c("spawning", "rearing", "lake_rearing", "wetland_rearing"),
   by = c("blue_line_key", "downstream_route_measure"),
-  format = c("wide", "long"),
-  long_value_col = "habitat_ind",
+  species_col = "species_code",
   verbose = TRUE
 )
 ```
@@ -37,7 +36,8 @@ frs_habitat_overlay(
 - from:
 
   Character. Schema-qualified source table providing the flags to
-  overlay. Wide- or long-format per `format`.
+  overlay. Must follow the canonical shape — see "Source-table shape"
+  above.
 
 - to:
 
@@ -68,8 +68,9 @@ frs_habitat_overlay(
 
   Character vector. Habitat-type columns to OR in. Defaults to the four
   standard ones:
-  `c("spawning", "rearing", "lake_rearing", "wetland_rearing")`. Must be
-  a subset of the columns present in `to`.
+  `c("spawning", "rearing", "lake_rearing", "wetland_rearing")`. Each
+  must be present in both `to` (as a boolean column) and `from` (as a
+  per-row indicator column).
 
 - by:
 
@@ -77,15 +78,10 @@ frs_habitat_overlay(
   `bridge = NULL`) or to `bridge` (when bridge supplied). Default
   `c("blue_line_key", "downstream_route_measure")`.
 
-- format:
+- species_col:
 
-  Character. `"wide"` (default) or `"long"`.
-
-- long_value_col:
-
-  Character. For `format = "long"`, the column name in `from` that holds
-  the indicator. Default `"habitat_ind"`. Accepts boolean or
-  `'true'`/`'t'` text (case + whitespace insensitive).
+  Character. Name of the column in `from` carrying the species code per
+  row. Default `"species_code"`.
 
 - verbose:
 
@@ -97,19 +93,30 @@ frs_habitat_overlay(
 
 ## Details
 
-Two source-table shapes (`format`):
+### Source-table shape
 
-- **`"wide"`** — one row per segment, columns named
-  `{habitat_type}_{species_lower}` (e.g. `spawning_sk`). Boolean.
-  Matches the bcfishpass `streams_habitat_known` convention.
+One row per (segment × species). Each row has:
 
-- **`"long"`** — one row per (segment × species × habitat_type), with
-  `species_code`, `habitat_type`, and an indicator column
-  (`long_value_col`, default `habitat_ind`). Indicator can be boolean or
-  text (`'TRUE'`/`'true'`/`'t'` case + whitespace insensitive). Matches
-  link's `user_habitat_classification` table.
+- the join keys named in `by` (default
+  `c("blue_line_key", "downstream_route_measure")`)
 
-Two join modes (`bridge`):
+- a column carrying the species code (named in `species_col`, default
+  `"species_code"`)
+
+- one column per habitat type (named in `habitat_types`, default
+  `c("spawning", "rearing", "lake_rearing", "wetland_rearing")`)
+
+Indicator columns can be integer (`1` truthy, `0`/`NULL` falsy), text
+(`'true'`/`'t'`/`'1'` truthy, anything else falsy, case + whitespace
+insensitive), or boolean.
+
+Sources in other shapes — bcfishpass's pre-2026-04-26 long format
+(`habitat_type` rows + `habitat_ind` indicator), or the
+per-species-suffixed wide layout (`spawning_sk`, `rearing_sk`) —
+transform first via a SQL view or `data-raw/` script, then call overlay.
+Shape-translation lives with the consumer.
+
+### Two join modes (`bridge`)
 
 - **Direct (`bridge = NULL`)** — the `to` table has the join keys
   directly. SQL does `to.<by> = from.<by>` (point match).
@@ -117,7 +124,7 @@ Two join modes (`bridge`):
 - **Bridged (`bridge = "<segments_table>"`)** — the `to` table is keyed
   by `id_segment` (e.g. `fresh.streams_habitat`) and lacks the
   geographic keys in `by`. The bridge table provides the link, with
-  id_segment + range columns. SQL does a 3-way join:
+  `id_segment` + range columns. SQL does a 3-way join:
 
       to.id_segment = bridge.id_segment
       AND bridge.<by[1]> = from.<by[1]>
@@ -164,14 +171,29 @@ if (FALSE) { # \dontrun{
 # Direct join (target has the keys):
 frs_habitat_overlay(conn,
   from = "ws.user_habitat_classification",
-  to   = "ws.streams_habitat_keyed",
-  format = "long")
+  to   = "ws.streams_habitat_keyed")
 
 # Bridged join (target is fresh.streams_habitat, keyed by id_segment):
 frs_habitat_overlay(conn,
   from   = "ws.user_habitat_classification",
   to     = "fresh.streams_habitat",
-  bridge = "fresh.streams",
-  format = "long")
+  bridge = "fresh.streams")
+
+# Source uses a non-canonical shape (e.g. legacy long format):
+# transform first via a SQL view, then overlay against the view.
+DBI::dbExecute(conn, "
+  CREATE OR REPLACE VIEW ws.uhc_canonical AS
+  SELECT blue_line_key, downstream_route_measure,
+         upstream_route_measure, species_code,
+         MAX(CASE WHEN habitat_type = 'spawning'
+                  THEN habitat_ind::text END) AS spawning,
+         MAX(CASE WHEN habitat_type = 'rearing'
+                  THEN habitat_ind::text END) AS rearing
+  FROM ws.user_habitat_classification_long
+  GROUP BY 1,2,3,4")
+frs_habitat_overlay(conn,
+  from   = "ws.uhc_canonical",
+  to     = "fresh.streams_habitat",
+  bridge = "fresh.streams")
 } # }
 ```

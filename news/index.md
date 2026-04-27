@@ -1,5 +1,43 @@
 # Changelog
 
+## fresh 0.22.0
+
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
+simplified — drop `format` and `long_value_col` parameters; accept only
+the canonical source-table shape
+([\#177](https://github.com/NewGraphEnvironment/fresh/issues/177)).
+
+- **Canonical shape**: one row per (segment × species), with join keys
+  in `by`, the species code in `species_col` (default `"species_code"`),
+  and one indicator column per habitat type. Indicator coercion accepts
+  integer 1, text `'true'`/`'t'`/`'1'` (case + whitespace insensitive),
+  boolean.
+- **Dropped paths** (breaking, pre-1.0): `format = "wide"`
+  per-species-suffix layout (`spawning_sk`, `rearing_sk`) and
+  `format = "long"` (`habitat_type` rows + `habitat_ind` indicator).
+  Neither had current production consumers — the wide-suffix layout was
+  scoped for direct reads of `bcfishpass.streams_habitat_known` (never
+  integrated); the long format was link’s read of bcfishpass’s
+  pre-2026-04-26 CSV (bcfishpass moved to a different shape on
+  2026-04-26).
+- **New parameter**: `species_col` (default `"species_code"`). Was added
+  in PR
+  [\#176](https://github.com/NewGraphEnvironment/fresh/issues/176)’s
+  first attempt as an additive bolt-on; this release lands it as the
+  only path.
+- **Non-canonical sources**: transform first via a SQL view, R pivot, or
+  upstream adapter (e.g., link’s forthcoming `lnk_ingest_bcfishpass()`),
+  then call overlay against the canonical-shape view. Shape-translation
+  lives with the consumer; fresh stays a thin SQL adapter.
+- **Bridge mode** (`bridge = NULL`) unchanged — orthogonal to source
+  shape.
+- Tests: dropped wide-suffix and long-format paths; canonical-shape
+  integration tests exercise integer + text + boolean indicators,
+  additive guard, custom `species_col`, custom `by`, and bridge mode.
+
+Coordinated link release (0.12.0) updates the call site in
+`lnk_pipeline_classify`.
+
 ## fresh 0.21.0
 
 [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)

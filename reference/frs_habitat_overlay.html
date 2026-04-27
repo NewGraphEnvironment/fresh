@@ -19,7 +19,7 @@ boolean-flagged target."><meta property="og:image" content="https://newgraphenvi
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.21.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.22.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,8 +70,7 @@ boolean-flagged target.</p>
 <span>  species <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  habitat_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"spawning"</span>, <span class="st">"rearing"</span>, <span class="st">"lake_rearing"</span>, <span class="st">"wetland_rearing"</span><span class="op">)</span>,</span>
 <span>  by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"blue_line_key"</span>, <span class="st">"downstream_route_measure"</span><span class="op">)</span>,</span>
-<span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"wide"</span>, <span class="st">"long"</span><span class="op">)</span>,</span>
-<span>  long_value_col <span class="op">=</span> <span class="st">"habitat_ind"</span>,</span>
+<span>  species_col <span class="op">=</span> <span class="st">"species_code"</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -86,7 +85,8 @@ boolean-flagged target.</p>
 
 <dt id="arg-from">from<a class="anchor" aria-label="anchor" href="#arg-from"></a></dt>
 <dd><p>Character. Schema-qualified source table providing
-the flags to overlay. Wide- or long-format per <code>format</code>.</p></dd>
+the flags to overlay. Must follow the canonical shape — see
+"Source-table shape" above.</p></dd>
 
 
 <dt id="arg-to">to<a class="anchor" aria-label="anchor" href="#arg-to"></a></dt>
@@ -115,8 +115,9 @@ schemas would need a follow-up parameterisation.</p></li>
 
 <dt id="arg-habitat-types">habitat_types<a class="anchor" aria-label="anchor" href="#arg-habitat-types"></a></dt>
 <dd><p>Character vector. Habitat-type columns to OR
-in. Defaults to the four standard ones: <code>c("spawning", "rearing", "lake_rearing", "wetland_rearing")</code>. Must be a
-subset of the columns present in <code>to</code>.</p></dd>
+in. Defaults to the four standard ones: <code>c("spawning", "rearing", "lake_rearing", "wetland_rearing")</code>. Each must be
+present in both <code>to</code> (as a boolean column) and <code>from</code> (as a
+per-row indicator column).</p></dd>
 
 
 <dt id="arg-by">by<a class="anchor" aria-label="anchor" href="#arg-by"></a></dt>
@@ -125,15 +126,9 @@ subset of the columns present in <code>to</code>.</p></dd>
 Default <code>c("blue_line_key", "downstream_route_measure")</code>.</p></dd>
 
 
-<dt id="arg-format">format<a class="anchor" aria-label="anchor" href="#arg-format"></a></dt>
-<dd><p>Character. <code>"wide"</code> (default) or <code>"long"</code>.</p></dd>
-
-
-<dt id="arg-long-value-col">long_value_col<a class="anchor" aria-label="anchor" href="#arg-long-value-col"></a></dt>
-<dd><p>Character. For <code>format = "long"</code>, the column
-name in <code>from</code> that holds the indicator. Default
-<code>"habitat_ind"</code>. Accepts boolean or <code>'true'</code>/<code>'t'</code> text
-(case + whitespace insensitive).</p></dd>
+<dt id="arg-species-col">species_col<a class="anchor" aria-label="anchor" href="#arg-species-col"></a></dt>
+<dd><p>Character. Name of the column in <code>from</code> carrying
+the species code per row. Default <code>"species_code"</code>.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -147,21 +142,35 @@ Default <code>TRUE</code>.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Two source-table shapes (<code>format</code>):</p><ul><li><p><strong><code>"wide"</code></strong> — one row per segment, columns named
-<code>{habitat_type}_{species_lower}</code> (e.g. <code>spawning_sk</code>). Boolean.
-Matches the bcfishpass <code>streams_habitat_known</code> convention.</p></li>
-<li><p><strong><code>"long"</code></strong> — one row per (segment × species × habitat_type),
-with <code>species_code</code>, <code>habitat_type</code>, and an indicator column
-(<code>long_value_col</code>, default <code>habitat_ind</code>). Indicator can be
-boolean or text (<code>'TRUE'</code>/<code>'true'</code>/<code>'t'</code> case + whitespace
-insensitive). Matches link's <code>user_habitat_classification</code>
-table.</p></li>
-</ul><p>Two join modes (<code>bridge</code>):</p><ul><li><p><strong>Direct (<code>bridge = NULL</code>)</strong> — the <code>to</code> table has the join keys
+
+<div class="section">
+<h3 id="source-table-shape">Source-table shape<a class="anchor" aria-label="anchor" href="#source-table-shape"></a></h3>
+
+
+<p>One row per (segment × species). Each row has:</p><ul><li><p>the join keys named in <code>by</code> (default <code>c("blue_line_key", "downstream_route_measure")</code>)</p></li>
+<li><p>a column carrying the species code (named in <code>species_col</code>,
+default <code>"species_code"</code>)</p></li>
+<li><p>one column per habitat type (named in <code>habitat_types</code>, default
+<code>c("spawning", "rearing", "lake_rearing", "wetland_rearing")</code>)</p></li>
+</ul><p>Indicator columns can be integer (<code>1</code> truthy, <code>0</code>/<code>NULL</code> falsy),
+text (<code>'true'</code>/<code>'t'</code>/<code>'1'</code> truthy, anything else falsy, case +
+whitespace insensitive), or boolean.</p>
+<p>Sources in other shapes — bcfishpass's pre-2026-04-26 long format
+(<code>habitat_type</code> rows + <code>habitat_ind</code> indicator), or the
+per-species-suffixed wide layout (<code>spawning_sk</code>, <code>rearing_sk</code>) —
+transform first via a SQL view or <code>data-raw/</code> script, then call
+overlay. Shape-translation lives with the consumer.</p>
+</div>
+
+<div class="section">
+<h3 id="two-join-modes-bridge-">Two join modes (<code>bridge</code>)<a class="anchor" aria-label="anchor" href="#two-join-modes-bridge-"></a></h3>
+
+<ul><li><p><strong>Direct (<code>bridge = NULL</code>)</strong> — the <code>to</code> table has the join keys
 directly. SQL does <code>to.&lt;by&gt; = from.&lt;by&gt;</code> (point match).</p></li>
 <li><p><strong>Bridged (<code>bridge = "&lt;segments_table&gt;"</code>)</strong> — the <code>to</code> table is
 keyed by <code>id_segment</code> (e.g. <code>fresh.streams_habitat</code>) and lacks
 the geographic keys in <code>by</code>. The bridge table provides the
-link, with id_segment + range columns. SQL does a 3-way join:</p>
+link, with <code>id_segment</code> + range columns. SQL does a 3-way join:</p>
 <p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>to.id_segment <span class="ot">=</span> bridge.id_segment</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>AND bridge.<span class="sc">&lt;</span>by[<span class="dv">1</span>]<span class="sc">&gt;</span> <span class="er">=</span> from.<span class="sc">&lt;</span>by[<span class="dv">1</span>]<span class="sc">&gt;</span></span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>AND bridge.downstream_route_measure <span class="sc">&gt;=</span> from.downstream_route_measure</span>
@@ -173,6 +182,8 @@ link, with id_segment + range columns. SQL does a 3-way join:</p>
 providing <code>id_segment</code> + the join-key columns + range columns
 works. Use cases include lake / wetland centerline segments or
 cottonwood-polygon segmentations pinned to a hydrology network.</p>
+</div>
+
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -205,15 +216,30 @@ cottonwood-polygon segmentations pinned to a hydrology network.</p>
 <span class="r-in"><span><span class="co"># Direct join (target has the keys):</span></span></span>
 <span class="r-in"><span><span class="fu">frs_habitat_overlay</span><span class="op">(</span><span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  from <span class="op">=</span> <span class="st">"ws.user_habitat_classification"</span>,</span></span>
-<span class="r-in"><span>  to   <span class="op">=</span> <span class="st">"ws.streams_habitat_keyed"</span>,</span></span>
-<span class="r-in"><span>  format <span class="op">=</span> <span class="st">"long"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  to   <span class="op">=</span> <span class="st">"ws.streams_habitat_keyed"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Bridged join (target is fresh.streams_habitat, keyed by id_segment):</span></span></span>
 <span class="r-in"><span><span class="fu">frs_habitat_overlay</span><span class="op">(</span><span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  from   <span class="op">=</span> <span class="st">"ws.user_habitat_classification"</span>,</span></span>
 <span class="r-in"><span>  to     <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span></span>
-<span class="r-in"><span>  bridge <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
-<span class="r-in"><span>  format <span class="op">=</span> <span class="st">"long"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  bridge <span class="op">=</span> <span class="st">"fresh.streams"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Source uses a non-canonical shape (e.g. legacy long format):</span></span></span>
+<span class="r-in"><span><span class="co"># transform first via a SQL view, then overlay against the view.</span></span></span>
+<span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"</span></span></span>
+<span class="r-in"><span><span class="st">  CREATE OR REPLACE VIEW ws.uhc_canonical AS</span></span></span>
+<span class="r-in"><span><span class="st">  SELECT blue_line_key, downstream_route_measure,</span></span></span>
+<span class="r-in"><span><span class="st">         upstream_route_measure, species_code,</span></span></span>
+<span class="r-in"><span><span class="st">         MAX(CASE WHEN habitat_type = 'spawning'</span></span></span>
+<span class="r-in"><span><span class="st">                  THEN habitat_ind::text END) AS spawning,</span></span></span>
+<span class="r-in"><span><span class="st">         MAX(CASE WHEN habitat_type = 'rearing'</span></span></span>
+<span class="r-in"><span><span class="st">                  THEN habitat_ind::text END) AS rearing</span></span></span>
+<span class="r-in"><span><span class="st">  FROM ws.user_habitat_classification_long</span></span></span>
+<span class="r-in"><span><span class="st">  GROUP BY 1,2,3,4"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat_overlay</span><span class="op">(</span><span class="va">conn</span>,</span></span>
+<span class="r-in"><span>  from   <span class="op">=</span> <span class="st">"ws.uhc_canonical"</span>,</span></span>
+<span class="r-in"><span>  to     <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span></span>
+<span class="r-in"><span>  bridge <span class="op">=</span> <span class="st">"fresh.streams"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
