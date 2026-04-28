@@ -13,8 +13,6 @@ This release adds `area_only: true` on a rule. When set, fresh uses the rule's p
 
 Coordinates with [link#69 phase 2](https://github.com/NewGraphEnvironment/link/issues/69) — `lnk_rules_build()` will emit `area_only: true` on L/W polygon rule blocks driven by per-species `rear_lake_area_only` / `rear_wetland_area_only` columns in `dimensions.csv`. Combined with the polygon-rule `edge_types_explicit: [1000, 1100]` filter (mainlines only), this expresses the use-case-2 model: linear excludes polygon-mainlines, area still rolls up.
 
-Relates to NewGraphEnvironment/sred-2025-2026#24
-
 # fresh 0.23.1
 
 Hotfix on top of 0.23.0 — register `in_waterbody` with the rules-YAML validator so emitted rules pass loading.
@@ -40,8 +38,6 @@ This release adds `in_waterbody: false | true` as the natural complement to `wat
 - 5 new tests under `test-frs_params.R` (112 in that file, was 107). Full suite green.
 
 Coordinates with [link#69](https://github.com/NewGraphEnvironment/link/issues/69) — `lnk_rules_build()` will emit `in_waterbody: false` on stream-edge rule blocks once this lands.
-
-Relates to NewGraphEnvironment/sred-2025-2026#24
 
 # fresh 0.22.0
 
