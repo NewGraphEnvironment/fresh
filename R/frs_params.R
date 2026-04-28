@@ -134,7 +134,7 @@ frs_params <- function(conn = NULL,
 
   valid_predicates <- c("edge_types", "edge_types_explicit",
                         "waterbody_type", "lake_ha_min", "wetland_ha_min",
-                        "in_waterbody",
+                        "in_waterbody", "area_only",
                         "thresholds", "gradient", "channel_width",
                         "requires_connected", "connected_distance_max")
 
@@ -236,6 +236,28 @@ frs_params <- function(conn = NULL,
       stop(sprintf(
         "rules YAML %s/%s rule %d wetland_ha_min must be a numeric scalar",
         sp, habitat, idx), call. = FALSE)
+    }
+  }
+
+  if (!is.null(rule[["area_only"]])) {
+    ao <- rule[["area_only"]]
+    if (!is.logical(ao) || length(ao) != 1L || is.na(ao)) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d area_only must be a single TRUE or FALSE",
+        sp, habitat, idx), call. = FALSE)
+    }
+    # area_only is only meaningful on bucket-flag rules (waterbody_type: L
+    # or W). On any other rule it has no effect — flag it as a config
+    # error so the author notices.
+    if (isTRUE(ao)) {
+      wt <- rule[["waterbody_type"]]
+      if (is.null(wt) || !wt %in% c("L", "W")) {
+        stop(sprintf(
+          paste0("rules YAML %s/%s rule %d uses area_only: true ",
+                 "without waterbody_type: L or W (no bucket flag to ",
+                 "drive)"),
+          sp, habitat, idx), call. = FALSE)
+      }
     }
   }
 

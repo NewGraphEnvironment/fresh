@@ -215,3 +215,46 @@ test_that("returns named list with exactly 4 character predicates", {
     expect_length(p, 1)
   }
 })
+
+# -- area_only decoupling (fresh#182) ----------------------------------------
+
+test_that("area_only=true filters L rule from rear predicate but keeps lake_rear", {
+  # Two-rule rear: a stream-edge rule (contributes to rear) + an L rule
+  # marked area_only (drives lake_rear bucket flag, excluded from rear).
+  sp <- sp_with_rules(rules = list(
+    rear = list(
+      list(edge_types_explicit = c(1000L, 1100L), in_waterbody = FALSE),
+      list(waterbody_type = "L", lake_ha_min = 10, area_only = TRUE)
+    )))
+  preds <- frs_habitat_predicates(sp)
+  # rear predicate references the stream-edge rule's IS NULL clause but
+  # NOT fwa_lakes_poly (the L rule is filtered out).
+  expect_match(preds$rear, "edge_type IN \\(1000, 1100\\)")
+  expect_match(preds$rear, "waterbody_key IS NULL")
+  expect_no_match(preds$rear, "fwa_lakes_poly")
+  # lake_rear is still derived from the L rule's presence (independent
+  # of the rear predicate's OR-chain).
+  expect_match(preds$lake_rear, "fwa_lakes_poly")
+})
+
+test_that("area_only=true filters W rule from rear but keeps wetland_rear", {
+  sp <- sp_with_rules(rules = list(
+    rear = list(
+      list(edge_types_explicit = c(1000L, 1100L), in_waterbody = FALSE),
+      list(waterbody_type = "W", wetland_ha_min = 1, area_only = TRUE)
+    )))
+  preds <- frs_habitat_predicates(sp)
+  expect_no_match(preds$rear, "fwa_wetlands_poly")
+  expect_match(preds$wetland_rear, "fwa_wetlands_poly")
+})
+
+test_that("area_only=false (or absent) does not filter — backward compat", {
+  sp <- sp_with_rules(rules = list(
+    rear = list(
+      list(waterbody_type = "L", lake_ha_min = 10)
+    )))
+  preds <- frs_habitat_predicates(sp)
+  # Without area_only, the L rule contributes to rear AND drives lake_rear.
+  expect_match(preds$rear, "fwa_lakes_poly")
+  expect_match(preds$lake_rear, "fwa_lakes_poly")
+})

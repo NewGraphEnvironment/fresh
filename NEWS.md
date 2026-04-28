@@ -1,3 +1,20 @@
+# fresh 0.24.0
+
+Add `area_only: true` flag to rule grammar — decouples bucket-flag derivation from the main `rear` predicate ([#182](https://github.com/NewGraphEnvironment/fresh/issues/182)).
+
+Today, a `waterbody_type: L` or `W` rule placed in a species' `rear:` list does two things at once: triggers fresh to derive a `lake_rearing` / `wetland_rearing` predicate (the per-segment flag that drives `lake_rearing_ha` / `wetland_rearing_ha` area rollups), AND OR's into the main `rear` predicate (the per-segment `rearing` flag, which drives linear `rearing_km`). The two effects are coupled, so a user can't say "credit the polygon area but exclude polygon-mainlines from linear km."
+
+This release adds `area_only: true` on a rule. When set, fresh uses the rule's predicate to derive the corresponding bucket flag (lake_rearing or wetland_rearing) but **does not include** the rule in the OR-chain that builds the main `rear` predicate. Stream-edge rules (with `in_waterbody: false` from #180) decide what counts as linear; L/W rules with `area_only: true` decide what polygons contribute area without double-counting the polygon-mainline as linear.
+
+- **`area_only: true`** on a `waterbody_type: L|W` rule → rule contributes to `lake_rear` / `wetland_rear` predicate derivation only, excluded from main `rear` predicate.
+- **`area_only: false`** or absent → today's behaviour (rule contributes to both). Backward compatible.
+- Validator: requires `waterbody_type: L` or `W` (no bucket flag to drive on stream-edge rules or `waterbody_type: R`); rejects non-logical / NA / length>1 values.
+- 13 new tests across `test-frs_params.R` (validator) and `test-frs_habitat_predicates.R` (decoupling). 167 PASS in those files (was 154). Full suite green.
+
+Coordinates with [link#69 phase 2](https://github.com/NewGraphEnvironment/link/issues/69) — `lnk_rules_build()` will emit `area_only: true` on L/W polygon rule blocks driven by per-species `rear_lake_area_only` / `rear_wetland_area_only` columns in `dimensions.csv`. Combined with the polygon-rule `edge_types_explicit: [1000, 1100]` filter (mainlines only), this expresses the use-case-2 model: linear excludes polygon-mainlines, area still rolls up.
+
+Relates to NewGraphEnvironment/sred-2025-2026#24
+
 # fresh 0.23.1
 
 Hotfix on top of 0.23.0 — register `in_waterbody` with the rules-YAML validator so emitted rules pass loading.

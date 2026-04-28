@@ -133,6 +133,58 @@ test_that(".frs_load_rules accepts in_waterbody predicate (fresh#180)", {
   expect_no_error(.frs_load_rules(tmp))
 })
 
+test_that(".frs_load_rules accepts area_only on L/W rules (fresh#182)", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - waterbody_type: L",
+    "      area_only: true",
+    "    - waterbody_type: W",
+    "      area_only: true"), tmp)
+  expect_no_error(.frs_load_rules(tmp))
+})
+
+test_that(".frs_load_rules errors on area_only without waterbody_type L|W", {
+  # area_only on a stream-edge rule has no bucket flag to drive — config error.
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - edge_types_explicit: [1000]",
+    "      area_only: true"), tmp)
+  expect_error(.frs_load_rules(tmp),
+    "area_only.*without waterbody_type: L or W")
+})
+
+test_that(".frs_load_rules errors on area_only with waterbody_type R", {
+  # River polygon doesn't drive a bucket flag in the current grammar
+  # (no `river_rearing` flag) — area_only on R is meaningless.
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - waterbody_type: R",
+    "      area_only: true"), tmp)
+  expect_error(.frs_load_rules(tmp),
+    "area_only.*without waterbody_type: L or W")
+})
+
+test_that(".frs_load_rules errors on non-logical area_only", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - waterbody_type: L",
+    "      area_only: \"yes\""), tmp)
+  expect_error(.frs_load_rules(tmp),
+    "area_only must be a single TRUE or FALSE")
+})
+
 test_that(".frs_load_rules errors on lake_ha_min without waterbody_type L", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))
