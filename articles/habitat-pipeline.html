@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -66,6 +66,20 @@
 
     
     
+<blockquote>
+<p><strong>This vignette walks through the primitives</strong> —
+<code>frs_break_find</code>, <code>frs_break_apply</code>,
+<code>frs_classify</code>, <code>frs_categorize</code>,
+<code>frs_aggregate</code> — so you can see what fresh’s higher-level
+habitat call does under the hood, build a custom pipeline, or debug a
+specific step. For most production use, <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code>
+composes these primitives into a single call driven by a per-species
+rules YAML; see the <a href="https://newgraphenvironment.github.io/link/articles/habitat-bcfishpass.html" class="external-link">habitat-bcfishpass
+vignette</a> in the <a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a> package for
+the rule-based pipeline pattern, including dimensions-driven emission of
+<code>in_waterbody</code> / <code>area_only</code> / polygon-edge
+filters.</p>
+</blockquote>
 <p>We classify coho salmon habitat on a subbasin of the Neexdzii Kwa
 (Upper Bulkley River) in the traditional territory of the Wet’suwet’en.
 The pipeline runs on PostgreSQL — R orchestrates SQL, the database

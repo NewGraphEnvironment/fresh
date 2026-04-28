@@ -1,5 +1,18 @@
 # Classifying Habitat Based on Accessibility and Intrinsic Habitat Potential
 
+> **This vignette walks through the primitives** — `frs_break_find`,
+> `frs_break_apply`, `frs_classify`, `frs_categorize`, `frs_aggregate` —
+> so you can see what fresh’s higher-level habitat call does under the
+> hood, build a custom pipeline, or debug a specific step. For most
+> production use,
+> [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+> composes these primitives into a single call driven by a per-species
+> rules YAML; see the [habitat-bcfishpass
+> vignette](https://newgraphenvironment.github.io/link/articles/habitat-bcfishpass.html)
+> in the [link](https://github.com/NewGraphEnvironment/link) package for
+> the rule-based pipeline pattern, including dimensions-driven emission
+> of `in_waterbody` / `area_only` / polygon-edge filters.
+
 We classify coho salmon habitat on a subbasin of the Neexdzii Kwa (Upper
 Bulkley River) in the traditional territory of the Wet’suwet’en. The
 pipeline runs on PostgreSQL — R orchestrates SQL, the database handles

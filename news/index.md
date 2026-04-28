@@ -1,5 +1,26 @@
 # Changelog
 
+## fresh 0.24.1
+
+Refresh bundled `inst/extdata/parameters_habitat_rules.yaml` to match
+link’s current default-bundle output. The bundled sample had drifted to
+pre-`in_waterbody` / pre-`area_only` shape (last synced 2026-04-12)
+while link’s bundles evolved through three
+[\#69](https://github.com/NewGraphEnvironment/fresh/issues/69) phases.
+Sync recovers the canonical sample for any
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+caller using fresh’s bundled defaults.
+
+Reframe `vignettes/habitat-pipeline.Rmd` as a primitives walkthrough.
+Header note up front directs production users to
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+and link’s rule-based pipeline; vignette body unchanged — primitives are
+still useful for debugging, custom pipelines, and understanding what
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+does internally.
+
+No behaviour change to any exported function.
+
 ## fresh 0.24.0
 
 Add `area_only: true` flag to rule grammar — decouples bucket-flag

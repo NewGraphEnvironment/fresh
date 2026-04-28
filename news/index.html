@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,12 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.24.1" id="fresh-0241">fresh 0.24.1<a class="anchor" aria-label="anchor" href="#fresh-0241"></a></h2>
+<p>Refresh bundled <code>inst/extdata/parameters_habitat_rules.yaml</code> to match link’s current default-bundle output. The bundled sample had drifted to pre-<code>in_waterbody</code> / pre-<code>area_only</code> shape (last synced 2026-04-12) while link’s bundles evolved through three <a href="https://github.com/NewGraphEnvironment/fresh/issues/69" class="external-link">#69</a> phases. Sync recovers the canonical sample for any <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> caller using fresh’s bundled defaults.</p>
+<p>Reframe <code>vignettes/habitat-pipeline.Rmd</code> as a primitives walkthrough. Header note up front directs production users to <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> and link’s rule-based pipeline; vignette body unchanged — primitives are still useful for debugging, custom pipelines, and understanding what <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> does internally.</p>
+<p>No behaviour change to any exported function.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.24.0" id="fresh-0240">fresh 0.24.0<a class="anchor" aria-label="anchor" href="#fresh-0240"></a></h2>
 <p>Add <code>area_only: true</code> flag to rule grammar — decouples bucket-flag derivation from the main <code>rear</code> predicate (<a href="https://github.com/NewGraphEnvironment/fresh/issues/182" class="external-link">#182</a>).</p>
