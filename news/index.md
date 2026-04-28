@@ -45,8 +45,6 @@ polygon-rule `edge_types_explicit: [1000, 1100]` filter (mainlines
 only), this expresses the use-case-2 model: linear excludes
 polygon-mainlines, area still rolls up.
 
-Relates to NewGraphEnvironment/sred-2025-2026#24
-
 ## fresh 0.23.1
 
 Hotfix on top of 0.23.0 — register `in_waterbody` with the rules-YAML
@@ -105,8 +103,6 @@ Coordinates with
 [link#69](https://github.com/NewGraphEnvironment/link/issues/69) —
 `lnk_rules_build()` will emit `in_waterbody: false` on stream-edge rule
 blocks once this lands.
-
-Relates to NewGraphEnvironment/sred-2025-2026#24
 
 ## fresh 0.22.0
 
