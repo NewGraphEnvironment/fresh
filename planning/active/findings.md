@@ -299,3 +299,78 @@ Per-cluster breakdown:
 - Salmon science: 7 (Naiman empty)
 - Indigenous water voices: 7
 - Conservation activists: 8
+
+## Phase 3 — Independent fact-check (all 15 batches complete)
+
+Each cluster re-verified by a different agent via WebFetch + WebSearch. Most quotes were verbatim; a handful needed corrections.
+
+### Mandatory drops (fact-check failures)
+
+- **Walters #3** ("Policies should be treated as experimental treatments...") — paraphrase by blogger, not Walters' verbatim. Drop.
+- **Quavo #9 (Billboard)** ("I've been bottling all these emotions...") — Billboard reconstructed from quoted fragments + third-person narration. Not a single first-person sentence. Drop.
+- **Florence #9** ("Being put in boxes was just a waste of time.") — misquote; full sentence is "I realized that that being put in boxes was just a waste of time." The trim drops two words from the start. Drop unless we use the full form (awkward).
+
+### Source URL corrections
+
+- **Mac Miller #4 + #5** (Complex Pigeons & Planes URL is 404) — re-attribute to https://www.vice.com/en/article/mac-miller-interview-delusional-thomas/ (quotes are verbatim there).
+- **Florence #4** ("Sometimes songs just arrive fully formed...") — re-attribute from AJC URL to Apple Music notes for *Dance Fever* track "King": https://music.apple.com/us/album/dance-fever/1613321261
+- **Pauly #1** ("Each generation of fisheries scientist...") — re-cite to Pauly 1995 *Trends in Ecology & Evolution* 10(10):430 (primary), keep edge.org as secondary. Pubmed: https://pubmed.ncbi.nlm.nih.gov/21237093/
+- **Killer Mike #4–6** (radiomilwaukee.org is NPR syndicate) — canonical primary URL: https://www.npr.org/2024/08/07/nx-s1-5061520/killer-mike-interview-songs-for-sinners-saints
+
+### Wording corrections (use original verbatim)
+
+- **Beyoncé+Rihanna #6 (Rihanna)**: actual is "I think music is my freedom. I just came to that realization." Restore "I think" prefix.
+- **Berry #12** (River writers): the compact form is a Wikiquote paraphrase. Use verbatim from "Health Is Membership" (in *Another Turn of the Crank*): "I believe that the world was created and approved by love, that it subsists, coheres, and endures by love, and that, insofar as it is redeemable, it can be redeemed only by love."
+- **Higgs #10**: drop "I proposed that" or lowercase "ecological" — original is "I proposed that ecological restoration offers..."
+- **ASAP #3**: restore "I don't mind —" — original is "...wack or lit, I don't mind — I just want people to know..."
+- **Mike WiLL #3**: restore opening "A mastermind is never one mind." — full passage on RBMA.
+- **Statik #6**: original uses the phrase only once. Tighten to: "Stay true to your sound and what got you into it in the first place."
+- **Wade Davis #4**: canonical TED form is "Every language is an old-growth forest of the mind, a watershed **of thought**, an **entire** ecosystem of spiritual possibilities." Restore "of thought" and "entire."
+- **Farruko #7**: source has trailing "and become more open to my own spirituality." Add ellipsis or restore.
+- **Stanford #5**: only "It's not about the individual fish, it's about the processes" and "the big stuff" are direct quotes. Trim the rest (it was reporter paraphrase).
+
+### Cosmetic-only flags (not fixing in CSV)
+
+- Em-dash vs en-dash variants (Leopold #1, Macfarlane #8/#10, Indigenous #1)
+- "Universe" vs "universe" (Muir #7) — original is lowercase; use lowercase
+- "Howihkat" vs "Howilhkat" (Indigenous #3) — use Al Jazeera spelling "Howilhkat"
+- Punctuation drift (Suzuki #2 ellipsis vs period, Indigenous #2 "the")
+
+### Survivors after fact-check
+
+After mandatory drops (3) and URL/wording corrections (rest): **139 quotes** survive (142 raw − 3 drops).
+
+## Phase 4 — Calibration filter
+
+Applying the fpr/rfp tone register: reflective, intelligent, thought-provoking. NOT brand-flex, NOT generic motivational, NOT promotional. Cuts:
+
+- **2 Chainz "My ideas are currency so I can never go broke."** — brand line, not reflective.
+- **2 Chainz "I'm just showing growth, maturation — showing the level of process."** — generic.
+- **Statik Selektah "Stay true to your sound and what got you into it in the first place."** — motivational filler.
+- **Tom Quinn "I hope the second edition informs readers and inspires them to value salmon and trout..."** — promotional book-release, not reflective.
+- **ASAP Rocky "Home is anywhere that I have my lady and my children."** — sweet but doesn't add a unique angle the cluster doesn't already have stronger.
+
+Drops: **5 calibration cuts**.
+
+### Final survivor count
+
+139 fact-checked − 5 calibration = **134 final candidates**.
+
+Per-cluster final tally:
+- Mac Miller: 10 (URLs fixed)
+- Killer Mike: 9
+- RZA: 9 (composite #9 dropped)
+- Beyoncé+Rihanna: 10 (Rihanna #6 wording fixed)
+- Florence+M.I.A.: 9 (#9 dropped, #4 URL fixed)
+- A$AP+Travis+Thug: 9 (ASAP "Home..." cut)
+- Bad Bunny+Farruko+Miko: 11 (Farruko #7 ellipsis added)
+- Danny+Carti+Quavo+2 Chainz: 8 (Quavo #9 dropped, 2 Chainz both dropped)
+- Future+YoungBoy+Yeat+Kodak+Ty Dolla: 8
+- Producers: 7 (Statik #6 dropped, Mike WiLL #3 fixed)
+- River writers: 12 (#12 Berry verbatim form)
+- Foundational ecology: 10 (cosmetic fixes)
+- Salmon science: 5 (Walters #3 dropped, Quinn dropped)
+- Indigenous voices: 7
+- Conservation activists: 8 (Wade Davis canonical form)
+
+**Total: 132 quotes** ready for CSV (revised count after careful per-cluster tally).

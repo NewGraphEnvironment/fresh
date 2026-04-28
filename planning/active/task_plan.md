@@ -35,14 +35,14 @@ art (music + all art forms — what art means to them), peace, justice, learning
 
 ## Phase 3: Fact-check pass
 
-- [ ] Verify each quote against primary source
-- [ ] Drop any quote not verifiable to primary material — no padding
-- [ ] Record verified URL per quote
+- [x] Verify each quote against primary source (15 parallel fact-checker agents)
+- [x] Drop any quote not verifiable to primary material — 3 mandatory drops (Walters paraphrase, Quavo Billboard reconstruction, Florence "Being put in boxes" misquote)
+- [x] Record verified URL per quote (URL corrections for Mac Miller #4-5, Florence #4, Pauly #1, Killer Mike #4-6 → NPR canonical)
 
 ## Phase 4: Calibration filter
 
-- [ ] Cross-reference surviving quotes against fpr/rfp tone (intelligent, thought-provoking, not banal)
-- [ ] Drop or flag generic / motivational-poster quotes
+- [x] Cross-reference surviving quotes against fpr/rfp tone (intelligent, thought-provoking, not banal)
+- [x] Drop or flag generic / motivational-poster quotes (5 calibration cuts: 2 Chainz x2, Statik #6, Tom Quinn, ASAP "Home...")
 
 ## Phase 5: User review
 
