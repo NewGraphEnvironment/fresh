@@ -1,5 +1,47 @@
 # Changelog
 
+## fresh 0.23.0
+
+Add `in_waterbody` boolean predicate to the rule grammar
+([\#180](https://github.com/NewGraphEnvironment/fresh/issues/180)).
+
+The rule grammar in `parameters_habitat_rules.yaml` already had positive
+predicates for selecting segments inside polygon waterbodies
+(`waterbody_type: R/L/W`) but no symmetric way to restrict a rule to
+segments **outside** any waterbody. That left the stream-edge rule
+families silent on polygon membership, so a stream rule like
+`edge_types_explicit: [1000, 1100, 2000, 2300]` matched both true
+streams and the same-coded centerlines that thread through
+wetland/lake/river polygons — overlapping with the polygon rules on
+those segments and double-classifying.
+
+This release adds `in_waterbody: false | true` as the natural complement
+to `waterbody_type:`. Stream-edge rules can now express “this
+classification only applies outside polygon footprints,” which is the
+semantic complement of the existing polygon rules. Together the two
+predicates partition the network into stream-edge classifications and
+polygon-classifications with no overlap.
+
+- **`in_waterbody: false`** → adds `s.waterbody_key IS NULL` to the
+  rule’s AND chain.
+- **`in_waterbody: true`** → adds `s.waterbody_key IS NOT NULL`.
+- **absent** → no constraint (pre-`in_waterbody` behaviour, backward
+  compatible).
+- Composes with `waterbody_type: <letter>` — the positive predicate
+  already implies `IS NOT NULL`, so the two together are redundant
+  rather than contradictory.
+- Validation: non-logical / NA / length\>1 values raise an error at
+  `.frs_rule_to_sql()` time.
+- 5 new tests under `test-frs_params.R` (112 in that file, was 107).
+  Full suite green.
+
+Coordinates with
+[link#69](https://github.com/NewGraphEnvironment/link/issues/69) —
+`lnk_rules_build()` will emit `in_waterbody: false` on stream-edge rule
+blocks once this lands.
+
+Relates to NewGraphEnvironment/sred-2025-2026#24
+
 ## fresh 0.22.0
 
 [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)

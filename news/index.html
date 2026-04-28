@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.22.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.23.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,23 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.23.0" id="fresh-0230">fresh 0.23.0<a class="anchor" aria-label="anchor" href="#fresh-0230"></a></h2>
+<p>Add <code>in_waterbody</code> boolean predicate to the rule grammar (<a href="https://github.com/NewGraphEnvironment/fresh/issues/180" class="external-link">#180</a>).</p>
+<p>The rule grammar in <code>parameters_habitat_rules.yaml</code> already had positive predicates for selecting segments inside polygon waterbodies (<code>waterbody_type: R/L/W</code>) but no symmetric way to restrict a rule to segments <strong>outside</strong> any waterbody. That left the stream-edge rule families silent on polygon membership, so a stream rule like <code>edge_types_explicit: [1000, 1100, 2000, 2300]</code> matched both true streams and the same-coded centerlines that thread through wetland/lake/river polygons — overlapping with the polygon rules on those segments and double-classifying.</p>
+<p>This release adds <code>in_waterbody: false | true</code> as the natural complement to <code>waterbody_type:</code>. Stream-edge rules can now express “this classification only applies outside polygon footprints,” which is the semantic complement of the existing polygon rules. Together the two predicates partition the network into stream-edge classifications and polygon-classifications with no overlap.</p>
+<ul><li>
+<strong><code>in_waterbody: false</code></strong> → adds <code>s.waterbody_key IS NULL</code> to the rule’s AND chain.</li>
+<li>
+<strong><code>in_waterbody: true</code></strong> → adds <code>s.waterbody_key IS NOT NULL</code>.</li>
+<li>
+<strong>absent</strong> → no constraint (pre-<code>in_waterbody</code> behaviour, backward compatible).</li>
+<li>Composes with <code>waterbody_type: &lt;letter&gt;</code> — the positive predicate already implies <code>IS NOT NULL</code>, so the two together are redundant rather than contradictory.</li>
+<li>Validation: non-logical / NA / length&gt;1 values raise an error at <code>.frs_rule_to_sql()</code> time.</li>
+<li>5 new tests under <code>test-frs_params.R</code> (112 in that file, was 107). Full suite green.</li>
+</ul><p>Coordinates with <a href="https://github.com/NewGraphEnvironment/link/issues/69" class="external-link">link#69</a> — <code>lnk_rules_build()</code> will emit <code>in_waterbody: false</code> on stream-edge rule blocks once this lands.</p>
+<p>Relates to NewGraphEnvironment/sred-2025-2026#24</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.22.0" id="fresh-0220">fresh 0.22.0<a class="anchor" aria-label="anchor" href="#fresh-0220"></a></h2>
 <p><code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> simplified — drop <code>format</code> and <code>long_value_col</code> parameters; accept only the canonical source-table shape (<a href="https://github.com/NewGraphEnvironment/fresh/issues/177" class="external-link">#177</a>).</p>
