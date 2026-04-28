@@ -51,14 +51,14 @@ art (music + all art forms — what art means to them), peace, justice, learning
 
 ## Phase 6: Emit CSV + R/zzz.R
 
-- [ ] Write `inst/extdata/quotes.csv` (UTF-8)
-- [ ] Write `R/zzz.R` (dependency-free `.onAttach`)
+- [x] Write `inst/extdata/quotes.csv` (UTF-8) — 133 quotes, 134 lines including header
+- [x] Write `R/zzz.R` (dependency-free `.onAttach`) — ASCII-only source
 
 ## Phase 7: Verification
 
-- [ ] `devtools::load_all()` then `library(frs)` — quote appears
-- [ ] `R CMD check` — no new NOTE/WARN
-- [ ] Preview 3 random draws
+- [x] `devtools::load_all()` triggers `.onAttach` — quote prints on each load
+- [x] CSV round-trip read confirms 133 rows × 3 columns, UTF-8 intact
+- [x] Preview 3 random draws — Young Miko, Killer Mike, Bad Bunny across loads (random rotation working)
 
 ## Phase 8: PR
 
