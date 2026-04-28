@@ -112,7 +112,14 @@ frs_habitat_predicates <- function(sp_params) {
     csv_thresholds_rear <- list(
       gradient = if (is.null(rear_g)) NULL else c(0, rear_g[2]),
       channel_width = params_sp$ranges$rear$channel_width)
-    rear_pred <- .frs_rules_to_sql(params_sp[["rules"]][["rear"]],
+    # Filter out rules flagged `area_only: true` — those rules drive
+    # lake_rearing / wetland_rearing bucket-flag derivation only and
+    # should not contribute to the main `rear` predicate. The bucket
+    # rule lookup below still finds them via .frs_find_waterbody_rule().
+    rear_rules_for_main <- Filter(
+      function(r) !isTRUE(r[["area_only"]]),
+      params_sp[["rules"]][["rear"]])
+    rear_pred <- .frs_rules_to_sql(rear_rules_for_main,
                                    csv_thresholds_rear)
   } else {
     rear_pred <- "FALSE"
