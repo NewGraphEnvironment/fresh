@@ -28,10 +28,10 @@ art (music + all art forms — what art means to them), peace, justice, learning
 
 ## Phase 2: Multi-agent quote research
 
-- [ ] Launch parallel WebSearch agents (one per artist or small cluster)
-- [ ] Each returns 5–10 candidates per artist with quote text + primary-source URL
-- [ ] Domain bucket research (one agent per bucket)
-- [ ] Aggregate raw candidates into findings.md
+- [x] Launch parallel WebSearch agents (15 total: 10 artist clusters + 5 domain buckets)
+- [x] Each returns 5–10 candidates per artist with quote text + primary-source URL
+- [x] Domain bucket research (one agent per bucket — Naiman empty, agent declined to fabricate)
+- [x] Aggregate raw candidates into findings.md (~142 candidates total)
 
 ## Phase 3: Fact-check pass
 
