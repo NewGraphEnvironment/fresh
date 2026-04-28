@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.23.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,20 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.24.0" id="fresh-0240">fresh 0.24.0<a class="anchor" aria-label="anchor" href="#fresh-0240"></a></h2>
+<p>Add <code>area_only: true</code> flag to rule grammar — decouples bucket-flag derivation from the main <code>rear</code> predicate (<a href="https://github.com/NewGraphEnvironment/fresh/issues/182" class="external-link">#182</a>).</p>
+<p>Today, a <code>waterbody_type: L</code> or <code>W</code> rule placed in a species’ <code>rear:</code> list does two things at once: triggers fresh to derive a <code>lake_rearing</code> / <code>wetland_rearing</code> predicate (the per-segment flag that drives <code>lake_rearing_ha</code> / <code>wetland_rearing_ha</code> area rollups), AND OR’s into the main <code>rear</code> predicate (the per-segment <code>rearing</code> flag, which drives linear <code>rearing_km</code>). The two effects are coupled, so a user can’t say “credit the polygon area but exclude polygon-mainlines from linear km.”</p>
+<p>This release adds <code>area_only: true</code> on a rule. When set, fresh uses the rule’s predicate to derive the corresponding bucket flag (lake_rearing or wetland_rearing) but <strong>does not include</strong> the rule in the OR-chain that builds the main <code>rear</code> predicate. Stream-edge rules (with <code>in_waterbody: false</code> from <a href="https://github.com/NewGraphEnvironment/fresh/issues/180" class="external-link">#180</a>) decide what counts as linear; L/W rules with <code>area_only: true</code> decide what polygons contribute area without double-counting the polygon-mainline as linear.</p>
+<ul><li>
+<strong><code>area_only: true</code></strong> on a <code>waterbody_type: L|W</code> rule → rule contributes to <code>lake_rear</code> / <code>wetland_rear</code> predicate derivation only, excluded from main <code>rear</code> predicate.</li>
+<li>
+<strong><code>area_only: false</code></strong> or absent → today’s behaviour (rule contributes to both). Backward compatible.</li>
+<li>Validator: requires <code>waterbody_type: L</code> or <code>W</code> (no bucket flag to drive on stream-edge rules or <code>waterbody_type: R</code>); rejects non-logical / NA / length&gt;1 values.</li>
+<li>13 new tests across <code>test-frs_params.R</code> (validator) and <code>test-frs_habitat_predicates.R</code> (decoupling). 167 PASS in those files (was 154). Full suite green.</li>
+</ul><p>Coordinates with <a href="https://github.com/NewGraphEnvironment/link/issues/69" class="external-link">link#69 phase 2</a> — <code>lnk_rules_build()</code> will emit <code>area_only: true</code> on L/W polygon rule blocks driven by per-species <code>rear_lake_area_only</code> / <code>rear_wetland_area_only</code> columns in <code>dimensions.csv</code>. Combined with the polygon-rule <code>edge_types_explicit: [1000, 1100]</code> filter (mainlines only), this expresses the use-case-2 model: linear excludes polygon-mainlines, area still rolls up.</p>
+<p>Relates to NewGraphEnvironment/sred-2025-2026#24</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.23.1" id="fresh-0231">fresh 0.23.1<a class="anchor" aria-label="anchor" href="#fresh-0231"></a></h2>
 <p>Hotfix on top of 0.23.0 — register <code>in_waterbody</code> with the rules-YAML validator so emitted rules pass loading.</p>
