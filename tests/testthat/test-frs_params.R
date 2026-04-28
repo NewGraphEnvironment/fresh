@@ -120,6 +120,19 @@ test_that(".frs_load_rules errors on unknown predicate", {
   expect_error(.frs_load_rules(tmp), "unknown predicates")
 })
 
+test_that(".frs_load_rules accepts in_waterbody predicate (fresh#180)", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  spawn:",
+    "    - edge_types_explicit: [1000, 1100]",
+    "      in_waterbody: false",
+    "    - waterbody_type: R",
+    "      in_waterbody: true"), tmp)
+  expect_no_error(.frs_load_rules(tmp))
+})
+
 test_that(".frs_load_rules errors on lake_ha_min without waterbody_type L", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))
