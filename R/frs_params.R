@@ -134,6 +134,7 @@ frs_params <- function(conn = NULL,
 
   valid_predicates <- c("edge_types", "edge_types_explicit",
                         "waterbody_type", "lake_ha_min", "wetland_ha_min",
+                        "in_waterbody",
                         "thresholds", "gradient", "channel_width",
                         "requires_connected", "connected_distance_max")
 

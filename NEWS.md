@@ -1,3 +1,12 @@
+# fresh 0.23.1
+
+Hotfix on top of 0.23.0 — register `in_waterbody` with the rules-YAML validator so emitted rules pass loading.
+
+`.frs_load_rules()` validates each rule entry's keys against an allowlist of known predicates (`valid_predicates` in `R/frs_params.R`). 0.23.0 added the predicate at the SQL emission layer (`.frs_rule_to_sql()`) but missed adding it to the allowlist, so a rules YAML carrying `in_waterbody:` was rejected by `.frs_load_rules()` before SQL emission ever ran. This release adds `in_waterbody` to `valid_predicates`.
+
+- 1 new test: `.frs_load_rules` accepts a YAML with `in_waterbody: true|false` on edge-type and waterbody-type rules (113 PASS in `test-frs_params.R`, was 112).
+- No behaviour change beyond unblocking the predicate that 0.23.0 introduced.
+
 # fresh 0.23.0
 
 Add `in_waterbody` boolean predicate to the rule grammar ([#180](https://github.com/NewGraphEnvironment/fresh/issues/180)).
