@@ -187,7 +187,19 @@
 #'
 #' @param rule Named list with optional fields: `edge_types`,
 #'   `edge_types_explicit`, `waterbody_type`, `lake_ha_min`,
-#'   `thresholds`.
+#'   `in_waterbody`, `thresholds`.
+#'
+#'   `in_waterbody` is a logical that constrains the rule to segments
+#'   inside or outside any waterbody polygon — `FALSE` adds
+#'   `s.waterbody_key IS NULL` (the natural complement of the positive
+#'   `waterbody_type` predicates; lets a stream-edge rule express "this
+#'   classification only applies outside polygon footprints"); `TRUE`
+#'   adds `s.waterbody_key IS NOT NULL`. Absent means no constraint
+#'   (rule matches segments inside or outside polygons indifferently;
+#'   pre-`in_waterbody` behaviour). Composes cleanly with
+#'   `waterbody_type:` — the positive `waterbody_type` predicate already
+#'   implies `IS NOT NULL`, so the two together are redundant rather
+#'   than contradictory.
 #' @param csv_thresholds Named list with `gradient = c(min, max)`
 #'   and/or `channel_width = c(min, max)`. Either may be NULL.
 #' @return Character. A parenthesized SQL predicate.
@@ -229,6 +241,19 @@
     codes <- as.integer(rule[["edge_types_explicit"]])
     parts <- c(parts, sprintf("s.edge_type IN (%s)",
       paste(codes, collapse = ", ")))
+  }
+
+  if (!is.null(rule[["in_waterbody"]])) {
+    in_wb <- rule[["in_waterbody"]]
+    if (!is.logical(in_wb) || length(in_wb) != 1L || is.na(in_wb)) {
+      stop("rule[['in_waterbody']] must be a single TRUE or FALSE",
+           call. = FALSE)
+    }
+    parts <- c(parts, if (in_wb) {
+      "s.waterbody_key IS NOT NULL"
+    } else {
+      "s.waterbody_key IS NULL"
+    })
   }
 
   if (!is.null(rule[["waterbody_type"]])) {

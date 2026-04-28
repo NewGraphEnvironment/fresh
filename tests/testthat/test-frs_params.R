@@ -354,6 +354,49 @@ test_that(".frs_rule_to_sql empty rule returns (TRUE)", {
   expect_equal(.frs_rule_to_sql(list()), "(TRUE)")
 })
 
+test_that(".frs_rule_to_sql in_waterbody=FALSE adds IS NULL constraint", {
+  rule <- list(edge_types_explicit = c(1000L, 1100L),
+               in_waterbody = FALSE)
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "s\\.edge_type IN \\(1000, 1100\\)")
+  expect_match(sql, "s\\.waterbody_key IS NULL")
+  expect_false(grepl("IS NOT NULL", sql))
+})
+
+test_that(".frs_rule_to_sql in_waterbody=TRUE adds IS NOT NULL constraint", {
+  rule <- list(edge_types_explicit = c(1000L), in_waterbody = TRUE)
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "s\\.waterbody_key IS NOT NULL")
+})
+
+test_that(".frs_rule_to_sql absent in_waterbody behaves as today", {
+  rule <- list(edge_types_explicit = c(1000L, 1100L))
+  sql <- .frs_rule_to_sql(rule)
+  expect_false(grepl("waterbody_key", sql))
+})
+
+test_that(".frs_rule_to_sql in_waterbody composes with waterbody_type", {
+  # waterbody_type already implies IS NOT NULL via the IN (...) join.
+  # in_waterbody = TRUE alongside is redundant but should produce a
+  # well-formed conjunction, not an error or silent drop.
+  rule <- list(waterbody_type = "R", in_waterbody = TRUE)
+  sql <- .frs_rule_to_sql(rule)
+  expect_match(sql, "fwa_rivers_poly")
+  expect_match(sql, "s\\.waterbody_key IS NOT NULL")
+})
+
+test_that(".frs_rule_to_sql in_waterbody rejects non-logical values", {
+  expect_error(
+    .frs_rule_to_sql(list(in_waterbody = "false")),
+    "in_waterbody.*TRUE or FALSE")
+  expect_error(
+    .frs_rule_to_sql(list(in_waterbody = NA)),
+    "in_waterbody.*TRUE or FALSE")
+  expect_error(
+    .frs_rule_to_sql(list(in_waterbody = c(TRUE, FALSE))),
+    "in_waterbody.*TRUE or FALSE")
+})
+
 test_that(".frs_rules_to_sql empty list returns FALSE", {
   expect_equal(.frs_rules_to_sql(list()), "FALSE")
   expect_equal(.frs_rules_to_sql(NULL), "FALSE")
