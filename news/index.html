@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.23.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.23.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.23.1" id="fresh-0231">fresh 0.23.1<a class="anchor" aria-label="anchor" href="#fresh-0231"></a></h2>
+<p>Hotfix on top of 0.23.0 — register <code>in_waterbody</code> with the rules-YAML validator so emitted rules pass loading.</p>
+<p><code>.frs_load_rules()</code> validates each rule entry’s keys against an allowlist of known predicates (<code>valid_predicates</code> in <code>R/frs_params.R</code>). 0.23.0 added the predicate at the SQL emission layer (<code>.frs_rule_to_sql()</code>) but missed adding it to the allowlist, so a rules YAML carrying <code>in_waterbody:</code> was rejected by <code>.frs_load_rules()</code> before SQL emission ever ran. This release adds <code>in_waterbody</code> to <code>valid_predicates</code>.</p>
+<ul><li>1 new test: <code>.frs_load_rules</code> accepts a YAML with <code>in_waterbody: true|false</code> on edge-type and waterbody-type rules (113 PASS in <code>test-frs_params.R</code>, was 112).</li>
+<li>No behaviour change beyond unblocking the predicate that 0.23.0 introduced.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.23.0" id="fresh-0230">fresh 0.23.0<a class="anchor" aria-label="anchor" href="#fresh-0230"></a></h2>
 <p>Add <code>in_waterbody</code> boolean predicate to the rule grammar (<a href="https://github.com/NewGraphEnvironment/fresh/issues/180" class="external-link">#180</a>).</p>
