@@ -1348,20 +1348,41 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' @noRd
 #' Trace downstream from origins with distance cap and gradient stop
 #'
-#' Given a set of origin points (waterbody outlets), trace downstream via
-#' `fwa_downstreamtrace`, accumulate distance per origin group, cap at
-#' `distance_max`, and stop at the first segment exceeding `gradient_max`.
+#' Given a set of origin points (waterbody outlets), trace downstream
+#' via `FWA_Downstream` predicate join against the broken streams
+#' `table`, accumulate distance per origin group, cap at `distance_max`,
+#' and stop at the first segment whose gradient exceeds `gradient_max`.
 #' Returns qualifying `linear_feature_id`s into a target table.
 #'
+#' Earlier this function used `whse_basemapping.fwa_downstreamtrace`,
+#' which iterates FWA-original `fwa_stream_networks_sp` rows with their
+#' feature-averaged gradients. Localized barriers on a sub-piece of a
+#' long FWA feature (e.g. a 7 m, 84% lake-outlet drop inside an
+#' otherwise flat 3 km feature) are invisible to that approach because
+#' the gradient is averaged across the whole feature. Switching to a
+#' predicate join against the broken streams table preserves the
+#' localized gradient values that `frs_network_segment()` produced —
+#' see fresh#187 for the KISP SK repro at Kitwancool Lake.
+#'
+#' Mainstem only (`blue_line_key = watershed_key`) — matches the bcfp
+#' convention and avoids side-channel double counting.
+#'
 #' @param conn DBI connection.
+#' @param table Character. Schema-qualified broken-streams table to
+#'   trace against. Must carry `blue_line_key`, `downstream_route_measure`,
+#'   `wscode_ltree`, `localcode_ltree`, `watershed_key`, `length_metre`,
+#'   `gradient`, and `linear_feature_id`.
 #' @param origins_sql Character. SQL that produces columns: `origin_id`
-#'   (grouping key), `blue_line_key`, `downstream_route_measure`.
+#'   (grouping key), `blue_line_key`, `downstream_route_measure`,
+#'   `wscode_ltree`, `localcode_ltree`. (`wscode_ltree`/`localcode_ltree`
+#'   are new requirements compared to the previous interface — callers
+#'   must SELECT them.)
 #' @param target Character. Table to INSERT `linear_feature_id` results into.
 #' @param distance_max Numeric. Maximum cumulative trace distance (metres).
-#' @param gradient_max Numeric. Gradient threshold — trace stops at the first
-#'   segment exceeding this value.
+#' @param gradient_max Numeric. Gradient threshold — trace stops at the
+#'   first segment exceeding this value.
 #' @noRd
-.frs_trace_downstream <- function(conn, origins_sql, target,
+.frs_trace_downstream <- function(conn, table, origins_sql, target,
                                   distance_max, gradient_max) {
   dm <- .frs_sql_num(distance_max)
   gm <- .frs_sql_num(gradient_max)
@@ -1371,28 +1392,31 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
      WITH origins AS (%s),
      downstream AS (
        SELECT o.origin_id,
-         t.linear_feature_id, t.gradient, t.wscode,
+         t.linear_feature_id, t.gradient, t.wscode_ltree,
          t.downstream_route_measure,
          -t.length_metre + SUM(t.length_metre) OVER (
            PARTITION BY o.origin_id
-           ORDER BY t.wscode DESC, t.downstream_route_measure DESC
+           ORDER BY t.wscode_ltree DESC, t.downstream_route_measure DESC
          ) AS dist_to_origin
        FROM origins o
-       CROSS JOIN LATERAL whse_basemapping.fwa_downstreamtrace(
-         o.blue_line_key, o.downstream_route_measure) t
+       INNER JOIN %s t ON FWA_Downstream(
+         o.blue_line_key, o.downstream_route_measure,
+         o.wscode_ltree, o.localcode_ltree,
+         t.blue_line_key, t.downstream_route_measure,
+         t.wscode_ltree, t.localcode_ltree)
        WHERE t.blue_line_key = t.watershed_key
      ),
      downstream_capped AS (
        SELECT row_number() OVER (
          PARTITION BY origin_id
-         ORDER BY wscode DESC, downstream_route_measure DESC
+         ORDER BY wscode_ltree DESC, downstream_route_measure DESC
        ) AS rn, *
        FROM downstream WHERE dist_to_origin < %s
      ),
      nearest_barrier AS (
        SELECT DISTINCT ON (origin_id) *
        FROM downstream_capped WHERE gradient > %s
-       ORDER BY origin_id, wscode DESC, downstream_route_measure DESC
+       ORDER BY origin_id, wscode_ltree DESC, downstream_route_measure DESC
      ),
      valid_downstream AS (
        SELECT d.linear_feature_id FROM downstream_capped d
@@ -1400,7 +1424,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        WHERE nb.rn IS NULL OR d.rn < nb.rn
      )
      SELECT DISTINCT linear_feature_id FROM valid_downstream",
-    target, origins_sql, dm, gm))
+    target, origins_sql, table, dm, gm))
 }
 
 
@@ -1466,10 +1490,13 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     "CREATE TEMP TABLE %s (linear_feature_id bigint)", lfid_tbl))
 
   # Phase 1: Downstream trace from waterbody outlets
+  # origins_sql now also yields wscode_ltree + localcode_ltree, required
+  # by the predicate-join trace (fresh#187).
   origins_sql <- sprintf(
     "SELECT DISTINCT ON (s2.waterbody_key)
        s2.waterbody_key AS origin_id,
-       s2.blue_line_key, s2.downstream_route_measure
+       s2.blue_line_key, s2.downstream_route_measure,
+       s2.wscode_ltree, s2.localcode_ltree
      FROM %s s2
      INNER JOIN %s hr ON s2.id_segment = hr.id_segment
      WHERE hr.species_code = %s AND hr.rearing IS TRUE
@@ -1477,7 +1504,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
              s2.downstream_route_measure",
     table, habitat, sp_quoted)
 
-  .frs_trace_downstream(conn, origins_sql, lfid_tbl,
+  .frs_trace_downstream(conn, table, origins_sql, lfid_tbl,
                          distance_max, bridge_gradient)
 
   # Map traced linear_feature_ids back to id_segments
