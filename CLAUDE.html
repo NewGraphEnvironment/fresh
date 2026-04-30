@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.25.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,20 +47,20 @@
 </div>
 <div class="section level2">
 <h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a></h2>
-<table class="table"><colgroup><col width="60%"><col width="40%"></colgroup><thead><tr class="header"><th>Package</th>
+<table class="table"><colgroup><col width="60%"><col width="40%"></colgroup><thead><tr><th>Package</th>
 <th>Role</th>
-</tr></thead><tbody><tr class="odd"><td><strong>fresh</strong></td>
+</tr></thead><tbody><tr><td><strong>fresh</strong></td>
 <td>Stream network modelling engine (this package) — segment networks, classify habitat, cluster, aggregate</td>
-</tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>
 <td>Feature-to-network interpretation — load and validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing six-phase pipelines via <code>lnk_pipeline_*()</code> + <code>lnk_config()</code>
 </td>
-</tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
 <td>Delineate floodplain extents from DEMs and stream networks</td>
-</tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
 <td>Track land cover change within floodplains over time</td>
-</tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a></td>
 <td>Estimate airphoto footprints and select optimal coverage for a study area</td>
-</tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/diggs" class="external-link">diggs</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/diggs" class="external-link">diggs</a></td>
 <td>Interactive explorer for fly airphoto selections (Shiny app)</td>
 </tr></tbody></table><p><strong>Pipelines:</strong></p>
 <ul><li>Fish habitat / connectivity: <strong>link → fresh</strong>. link’s <code>lnk_pipeline_*()</code> helpers interpret features (crossings, observations, falls, user-definite barriers, habitat confirmations) and produce the <code>break_sources</code> and <code>barrier_overrides</code> table that feed <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>. Without link, fresh still runs on any break sources you construct yourself.</li>
@@ -217,16 +217,16 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <p><strong>Core pattern:</strong> <code>reg$layers$lake</code>, <code>reg$layers$road</code>, <code>reg$layers$bec_zone</code>, etc.</p>
 <div class="section level3">
 <h3 id="translators">Translators<a class="anchor" aria-label="anchor" href="#translators"></a></h3>
-<table class="table"><colgroup><col width="21%"><col width="34%"><col width="44%"></colgroup><thead><tr class="header"><th>Target</th>
+<table class="table"><colgroup><col width="21%"><col width="34%"><col width="44%"></colgroup><thead><tr><th>Target</th>
 <th>Simple layer</th>
 <th>Classified layer</th>
-</tr></thead><tbody><tr class="odd"><td>tmap</td>
+</tr></thead><tbody><tr><td>tmap</td>
 <td>
 <code>gq_tmap_style(layer)</code> → <code>do.call(tm_polygons, ...)</code>
 </td>
 <td>
 <code>gq_tmap_classes(layer)</code> → field, values, labels</td>
-</tr><tr class="even"><td>mapgl</td>
+</tr><tr><td>mapgl</td>
 <td>
 <code>gq_mapgl_style(layer)</code> → paint properties</td>
 <td>
@@ -242,18 +242,18 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 </div>
 <div class="section level2">
 <h2 id="map-targets">Map Targets<a class="anchor" aria-label="anchor" href="#map-targets"></a></h2>
-<table class="table"><colgroup><col width="40%"><col width="30%"><col width="30%"></colgroup><thead><tr class="header"><th>Output</th>
+<table class="table"><colgroup><col width="40%"><col width="30%"><col width="30%"></colgroup><thead><tr><th>Output</th>
 <th>Tool</th>
 <th>When</th>
-</tr></thead><tbody><tr class="odd"><td>PDF / print figures</td>
+</tr></thead><tbody><tr><td>PDF / print figures</td>
 <td>
 <code>tmap</code> v4</td>
 <td>Bookdown PDF, static reports</td>
-</tr><tr class="even"><td>Interactive HTML</td>
+</tr><tr><td>Interactive HTML</td>
 <td>
 <code>mapgl</code> (MapLibre GL)</td>
 <td>Bookdown gitbook, memos, web pages</td>
-</tr><tr class="odd"><td>QGIS project</td>
+</tr><tr><td>QGIS project</td>
 <td>Native QML</td>
 <td>Field work, Mergin Maps</td>
 </tr></tbody></table></div>
@@ -443,16 +443,16 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level2">
 <h2 id="tone">Tone<a class="anchor" aria-label="anchor" href="#tone"></a></h2>
 <p>Three levels. Default to casual unless context dictates otherwise.</p>
-<table style="width:100%;" class="table"><colgroup><col width="35%"><col width="30%"><col width="35%"></colgroup><thead><tr class="header"><th>Level</th>
+<table style="width:100%;" class="table"><colgroup><col width="35%"><col width="30%"><col width="35%"></colgroup><thead><tr><th>Level</th>
 <th>When</th>
 <th>Style</th>
-</tr></thead><tbody><tr class="odd"><td><strong>Casual</strong></td>
+</tr></thead><tbody><tr><td><strong>Casual</strong></td>
 <td>Established working relationships</td>
 <td>Professional but warm. Direct, concise. No slang.</td>
-</tr><tr class="even"><td><strong>Very casual</strong></td>
+</tr><tr><td><strong>Very casual</strong></td>
 <td>Close collaborators with rapport</td>
 <td>Colloquial OK. Light humor. Slang acceptable.</td>
-</tr><tr class="odd"><td><strong>Formal</strong></td>
+</tr><tr><td><strong>Formal</strong></td>
 <td>New contacts, senior officials, formal requests</td>
 <td>Full sentences, no contractions, state purpose early.</td>
 </tr></tbody></table><p><strong>Collaborative, not directive.</strong> Acknowledge their constraints:</p>
@@ -545,23 +545,23 @@ Website: www.newgraphenvironment.com</code></pre>
 <div class="section level2">
 <h2 id="ecosystem-overview">Ecosystem Overview<a class="anchor" aria-label="anchor" href="#ecosystem-overview"></a></h2>
 <p>Five repos form the governance and operations layer across all New Graph Environment work:</p>
-<table class="table"><colgroup><col width="25%"><col width="37%"><col width="37%"></colgroup><thead><tr class="header"><th>Repo</th>
+<table class="table"><colgroup><col width="25%"><col width="37%"><col width="37%"></colgroup><thead><tr><th>Repo</th>
 <th>Purpose</th>
 <th>Analogy</th>
-</tr></thead><tbody><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/compass" class="external-link">compass</a></td>
+</tr></thead><tbody><tr><td><a href="https://github.com/NewGraphEnvironment/compass" class="external-link">compass</a></td>
 <td>Ethics, values, guiding principles</td>
 <td>The “why”</td>
-</tr><tr class="even"><td><a href="https://github.com/NewGraphEnvironment/soul" class="external-link">soul</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/soul" class="external-link">soul</a></td>
 <td>Standards, skills, conventions for LLM agents</td>
 <td>The “how”</td>
-</tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/compost" class="external-link">compost</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/compost" class="external-link">compost</a></td>
 <td>Communications templates, email workflows, contact management</td>
 <td>The “who”</td>
-</tr><tr class="even"><td>
+</tr><tr><td>
 <a href="https://github.com/NewGraphEnvironment/rtj" class="external-link">rtj</a> (formerly awshak)</td>
 <td>Infrastructure as Code, deployment</td>
 <td>The “where”</td>
-</tr><tr class="odd"><td><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></td>
+</tr><tr><td><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></td>
 <td>Cartographic style management across QGIS, tmap, leaflet, web</td>
 <td>The “look”</td>
 </tr></tbody></table><p><strong>Adaptive management:</strong> Conventions evolve from real project work, not theory. When a pattern is learned or refined during project work, propagate it back to soul so all projects benefit. The <code>/claude-md-init</code> skill builds each project’s <code>CLAUDE.md</code> from soul conventions.</p>
@@ -656,19 +656,19 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level2">
 <h2 id="naming-conventions-1">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions-1"></a></h2>
 <p><strong>Pattern: <code>noun_verb-detail</code></strong> – noun first, verb second across all naming:</p>
-<table class="table"><thead><tr class="header"><th>What</th>
+<table class="table"><thead><tr><th>What</th>
 <th>Example</th>
-</tr></thead><tbody><tr class="odd"><td>Skills</td>
+</tr></thead><tbody><tr><td>Skills</td>
 <td>
 <code>claude-md-init</code>, <code>gh-issue-create</code>, <code>planning-update</code>
 </td>
-</tr><tr class="even"><td>Scripts</td>
+</tr><tr><td>Scripts</td>
 <td>
 <code>stac_register-baseline.sh</code>, <code>stac_register-pypgstac.sh</code>
 </td>
-</tr><tr class="odd"><td>Logs</td>
+</tr><tr><td>Logs</td>
 <td><code>20260209_stac_register-baseline_stac-dem-bc.txt</code></td>
-</tr><tr class="even"><td>Log format</td>
+</tr><tr><td>Log format</td>
 <td><code>yyyymmdd_noun_verb-detail_target.ext</code></td>
 </tr></tbody></table><p>Scripts and logs live together: <code>scripts/&lt;module&gt;/logs/</code></p>
 </div>
@@ -679,17 +679,17 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li>
 <strong>Milestones</strong> = iteration boundaries (only for release/claim prep)</li>
 <li>Don’t double-track unless there’s a reason</li>
-</ul><table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>Content</th>
+</ul><table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>Content</th>
 <th>Project</th>
-</tr></thead><tbody><tr class="odd"><td>R&amp;D, experiments, SRED-related</td>
+</tr></thead><tbody><tr><td>R&amp;D, experiments, SRED-related</td>
 <td><strong>SRED R&amp;D Tracking (#8)</strong></td>
-</tr><tr class="even"><td>Data storage, sqlite, postgres, pipelines</td>
+</tr><tr><td>Data storage, sqlite, postgres, pipelines</td>
 <td><strong>Data Architecture (#9)</strong></td>
-</tr><tr class="odd"><td>Fish passage field/reporting</td>
+</tr><tr><td>Fish passage field/reporting</td>
 <td><strong>Fish Passage 2025 (#6)</strong></td>
-</tr><tr class="even"><td>Restoration planning</td>
+</tr><tr><td>Restoration planning</td>
 <td><strong>Aquatic Restoration Planning (#5)</strong></td>
-</tr><tr class="odd"><td>QGIS, Mergin, field forms</td>
+</tr><tr><td>QGIS, Mergin, field forms</td>
 <td><strong>Collaborative GIS (#3)</strong></td>
 </tr></tbody></table></div>
 </div>
@@ -772,13 +772,13 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </div>
 <div class="section level2">
 <h2 id="skills">Skills<a class="anchor" aria-label="anchor" href="#skills"></a></h2>
-<table class="table"><colgroup><col width="35%"><col width="65%"></colgroup><thead><tr class="header"><th>Skill</th>
+<table class="table"><colgroup><col width="35%"><col width="65%"></colgroup><thead><tr><th>Skill</th>
 <th>When to use</th>
-</tr></thead><tbody><tr class="odd"><td><code>/planning-init</code></td>
+</tr></thead><tbody><tr><td><code>/planning-init</code></td>
 <td>First time in a repo — creates directory structure</td>
-</tr><tr class="even"><td><code>/planning-update</code></td>
+</tr><tr><td><code>/planning-update</code></td>
 <td>Mid-session — sync checkboxes and progress</td>
-</tr><tr class="odd"><td><code>/planning-archive</code></td>
+</tr><tr><td><code>/planning-archive</code></td>
 <td>Issue complete — archive and create fresh active/</td>
 </tr></tbody></table></div>
 </div>
@@ -950,16 +950,16 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level2">
 <h2 id="tool-routing">Tool Routing<a class="anchor" aria-label="anchor" href="#tool-routing"></a></h2>
 <p>Three tools, different purposes. Use the right one.</p>
-<table class="table"><colgroup><col width="35%"><col width="35%"><col width="29%"></colgroup><thead><tr class="header"><th>Need</th>
+<table class="table"><colgroup><col width="35%"><col width="35%"><col width="29%"></colgroup><thead><tr><th>Need</th>
 <th>Tool</th>
 <th>Why</th>
-</tr></thead><tbody><tr class="odd"><td>Search by keyword, read metadata/fulltext, semantic search</td>
+</tr></thead><tbody><tr><td>Search by keyword, read metadata/fulltext, semantic search</td>
 <td><strong>MCP <code>zotero_*</code> tools</strong></td>
 <td>pyzotero, works with Zotero item keys</td>
-</tr><tr class="even"><td>Look up by citation key (e.g., <code>irvine2020ParsnipRiver</code>)</td>
+</tr><tr><td>Look up by citation key (e.g., <code>irvine2020ParsnipRiver</code>)</td>
 <td><strong><code>/zotero-lookup</code> skill</strong></td>
 <td>Citation keys are a BBT feature — pyzotero can’t resolve them</td>
-</tr><tr class="odd"><td>Create items, attach PDFs, deduplicate</td>
+</tr><tr><td>Create items, attach PDFs, deduplicate</td>
 <td><strong><code>/zotero-api</code> skill</strong></td>
 <td>Connector API for writes, JS console for attachments</td>
 </tr></tbody></table><p><strong>Citation keys vs item keys:</strong> Citation keys (like <code>irvine2020ParsnipRiver</code>) come from Better BibTeX. Item keys (like <code>K7WALMSY</code>) are native Zotero. The MCP works with item keys. <code>/zotero-lookup</code> bridges citation keys to item data.</p>

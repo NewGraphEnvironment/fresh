@@ -21,6 +21,7 @@ the stream network, not clipped spatially. A future
 \#12](https://github.com/NewGraphEnvironment/fresh/issues/12)).
 
 ``` r
+
 library(fresh)
 library(sf)
 library(tmap)
@@ -113,6 +114,7 @@ saveRDS(
 ```
 
 ``` r
+
 library(fresh)
 library(sf)
 #> Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
@@ -134,6 +136,7 @@ segments, 19 forest service road segments, and 10 railway segments
 clipped to the subbasin.
 
 ``` r
+
 reg <- gq::gq_reg_main()
 
 # Simplify coho habitat to spawning / rearing / access

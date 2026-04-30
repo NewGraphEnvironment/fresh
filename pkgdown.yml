@@ -1,11 +1,11 @@
-pandoc: 3.1.11
+pandoc: 3.8.3
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
   fwa-network-query: fwa-network-query.html
   habitat-pipeline: habitat-pipeline.html
   subbasin-query: subbasin-query.html
-last_built: 2026-04-28T23:01Z
+last_built: 2026-04-30T15:24Z
 urls:
   reference: https://newgraphenvironment.github.io/fresh/reference
   article: https://newgraphenvironment.github.io/fresh/articles

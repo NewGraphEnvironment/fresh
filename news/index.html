@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.25.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.25.0" id="fresh-0250">fresh 0.25.0<a class="anchor" aria-label="anchor" href="#fresh-0250"></a></h2>
+<p>Two bcfishpass-parity fixes surfaced during link’s WSG-coverage expansion (link’s MORR + KISP runs, 2026-04-30).</p>
+<p><strong><code>frs_cluster</code> phase-1 + confluence-boost interaction</strong> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/186" class="external-link">#186</a>). <code>.frs_cluster_both</code> previously excluded on-spawning rearing segments from the clustering CTE. Removing those segments could shift <code>cluster_minimums</code> into the confluence-boost zone (DRM &lt; <code>confluence_m</code>) and validate clusters that <code>bridge_gradient</code> should deny. bcfishpass’s path-2 keeps on-spawning segments in clusters, so its cluster_min stays high and the confluence boost doesn’t fire. Phase-1 protection now lives only in the final <code>UPDATE</code> step — on-spawning segments retain <code>label_cluster = TRUE</code> regardless of cluster outcome, but the cluster boundaries used for phase-2 / phase-3 testing are unchanged. Reproduction case: MORR ST cluster 502 (Nado Creek + tributary 360704379, 12.58% gradient between trib confluence and downstream spawning) — bcfp denies the trib’s rearing-eligible segments; fresh now matches.</p>
+<p><strong><code>.frs_trace_downstream</code> averaged FWA gradient</strong> (<a href="https://github.com/NewGraphEnvironment/fresh/issues/187" class="external-link">#187</a>). <code>.frs_trace_downstream</code> previously used <code>whse_basemapping.fwa_downstreamtrace</code>, an iterator returning FWA-original <code>linear_feature_id</code> rows with feature-averaged gradients. Localized barriers on a sub-piece of a long FWA feature (e.g. a 7 m, 84% lake-outlet drop inside an otherwise flat 3 km feature) are invisible to that approach. Switched to a <code>FWA_Downstream</code> predicate join against the broken streams <code>table</code> arg — same pattern <code>.frs_cluster_both</code> phase-3 already uses. Localized gradients produced by <code><a href="../reference/frs_network_segment.html">frs_network_segment()</a></code> are now visible to the trace. New required columns in <code>origins_sql</code>: <code>wscode_ltree</code>, <code>localcode_ltree</code> (<code>.frs_connected_waterbody</code> is the only caller; updated). Reproduction case: KISP SK at Kitwancool Lake — bcfp’s <code>model/02_habitat_linear/sql/load_habitat_linear_sk.sql</code> correctly stops at the lake-outlet drop; fresh now matches.</p>
+<p>Both fixes tighten link’s bcfishpass-config parity rollup. No API changes for end users; <code>.frs_trace_downstream</code> is an internal helper. NEWS bump from 0.24.1 → 0.25.0 because behaviour changes are observable in <code>frs_habitat_classify</code> / <code>frs_cluster</code> / <code>frs_habitat</code> outputs for any caller running connectivity or cluster-aware classifications.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.24.1" id="fresh-0241">fresh 0.24.1<a class="anchor" aria-label="anchor" href="#fresh-0241"></a></h2>
 <p>Refresh bundled <code>inst/extdata/parameters_habitat_rules.yaml</code> to match link’s current default-bundle output. The bundled sample had drifted to pre-<code>in_waterbody</code> / pre-<code>area_only</code> shape (last synced 2026-04-12) while link’s bundles evolved through three <a href="https://github.com/NewGraphEnvironment/fresh/issues/69" class="external-link">#69</a> phases. Sync recovers the canonical sample for any <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> caller using fresh’s bundled defaults.</p>

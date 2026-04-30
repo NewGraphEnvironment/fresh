@@ -1,5 +1,49 @@
 # Changelog
 
+## fresh 0.25.0
+
+Two bcfishpass-parity fixes surfaced during link’s WSG-coverage
+expansion (link’s MORR + KISP runs, 2026-04-30).
+
+**`frs_cluster` phase-1 + confluence-boost interaction**
+([\#186](https://github.com/NewGraphEnvironment/fresh/issues/186)).
+`.frs_cluster_both` previously excluded on-spawning rearing segments
+from the clustering CTE. Removing those segments could shift
+`cluster_minimums` into the confluence-boost zone (DRM \<
+`confluence_m`) and validate clusters that `bridge_gradient` should
+deny. bcfishpass’s path-2 keeps on-spawning segments in clusters, so its
+cluster_min stays high and the confluence boost doesn’t fire. Phase-1
+protection now lives only in the final `UPDATE` step — on-spawning
+segments retain `label_cluster = TRUE` regardless of cluster outcome,
+but the cluster boundaries used for phase-2 / phase-3 testing are
+unchanged. Reproduction case: MORR ST cluster 502 (Nado Creek +
+tributary 360704379, 12.58% gradient between trib confluence and
+downstream spawning) — bcfp denies the trib’s rearing-eligible segments;
+fresh now matches.
+
+**`.frs_trace_downstream` averaged FWA gradient**
+([\#187](https://github.com/NewGraphEnvironment/fresh/issues/187)).
+`.frs_trace_downstream` previously used
+`whse_basemapping.fwa_downstreamtrace`, an iterator returning
+FWA-original `linear_feature_id` rows with feature-averaged gradients.
+Localized barriers on a sub-piece of a long FWA feature (e.g. a 7 m, 84%
+lake-outlet drop inside an otherwise flat 3 km feature) are invisible to
+that approach. Switched to a `FWA_Downstream` predicate join against the
+broken streams `table` arg — same pattern `.frs_cluster_both` phase-3
+already uses. Localized gradients produced by
+[`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
+are now visible to the trace. New required columns in `origins_sql`:
+`wscode_ltree`, `localcode_ltree` (`.frs_connected_waterbody` is the
+only caller; updated). Reproduction case: KISP SK at Kitwancool Lake —
+bcfp’s `model/02_habitat_linear/sql/load_habitat_linear_sk.sql`
+correctly stops at the lake-outlet drop; fresh now matches.
+
+Both fixes tighten link’s bcfishpass-config parity rollup. No API
+changes for end users; `.frs_trace_downstream` is an internal helper.
+NEWS bump from 0.24.1 → 0.25.0 because behaviour changes are observable
+in `frs_habitat_classify` / `frs_cluster` / `frs_habitat` outputs for
+any caller running connectivity or cluster-aware classifications.
+
 ## fresh 0.24.1
 
 Refresh bundled `inst/extdata/parameters_habitat_rules.yaml` to match

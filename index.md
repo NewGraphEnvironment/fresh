@@ -15,6 +15,7 @@ attributes for any species or question on any stream network.
 ## Installation
 
 ``` r
+
 pak::pak("NewGraphEnvironment/fresh")
 ```
 
@@ -40,6 +41,7 @@ Segment a stream network at gradient barriers and classify habitat for
 multiple species:
 
 ``` r
+
 library(fresh)
 
 conn <- DBI::dbConnect(RPostgres::Postgres(),
@@ -68,6 +70,7 @@ frs_habitat_classify(conn,
 Or use the orchestrator for multi-WSG runs with any AOI:
 
 ``` r
+
 # Province-wide with parallel workers
 frs_habitat(conn, c("BULK", "MORR", "ZYMO"),
   to_streams = "fresh.streams",
@@ -147,12 +150,12 @@ Fresh still runs standalone on any break sources you construct yourself
 
 ## Ecosystem
 
-| Package                                                   | Role                                                                                                                                                                                  |
-|-----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **fresh**                                                 | Stream network modelling engine (this package) — segment, classify, cluster, aggregate                                                                                                |
-| [link](https://github.com/NewGraphEnvironment/link)       | Feature-to-network interpretation — load + validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing pipelines |
-| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks                                                                                                                            |
-| [drift](https://github.com/NewGraphEnvironment/drift)     | Track land cover change within floodplains over time                                                                                                                                  |
+| Package | Role |
+|----|----|
+| **fresh** | Stream network modelling engine (this package) — segment, classify, cluster, aggregate |
+| [link](https://github.com/NewGraphEnvironment/link) | Feature-to-network interpretation — load + validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing pipelines |
+| [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks |
+| [drift](https://github.com/NewGraphEnvironment/drift) | Track land cover change within floodplains over time |
 
 **Pipelines:**
 

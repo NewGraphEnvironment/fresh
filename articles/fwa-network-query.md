@@ -14,6 +14,7 @@ then zooming in to order 4+ coho rearing/spawning habitat from
 bcfishpass.
 
 ``` r
+
 library(fresh)
 library(sf)
 #> Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
@@ -53,6 +54,7 @@ segments with rearing or spawning (orders 1, 2, 3, 4, 5, 6). 363 lakes
 and 1293 wetlands upstream.
 
 ``` r
+
 reg <- gq::gq_reg_main()
 cls <- gq::gq_tmap_classes(reg$layers$streams_salmon)
 lake_style <- gq::gq_tmap_style(reg$layers$lake)
