@@ -411,18 +411,24 @@ frs_cluster <- function(conn, table, habitat,
   tmp_clusters <- sprintf("pg_temp.frs_clusters_%s",
     gsub("[^a-z0-9]", "", tolower(species)))
 
-  # Phase 1: on-spawning segments — always valid, excluded from clustering
+  # Phase 1: on-spawning segments — always valid (always retained as
+  # `label_cluster = TRUE` regardless of cluster validation outcome).
+  #
+  # Earlier this function excluded phase-1 segments from the clustering
+  # CTE itself, on the theory that they "didn't need" to participate.
+  # That introduced a parity defect with bcfishpass: removing on-spawning
+  # segments from clusters can shift `cluster_minimums` into the
+  # confluence-boost zone (DRM < confluence_m) and re-validate clusters
+  # that bridge_gradient should deny — see fresh#186 for the MORR ST
+  # repro. bcfishpass keeps on-spawning segments in clusters; we now
+  # match.
+  #
+  # Phase-1 protection moves to the final UPDATE: phase-1 segments are
+  # excluded from the rearing-strip step regardless of cluster outcome.
   phase1_ids <- DBI::dbGetQuery(conn, sprintf(
     "SELECT h.id_segment FROM %s h
      WHERE h.species_code = %s AND h.%s IS TRUE AND h.%s IS TRUE",
     habitat, sp_quoted, label_cluster, label_connect))$id_segment
-
-  # Cluster remaining (non-phase1) segments
-  phase1_filter <- if (length(phase1_ids) > 0) {
-    sprintf("AND h.id_segment NOT IN (%s)", paste(phase1_ids, collapse = ", "))
-  } else {
-    ""
-  }
 
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", tmp_clusters))
   .frs_db_execute(conn, sprintf(
@@ -437,8 +443,8 @@ frs_cluster <- function(conn, table, habitat,
      FROM %s h
      INNER JOIN %s s ON h.id_segment = s.id_segment
      WHERE h.species_code = %s
-       AND h.%s IS TRUE %s",
-    tmp_clusters, habitat, table, sp_quoted, label_cluster, phase1_filter))
+       AND h.%s IS TRUE",
+    tmp_clusters, habitat, table, sp_quoted, label_cluster))
 
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX ON %s (cluster_id)", tmp_clusters))
@@ -548,14 +554,27 @@ frs_cluster <- function(conn, table, habitat,
   # Union: valid in Phase 2 OR Phase 3
   all_valid <- unique(c(valid_phase2, valid_phase3))
 
-  # UPDATE: set FALSE for clustered segments NOT valid in either phase
+  # UPDATE: set FALSE for clustered segments NOT valid in either phase.
+  # Phase-1 segments (on-spawning rearing) are always retained — they
+  # represent segments where label_cluster and label_connect are both
+  # TRUE, which is the unambiguous "this segment is itself the
+  # connection" case. Excluded from the strip regardless of cluster
+  # outcome.
+  phase1_protect <- if (length(phase1_ids) > 0) {
+    sprintf("AND h.id_segment NOT IN (%s)",
+      paste(as.integer(phase1_ids), collapse = ", "))
+  } else {
+    ""
+  }
+
   if (length(all_valid) == 0) {
     .frs_db_execute(conn, sprintf(
       "UPDATE %s h SET %s = FALSE
        FROM %s c
        WHERE h.id_segment = c.id_segment
-         AND h.species_code = %s",
-      habitat, label_cluster, tmp_clusters, sp_quoted))
+         AND h.species_code = %s
+         %s",
+      habitat, label_cluster, tmp_clusters, sp_quoted, phase1_protect))
   } else {
     valid_list <- paste(as.integer(all_valid), collapse = ", ")
     .frs_db_execute(conn, sprintf(
@@ -563,8 +582,10 @@ frs_cluster <- function(conn, table, habitat,
        FROM %s c
        WHERE h.id_segment = c.id_segment
          AND h.species_code = %s
-         AND c.cluster_id NOT IN (%s)",
-      habitat, label_cluster, tmp_clusters, sp_quoted, valid_list))
+         AND c.cluster_id NOT IN (%s)
+         %s",
+      habitat, label_cluster, tmp_clusters, sp_quoted, valid_list,
+      phase1_protect))
   }
 
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", tmp_clusters))
