@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.25.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.26.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.26.0" id="fresh-0260">fresh 0.26.0<a class="anchor" aria-label="anchor" href="#fresh-0260"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/pull/192" class="external-link">#191</a>. <code>.frs_connected_waterbody</code> Phase 2 (upstream spawn) cluster + lake-adjacency gate is now opt-out via a <code>lake_adjacent</code> parameter on the rule. Default <code>TRUE</code> keeps bcfishpass-parity behaviour byte-identical for any caller not setting the knob; passing <code>lake_adjacent: no</code> in <code>&lt;sp&gt;.spawn_connected.lake_adjacent</code> runs the relaxed Phase 2 that credits any spawn-eligible segment upstream of and accessible from a qualifying rearing waterbody. Used by callers that need to credit upstream tributary reaches not in lake-adjacent clusters (e.g. NewGraph default-bundle SK methodology — link#87). <code>.frs_load_rules</code> validator updated to accept the new key.</p>
+<p>Cross-host testing pattern (m4 ↔︎ m1 over Tailscale, with <code><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv()</a></code> overrides for <code>PG_*_SHARE</code> to point fresh tests at a host’s local Docker fwapg when the bcfp tunnel is unavailable) documented in <code>CLAUDE.md</code> “Testing on alternate hosts.”</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.25.0" id="fresh-0250">fresh 0.25.0<a class="anchor" aria-label="anchor" href="#fresh-0250"></a></h2>
 <p>Two bcfishpass-parity fixes surfaced during link’s WSG-coverage expansion (link’s MORR + KISP runs, 2026-04-30).</p>

@@ -1,5 +1,25 @@
 # Changelog
 
+## fresh 0.26.0
+
+Closes [\#191](https://github.com/NewGraphEnvironment/fresh/pull/192).
+`.frs_connected_waterbody` Phase 2 (upstream spawn) cluster +
+lake-adjacency gate is now opt-out via a `lake_adjacent` parameter on
+the rule. Default `TRUE` keeps bcfishpass-parity behaviour
+byte-identical for any caller not setting the knob; passing
+`lake_adjacent: no` in `<sp>.spawn_connected.lake_adjacent` runs the
+relaxed Phase 2 that credits any spawn-eligible segment upstream of and
+accessible from a qualifying rearing waterbody. Used by callers that
+need to credit upstream tributary reaches not in lake-adjacent clusters
+(e.g. NewGraph default-bundle SK methodology — link#87).
+`.frs_load_rules` validator updated to accept the new key.
+
+Cross-host testing pattern (m4 ↔︎ m1 over Tailscale, with
+[`Sys.setenv()`](https://rdrr.io/r/base/Sys.setenv.html) overrides for
+`PG_*_SHARE` to point fresh tests at a host’s local Docker fwapg when
+the bcfp tunnel is unavailable) documented in `CLAUDE.md` “Testing on
+alternate hosts.”
+
 ## fresh 0.25.0
 
 Two bcfishpass-parity fixes surfaced during link’s WSG-coverage
