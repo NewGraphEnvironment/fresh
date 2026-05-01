@@ -38,12 +38,14 @@ direct-child segment to qualify. Default \code{5L} (matches
 bcfishpass's hard-coded value).}
 
 \item{child_order_min}{Integer or \code{NULL}. If set, segment's
-\code{stream_order} must be \verb{>= child_order_min}. Default \code{NULL} (no
-floor — any order accepted).}
+\code{stream_order} must be \verb{>= child_order_min}. Default \code{NULL}. When
+both \code{child_order_min} and \code{child_order_max} are \code{NULL}, both
+default to \code{1L} (matches bcfishpass's \code{stream_order = 1} predicate).}
 
 \item{child_order_max}{Integer or \code{NULL}. If set, segment's
-\code{stream_order} must be \verb{<= child_order_max}. Default \code{NULL}
-(capped only by \code{stream_order_max} per the direct-child filter).}
+\code{stream_order} must be \verb{<= child_order_max}. Default \code{NULL}. When
+both \code{child_order_min} and \code{child_order_max} are \code{NULL}, both
+default to \code{1L} (matches bcfishpass's \code{stream_order = 1} predicate).}
 
 \item{distance_max}{Numeric or \code{NULL}. If set, segment's
 \code{downstream_route_measure} must be \verb{<= distance_max} (metres from
@@ -84,18 +86,20 @@ and \code{distance_max} without touching the rule grammar.
 \section{Direct-child semantics}{
 
 
-A "direct child" of a large river is a segment whose order matches
-the highest order on its blue_line_key — i.e., it flows directly
-into the parent river, not as a sub-tributary inside a multi-order
-network:
+A "direct child" of a large river is a segment whose stream_order
+matches the caller's child-order filter (\code{child_order_min} /
+\code{child_order_max}) AND whose \code{stream_order_parent} (the order of
+the river it flows into) is \verb{>= parent_order_min}:
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{s.stream_order = s.stream_order_max  -- (on the same blue_line_key)
-s.stream_order_parent >= parent_order_min
+\if{html}{\out{<div class="sourceCode">}}\preformatted{s.stream_order_parent >= parent_order_min
+[AND s.stream_order >= child_order_min]
+[AND s.stream_order <= child_order_max]
 }\if{html}{\out{</div>}}
 
-The \code{stream_order = stream_order_max} test implicitly captures
-"stop at order change" — once the segment's order would exceed
-\code{stream_order_max}, you're no longer on the direct-child reach.
+Default child filter is \code{stream_order = 1} (matches bcfishpass's
+hard-coded predicate exactly). Pass \code{child_order_min} / \code{child_order_max}
+to widen — e.g. \verb{child_order_min = 1, child_order_max = 2} for
+order-1 and order-2 tributaries.
 }
 
 \section{Distance grain}{
@@ -119,10 +123,9 @@ WHERE <habitat>.id_segment = s.id_segment
   AND <habitat>.species_code = '<species>'
   AND <habitat>.accessible = TRUE
   AND <habitat>.<label> IS NOT TRUE
-  AND s.stream_order = s.stream_order_max
   AND s.stream_order_parent >= <parent_order_min>
-  [AND s.stream_order >= <child_order_min>]
-  [AND s.stream_order <= <child_order_max>]
+  AND s.stream_order >= <child_order_min>   -- default 1 if both NULL
+  AND s.stream_order <= <child_order_max>   -- default 1 if both NULL
   [AND s.downstream_route_measure <= <distance_max>]
 }\if{html}{\out{</div>}}
 
