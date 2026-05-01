@@ -1,3 +1,9 @@
+# fresh 0.27.3
+
+Restore `stream_order_max` predicate in `frs_order_child()` — the previous patch (0.27.2) removed the `s.stream_order = s.stream_order_max` filter because the column doesn't exist on `fresh.streams`. That was the wrong fix: the predicate is load-bearing for direct-child semantics. Without it, multi-order BLKs like a named creek that grows from order-1 headwaters to order-3 mouth (e.g. Divan Creek, BLK 356353593 in HORS) get their order-1 headwater segments credited as direct trib mouths of large rivers — they are not.
+
+Fix: derive `stream_order_max` per BLK on the fly via `MAX(stream_order) OVER (PARTITION BY blue_line_key)` in a CTE, then apply `s.stream_order = s.stream_order_max` to bound the bypass to mouth-side reaches only. Same answer as `bcfishpass.streams.stream_order_max` (which is a stored column there). Verified against HORS BT — eliminates ~95 km of spurious credit on multi-order BLK headwaters.
+
 # fresh 0.27.2
 
 Fix `frs_order_child()` SQL referencing nonexistent column `s.stream_order_max`. `fresh.streams` has `stream_order` and `stream_order_parent` from FWA but no `stream_order_max` — the 0.27.0 SQL failed at execution against any real database (only the SQL-shape unit tests passed, and they asserted the broken predicate). Drop the broken predicate; default both `child_order_min` and `child_order_max` to `1L` when neither is set, which matches bcfishpass's hardcoded `stream_order = 1` predicate exactly. Caller-passed bounds still apply unchanged.
