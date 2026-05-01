@@ -343,7 +343,7 @@ frs_params <- function(conn = NULL,
         "rules YAML %s/%s rule %d channel_width_min_bypass must be a named mapping",
         sp, habitat, idx), call. = FALSE)
     }
-    bypass_keys <- c("stream_order", "stream_order_parent_min")
+    bypass_keys <- c("stream_order", "stream_order_parent_min", "distance_max")
     unknown_b <- setdiff(names(bypass), bypass_keys)
     if (length(unknown_b) > 0) {
       stop(sprintf(
@@ -352,7 +352,8 @@ frs_params <- function(conn = NULL,
         paste(unknown_b, collapse = ", "),
         paste(bypass_keys, collapse = ", ")), call. = FALSE)
     }
-    for (k in bypass_keys) {
+    # stream_order / stream_order_parent_min must be positive integer scalars.
+    for (k in c("stream_order", "stream_order_parent_min")) {
       v <- bypass[[k]]
       if (is.null(v)) next
       if (!is.numeric(v) || length(v) != 1L || is.na(v) ||
@@ -360,6 +361,15 @@ frs_params <- function(conn = NULL,
         stop(sprintf(
           "rules YAML %s/%s rule %d channel_width_min_bypass$%s must be a positive integer scalar",
           sp, habitat, idx, k), call. = FALSE)
+      }
+    }
+    # distance_max is a positive numeric scalar (metres along route).
+    if (!is.null(bypass[["distance_max"]])) {
+      v <- bypass[["distance_max"]]
+      if (!is.numeric(v) || length(v) != 1L || is.na(v) || v <= 0) {
+        stop(sprintf(
+          "rules YAML %s/%s rule %d channel_width_min_bypass$distance_max must be a positive numeric scalar",
+          sp, habitat, idx), call. = FALSE)
       }
     }
   }
