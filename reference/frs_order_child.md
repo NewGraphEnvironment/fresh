@@ -104,20 +104,31 @@ rule, so callers can tune `parent_order_min`, `child_order_min/max`, and
 
 ## Direct-child semantics
 
-A "direct child" of a large river is a segment whose stream_order
-matches the caller's child-order filter (`child_order_min` /
-`child_order_max`) AND whose `stream_order_parent` (the order of the
-river it flows into) is `>= parent_order_min`:
+A "direct child" of a large river is a segment that satisfies all of:
 
-    s.stream_order_parent >= parent_order_min
-    [AND s.stream_order >= child_order_min]
-    [AND s.stream_order <= child_order_max]
+1.  **`stream_order = stream_order_max` (per blue_line_key).** The
+    segment is on the mouth-side reach of its BLK — the part where the
+    BLK has reached its final, maximum order. Tributaries joining
+    upstream may push the BLK to a higher order at lower DRM, but the
+    headwater portions (where the BLK is still at a smaller order before
+    any tribs join) are excluded. Without this filter, a multi-order BLK
+    like a named creek that grows from order-1 headwaters to order-3
+    mouth would have its order-1 headwater reaches credited even though
+    they are not the "direct trib" of a large parent — they are just
+    upstream of one.
 
-Default child filter is `stream_order = 1` (matches bcfishpass's
-hard-coded predicate exactly). Pass `child_order_min` /
-`child_order_max` to widen — e.g.
-`child_order_min = 1, child_order_max = 2` for order-1 and order-2
-tributaries.
+2.  **`stream_order_parent >= parent_order_min`.** The receiving stream
+    at the BLK's first downstream confluence is at least the threshold
+    order (default 5L = bcfp's hardcoded value).
+
+3.  **`stream_order` between `child_order_min` and `child_order_max`
+    (defaults to 1L for both).** Restricts the child trib's own order.
+    Default 1L matches bcfishpass.
+
+`stream_order_max` is computed on the fly via window function over the
+`table` argument: `MAX(stream_order) OVER (PARTITION BY blue_line_key)`.
+fresh's streams table doesn't store this column; bcfp's
+`bcfishpass.streams` does, but the value is the same.
 
 ## Distance grain
 
@@ -130,13 +141,19 @@ of scope here.
 
 ## SQL emitted
 
+    WITH s AS (
+      SELECT *,
+             MAX(stream_order) OVER (PARTITION BY blue_line_key) AS stream_order_max
+      FROM <table>
+    )
     UPDATE <habitat>
     SET <label> = TRUE
-    FROM <table> s
+    FROM s
     WHERE <habitat>.id_segment = s.id_segment
       AND <habitat>.species_code = '<species>'
       AND <habitat>.accessible = TRUE
       AND <habitat>.<label> IS NOT TRUE
+      AND s.stream_order = s.stream_order_max
       AND s.stream_order_parent >= <parent_order_min>
       AND s.stream_order >= <child_order_min>   -- default 1 if both NULL
       AND s.stream_order <= <child_order_max>   -- default 1 if both NULL

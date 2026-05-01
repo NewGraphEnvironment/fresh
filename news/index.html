@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.27.3" id="fresh-0273">fresh 0.27.3<a class="anchor" aria-label="anchor" href="#fresh-0273"></a></h2>
+<p>Restore <code>stream_order_max</code> predicate in <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> — the previous patch (0.27.2) removed the <code>s.stream_order = s.stream_order_max</code> filter because the column doesn’t exist on <code>fresh.streams</code>. That was the wrong fix: the predicate is load-bearing for direct-child semantics. Without it, multi-order BLKs like a named creek that grows from order-1 headwaters to order-3 mouth (e.g. Divan Creek, BLK 356353593 in HORS) get their order-1 headwater segments credited as direct trib mouths of large rivers — they are not.</p>
+<p>Fix: derive <code>stream_order_max</code> per BLK on the fly via <code>MAX(stream_order) OVER (PARTITION BY blue_line_key)</code> in a CTE, then apply <code>s.stream_order = s.stream_order_max</code> to bound the bypass to mouth-side reaches only. Same answer as <code>bcfishpass.streams.stream_order_max</code> (which is a stored column there). Verified against HORS BT — eliminates ~95 km of spurious credit on multi-order BLK headwaters.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.27.2" id="fresh-0272">fresh 0.27.2<a class="anchor" aria-label="anchor" href="#fresh-0272"></a></h2>
 <p>Fix <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> SQL referencing nonexistent column <code>s.stream_order_max</code>. <code>fresh.streams</code> has <code>stream_order</code> and <code>stream_order_parent</code> from FWA but no <code>stream_order_max</code> — the 0.27.0 SQL failed at execution against any real database (only the SQL-shape unit tests passed, and they asserted the broken predicate). Drop the broken predicate; default both <code>child_order_min</code> and <code>child_order_max</code> to <code>1L</code> when neither is set, which matches bcfishpass’s hardcoded <code>stream_order = 1</code> predicate exactly. Caller-passed bounds still apply unchanged.</p>

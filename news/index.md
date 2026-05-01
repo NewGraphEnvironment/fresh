@@ -1,5 +1,25 @@
 # Changelog
 
+## fresh 0.27.3
+
+Restore `stream_order_max` predicate in
+[`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md)
+— the previous patch (0.27.2) removed the
+`s.stream_order = s.stream_order_max` filter because the column doesn’t
+exist on `fresh.streams`. That was the wrong fix: the predicate is
+load-bearing for direct-child semantics. Without it, multi-order BLKs
+like a named creek that grows from order-1 headwaters to order-3 mouth
+(e.g. Divan Creek, BLK 356353593 in HORS) get their order-1 headwater
+segments credited as direct trib mouths of large rivers — they are not.
+
+Fix: derive `stream_order_max` per BLK on the fly via
+`MAX(stream_order) OVER (PARTITION BY blue_line_key)` in a CTE, then
+apply `s.stream_order = s.stream_order_max` to bound the bypass to
+mouth-side reaches only. Same answer as
+`bcfishpass.streams.stream_order_max` (which is a stored column there).
+Verified against HORS BT — eliminates ~95 km of spurious credit on
+multi-order BLK headwaters.
+
 ## fresh 0.27.2
 
 Fix
