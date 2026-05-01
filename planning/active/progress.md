@@ -1,8 +1,7 @@
-# Progress — fresh#191
+# Progress — fresh#158
 
-## Session 2026-04-30
+## Session 2026-05-01
 
-- Filed fresh#191 with diagnosis + proposed fix. Cross-references link#87.
-- Branch `191-lake-adjacent-knob` from main (HEAD ec0c770).
+- Branch `158-frs-order-child` from main HEAD `253abf2` (post-fresh#191 release).
 - PWF baseline.
-- Next: `.frs_connected_waterbody` param + Phase 2 SQL branch.
+- Next: write `R/frs_order_child.R` per issue body spec, mock SQL tests.
