@@ -299,6 +299,65 @@ test_that(".frs_load_rules errors on unknown spawn_connected keys", {
   expect_error(.frs_load_rules(tmp), "unknown keys.*bogus_key")
 })
 
+test_that(".frs_load_rules accepts spawn_connected.lake_adjacent yes/no", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05",
+    "    lake_adjacent: no"), tmp)
+  rules <- .frs_load_rules(tmp)
+  expect_identical(rules$SK$spawn_connected$lake_adjacent, FALSE)
+
+  writeLines(c(
+    "SK:",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05",
+    "    lake_adjacent: yes"), tmp)
+  rules <- .frs_load_rules(tmp)
+  expect_identical(rules$SK$spawn_connected$lake_adjacent, TRUE)
+})
+
+test_that(".frs_load_rules errors on non-logical lake_adjacent", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05",
+    "    lake_adjacent: maybe"), tmp)
+  expect_error(.frs_load_rules(tmp),
+    "lake_adjacent must be a logical scalar")
+})
+
+test_that(".frs_load_rules errors on misspelled lake_adjacent key", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn_connected:",
+    "    direction: downstream",
+    "    waterbody_type: L",
+    "    gradient_max: 0.05",
+    "    distance_max: 3000",
+    "    bridge_gradient: 0.05",
+    "    lake_adjacency: no"), tmp)  # typo
+  expect_error(.frs_load_rules(tmp), "unknown keys.*lake_adjacency")
+})
+
 test_that(".frs_load_rules errors on missing required spawn_connected keys", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))

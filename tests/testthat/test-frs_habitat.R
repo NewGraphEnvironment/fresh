@@ -378,3 +378,109 @@ test_that("integration: multiple labels at same position preserved in breaks", {
   expect_gt(nrow(dupes), 0)
   expect_true(all(dupes$n_labels >= 2))
 })
+
+
+# =====================================================================
+# .frs_connected_waterbody: lake_adjacent knob (fresh#191)
+# =====================================================================
+#
+# Phase 2 (upstream spawn) gates spawn-upstream candidates through a
+# DBSCAN cluster + lake-adjacency filter when lake_adjacent = TRUE
+# (bcfishpass parity), and emits all spawn_upstream segments directly
+# when lake_adjacent = FALSE (relaxed default-bundle behaviour).
+#
+# These tests assert the SQL contract on both branches by capturing
+# every emitted statement and checking, per-statement, that the cluster
+# CTEs are present (TRUE) or absent (FALSE) — and that the INSERT INTO
+# qual_tbl ... FROM spawn_upstream lands as a single statement in the
+# FALSE branch.
+#
+# Shared helper to invoke the function with a stubbed DB connection,
+# stubbed DBI::dbGetQuery (used only for the verbose count) and stubbed
+# .frs_trace_downstream (Phase 1; emits no SQL via .frs_db_execute).
+.run_connected_waterbody <- function(lake_adjacent_arg) {
+  sql_log <- character(0)
+  testthat::local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      sql_log <<- c(sql_log, sql); 0L
+    },
+    .frs_trace_downstream = function(conn, table, origins_sql, target,
+                                     distance_max, bridge_gradient) {
+      invisible(NULL)
+    }
+  )
+  mockery::stub(.frs_connected_waterbody, "DBI::dbGetQuery",
+    function(conn, sql) data.frame(n = 0L))
+
+  args <- list(
+    conn = "mock-conn",
+    table = "fresh.streams",
+    habitat = "fresh.streams_habitat",
+    species = "SK",
+    waterbody_poly = c("whse_basemapping.fwa_lakes_poly",
+                       "whse_basemapping.fwa_manmade_waterbodies_poly"),
+    waterbody_ha_min = 200,
+    bridge_gradient = 0.05,
+    distance_max = 3000,
+    spawn_connected = NULL,
+    verbose = FALSE)
+  if (!is.null(lake_adjacent_arg)) args$lake_adjacent <- lake_adjacent_arg
+
+  do.call(.frs_connected_waterbody, args)
+  sql_log
+}
+
+test_that(".frs_connected_waterbody lake_adjacent=TRUE emits cluster + lake-adjacency CTEs", {
+  sql_log <- .run_connected_waterbody(TRUE)
+  joined <- paste(sql_log, collapse = "\n")
+
+  # Cluster + adjacency markers must all appear in the TRUE branch
+  expect_match(joined, "ST_ClusterDBSCAN")
+  expect_match(joined, "cluster_geoms")
+  expect_match(joined, "valid_clusters")
+  expect_match(joined, "ST_DWithin")
+
+  # Phase 2 INSERT lands in qual_tbl, not via the simpler spawn_upstream-only path
+  has_phase2_insert <- any(
+    grepl("INSERT INTO pg_temp\\.frs_qual_spawn_sk", sql_log) &
+    grepl("valid_clusters", sql_log))
+  expect_true(has_phase2_insert,
+    info = "expected one captured SQL with INSERT INTO qual_tbl ... valid_clusters in TRUE branch")
+})
+
+test_that(".frs_connected_waterbody lake_adjacent=FALSE emits spawn_upstream-only INSERT, no cluster CTEs", {
+  sql_log <- .run_connected_waterbody(FALSE)
+  joined <- paste(sql_log, collapse = "\n")
+
+  # Cluster + adjacency markers must NOT appear anywhere in the FALSE branch
+  expect_no_match(joined, "ST_ClusterDBSCAN")
+  expect_no_match(joined, "cluster_geoms")
+  expect_no_match(joined, "valid_clusters")
+  expect_no_match(joined, "ST_DWithin")
+
+  # Per-statement assertion (not cross-statement) — a single SQL string
+  # must contain BOTH the INSERT target and the SELECT source. Avoids
+  # false-positive on the Phase 1 INSERT (which targets qual_tbl too)
+  # combined with a spawn_upstream mention elsewhere.
+  has_relaxed_insert <- any(
+    grepl("INSERT INTO pg_temp\\.frs_qual_spawn_sk", sql_log) &
+    grepl("SELECT id_segment FROM spawn_upstream", sql_log))
+  expect_true(has_relaxed_insert,
+    info = "expected one captured SQL with INSERT INTO qual_tbl ... SELECT id_segment FROM spawn_upstream in FALSE branch")
+
+  # Both CTEs that survive in the FALSE branch must still be present —
+  # the SQL still requires a segment to be (a) spawn-eligible and (b)
+  # upstream of a rearing segment. spawn_upstream encodes both.
+  expect_match(joined, "rearing_segs AS")
+  expect_match(joined, "spawn_upstream AS")
+  expect_match(joined, "fwa_upstream\\(")
+})
+
+test_that(".frs_connected_waterbody defaults to lake_adjacent=TRUE when arg omitted", {
+  sql_log <- .run_connected_waterbody(NULL)
+  joined <- paste(sql_log, collapse = "\n")
+  # Default behaviour must match TRUE branch — bcfishpass parity for
+  # any caller that doesn't pass the knob.
+  expect_match(joined, "ST_ClusterDBSCAN")
+  expect_match(joined, "ST_DWithin")
+})

@@ -99,6 +99,60 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output
 - **Database:** PostgreSQL with fwapg (local Docker or remote tunnel)
 - **Connection:** Local Docker on port 5432 or SSH tunnel on 63333; see db-newgraph skill
 
+## Testing on alternate hosts
+
+Integration tests use `frs_db_conn()` which reads `PG_*_SHARE` env vars
+(`PG_HOST_SHARE`, `PG_PORT_SHARE`, `PG_USER_SHARE`, `PG_PASS_SHARE`,
+`PG_DB_SHARE`). On dev machines those are commonly wired in `~/.Renviron`
+to point at the SSH tunnel (`localhost:63333`) for the bcfishpass-shared
+DB. R's user `~/.Renviron` overrides shell env, so a shell-level
+`export PG_PORT_SHARE=5432` does NOT change what R sees.
+
+To run fresh tests against a host's **local** Docker fwapg (port 5432)
+instead — useful when the tunnel is down, when the local box has a
+byte-identical fwapg, or when offloading test runs from a busy machine
+to a parallel host (e.g. m4 ↔ m1 on Tailscale):
+
+```r
+# Inside R, before any frs_db_conn() call:
+Sys.setenv(PG_HOST_SHARE = "localhost",
+           PG_PORT_SHARE = "5432",
+           PG_USER_SHARE = "postgres",
+           PG_PASS_SHARE = "postgres",
+           PG_DB_SHARE   = "fwapg")
+testthat::set_max_fails(Inf)
+devtools::test()
+```
+
+Or via `Rscript --no-environ` to skip user `~/.Renviron` entirely
+(then shell-level `export` works).
+
+**Note:** the local Docker fwapg typically has only the `fwapg`
+database / `whse_basemapping` schema. Tests that read the `bcfishpass`
+schema (`bcfishpass.parameters_habitat_thresholds`, etc.) will fail
+without the tunnel — those need the shared DB. Most habitat-pipeline
+tests use only `whse_basemapping` and run fine off-tunnel.
+
+Cross-host run pattern (m4 → m1 over Tailscale, e.g. when m4 is busy):
+
+```bash
+# 1. Push the branch from m4 (the dev box)
+git push -u origin <branch>
+
+# 2. On m1: fetch + checkout + reinstall
+ssh m1 'cd /Users/airvine/Projects/repo/fresh && \
+        git fetch origin && git checkout <branch> && \
+        Rscript -e "pak::pak(\"NewGraphEnvironment/fresh@<branch>\", upgrade = FALSE, ask = FALSE)"'
+
+# 3. On m1: run tests with local-fwapg env override
+ssh m1 'cd /Users/airvine/Projects/repo/fresh && Rscript -e "
+  Sys.setenv(PG_PORT_SHARE = \"5432\", PG_USER_SHARE = \"postgres\",
+             PG_PASS_SHARE = \"postgres\", PG_DB_SHARE = \"fwapg\",
+             PG_HOST_SHARE = \"localhost\")
+  testthat::set_max_fails(Inf); devtools::test()
+" > /tmp/m1_fresh_test.log 2>&1 &'
+```
+
 ## Naming Conventions
 
 ### Generated column names
