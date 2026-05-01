@@ -40,8 +40,9 @@ test_that("frs_order_child default emits canonical bcfishpass-parity SQL", {
   expect_match(s, "UPDATE fresh\\.streams_habitat h")
   expect_match(s, "SET rearing = TRUE")
 
-  # FROM the streams table
-  expect_match(s, "FROM fresh\\.streams s")
+  # CTE wraps the streams source to derive stream_order_max
+  expect_match(s, "FROM fresh\\.streams\\s*\\n")
+  expect_match(s, "FROM s\\b")
 
   # Required guards
   expect_match(s, "h\\.species_code = 'BT'")
@@ -55,10 +56,11 @@ test_that("frs_order_child default emits canonical bcfishpass-parity SQL", {
   expect_match(s, "s\\.stream_order <= 1")
   expect_match(s, "s\\.stream_order_parent >= 5")
 
-  # No nonexistent column reference: stream_order_max is NOT a column
-  # on fresh.streams. The original 0.27.0 SQL referenced it and broke
-  # at execution.
-  expect_no_match(s, "stream_order_max")
+  # Per-BLK stream_order_max derived in CTE, predicate enforces direct-
+  # child mouth-side reach (excludes headwater portions of multi-order
+  # BLKs that grow to higher order at their mouth).
+  expect_match(s, "MAX\\(stream_order\\) OVER \\(PARTITION BY blue_line_key\\)")
+  expect_match(s, "s\\.stream_order = s\\.stream_order_max")
 
   # Distance clause not present at default
   expect_no_match(s, "downstream_route_measure")
@@ -70,8 +72,9 @@ test_that("frs_order_child emits child_order_min/max bounds when set", {
 
   expect_match(s, "s\\.stream_order >= 2")
   expect_match(s, "s\\.stream_order <= 4")
-  # No nonexistent column reference
-  expect_no_match(s, "stream_order_max")
+  # Direct-child mouth-side reach predicate stays on regardless of
+  # caller-passed child bounds.
+  expect_match(s, "s\\.stream_order = s\\.stream_order_max")
 })
 
 test_that("frs_order_child emits distance_max clause when set", {
@@ -80,12 +83,15 @@ test_that("frs_order_child emits distance_max clause when set", {
   expect_match(s, "s\\.downstream_route_measure <= 300")
 })
 
-test_that("frs_order_child SQL never references stream_order_max", {
-  # 0.27.0 docstring + SQL referenced s.stream_order_max which is not
-  # a column on fresh.streams (only stream_order, stream_order_parent
-  # exist). Execution failed at the first call site (link's HORS
-  # pre-flight). Defend against re-introducing the broken reference
-  # in any code path.
+test_that("frs_order_child SQL always derives stream_order_max via CTE", {
+  # `stream_order_max` is the direct-child filter that bounds the bypass
+  # to the mouth-side reach of a BLK. Without it, multi-order BLKs (a
+  # named creek that grows from order-1 headwaters to order-3 mouth)
+  # would have their order-1 headwater segments credited even though
+  # they are not direct trib reaches of large rivers.
+  #
+  # fresh.streams doesn't store stream_order_max; the CTE derives it
+  # via window function so the predicate works against either source.
   for (args in list(
     list(),
     list(child_order_min = 1L),
@@ -95,7 +101,10 @@ test_that("frs_order_child SQL never references stream_order_max", {
     list(parent_order_min = 7L),
     list(label = "lake_rearing"))) {
     sql <- do.call(.run_order_child, args)
-    expect_no_match(sql[1], "stream_order_max",
+    expect_match(sql[1],
+      "MAX\\(stream_order\\) OVER \\(PARTITION BY blue_line_key\\)",
+      info = paste("args:", paste(names(args), collapse = ",")))
+    expect_match(sql[1], "s\\.stream_order = s\\.stream_order_max",
       info = paste("args:", paste(names(args), collapse = ",")))
   }
 })
