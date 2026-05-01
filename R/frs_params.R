@@ -343,7 +343,8 @@ frs_params <- function(conn = NULL,
         "rules YAML %s/%s rule %d channel_width_min_bypass must be a named mapping",
         sp, habitat, idx), call. = FALSE)
     }
-    bypass_keys <- c("stream_order", "stream_order_parent_min", "distance_max")
+    bypass_keys <- c("stream_order_min", "stream_order_max",
+                     "stream_order_parent_min", "distance_max")
     unknown_b <- setdiff(names(bypass), bypass_keys)
     if (length(unknown_b) > 0) {
       stop(sprintf(
@@ -352,8 +353,8 @@ frs_params <- function(conn = NULL,
         paste(unknown_b, collapse = ", "),
         paste(bypass_keys, collapse = ", ")), call. = FALSE)
     }
-    # stream_order / stream_order_parent_min must be positive integer scalars.
-    for (k in c("stream_order", "stream_order_parent_min")) {
+    # All three integer keys must be positive integer scalars when present.
+    for (k in c("stream_order_min", "stream_order_max", "stream_order_parent_min")) {
       v <- bypass[[k]]
       if (is.null(v)) next
       if (!is.numeric(v) || length(v) != 1L || is.na(v) ||
