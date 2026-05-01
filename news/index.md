@@ -1,5 +1,19 @@
 # Changelog
 
+## fresh 0.27.5
+
+`channel_width_min_bypass` block schema change: replace single
+`stream_order` key with `stream_order_min` + `stream_order_max` to
+express child-order ranges. The single key was modeling only
+`stream_order = 1` (bcfp parity), but `frs_order_child` always supported
+a range — `child_order_min` / `child_order_max` parameters. The new pair
+maps directly. Validator rejects the legacy `stream_order` key with
+`unknown keys` to flag stale rules.yaml files for regeneration.
+
+Unblocks link’s `dimensions.csv::rear_stream_order_child_min` /
+`rear_stream_order_child_max` columns. No behaviour change for
+`frs_order_child` itself; this is a YAML schema rename only.
+
 ## fresh 0.27.4
 
 Allow optional `distance_max` key inside `channel_width_min_bypass`

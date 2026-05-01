@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.27.5" id="fresh-0275">fresh 0.27.5<a class="anchor" aria-label="anchor" href="#fresh-0275"></a></h2>
+<p><code>channel_width_min_bypass</code> block schema change: replace single <code>stream_order</code> key with <code>stream_order_min</code> + <code>stream_order_max</code> to express child-order ranges. The single key was modeling only <code>stream_order = 1</code> (bcfp parity), but <code>frs_order_child</code> always supported a range — <code>child_order_min</code> / <code>child_order_max</code> parameters. The new pair maps directly. Validator rejects the legacy <code>stream_order</code> key with <code>unknown keys</code> to flag stale rules.yaml files for regeneration.</p>
+<p>Unblocks link’s <code>dimensions.csv::rear_stream_order_child_min</code> / <code>rear_stream_order_child_max</code> columns. No behaviour change for <code>frs_order_child</code> itself; this is a YAML schema rename only.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.27.4" id="fresh-0274">fresh 0.27.4<a class="anchor" aria-label="anchor" href="#fresh-0274"></a></h2>
 <p>Allow optional <code>distance_max</code> key inside <code>channel_width_min_bypass</code> block in rules YAML — link uses it to cap the bypass to the lower N metres of each direct-trib BLK (i.e. <code>frs_order_child(distance_max = N)</code>). Validator accepts a positive numeric scalar; rejects zero / negative / non-numeric values.</p>
