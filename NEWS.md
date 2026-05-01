@@ -1,3 +1,7 @@
+# fresh 0.27.4
+
+Allow optional `distance_max` key inside `channel_width_min_bypass` block in rules YAML — link uses it to cap the bypass to the lower N metres of each direct-trib BLK (i.e. `frs_order_child(distance_max = N)`). Validator accepts a positive numeric scalar; rejects zero / negative / non-numeric values.
+
 # fresh 0.27.3
 
 Restore `stream_order_max` predicate in `frs_order_child()` — the previous patch (0.27.2) removed the `s.stream_order = s.stream_order_max` filter because the column doesn't exist on `fresh.streams`. That was the wrong fix: the predicate is load-bearing for direct-child semantics. Without it, multi-order BLKs like a named creek that grows from order-1 headwaters to order-3 mouth (e.g. Divan Creek, BLK 356353593 in HORS) get their order-1 headwater segments credited as direct trib mouths of large rivers — they are not.

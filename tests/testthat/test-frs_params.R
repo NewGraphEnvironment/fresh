@@ -333,6 +333,38 @@ test_that(".frs_load_rules errors on non-list channel_width_min_bypass", {
   expect_error(.frs_load_rules(tmp), "must be a named mapping")
 })
 
+test_that(".frs_load_rules accepts channel_width_min_bypass.distance_max", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - edge_types:",
+    "        - stream",
+    "      channel_width_min_bypass:",
+    "        stream_order: 1",
+    "        stream_order_parent_min: 5",
+    "        distance_max: 300"), tmp)
+  expect_silent(rules <- .frs_load_rules(tmp))
+  expect_equal(
+    rules$BT$rear[[1]]$channel_width_min_bypass$distance_max, 300)
+})
+
+test_that(".frs_load_rules errors on non-positive channel_width_min_bypass.distance_max", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - edge_types:",
+    "        - stream",
+    "      channel_width_min_bypass:",
+    "        stream_order: 1",
+    "        stream_order_parent_min: 5",
+    "        distance_max: -100"), tmp)
+  expect_error(.frs_load_rules(tmp), "must be a positive numeric scalar")
+})
+
 
 # --- spawn_connected validation tests ---
 
