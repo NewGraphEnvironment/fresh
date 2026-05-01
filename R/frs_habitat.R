@@ -1214,11 +1214,15 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
         if (!is.null(wb_type)) {
           wb_poly <- .frs_waterbody_tables(wb_type)
           sc <- ps[["rules"]][["spawn_connected"]]
+          # Default TRUE for back-compat: callers without lake_adjacent in
+          # rules.yaml get the bcfishpass-parity Phase 2 cluster gate.
+          la <- if (is.null(sc[["lake_adjacent"]])) TRUE else
+            isTRUE(sc[["lake_adjacent"]])
           .frs_connected_waterbody(conn, table, habitat,
             species = sp, waterbody_poly = wb_poly,
             waterbody_ha_min = wb_ha_min, bridge_gradient = bg,
             distance_max = bd, spawn_connected = sc,
-            verbose = verbose)
+            lake_adjacent = la, verbose = verbose)
         } else {
           # Generic cluster approach for non-lake rearing
           dir <- if (is.na(fp$cluster_spawn_direction)) "both" else
@@ -1460,6 +1464,18 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #'   in the downstream trace that meet these thresholds get `spawning = TRUE`
 #'   even if they failed standard classification. Keys: `gradient_max`,
 #'   `channel_width_min`, `edge_types`, `edge_types_explicit`.
+#' @param lake_adjacent Logical. Phase 2 (upstream) cluster gate.
+#'   `TRUE` (default) — bcfishpass-parity behaviour: candidate spawning
+#'   segments are clustered via `ST_ClusterDBSCAN` and credited only if
+#'   the cluster is within 2 m of a qualifying waterbody polygon.
+#'   `FALSE` — relaxed: every spawn-eligible segment that is upstream of
+#'   a qualifying rearing waterbody and accessible from it is credited
+#'   directly. Used when callers want to credit upstream spawning
+#'   reaches that don't form a single contiguous lake-touching cluster.
+#'   Accessibility and lake-area-min are preserved either way: the
+#'   `spawn_upstream` CTE requires `hs.spawning IS TRUE` (which classify
+#'   gates on access + spawn rule) and `EXISTS (rearing_segs ...)`
+#'   (rearing already gated on `area_ha >= rear_lake_ha_min`).
 #' @param verbose Logical. Print before/after counts.
 #' @noRd
 .frs_connected_waterbody <- function(conn, table, habitat,
@@ -1468,6 +1484,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
                                      bridge_gradient = 0.05,
                                      distance_max = 3000,
                                      spawn_connected = NULL,
+                                     lake_adjacent = TRUE,
                                      verbose = TRUE) {
   sp_quoted <- .frs_quote_string(species)
   lhm <- .frs_sql_num(waterbody_ha_min)
@@ -1515,19 +1532,17 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     qual_tbl, table, lfid_tbl))
   # Keep lfid_tbl alive for Phase 3 additive step
 
-  # Phase 2: Upstream — spawn-eligible segments upstream of rearing,
-  # clustered, kept only if cluster touches qualifying waterbody polygon
-  # Build EXISTS clause that checks all waterbody polygon tables (UNION ALL)
-  wb_exists <- paste(vapply(waterbody_poly, function(wt) {
-    sprintf(
-      "EXISTS (SELECT 1 FROM %s lp
-       WHERE lp.area_ha >= %s AND ST_DWithin(cg.geom, lp.geom, 2))",
-      wt, lhm)
-  }, character(1)), collapse = " OR ")
-
-  .frs_db_execute(conn, sprintf(
-    "INSERT INTO %s (id_segment)
-     WITH rearing_segs AS (
+  # Phase 2: Upstream — spawn-eligible segments upstream of rearing.
+  # When `lake_adjacent` is TRUE (bcfishpass-parity), additionally cluster
+  # candidates and keep only clusters within 2 m of a qualifying lake/
+  # reservoir polygon. When FALSE, every spawn_upstream segment qualifies.
+  # `spawn_upstream` already encodes accessibility (`hs.spawning IS TRUE`
+  # is access-gated by classify) and lake-min-size (`rearing_segs` are
+  # gated on `area_ha >= rear_lake_ha_min` by classify), so dropping the
+  # cluster gate does not bypass either constraint — it only stops
+  # requiring the spawn reach to physically touch the lake.
+  rearing_spawn_ctes <- sprintf(
+    "WITH rearing_segs AS (
        SELECT s2.wscode_ltree, s2.localcode_ltree,
               s2.blue_line_key, s2.downstream_route_measure
        FROM %s s2
@@ -1545,26 +1560,47 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
                               s3.wscode_ltree, s3.localcode_ltree)
              OR (r.blue_line_key = s3.blue_line_key
                  AND s3.downstream_route_measure >= r.downstream_route_measure))
-     ),
-     clustered AS (
-       SELECT id_segment,
-         ST_ClusterDBSCAN(geom, 1, 1) OVER () AS cluster_id
-       FROM spawn_upstream
-     ),
-     cluster_geoms AS (
-       SELECT cluster_id, ST_Collect(su.geom) AS geom
-       FROM clustered c
-       INNER JOIN spawn_upstream su ON c.id_segment = su.id_segment
-       GROUP BY cluster_id
-     ),
-     valid_clusters AS (
-       SELECT cg.cluster_id FROM cluster_geoms cg
-       WHERE %s
-     )
-     SELECT c.id_segment FROM clustered c
-     WHERE c.cluster_id IN (SELECT cluster_id FROM valid_clusters)",
-    qual_tbl, table, habitat, sp_quoted,
-    table, habitat, sp_quoted, wb_exists))
+     )",
+    table, habitat, sp_quoted,
+    table, habitat, sp_quoted)
+
+  if (lake_adjacent) {
+    # Build EXISTS clause that checks all waterbody polygon tables
+    wb_exists <- paste(vapply(waterbody_poly, function(wt) {
+      sprintf(
+        "EXISTS (SELECT 1 FROM %s lp
+         WHERE lp.area_ha >= %s AND ST_DWithin(cg.geom, lp.geom, 2))",
+        wt, lhm)
+    }, character(1)), collapse = " OR ")
+
+    .frs_db_execute(conn, sprintf(
+      "INSERT INTO %s (id_segment)
+       %s,
+       clustered AS (
+         SELECT id_segment,
+           ST_ClusterDBSCAN(geom, 1, 1) OVER () AS cluster_id
+         FROM spawn_upstream
+       ),
+       cluster_geoms AS (
+         SELECT cluster_id, ST_Collect(su.geom) AS geom
+         FROM clustered c
+         INNER JOIN spawn_upstream su ON c.id_segment = su.id_segment
+         GROUP BY cluster_id
+       ),
+       valid_clusters AS (
+         SELECT cg.cluster_id FROM cluster_geoms cg
+         WHERE %s
+       )
+       SELECT c.id_segment FROM clustered c
+       WHERE c.cluster_id IN (SELECT cluster_id FROM valid_clusters)",
+      qual_tbl, rearing_spawn_ctes, wb_exists))
+  } else {
+    .frs_db_execute(conn, sprintf(
+      "INSERT INTO %s (id_segment)
+       %s
+       SELECT id_segment FROM spawn_upstream",
+      qual_tbl, rearing_spawn_ctes))
+  }
 
   # Subtractive: remove spawning NOT found in either phase
   .frs_db_execute(conn, sprintf(

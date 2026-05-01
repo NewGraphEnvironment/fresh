@@ -351,7 +351,7 @@ frs_params <- function(conn = NULL,
 
   valid_keys <- c("direction", "waterbody_type", "gradient_max",
                    "channel_width_min", "distance_max", "bridge_gradient",
-                   "edge_types", "edge_types_explicit")
+                   "edge_types", "edge_types_explicit", "lake_adjacent")
   unknown <- setdiff(names(block), valid_keys)
   if (length(unknown) > 0) {
     stop(sprintf(
@@ -396,6 +396,15 @@ frs_params <- function(conn = NULL,
     if (!is.numeric(val) || length(val) != 1) {
       stop(sprintf(
         "rules YAML %s/spawn_connected channel_width_min must be a numeric scalar",
+        sp), call. = FALSE)
+    }
+  }
+
+  if (!is.null(block[["lake_adjacent"]])) {
+    val <- block[["lake_adjacent"]]
+    if (!is.logical(val) || length(val) != 1 || is.na(val)) {
+      stop(sprintf(
+        "rules YAML %s/spawn_connected lake_adjacent must be a logical scalar (yes/no)",
         sp), call. = FALSE)
     }
   }
