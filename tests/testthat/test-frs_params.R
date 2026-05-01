@@ -269,11 +269,13 @@ test_that(".frs_load_rules accepts valid channel_width_min_bypass", {
     "    - edge_types:",
     "        - stream",
     "      channel_width_min_bypass:",
-    "        stream_order: 1",
+    "        stream_order_min: 1",
+    "        stream_order_max: 1",
     "        stream_order_parent_min: 5"), tmp)
   expect_silent(rules <- .frs_load_rules(tmp))
   bypass <- rules$BT$rear[[1]]$channel_width_min_bypass
-  expect_equal(bypass$stream_order, 1L)
+  expect_equal(bypass$stream_order_min, 1L)
+  expect_equal(bypass$stream_order_max, 1L)
   expect_equal(bypass$stream_order_parent_min, 5L)
 })
 
@@ -286,11 +288,30 @@ test_that(".frs_load_rules accepts custom stream_order_parent_min", {
     "    - edge_types:",
     "        - stream",
     "      channel_width_min_bypass:",
-    "        stream_order: 1",
+    "        stream_order_min: 1",
+    "        stream_order_max: 1",
     "        stream_order_parent_min: 7"), tmp)
   expect_silent(rules <- .frs_load_rules(tmp))
   expect_equal(
     rules$BT$rear[[1]]$channel_width_min_bypass$stream_order_parent_min, 7L)
+})
+
+test_that(".frs_load_rules accepts wider stream_order range (e.g. 1..5)", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - edge_types:",
+    "        - stream",
+    "      channel_width_min_bypass:",
+    "        stream_order_min: 1",
+    "        stream_order_max: 5",
+    "        stream_order_parent_min: 5"), tmp)
+  expect_silent(rules <- .frs_load_rules(tmp))
+  bypass <- rules$BT$rear[[1]]$channel_width_min_bypass
+  expect_equal(bypass$stream_order_min, 1L)
+  expect_equal(bypass$stream_order_max, 5L)
 })
 
 test_that(".frs_load_rules errors on unknown channel_width_min_bypass keys", {
@@ -302,7 +323,7 @@ test_that(".frs_load_rules errors on unknown channel_width_min_bypass keys", {
     "    - edge_types:",
     "        - stream",
     "      channel_width_min_bypass:",
-    "        stream_order: 1",
+    "        stream_order_min: 1",
     "        bogus_key: 42"), tmp)
   expect_error(.frs_load_rules(tmp), "unknown keys.*bogus_key")
 })
@@ -316,9 +337,23 @@ test_that(".frs_load_rules errors on non-integer channel_width_min_bypass values
     "    - edge_types:",
     "        - stream",
     "      channel_width_min_bypass:",
-    "        stream_order: 1",
+    "        stream_order_min: 1",
     "        stream_order_parent_min: 5.5"), tmp)
   expect_error(.frs_load_rules(tmp), "must be a positive integer scalar")
+})
+
+test_that(".frs_load_rules errors on legacy `stream_order` key (replaced by min/max)", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - edge_types:",
+    "        - stream",
+    "      channel_width_min_bypass:",
+    "        stream_order: 1",
+    "        stream_order_parent_min: 5"), tmp)
+  expect_error(.frs_load_rules(tmp), "unknown keys.*stream_order")
 })
 
 test_that(".frs_load_rules errors on non-list channel_width_min_bypass", {
@@ -342,7 +377,8 @@ test_that(".frs_load_rules accepts channel_width_min_bypass.distance_max", {
     "    - edge_types:",
     "        - stream",
     "      channel_width_min_bypass:",
-    "        stream_order: 1",
+    "        stream_order_min: 1",
+    "        stream_order_max: 1",
     "        stream_order_parent_min: 5",
     "        distance_max: 300"), tmp)
   expect_silent(rules <- .frs_load_rules(tmp))
@@ -359,7 +395,8 @@ test_that(".frs_load_rules errors on non-positive channel_width_min_bypass.dista
     "    - edge_types:",
     "        - stream",
     "      channel_width_min_bypass:",
-    "        stream_order: 1",
+    "        stream_order_min: 1",
+    "        stream_order_max: 1",
     "        stream_order_parent_min: 5",
     "        distance_max: -100"), tmp)
   expect_error(.frs_load_rules(tmp), "must be a positive numeric scalar")
