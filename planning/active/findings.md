@@ -1,39 +1,63 @@
-# Findings — fresh#191
+# Findings — fresh#158
 
-## What the lake-adjacency rule does today
+## Diagnosis (2026-05-01)
 
-`.frs_connected_waterbody` (R/frs_habitat.R:1465–) Phase 2 — upstream spawning:
+bcfishpass's per-species rear rule has an inline OR clause:
 
-1. `rearing_segs` CTE: rearing segments per species (already gated on `area_ha >= rear_lake_ha_min` by classify upstream)
-2. `spawn_upstream` CTE: spawn-eligible segments (`hs.spawning IS TRUE`, gated on access + spawn rule by classify upstream) that are upstream of any rearing segment via `fwa_upstream` or same-blkey
-3. `clustered` CTE: `ST_ClusterDBSCAN(geom, 1, 1)` — group contiguous spawn-upstream segments
-4. `cluster_geoms` CTE: `ST_Collect(geom)` per cluster
-5. `valid_clusters` CTE: cluster geom within 2 m (`ST_DWithin`) of a qualifying waterbody polygon
-6. INSERT id_segments from clusters that survived (5)
+```sql
+(cw.channel_width >= t.rear_channel_width_min OR
+ (s.stream_order_parent >= 5 AND s.stream_order = 1))
+```
 
-The cluster + lake-adjacency step is a *restrictive* filter on top of an already-correct accessibility-gated spawn classification. Dropping it credits any spawn-eligible segment that's:
+at [`bcfishpass/model/02_habitat_linear/sql/load_habitat_linear_bt.sql`](https://github.com/smnorris/bcfishpass/blob/main/model/02_habitat_linear/sql/load_habitat_linear_bt.sql) lines 89–96 (BT — same pattern in CH/CO/ST/WCT). Direct order-1 tributaries of order-5+ mainstems get credited as rearing **even when cw < rear_min**.
 
-- upstream of a qualifying rearing lake (preserved via `EXISTS rearing_segs`)
-- accessible from it (preserved via classify having gated `hs.spawning IS TRUE` on access)
+Biology: small tribs of large rivers support juvenile rearing despite small FWA-measured channel width — parent supplies flow / temperature / access; cool tributary water mixes at confluence; backwater + off-channel habitat near the mouth is high-value.
 
-bcfishpass source: [`load_habitat_linear_sk.sql`](https://github.com/smnorris/bcfishpass/blob/main/model/02_habitat_linear/sql/load_habitat_linear_sk.sql) lines 137–253.
+fresh has no implementation. link's `dimensions.csv::rear_stream_order_bypass = no` for all species in both bundles (correctly anticipating fresh has nothing to read). Provincial parity baseline (link 0.20.1) shows this gap on HORS / COLR / KHOR / CLRH / etc — Class B in `link/research/provincial_parity_2026_05_01.md`.
 
-## Why drop the cluster step
+## Function design (per issue body)
 
-bcfp's rule misses ecologically-real spawning reaches: tributaries above a rearing lake whose spawn-eligible segments don't form a single contiguous cluster touching the lake. Steep connectors, sub-cw stretches, or beaver complexes break the cluster. Sockeye DO spawn well above nursery lakes in such reaches.
+`frs_order_child(conn, table, habitat, species, label = "rearing", parent_order_min = 5, child_order_min = NULL, child_order_max = NULL, distance_max = NULL)`
 
-## Why a knob (not just drop it)
+Post-classification UPDATE:
 
-bcfishpass parity tests need the current behaviour. Default-bundle wants the relaxed behaviour. One param, two behaviours — clean.
+```sql
+UPDATE habitat
+SET <label> = TRUE
+FROM streams s
+WHERE habitat.id_segment = s.id_segment
+  AND habitat.species_code = '<species>'
+  AND habitat.accessible = TRUE
+  AND habitat.<label> IS NOT TRUE
+  AND s.stream_order = s.stream_order_max         -- direct child
+  AND s.stream_order_parent >= <parent_order_min> -- of large river
+  AND s.stream_order >= <child_order_min>         -- if set
+  AND s.stream_order <= <child_order_max>         -- if set
+  AND (<distance_max> IS NULL OR
+       s.downstream_route_measure <= <distance_max>);
+```
 
-Default = TRUE so existing callers (link bcfishpass-bundle, anything else with no rules.yaml entry) keep current behaviour. Caller passes `lake_adjacent: no` in rules.yaml when they want the relaxed Phase 2.
+Direct-child filter: `s.stream_order = s.stream_order_max` ensures we stop at the order-change point (once the segment's order would exceed `stream_order_max`, you're no longer on the direct-child reach). Captures "small tributary directly into a large parent."
 
-## Validator update
+`accessible = TRUE` guard: never adds rearing on segments above a definite barrier.
 
-`.frs_load_rules` validates allowed keys under `spawn_connected` (R/frs_params.R). Need to add `lake_adjacent` to the allowed list, otherwise rules.yaml with the new key fails validation. Tested in `test-frs_params.R:287` (errors on unknown keys).
+`<label> IS NOT TRUE` guard: idempotent + additive — already-classified segments untouched.
+
+## Pre vs post cluster — design decision (post-cluster wins)
+
+bcfishpass embeds the bypass in the rule predicate (pre-cluster). Issue body's analysis: post-cluster is cleaner because:
+- Bypassed segments don't need to pass connectivity (they're connected to the large parent by definition; the biology of the bypass IS the connectivity)
+- `accessible = TRUE` already gates barrier-blocked reaches
+- Post-cluster matches the parametric form (function takes WSG/species and applies, not a rule predicate that needs SQL grammar in fresh)
+- Same end-state numbers as bcfp on the BCFP-parity caller-side defaults
+
+## Caller defaults (link side, separate PR)
+
+- bcfishpass bundle: `frs_order_child(species, parent_order_min = 5)` (defaults) for BT/CH/CO/ST/WCT
+- default bundle: methodology-pending. Could ship same as bcfp first, tune later
 
 ## Versions at start
 
-- fresh main: ec0c770 (0.25.0)
-- bcfishpass: 440bc1e (2026-04-28)
-- link main: 7210baf (0.20.0)
+- fresh main: 253abf2 (0.26.0)
+- link main: 9643be5 (0.21.0)
+- bcfishpass: 440bc1e
