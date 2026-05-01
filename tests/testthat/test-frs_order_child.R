@@ -48,13 +48,19 @@ test_that("frs_order_child default emits canonical bcfishpass-parity SQL", {
   expect_match(s, "h\\.accessible = TRUE")
   expect_match(s, "h\\.rearing IS NOT TRUE")
 
-  # Direct-child predicate
-  expect_match(s, "s\\.stream_order = s\\.stream_order_max")
+  # bcfp-parity defaults: child stream_order = 1 (both bounds default
+  # to 1L when caller passes neither — matches bcfp's hardcoded
+  # `stream_order = 1` predicate).
+  expect_match(s, "s\\.stream_order >= 1")
+  expect_match(s, "s\\.stream_order <= 1")
   expect_match(s, "s\\.stream_order_parent >= 5")
 
-  # Optional clauses NOT present at default
-  expect_no_match(s, "s\\.stream_order >= ")
-  expect_no_match(s, "s\\.stream_order <= ")
+  # No nonexistent column reference: stream_order_max is NOT a column
+  # on fresh.streams. The original 0.27.0 SQL referenced it and broke
+  # at execution.
+  expect_no_match(s, "stream_order_max")
+
+  # Distance clause not present at default
   expect_no_match(s, "downstream_route_measure")
 })
 
@@ -64,14 +70,34 @@ test_that("frs_order_child emits child_order_min/max bounds when set", {
 
   expect_match(s, "s\\.stream_order >= 2")
   expect_match(s, "s\\.stream_order <= 4")
-  # Direct-child predicate still present (orthogonal)
-  expect_match(s, "s\\.stream_order = s\\.stream_order_max")
+  # No nonexistent column reference
+  expect_no_match(s, "stream_order_max")
 })
 
 test_that("frs_order_child emits distance_max clause when set", {
   sql_log <- .run_order_child(distance_max = 300)
   s <- sql_log[1]
   expect_match(s, "s\\.downstream_route_measure <= 300")
+})
+
+test_that("frs_order_child SQL never references stream_order_max", {
+  # 0.27.0 docstring + SQL referenced s.stream_order_max which is not
+  # a column on fresh.streams (only stream_order, stream_order_parent
+  # exist). Execution failed at the first call site (link's HORS
+  # pre-flight). Defend against re-introducing the broken reference
+  # in any code path.
+  for (args in list(
+    list(),
+    list(child_order_min = 1L),
+    list(child_order_max = 3L),
+    list(child_order_min = 1L, child_order_max = 2L),
+    list(distance_max = 500),
+    list(parent_order_min = 7L),
+    list(label = "lake_rearing"))) {
+    sql <- do.call(.run_order_child, args)
+    expect_no_match(sql[1], "stream_order_max",
+      info = paste("args:", paste(names(args), collapse = ",")))
+  }
 })
 
 test_that("frs_order_child handles parent_order_min override", {
