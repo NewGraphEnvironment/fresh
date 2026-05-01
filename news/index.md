@@ -1,5 +1,21 @@
 # Changelog
 
+## fresh 0.27.2
+
+Fix
+[`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md)
+SQL referencing nonexistent column `s.stream_order_max`. `fresh.streams`
+has `stream_order` and `stream_order_parent` from FWA but no
+`stream_order_max` — the 0.27.0 SQL failed at execution against any real
+database (only the SQL-shape unit tests passed, and they asserted the
+broken predicate). Drop the broken predicate; default both
+`child_order_min` and `child_order_max` to `1L` when neither is set,
+which matches bcfishpass’s hardcoded `stream_order = 1` predicate
+exactly. Caller-passed bounds still apply unchanged.
+
+Adds a regression test that scans the emitted SQL across every parameter
+combination for `stream_order_max` and fails if it reappears.
+
 ## fresh 0.27.1
 
 Patch follow-up to 0.27.0. `.frs_load_rules` validator now accepts the

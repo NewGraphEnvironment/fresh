@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.27.2" id="fresh-0272">fresh 0.27.2<a class="anchor" aria-label="anchor" href="#fresh-0272"></a></h2>
+<p>Fix <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> SQL referencing nonexistent column <code>s.stream_order_max</code>. <code>fresh.streams</code> has <code>stream_order</code> and <code>stream_order_parent</code> from FWA but no <code>stream_order_max</code> — the 0.27.0 SQL failed at execution against any real database (only the SQL-shape unit tests passed, and they asserted the broken predicate). Drop the broken predicate; default both <code>child_order_min</code> and <code>child_order_max</code> to <code>1L</code> when neither is set, which matches bcfishpass’s hardcoded <code>stream_order = 1</code> predicate exactly. Caller-passed bounds still apply unchanged.</p>
+<p>Adds a regression test that scans the emitted SQL across every parameter combination for <code>stream_order_max</code> and fails if it reappears.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.27.1" id="fresh-0271">fresh 0.27.1<a class="anchor" aria-label="anchor" href="#fresh-0271"></a></h2>
 <p>Patch follow-up to 0.27.0. <code>.frs_load_rules</code> validator now accepts the <code>channel_width_min_bypass</code> predicate that link emits to drive <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> post-classify (link#96 wiring). Validates that the field is a named mapping with <code>stream_order</code> and <code>stream_order_parent_min</code> integer scalars. Without this patch, link’s emitted rules.yaml fails fast at <code><a href="../reference/frs_params.html">frs_params()</a></code> with <code>unknown predicates: channel_width_min_bypass</code> before any classification runs.</p>

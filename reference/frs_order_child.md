@@ -60,13 +60,16 @@ frs_order_child(
 - child_order_min:
 
   Integer or `NULL`. If set, segment's `stream_order` must be
-  `>= child_order_min`. Default `NULL` (no floor — any order accepted).
+  `>= child_order_min`. Default `NULL`. When both `child_order_min` and
+  `child_order_max` are `NULL`, both default to `1L` (matches
+  bcfishpass's `stream_order = 1` predicate).
 
 - child_order_max:
 
   Integer or `NULL`. If set, segment's `stream_order` must be
-  `<= child_order_max`. Default `NULL` (capped only by
-  `stream_order_max` per the direct-child filter).
+  `<= child_order_max`. Default `NULL`. When both `child_order_min` and
+  `child_order_max` are `NULL`, both default to `1L` (matches
+  bcfishpass's `stream_order = 1` predicate).
 
 - distance_max:
 
@@ -101,16 +104,20 @@ rule, so callers can tune `parent_order_min`, `child_order_min/max`, and
 
 ## Direct-child semantics
 
-A "direct child" of a large river is a segment whose order matches the
-highest order on its blue_line_key — i.e., it flows directly into the
-parent river, not as a sub-tributary inside a multi-order network:
+A "direct child" of a large river is a segment whose stream_order
+matches the caller's child-order filter (`child_order_min` /
+`child_order_max`) AND whose `stream_order_parent` (the order of the
+river it flows into) is `>= parent_order_min`:
 
-    s.stream_order = s.stream_order_max  -- (on the same blue_line_key)
     s.stream_order_parent >= parent_order_min
+    [AND s.stream_order >= child_order_min]
+    [AND s.stream_order <= child_order_max]
 
-The `stream_order = stream_order_max` test implicitly captures "stop at
-order change" — once the segment's order would exceed
-`stream_order_max`, you're no longer on the direct-child reach.
+Default child filter is `stream_order = 1` (matches bcfishpass's
+hard-coded predicate exactly). Pass `child_order_min` /
+`child_order_max` to widen — e.g.
+`child_order_min = 1, child_order_max = 2` for order-1 and order-2
+tributaries.
 
 ## Distance grain
 
@@ -130,10 +137,9 @@ of scope here.
       AND <habitat>.species_code = '<species>'
       AND <habitat>.accessible = TRUE
       AND <habitat>.<label> IS NOT TRUE
-      AND s.stream_order = s.stream_order_max
       AND s.stream_order_parent >= <parent_order_min>
-      [AND s.stream_order >= <child_order_min>]
-      [AND s.stream_order <= <child_order_max>]
+      AND s.stream_order >= <child_order_min>   -- default 1 if both NULL
+      AND s.stream_order <= <child_order_max>   -- default 1 if both NULL
       [AND s.downstream_route_measure <= <distance_max>]
 
 Bracketed clauses are emitted only when the corresponding parameter is

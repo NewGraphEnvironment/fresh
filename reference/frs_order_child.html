@@ -17,7 +17,7 @@ segments above an inaccessible barrier."><meta property="og:image" content="http
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -110,14 +110,16 @@ bcfishpass's hard-coded value).</p></dd>
 
 <dt id="arg-child-order-min">child_order_min<a class="anchor" aria-label="anchor" href="#arg-child-order-min"></a></dt>
 <dd><p>Integer or <code>NULL</code>. If set, segment's
-<code>stream_order</code> must be <code>&gt;= child_order_min</code>. Default <code>NULL</code> (no
-floor — any order accepted).</p></dd>
+<code>stream_order</code> must be <code>&gt;= child_order_min</code>. Default <code>NULL</code>. When
+both <code>child_order_min</code> and <code>child_order_max</code> are <code>NULL</code>, both
+default to <code>1L</code> (matches bcfishpass's <code>stream_order = 1</code> predicate).</p></dd>
 
 
 <dt id="arg-child-order-max">child_order_max<a class="anchor" aria-label="anchor" href="#arg-child-order-max"></a></dt>
 <dd><p>Integer or <code>NULL</code>. If set, segment's
-<code>stream_order</code> must be <code>&lt;= child_order_max</code>. Default <code>NULL</code>
-(capped only by <code>stream_order_max</code> per the direct-child filter).</p></dd>
+<code>stream_order</code> must be <code>&lt;= child_order_max</code>. Default <code>NULL</code>. When
+both <code>child_order_min</code> and <code>child_order_max</code> are <code>NULL</code>, both
+default to <code>1L</code> (matches bcfishpass's <code>stream_order = 1</code> predicate).</p></dd>
 
 
 <dt id="arg-distance-max">distance_max<a class="anchor" aria-label="anchor" href="#arg-distance-max"></a></dt>
@@ -158,15 +160,17 @@ and <code>distance_max</code> without touching the rule grammar.</p>
 
 
 
-<p>A "direct child" of a large river is a segment whose order matches
-the highest order on its blue_line_key — i.e., it flows directly
-into the parent river, not as a sub-tributary inside a multi-order
-network:</p>
-<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>s.stream_order <span class="ot">=</span> s.stream_order_max  <span class="sc">--</span> (on the same blue_line_key)</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>s.stream_order_parent <span class="sc">&gt;=</span> parent_order_min</span></code></pre><p></p></div>
-<p>The <code>stream_order = stream_order_max</code> test implicitly captures
-"stop at order change" — once the segment's order would exceed
-<code>stream_order_max</code>, you're no longer on the direct-child reach.</p>
+<p>A "direct child" of a large river is a segment whose stream_order
+matches the caller's child-order filter (<code>child_order_min</code> /
+<code>child_order_max</code>) AND whose <code>stream_order_parent</code> (the order of
+the river it flows into) is <code>&gt;= parent_order_min</code>:</p>
+<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>s.stream_order_parent <span class="sc">&gt;=</span> parent_order_min</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>[AND s.stream_order <span class="sc">&gt;=</span> child_order_min]</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>[AND s.stream_order <span class="sc">&lt;=</span> child_order_max]</span></code></pre><p></p></div>
+<p>Default child filter is <code>stream_order = 1</code> (matches bcfishpass's
+hard-coded predicate exactly). Pass <code>child_order_min</code> / <code>child_order_max</code>
+to widen — e.g. <code>child_order_min = 1, child_order_max = 2</code> for
+order-1 and order-2 tributaries.</p>
     </div>
     <div class="section level2">
     <h2 id="distance-grain">Distance grain<a class="anchor" aria-label="anchor" href="#distance-grain"></a></h2>
@@ -192,11 +196,10 @@ break + filter approaches are out of scope here.</p>
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.species_code <span class="op">=</span> <span class="st">'&lt;species&gt;'</span></span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.accessible <span class="op">=</span> <span class="kw">TRUE</span></span>
 <span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.<span class="op">&lt;</span><span class="kw">label</span><span class="op">&gt;</span> <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">TRUE</span></span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">=</span> s.stream_order_max</span>
-<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order_parent <span class="op">&gt;=</span> <span class="op">&lt;</span>parent_order_min<span class="op">&gt;</span></span>
-<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  [<span class="kw">AND</span> s.stream_order <span class="op">&gt;=</span> <span class="op">&lt;</span>child_order_min<span class="op">&gt;</span>]</span>
-<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  [<span class="kw">AND</span> s.stream_order <span class="op">&lt;=</span> <span class="op">&lt;</span>child_order_max<span class="op">&gt;</span>]</span>
-<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  [<span class="kw">AND</span> s.downstream_route_measure <span class="op">&lt;=</span> <span class="op">&lt;</span>distance_max<span class="op">&gt;</span>]</span></code></pre><p></p></div>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order_parent <span class="op">&gt;=</span> <span class="op">&lt;</span>parent_order_min<span class="op">&gt;</span></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">&gt;=</span> <span class="op">&lt;</span>child_order_min<span class="op">&gt;</span>   <span class="co">-- default 1 if both NULL</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">&lt;=</span> <span class="op">&lt;</span>child_order_max<span class="op">&gt;</span>   <span class="co">-- default 1 if both NULL</span></span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  [<span class="kw">AND</span> s.downstream_route_measure <span class="op">&lt;=</span> <span class="op">&lt;</span>distance_max<span class="op">&gt;</span>]</span></code></pre><p></p></div>
 <p>Bracketed clauses are emitted only when the corresponding parameter
 is non-NULL.</p>
     </div>
