@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,10 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.27.1" id="fresh-0271">fresh 0.27.1<a class="anchor" aria-label="anchor" href="#fresh-0271"></a></h2>
+<p>Patch follow-up to 0.27.0. <code>.frs_load_rules</code> validator now accepts the <code>channel_width_min_bypass</code> predicate that link emits to drive <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> post-classify (link#96 wiring). Validates that the field is a named mapping with <code>stream_order</code> and <code>stream_order_parent_min</code> integer scalars. Without this patch, link’s emitted rules.yaml fails fast at <code><a href="../reference/frs_params.html">frs_params()</a></code> with <code>unknown predicates: channel_width_min_bypass</code> before any classification runs.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.27.0" id="fresh-0270">fresh 0.27.0<a class="anchor" aria-label="anchor" href="#fresh-0270"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/pull/193" class="external-link">#158</a>. New <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code>: post-classification UPDATE that credits direct order-1 (or other) tributaries of order-N+ rivers with <code>&lt;label&gt; = TRUE</code>. Captures the bcfishpass rearing bypass currently hard-coded in <code>model/02_habitat_linear/sql/load_habitat_linear_&lt;sp&gt;.sql</code> for BT/CH/CO/ST/WCT — predicate <code>cw.channel_width &gt;= rear_channel_width_min OR (s.stream_order_parent &gt;= 5 AND s.stream_order = 1)</code>.</p>

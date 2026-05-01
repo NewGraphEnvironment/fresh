@@ -1,5 +1,17 @@
 # Changelog
 
+## fresh 0.27.1
+
+Patch follow-up to 0.27.0. `.frs_load_rules` validator now accepts the
+`channel_width_min_bypass` predicate that link emits to drive
+[`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md)
+post-classify (link#96 wiring). Validates that the field is a named
+mapping with `stream_order` and `stream_order_parent_min` integer
+scalars. Without this patch, link’s emitted rules.yaml fails fast at
+[`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
+with `unknown predicates: channel_width_min_bypass` before any
+classification runs.
+
 ## fresh 0.27.0
 
 Closes [\#158](https://github.com/NewGraphEnvironment/fresh/pull/193).
