@@ -1,3 +1,7 @@
+# fresh 0.27.1
+
+Patch follow-up to 0.27.0. `.frs_load_rules` validator now accepts the `channel_width_min_bypass` predicate that link emits to drive `frs_order_child()` post-classify (link#96 wiring). Validates that the field is a named mapping with `stream_order` and `stream_order_parent_min` integer scalars. Without this patch, link's emitted rules.yaml fails fast at `frs_params()` with `unknown predicates: channel_width_min_bypass` before any classification runs.
+
 # fresh 0.27.0
 
 Closes [#158](https://github.com/NewGraphEnvironment/fresh/pull/193). New `frs_order_child()`: post-classification UPDATE that credits direct order-1 (or other) tributaries of order-N+ rivers with `<label> = TRUE`. Captures the bcfishpass rearing bypass currently hard-coded in `model/02_habitat_linear/sql/load_habitat_linear_<sp>.sql` for BT/CH/CO/ST/WCT — predicate `cw.channel_width >= rear_channel_width_min OR (s.stream_order_parent >= 5 AND s.stream_order = 1)`.
