@@ -1,5 +1,13 @@
 # Changelog
 
+## fresh 0.27.4
+
+Allow optional `distance_max` key inside `channel_width_min_bypass`
+block in rules YAML — link uses it to cap the bypass to the lower N
+metres of each direct-trib BLK
+(i.e. `frs_order_child(distance_max = N)`). Validator accepts a positive
+numeric scalar; rejects zero / negative / non-numeric values.
+
 ## fresh 0.27.3
 
 Restore `stream_order_max` predicate in

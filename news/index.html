@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,10 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.27.4" id="fresh-0274">fresh 0.27.4<a class="anchor" aria-label="anchor" href="#fresh-0274"></a></h2>
+<p>Allow optional <code>distance_max</code> key inside <code>channel_width_min_bypass</code> block in rules YAML — link uses it to cap the bypass to the lower N metres of each direct-trib BLK (i.e. <code>frs_order_child(distance_max = N)</code>). Validator accepts a positive numeric scalar; rejects zero / negative / non-numeric values.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.27.3" id="fresh-0273">fresh 0.27.3<a class="anchor" aria-label="anchor" href="#fresh-0273"></a></h2>
 <p>Restore <code>stream_order_max</code> predicate in <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> — the previous patch (0.27.2) removed the <code>s.stream_order = s.stream_order_max</code> filter because the column doesn’t exist on <code>fresh.streams</code>. That was the wrong fix: the predicate is load-bearing for direct-child semantics. Without it, multi-order BLKs like a named creek that grows from order-1 headwaters to order-3 mouth (e.g. Divan Creek, BLK 356353593 in HORS) get their order-1 headwater segments credited as direct trib mouths of large rivers — they are not.</p>
