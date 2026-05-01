@@ -1,3 +1,11 @@
+# fresh 0.27.0
+
+Closes [#158](https://github.com/NewGraphEnvironment/fresh/pull/193). New `frs_order_child()`: post-classification UPDATE that credits direct order-1 (or other) tributaries of order-N+ rivers with `<label> = TRUE`. Captures the bcfishpass rearing bypass currently hard-coded in `model/02_habitat_linear/sql/load_habitat_linear_<sp>.sql` for BT/CH/CO/ST/WCT — predicate `cw.channel_width >= rear_channel_width_min OR (s.stream_order_parent >= 5 AND s.stream_order = 1)`.
+
+- Parametric: `parent_order_min` (default `5L` matches bcfp), `child_order_min/max`, `distance_max`. Generic on label column (`rearing` / `lake_rearing` / `wetland_rearing`).
+- Idempotent + additive: `<label> IS NOT TRUE` guard. Never adds rearing above an inaccessible barrier: `accessible = TRUE` guard.
+- No existing-caller behaviour change. Wiring into link's pipeline is a follow-up PR (link side: `lnk_pipeline_classify` calls `frs_order_child` post-classify per-species, gated on `dimensions.csv::rear_stream_order_bypass`).
+
 # fresh 0.26.0
 
 Closes [#191](https://github.com/NewGraphEnvironment/fresh/pull/192). `.frs_connected_waterbody` Phase 2 (upstream spawn) cluster + lake-adjacency gate is now opt-out via a `lake_adjacent` parameter on the rule. Default `TRUE` keeps bcfishpass-parity behaviour byte-identical for any caller not setting the knob; passing `lake_adjacent: no` in `<sp>.spawn_connected.lake_adjacent` runs the relaxed Phase 2 that credits any spawn-eligible segment upstream of and accessible from a qualifying rearing waterbody. Used by callers that need to credit upstream tributary reaches not in lake-adjacent clusters (e.g. NewGraph default-bundle SK methodology — link#87). `.frs_load_rules` validator updated to accept the new key.
