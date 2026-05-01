@@ -136,6 +136,7 @@ frs_params <- function(conn = NULL,
                         "waterbody_type", "lake_ha_min", "wetland_ha_min",
                         "in_waterbody", "area_only",
                         "thresholds", "gradient", "channel_width",
+                        "channel_width_min_bypass",
                         "requires_connected", "connected_distance_max")
 
   for (sp in names(raw)) {
@@ -327,6 +328,38 @@ frs_params <- function(conn = NULL,
         stop(sprintf(
           "rules YAML %s/%s rule %d %s must be a numeric vector of length 2 [min, max]",
           sp, habitat, idx, field), call. = FALSE)
+      }
+    }
+  }
+
+  # channel_width_min_bypass: passthrough field consumed by
+  # frs_order_child() after classification. Not used by the rule engine
+  # itself — only validated for shape so a malformed YAML fails fast
+  # before classify runs.
+  if (!is.null(rule[["channel_width_min_bypass"]])) {
+    bypass <- rule[["channel_width_min_bypass"]]
+    if (!is.list(bypass) || is.null(names(bypass))) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d channel_width_min_bypass must be a named mapping",
+        sp, habitat, idx), call. = FALSE)
+    }
+    bypass_keys <- c("stream_order", "stream_order_parent_min")
+    unknown_b <- setdiff(names(bypass), bypass_keys)
+    if (length(unknown_b) > 0) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d channel_width_min_bypass has unknown keys: %s. Valid: %s",
+        sp, habitat, idx,
+        paste(unknown_b, collapse = ", "),
+        paste(bypass_keys, collapse = ", ")), call. = FALSE)
+    }
+    for (k in bypass_keys) {
+      v <- bypass[[k]]
+      if (is.null(v)) next
+      if (!is.numeric(v) || length(v) != 1L || is.na(v) ||
+          v != as.integer(v) || v < 1L) {
+        stop(sprintf(
+          "rules YAML %s/%s rule %d channel_width_min_bypass$%s must be a positive integer scalar",
+          sp, habitat, idx, k), call. = FALSE)
       }
     }
   }
