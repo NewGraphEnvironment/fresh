@@ -1,5 +1,27 @@
 # Changelog
 
+## fresh 0.27.0
+
+Closes [\#158](https://github.com/NewGraphEnvironment/fresh/pull/193).
+New
+[`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md):
+post-classification UPDATE that credits direct order-1 (or other)
+tributaries of order-N+ rivers with `<label> = TRUE`. Captures the
+bcfishpass rearing bypass currently hard-coded in
+`model/02_habitat_linear/sql/load_habitat_linear_<sp>.sql` for
+BT/CH/CO/ST/WCT — predicate
+`cw.channel_width >= rear_channel_width_min OR (s.stream_order_parent >= 5 AND s.stream_order = 1)`.
+
+- Parametric: `parent_order_min` (default `5L` matches bcfp),
+  `child_order_min/max`, `distance_max`. Generic on label column
+  (`rearing` / `lake_rearing` / `wetland_rearing`).
+- Idempotent + additive: `<label> IS NOT TRUE` guard. Never adds rearing
+  above an inaccessible barrier: `accessible = TRUE` guard.
+- No existing-caller behaviour change. Wiring into link’s pipeline is a
+  follow-up PR (link side: `lnk_pipeline_classify` calls
+  `frs_order_child` post-classify per-species, gated on
+  `dimensions.csv::rear_stream_order_bypass`).
+
 ## fresh 0.26.0
 
 Closes [\#191](https://github.com/NewGraphEnvironment/fresh/pull/192).

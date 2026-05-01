@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.26.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.27.0" id="fresh-0270">fresh 0.27.0<a class="anchor" aria-label="anchor" href="#fresh-0270"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/pull/193" class="external-link">#158</a>. New <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code>: post-classification UPDATE that credits direct order-1 (or other) tributaries of order-N+ rivers with <code>&lt;label&gt; = TRUE</code>. Captures the bcfishpass rearing bypass currently hard-coded in <code>model/02_habitat_linear/sql/load_habitat_linear_&lt;sp&gt;.sql</code> for BT/CH/CO/ST/WCT — predicate <code>cw.channel_width &gt;= rear_channel_width_min OR (s.stream_order_parent &gt;= 5 AND s.stream_order = 1)</code>.</p>
+<ul><li>Parametric: <code>parent_order_min</code> (default <code>5L</code> matches bcfp), <code>child_order_min/max</code>, <code>distance_max</code>. Generic on label column (<code>rearing</code> / <code>lake_rearing</code> / <code>wetland_rearing</code>).</li>
+<li>Idempotent + additive: <code>&lt;label&gt; IS NOT TRUE</code> guard. Never adds rearing above an inaccessible barrier: <code>accessible = TRUE</code> guard.</li>
+<li>No existing-caller behaviour change. Wiring into link’s pipeline is a follow-up PR (link side: <code>lnk_pipeline_classify</code> calls <code>frs_order_child</code> post-classify per-species, gated on <code>dimensions.csv::rear_stream_order_bypass</code>).</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.26.0" id="fresh-0260">fresh 0.26.0<a class="anchor" aria-label="anchor" href="#fresh-0260"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/pull/192" class="external-link">#191</a>. <code>.frs_connected_waterbody</code> Phase 2 (upstream spawn) cluster + lake-adjacency gate is now opt-out via a <code>lake_adjacent</code> parameter on the rule. Default <code>TRUE</code> keeps bcfishpass-parity behaviour byte-identical for any caller not setting the knob; passing <code>lake_adjacent: no</code> in <code>&lt;sp&gt;.spawn_connected.lake_adjacent</code> runs the relaxed Phase 2 that credits any spawn-eligible segment upstream of and accessible from a qualifying rearing waterbody. Used by callers that need to credit upstream tributary reaches not in lake-adjacent clusters (e.g. NewGraph default-bundle SK methodology — link#87). <code>.frs_load_rules</code> validator updated to accept the new key.</p>
