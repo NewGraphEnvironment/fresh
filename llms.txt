@@ -233,6 +233,8 @@ MIT
   : Segment a Stream Network at Break Points
 - [`frs_network_upstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_upstream.md)
   : Get Stream Segments Upstream of a Network Position
+- [`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md)
+  : Classify rearing on direct children of large-order streams
 - [`frs_order_filter()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_filter.md)
   : Filter Stream Segments by Strahler Order
 - [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
