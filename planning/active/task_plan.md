@@ -22,14 +22,14 @@ Verified on M4 + M1 + cypher (2026-05-04) — all three show
   (verified live: `random_page_cost=1.1`, `effective_io_concurrency=200`, `temp_buffers=64MB`)
 
 ## Phase 2: Document in tuning.md
-- [ ] Add three rows to the "Settings rationale" table
+- [x] Add three rows to the "Settings rationale" table
   (`random_page_cost`, `effective_io_concurrency`, `temp_buffers`) with
   SSD justification per setting
-- [ ] Add a short "SSD assumption" note: all NewGraph hosts run on SSD
+- [x] Add a short "SSD assumption" note: all NewGraph hosts run on SSD
   (M4 NVMe, M1 Colima virtiofs over APFS, cypher DO block storage),
   these defaults bias the planner toward index scans for segment-keyed
   lookups in link's pipeline
-- [ ] Cross-reference the companion rtj issue for the M1/cypher override
+- [x] Cross-reference the companion rtj issue for the M1/cypher override
   file — override `command:` REPLACES base under docker-compose merge
   semantics; same change must land in both
 

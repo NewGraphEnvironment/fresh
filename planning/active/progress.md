@@ -10,4 +10,8 @@
 - Phase 1 complete: added `random_page_cost=1.1`, `effective_io_concurrency=200`,
   `temp_buffers=64MB` to `db.command`. Restarted local DB; all three values
   verified live via `SHOW`.
-- Next: Phase 2 (update tuning.md)
+- Phase 2 complete: added three rows to the Settings rationale table in
+  `docker/tuning.md`, plus an "SSD assumption" section noting the
+  M1/cypher override-file caveat (override `command:` replaces base, so
+  same flags must land in the rtj-tracked override).
+- Next: Phase 3 (code-check, push, PR)
