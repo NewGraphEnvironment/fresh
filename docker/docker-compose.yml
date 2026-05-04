@@ -33,6 +33,9 @@ services:
         -c max_parallel_workers_per_gather=8
         -c max_parallel_workers=14
         -c max_worker_processes=16
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c temp_buffers=64MB
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
     ports:

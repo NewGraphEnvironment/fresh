@@ -13,12 +13,13 @@ Verified on M4 + M1 + cypher (2026-05-04) — all three show
 `random_page_cost=4`, `effective_io_concurrency=1`, `temp_buffers=8MB`.
 
 ## Phase 1: Add SSD planner-cost flags to docker-compose.yml
-- [ ] Append to `db.command` block in `docker/docker-compose.yml`:
+- [x] Append to `db.command` block in `docker/docker-compose.yml`:
   - `-c random_page_cost=1.1`
   - `-c effective_io_concurrency=200`
   - `-c temp_buffers=64MB`
-- [ ] Restart local Docker DB (`docker compose down && docker compose up -d db`)
-- [ ] Verify via `SHOW random_page_cost; SHOW effective_io_concurrency; SHOW temp_buffers;`
+- [x] Restart local Docker DB (`docker compose down && docker compose up -d db`)
+- [x] Verify via `SHOW random_page_cost; SHOW effective_io_concurrency; SHOW temp_buffers;`
+  (verified live: `random_page_cost=1.1`, `effective_io_concurrency=200`, `temp_buffers=64MB`)
 
 ## Phase 2: Document in tuning.md
 - [ ] Add three rows to the "Settings rationale" table

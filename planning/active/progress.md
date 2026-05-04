@@ -7,4 +7,7 @@
   with outcome READMEs in commit `80170b4`
 - Created branch `199-pg-tuning-ssd-planner-cost-defaults` off main (HEAD `80170b4`)
 - Scaffolded PWF baseline from issue #199 with approved phases
-- Next: start Phase 1 (add three `-c` flags to `db.command`)
+- Phase 1 complete: added `random_page_cost=1.1`, `effective_io_concurrency=200`,
+  `temp_buffers=64MB` to `db.command`. Restarted local DB; all three values
+  verified live via `SHOW`.
+- Next: Phase 2 (update tuning.md)
