@@ -12,7 +12,11 @@ frs_network_features(
   feature_id_col,
   direction,
   aoi = NULL,
-  include_equivalents = FALSE
+  include_equivalents = FALSE,
+  segments_wscode_col = "wscode_ltree",
+  segments_localcode_col = "localcode_ltree",
+  features_wscode_col = "wscode_ltree",
+  features_localcode_col = "localcode_ltree"
 )
 }
 \arguments{
@@ -53,15 +57,35 @@ segments table.}
 at the same \verb{(blue_line_key, downstream_route_measure)} position
 as relative-direction matches of each other. Mirrors bcfishpass's
 \code{include_equivalents} arg. Default \code{FALSE}.}
+
+\item{segments_wscode_col}{Character. Watershed-code column on
+the \code{segments} table. Default \code{"wscode_ltree"} matches
+\code{fresh.streams}, \code{bcfishpass.streams}, \verb{bcfishpass.barriers_*}.}
+
+\item{segments_localcode_col}{Character. Local-code column on
+\code{segments}. Default \code{"localcode_ltree"}.}
+
+\item{features_wscode_col}{Character. Watershed-code column on
+the \code{features} table. Default \code{"wscode_ltree"}. Pass \code{"wscode"}
+when \code{features = "bcfishpass.observations"} (which uses
+unsuffixed column names) or any other FWA-snapped point dataset
+following the same convention.}
+
+\item{features_localcode_col}{Character. Local-code column on
+\code{features}. Default \code{"localcode_ltree"}. See \code{features_wscode_col}.}
 }
 \value{
 A tibble with two columns:
 \itemize{
-\item \verb{<segment_id_col>} -- matches the input column name on segments
-\item \code{feature_ids} -- a \code{text[]} array of feature IDs in the requested
-direction relative to each segment. \strong{\code{NULL} when zero matches}
-(don't expect synthesised empty arrays -- \code{array_agg} over zero
-rows is \code{NULL} in Postgres and that propagates).
+\item \verb{<segment_id_col>} -- matches the input column name on segments.
+\item \code{feature_ids} -- an R list-column of character vectors (one
+vector per row). The vectors carry the feature IDs aggregated
+from the requested direction, ordered by
+\verb{(wscode_col DESC, localcode_col DESC, downstream_route_measure DESC)} to mirror \code{bcfishpass.load_dnstr}. Segments with zero
+matches don't appear in the output (INNER JOIN). Postgres
+array literals are parsed to R character vectors via the
+internal \code{.frs_parse_pg_array()} helper -- limited to
+unquoted-element arrays (the common case for FWA-snapped IDs).
 }
 }
 \description{
@@ -115,6 +139,23 @@ wq_dnstr <- frs_network_features(
   direction      = "downstream",
   aoi            = "BABL"
 )
+
+# bcfishpass.observations uses unsuffixed `wscode` / `localcode`
+# columns -- pass the column names so the join matches.
+obs_per_segment <- frs_network_features(
+  conn,
+  segments       = "bcfishpass.streams",
+  features       = "bcfishpass.observations",
+  segment_id_col = "segmented_stream_id",
+  feature_id_col = "observation_key",
+  direction      = "upstream",
+  aoi                    = "ADMS",
+  features_wscode_col    = "wscode",
+  features_localcode_col = "localcode"
+)
+# feature_ids is a list-column of character vectors:
+lengths(obs_per_segment$feature_ids)        # per-segment counts
+obs_per_segment$feature_ids[[1]]            # character vector
 
 DBI::dbDisconnect(conn)
 }

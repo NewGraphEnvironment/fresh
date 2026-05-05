@@ -65,17 +65,52 @@ test_that("downstream PSCIS barriers byte-identical to bcfp on ADMS", {
                info = "all bcfp ref segment_ids present in ours")
 
   # Per-segment array equality (after sort to ignore element ordering).
+  # ours$feature_ids is now an R list-column of character vectors (post #204).
+  # ref comes back from DBI::dbGetQuery as `pq__text` literal strings —
+  # parse via the same helper so both sides compare apples-to-apples.
   ours_sorted <- lapply(both$feature_ids_ours, function(x) {
     sort(as.character(x))
   })
   ref_sorted <- lapply(both$feature_ids_ref, function(x) {
-    sort(as.character(x))
+    sort(.frs_parse_pg_array(x))
   })
   matches <- mapply(function(a, b) identical(a, b),
                     ours_sorted, ref_sorted)
   expect_true(all(matches),
               info = sprintf("%d / %d arrays differ",
                               sum(!matches), length(matches)))
+})
+
+test_that("wscode_col / localcode_col override works on bcfp.observations", {
+  # bcfishpass.observations uses unsuffixed `wscode` / `localcode`
+  # column names rather than the `_ltree` suffix. Without #204's
+  # parameterisation, this query errors with "column b.wscode_ltree
+  # does not exist".
+  conn <- bcfp_conn()
+  withr::defer(try(DBI::dbDisconnect(conn), silent = TRUE))
+
+  out <- frs_network_features(
+    conn,
+    segments       = "bcfishpass.streams",
+    features       = "bcfishpass.observations",
+    segment_id_col = "segmented_stream_id",
+    feature_id_col = "observation_key",
+    direction      = "upstream",
+    aoi                    = "ADMS",
+    features_wscode_col    = "wscode",
+    features_localcode_col = "localcode"
+  )
+
+  expect_named(out, c("segmented_stream_id", "feature_ids"))
+  expect_gt(nrow(out), 0L)
+  # feature_ids should be a list-column of character vectors with
+  # actual observation_key strings, not array-literal text.
+  expect_type(out$feature_ids, "list")
+  expect_type(out$feature_ids[[1]], "character")
+  expect_gt(length(out$feature_ids[[1]]), 0L)
+  # The first vector's first element should look like a 32-char hex
+  # observation_key, not a `{...}` literal.
+  expect_no_match(out$feature_ids[[1]][1], "^\\{")
 })
 
 test_that("upstream PSCIS barriers structurally produce the inverse mapping",
