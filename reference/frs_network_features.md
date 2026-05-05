@@ -20,7 +20,11 @@ frs_network_features(
   feature_id_col,
   direction,
   aoi = NULL,
-  include_equivalents = FALSE
+  include_equivalents = FALSE,
+  segments_wscode_col = "wscode_ltree",
+  segments_localcode_col = "localcode_ltree",
+  features_wscode_col = "wscode_ltree",
+  features_localcode_col = "localcode_ltree"
 )
 ```
 
@@ -78,16 +82,45 @@ frs_network_features(
   relative-direction matches of each other. Mirrors bcfishpass's
   `include_equivalents` arg. Default `FALSE`.
 
+- segments_wscode_col:
+
+  Character. Watershed-code column on the `segments` table. Default
+  `"wscode_ltree"` matches `fresh.streams`, `bcfishpass.streams`,
+  `bcfishpass.barriers_*`.
+
+- segments_localcode_col:
+
+  Character. Local-code column on `segments`. Default
+  `"localcode_ltree"`.
+
+- features_wscode_col:
+
+  Character. Watershed-code column on the `features` table. Default
+  `"wscode_ltree"`. Pass `"wscode"` when
+  `features = "bcfishpass.observations"` (which uses unsuffixed column
+  names) or any other FWA-snapped point dataset following the same
+  convention.
+
+- features_localcode_col:
+
+  Character. Local-code column on `features`. Default
+  `"localcode_ltree"`. See `features_wscode_col`.
+
 ## Value
 
 A tibble with two columns:
 
-- `<segment_id_col>` – matches the input column name on segments
+- `<segment_id_col>` – matches the input column name on segments.
 
-- `feature_ids` – a `text[]` array of feature IDs in the requested
-  direction relative to each segment. **`NULL` when zero matches**
-  (don't expect synthesised empty arrays – `array_agg` over zero rows is
-  `NULL` in Postgres and that propagates).
+- `feature_ids` – an R list-column of character vectors (one vector per
+  row). The vectors carry the feature IDs aggregated from the requested
+  direction, ordered by
+  `(wscode_col DESC, localcode_col DESC, downstream_route_measure DESC)`
+  to mirror `bcfishpass.load_dnstr`. Segments with zero matches don't
+  appear in the output (INNER JOIN). Postgres array literals are parsed
+  to R character vectors via the internal `.frs_parse_pg_array()` helper
+  – limited to unquoted-element arrays (the common case for FWA-snapped
+  IDs).
 
 ## Details
 
@@ -134,6 +167,23 @@ wq_dnstr <- frs_network_features(
   direction      = "downstream",
   aoi            = "BABL"
 )
+
+# bcfishpass.observations uses unsuffixed `wscode` / `localcode`
+# columns -- pass the column names so the join matches.
+obs_per_segment <- frs_network_features(
+  conn,
+  segments       = "bcfishpass.streams",
+  features       = "bcfishpass.observations",
+  segment_id_col = "segmented_stream_id",
+  feature_id_col = "observation_key",
+  direction      = "upstream",
+  aoi                    = "ADMS",
+  features_wscode_col    = "wscode",
+  features_localcode_col = "localcode"
+)
+# feature_ids is a list-column of character vectors:
+lengths(obs_per_segment$feature_ids)        # per-segment counts
+obs_per_segment$feature_ids[[1]]            # character vector
 
 DBI::dbDisconnect(conn)
 } # }

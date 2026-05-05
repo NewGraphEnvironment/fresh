@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.28.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.29.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,15 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.29.0" id="fresh-0290">fresh 0.29.0<a class="anchor" aria-label="anchor" href="#fresh-0290"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/204" class="external-link">#204</a>. Two ergonomic upgrades to <code><a href="../reference/frs_network_features.html">frs_network_features()</a></code> surfaced when wiring it into link’s <code>lnk_pipeline_access</code> (link#124).</p>
+<ul><li>Per-side wscode/localcode column overrides. New args <code>segments_wscode_col</code>, <code>segments_localcode_col</code>, <code>features_wscode_col</code>, <code>features_localcode_col</code> (all default <code>"wscode_ltree"</code> / <code>"localcode_ltree"</code>). The original “unified” intent in <a href="https://github.com/NewGraphEnvironment/fresh/issues/204" class="external-link">#204</a> didn’t survive contact with <code>bcfishpass.observations</code> (unsuffixed <code>wscode</code> / <code>localcode</code>) joined against <code>bcfishpass.streams</code> (<code>_ltree</code>) — segments and features can have different column conventions on the same query. Pass <code>features_wscode_col = "wscode"</code> + <code>features_localcode_col = "localcode"</code> for that case.</li>
+<li>
+<code>feature_ids</code> is now an R list-column of character vectors rather than a <code>pq__text</code> column of array-literal strings (<code>"{a,b,c}"</code>). Callers can <code><a href="https://rdrr.io/r/base/lengths.html" class="external-link">lengths()</a></code>, <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code>, <code>%in%</code> directly. Empty / NULL arrays parse to <code>character(0)</code>. Internal helper <code>.frs_parse_pg_array()</code> does the parse — limited to unquoted-element arrays (the common case for FWA-snapped IDs); arrays containing commas or quotes inside elements would need a fuller parser per <a href="https://www.postgresql.org/docs/current/arrays.html#ARRAYS-IO" class="external-link">PostgreSQL arrays I/O</a>.</li>
+<li>Live parity on ADMS PSCIS barriers: still 1031 / 1031 byte-identical to bcfp.</li>
+<li>Live test added covers <code>bcfishpass.observations</code> with the per-side override — confirms column-resolution succeeds and <code>feature_ids[[1]]</code> is a character vector of <code>observation_key</code> strings, not a <code>{...}</code> literal.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.28.0" id="fresh-0280">fresh 0.28.0<a class="anchor" aria-label="anchor" href="#fresh-0280"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/201" class="external-link">#201</a>. Adds <code><a href="../reference/frs_network_features.html">frs_network_features()</a></code> — a direction-agnostic primitive that returns per-segment arrays of features at a relative position on the FWA stream network. For each row in a segments table, the function <code>array_agg</code>s feature IDs from a features table that lie either downstream of, or upstream of, that segment. Generic over any FWA-snapped point dataset (barriers, observations, water-quality stations, fish surveys, sediment samples — anything keyed by <code>(blue_line_key, downstream_route_measure, wscode_ltree, localcode_ltree)</code>).</p>

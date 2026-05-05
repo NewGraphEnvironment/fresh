@@ -19,7 +19,7 @@ surveys, sediment-sample points, weather stations – anything with
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.28.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.29.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,7 +70,11 @@ surveys, sediment-sample points, weather stations – anything with
 <span>  <span class="va">feature_id_col</span>,</span>
 <span>  <span class="va">direction</span>,</span>
 <span>  aoi <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  include_equivalents <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  include_equivalents <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  segments_wscode_col <span class="op">=</span> <span class="st">"wscode_ltree"</span>,</span>
+<span>  segments_localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span>,</span>
+<span>  features_wscode_col <span class="op">=</span> <span class="st">"wscode_ltree"</span>,</span>
+<span>  features_localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -131,14 +135,42 @@ at the same <code>(blue_line_key, downstream_route_measure)</code> position
 as relative-direction matches of each other. Mirrors bcfishpass's
 <code>include_equivalents</code> arg. Default <code>FALSE</code>.</p></dd>
 
+
+<dt id="arg-segments-wscode-col">segments_wscode_col<a class="anchor" aria-label="anchor" href="#arg-segments-wscode-col"></a></dt>
+<dd><p>Character. Watershed-code column on
+the <code>segments</code> table. Default <code>"wscode_ltree"</code> matches
+<code>fresh.streams</code>, <code>bcfishpass.streams</code>, <code>bcfishpass.barriers_*</code>.</p></dd>
+
+
+<dt id="arg-segments-localcode-col">segments_localcode_col<a class="anchor" aria-label="anchor" href="#arg-segments-localcode-col"></a></dt>
+<dd><p>Character. Local-code column on
+<code>segments</code>. Default <code>"localcode_ltree"</code>.</p></dd>
+
+
+<dt id="arg-features-wscode-col">features_wscode_col<a class="anchor" aria-label="anchor" href="#arg-features-wscode-col"></a></dt>
+<dd><p>Character. Watershed-code column on
+the <code>features</code> table. Default <code>"wscode_ltree"</code>. Pass <code>"wscode"</code>
+when <code>features = "bcfishpass.observations"</code> (which uses
+unsuffixed column names) or any other FWA-snapped point dataset
+following the same convention.</p></dd>
+
+
+<dt id="arg-features-localcode-col">features_localcode_col<a class="anchor" aria-label="anchor" href="#arg-features-localcode-col"></a></dt>
+<dd><p>Character. Local-code column on
+<code>features</code>. Default <code>"localcode_ltree"</code>. See <code>features_wscode_col</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble with two columns:</p><ul><li><p><code>&lt;segment_id_col&gt;</code> – matches the input column name on segments</p></li>
-<li><p><code>feature_ids</code> – a <code>text[]</code> array of feature IDs in the requested
-direction relative to each segment. <strong><code>NULL</code> when zero matches</strong>
-(don't expect synthesised empty arrays – <code>array_agg</code> over zero
-rows is <code>NULL</code> in Postgres and that propagates).</p></li>
+    <p>A tibble with two columns:</p><ul><li><p><code>&lt;segment_id_col&gt;</code> – matches the input column name on segments.</p></li>
+<li><p><code>feature_ids</code> – an R list-column of character vectors (one
+vector per row). The vectors carry the feature IDs aggregated
+from the requested direction, ordered by
+<code>(wscode_col DESC, localcode_col DESC, downstream_route_measure DESC)</code> to mirror <code>bcfishpass.load_dnstr</code>. Segments with zero
+matches don't appear in the output (INNER JOIN). Postgres
+array literals are parsed to R character vectors via the
+internal <code>.frs_parse_pg_array()</code> helper – limited to
+unquoted-element arrays (the common case for FWA-snapped IDs).</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -185,6 +217,23 @@ comparison, then <code>array_agg</code>s feature IDs grouped by segment ID.</p>
 <span class="r-in"><span>  direction      <span class="op">=</span> <span class="st">"downstream"</span>,</span></span>
 <span class="r-in"><span>  aoi            <span class="op">=</span> <span class="st">"BABL"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># bcfishpass.observations uses unsuffixed `wscode` / `localcode`</span></span></span>
+<span class="r-in"><span><span class="co"># columns -- pass the column names so the join matches.</span></span></span>
+<span class="r-in"><span><span class="va">obs_per_segment</span> <span class="op">&lt;-</span> <span class="fu">frs_network_features</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">conn</span>,</span></span>
+<span class="r-in"><span>  segments       <span class="op">=</span> <span class="st">"bcfishpass.streams"</span>,</span></span>
+<span class="r-in"><span>  features       <span class="op">=</span> <span class="st">"bcfishpass.observations"</span>,</span></span>
+<span class="r-in"><span>  segment_id_col <span class="op">=</span> <span class="st">"segmented_stream_id"</span>,</span></span>
+<span class="r-in"><span>  feature_id_col <span class="op">=</span> <span class="st">"observation_key"</span>,</span></span>
+<span class="r-in"><span>  direction      <span class="op">=</span> <span class="st">"upstream"</span>,</span></span>
+<span class="r-in"><span>  aoi                    <span class="op">=</span> <span class="st">"ADMS"</span>,</span></span>
+<span class="r-in"><span>  features_wscode_col    <span class="op">=</span> <span class="st">"wscode"</span>,</span></span>
+<span class="r-in"><span>  features_localcode_col <span class="op">=</span> <span class="st">"localcode"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># feature_ids is a list-column of character vectors:</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/lengths.html" class="external-link">lengths</a></span><span class="op">(</span><span class="va">obs_per_segment</span><span class="op">$</span><span class="va">feature_ids</span><span class="op">)</span>        <span class="co"># per-segment counts</span></span></span>
+<span class="r-in"><span><span class="va">obs_per_segment</span><span class="op">$</span><span class="va">feature_ids</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>            <span class="co"># character vector</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
