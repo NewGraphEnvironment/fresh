@@ -1,3 +1,15 @@
+# fresh 0.28.0
+
+Closes [#201](https://github.com/NewGraphEnvironment/fresh/issues/201). Adds `frs_network_features()` — a direction-agnostic primitive that returns per-segment arrays of features at a relative position on the FWA stream network. For each row in a segments table, the function `array_agg`s feature IDs from a features table that lie either downstream of, or upstream of, that segment. Generic over any FWA-snapped point dataset (barriers, observations, water-quality stations, fish surveys, sediment samples — anything keyed by `(blue_line_key, downstream_route_measure, wscode_ltree, localcode_ltree)`).
+
+- Sibling to `frs_network_downstream` / `frs_network_upstream` (which are point→segments). New shape: segments→features (per-segment arrays).
+- `direction = c("downstream", "upstream")` is required (no default). `match.arg()` enforces.
+- `aoi` defaults to `NULL` (process all segments). Accepts WSG codes today; polygon / ltree forward-compat — will route through `.frs_resolve_aoi()` when generalised.
+- Output is a 2-column tibble. `feature_ids` is `text[]`; segments with zero matches are absent from the output (INNER-JOIN semantics, mirroring `bcfishpass.load_dnstr`). Callers wanting all-segments-with-NULL can LEFT-JOIN the result back to their segments table.
+- SQL pattern mirrors `bcfishpass.load_dnstr` exactly: subquery-INNER-JOIN feeding outer GROUP BY, with the canonical `ORDER BY segment_id, wscode DESC, localcode DESC, drm DESC` triple at the subquery level for byte-identical element ordering.
+- Live parity test against bcfp's `streams_dnstr_barriers` for ADMS PSCIS barriers: 1031 / 1031 segments byte-identical (mod sort).
+- First consumer: link's `lnk_pipeline_access` (link#124, in flight) — composes calls across (source × species) into the bcfp-shape `streams_access` table.
+
 # fresh 0.27.6
 
 Set SSD-friendly planner-cost defaults in `docker/docker-compose.yml`: `random_page_cost=1.1`, `effective_io_concurrency=200`, `temp_buffers=64MB`. PostgreSQL ships with values calibrated for spinning rust (4.0 / 1 / 8MB), which biased the planner away from index scans on segment-keyed lookups (`WHERE blue_line_key = … AND drm <= …` against `streams_breaks` is the hot path in link's pipeline). Documents the new settings in `docker/tuning.md` and notes that the M1/cypher docker-compose override file (tracked separately) needs the same flags — compose merges override `command:` lists by replacing the base, not appending.

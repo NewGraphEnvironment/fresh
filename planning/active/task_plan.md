@@ -1,0 +1,81 @@
+# Task: frs_network_features — direction-agnostic per-segment feature-array primitive (#201)
+
+A recurring pattern in stream-network analysis: for each segment in a network table, return an array of point features (snapped to FWA via `(blue_line_key, drm, wscode_ltree, localcode_ltree)`) that lie at a particular relative position. bcfp's `bcfishpass.load_dnstr_chunked` UDF solves the downstream slice DB-side; fresh has the right home for the R-side primitive (sibling to `frs_network_*`) but the function doesn't exist yet.
+
+First consumer: link's `lnk_pipeline_access` (link#124, in flight, currently blocked on this primitive). Future consumers: water-quality station roll-ups, fish-survey aggregations, sediment-sample summaries.
+
+Naming + design (settled with user):
+
+- `frs_network_features` — fits `frs_network_*` family. Distinct shape from siblings: segments→features (per-segment arrays), not point→segments.
+- `direction = c("downstream", "upstream")` — required, no default; `match.arg()`.
+- `aoi = NULL` — forward-compat. MVP only validates WSG codes; polygon/ltree later via `.frs_resolve_aoi`.
+- `segments` / `features` — table args (not `from`/`to` — avoids implying a fixed direction).
+- `segment_id_col` (default `"id_segment"`) / `feature_id_col` (no default — caller passes column name).
+- `include_equivalents = FALSE` — mirrors bcfp.
+- Output: 2-column tibble `(<segment_id_col>, feature_ids)`. `feature_ids` is `text[]`; **NULL when zero matches** (don't synthesise empty arrays — keep Postgres semantics).
+- Exported. Public.
+
+## Phase 1: Function signature + validation + roxygen + NAMESPACE (DONE)
+
+- [x] Create `R/frs_network_features.R` with full signature, arg validation via `.frs_validate_identifier` (from `R/utils.R`), `match.arg(direction)`, and `aoi` validation (WSG-code regex `^[A-Z]{3,5}$` for now; document polygon/ltree as future-compat).
+- [x] Roxygen with worked `\dontrun{}` example showing both directions + a generic non-barrier use case (e.g. water-quality stations).
+- [x] Body returns a not-implemented `stop()` for now so the function exists in the namespace but doesn't run real SQL yet. Lets tests of validation alone pass.
+- [x] `devtools::document()` updates `NAMESPACE` + `man/frs_network_features.Rd`.
+- [x] `tests/testthat/test-frs_network_features.R` — validation-only tests (missing `feature_id_col` errors; bad identifier characters error; bad direction errors; bad aoi format errors). 11 / 11 PASS.
+- [x] `lintr::lint("R/frs_network_features.R")` clean.
+- [x] Commit (Phase 1 done, atomic with checkbox flip).
+
+## Phase 2: SQL implementation (both directions) + mocked unit tests (DONE)
+
+- [x] Fill in SQL builder. Pattern based on bcfp's `load_dnstr_chunked.sql`:
+  - `LEFT JOIN` segments to features on `whse_basemapping.fwa_<direction>(a.<keys>, b.<keys>, <include_equivalents>, 1)`.
+  - `array_agg(b.<feature_id_col> ORDER BY b.wscode_ltree DESC, b.localcode_ltree DESC, b.downstream_route_measure DESC) FILTER (WHERE b.<feature_id_col> IS NOT NULL)`.
+  - `aoi` becomes a `WHERE a.watershed_group_code = '<aoi>'` clause when set (regex-validated, no SQL-injection vector).
+- [x] Use `frs_db_query()` (from `R/frs_db_query.R`) for execution — mirrors `frs_network_downstream`'s pattern.
+- [x] Mocked unit tests (`local_mocked_bindings(frs_db_query = ...)`):
+  - "downstream" direction: SQL contains `fwa_downstream(...)` ✓
+  - "upstream" direction: SQL contains `fwa_upstream(...)` ✓
+  - segments-first / features-second arg order (a.blue_line_key before b.blue_line_key) ✓
+  - `aoi = "ADMS"` injects `WHERE a.watershed_group_code = 'ADMS'` ✓
+  - `aoi = NULL` omits the WHERE clause ✓
+  - `include_equivalents = FALSE` (default) → `false, 1` ✓
+  - `include_equivalents = TRUE` → `true, 1` ✓
+  - Returned tibble preserves the `segment_id_col` name verbatim ✓
+- [x] 20 / 20 PASS in test-frs_network_features.R; full fresh suite green; lintr clean.
+- [x] Commit (Phase 2 done).
+
+## Phase 3: Live parity test against bcfp tunnel (DONE)
+
+- [x] Add `tests/testthat/test-frs_network_features-live.R` guarded by `skip_if(Sys.getenv("PG_PASS_SHARE") == "")` + `skip_on_ci()` + `skip_on_cran()`.
+- [x] Run `frs_network_features(... aoi = "ADMS", include_equivalents = TRUE)` against the bcfp tunnel.
+- [x] Compare to `bcfishpass.streams_dnstr_barriers.barriers_pscis_dnstr` filtered to ADMS where `barriers_pscis_dnstr IS NOT NULL` (the apples-to-apples slice — bcfp's table is wide-per-source so the unfiltered count was a red herring).
+- [x] Refactored SQL from LEFT JOIN to bcfp's exact pattern: subquery-with-INNER-JOIN feeding outer GROUP BY. The subquery `ORDER BY segment_id, wscode DESC, localcode DESC, drm DESC` preserves bcfp's canonical element ordering.
+- [x] **Acceptance: 100 % byte-identical on ADMS.** 1031 / 1031 segments with non-NULL `barriers_pscis_dnstr`; per-segment arrays equal mod sort.
+- [x] Sanity test for `direction = "upstream"` (no clean bcfp reference, just confirms SQL runs + produces sensible shape).
+- [x] Commit (Phase 3 done).
+
+## Phase 4: Release verification + bump (DONE)
+
+Pre-release sweep (per "fail loud, robust products" preference):
+
+- [x] Live parity 5/5 byte-identical: ADMS PSCIS 1031, BULK PSCIS 13046, HORS PSCIS 9256, ADMS dams 15195, ADMS anthropogenic 15534.
+- [x] `.Rbuildignore` fix: added `^docker/postgres-data$` + `^scripts$` + `^comms$`. Build went 84 GB → 19 MB.
+- [x] Non-ASCII em-dashes in `R/frs_network_features.R` replaced with `--`.
+- [x] `R CMD check`: 1 ERROR + 5 WARN + 2 NOTE remain, **all pre-existing fresh debt**. Filed [fresh#202](https://github.com/NewGraphEnvironment/fresh/issues/202) for the test failure.
+- [x] Full `devtools::test()` via R CMD check: 933 / 935 PASS; 1 FAIL is fresh#202 (pre-existing); 1 SKIP is live parity correctly skipping on CRAN.
+
+Release commit + PR:
+
+- [x] `NEWS.md` 0.28.0 entry.
+- [x] `DESCRIPTION` 0.27.6 → 0.28.0.
+- [ ] Commit + push branch.
+- [ ] Open PR. Body closes #201, includes parity numbers + pre-existing-fresh-debt disclosure.
+- [ ] Merge PR.
+- [ ] After merge: `/planning-archive` on fresh side, then `cd ~/Projects/repo/link` to resume link#124 Phase 2.
+
+## Validation
+
+- [ ] Tests pass
+- [ ] `/code-check` clean on each commit
+- [ ] PWF checkboxes match landed work
+- [ ] `/planning-archive` on completion
