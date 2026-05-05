@@ -3,9 +3,9 @@
 #' For each row in a segments table, return an array of feature IDs
 #' from a features table that lie at the requested relative position
 #' (downstream of, or upstream of) that segment in the FWA stream
-#' network. The features can be any point dataset snapped to FWA —
+#' network. The features can be any point dataset snapped to FWA --
 #' barriers, crossings, observations, water-quality stations, fish
-#' surveys, sediment-sample points, weather stations — anything with
+#' surveys, sediment-sample points, weather stations -- anything with
 #' `(blue_line_key, downstream_route_measure, wscode_ltree,
 #' localcode_ltree)` keys.
 #'
@@ -29,16 +29,16 @@
 #'   per-segment unique key column on the segments table.
 #' @param feature_id_col Character. The unique-key column on the
 #'   features table (e.g. `"barriers_pscis_id"`,
-#'   `"observation_key"`, `"station_id"`). **Required — no default;
+#'   `"observation_key"`, `"station_id"`). **Required -- no default;
 #'   caller passes the actual column name.**
-#' @param direction Character. **Required — no default.** One of
+#' @param direction Character. **Required -- no default.** One of
 #'   `"downstream"` or `"upstream"`. `"downstream"` returns features
 #'   that lie below each segment (toward the river mouth). `"upstream"`
 #'   returns features above each segment.
 #' @param aoi Character. Optional area-of-interest filter on segments.
 #'   Today only WSG codes (e.g. `"ADMS"`, `"BULK"`) are supported and
 #'   filter `segments.watershed_group_code = aoi`. Polygon / ltree AOIs
-#'   are forward-compat — they will route through `.frs_resolve_aoi()`
+#'   are forward-compat -- they will route through `.frs_resolve_aoi()`
 #'   when generalised. Default `NULL` processes every row in the
 #'   segments table.
 #' @param include_equivalents Logical. When `TRUE`, treats segments
@@ -47,10 +47,10 @@
 #'   `include_equivalents` arg. Default `FALSE`.
 #'
 #' @return A tibble with two columns:
-#'   - `<segment_id_col>` — matches the input column name on segments
-#'   - `feature_ids` — a `text[]` array of feature IDs in the requested
+#'   - `<segment_id_col>` -- matches the input column name on segments
+#'   - `feature_ids` -- a `text[]` array of feature IDs in the requested
 #'     direction relative to each segment. **`NULL` when zero matches**
-#'     (don't expect synthesised empty arrays — `array_agg` over zero
+#'     (don't expect synthesised empty arrays -- `array_agg` over zero
 #'     rows is `NULL` in Postgres and that propagates).
 #'
 #' @family network
@@ -138,7 +138,7 @@ frs_network_features <- function(
     if (!grepl("^[A-Z]{3,5}$", aoi)) {
       stop("`aoi` must be a watershed group code (e.g. \"ADMS\", ",
            "\"BULK\") matching `^[A-Z]{3,5}$`. Polygon and ltree AOIs ",
-           "are not yet supported in this function — file a follow-up ",
+           "are not yet supported in this function -- file a follow-up ",
            "if needed.", call. = FALSE)
     }
   }
@@ -151,7 +151,7 @@ frs_network_features <- function(
 
   ie_arg <- if (isTRUE(include_equivalents)) "true" else "false"
 
-  # `aoi` is regex-validated `^[A-Z]{3,5}$` above — safe to interpolate
+  # `aoi` is regex-validated `^[A-Z]{3,5}$` above -- safe to interpolate
   # without runtime quoting (no SQL-injection vector).
   aoi_filter <- if (!is.null(aoi)) {
     sprintf("WHERE a.watershed_group_code = '%s'", aoi)

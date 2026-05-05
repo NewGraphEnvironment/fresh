@@ -54,12 +54,24 @@ Naming + design (settled with user):
 - [x] Sanity test for `direction = "upstream"` (no clean bcfp reference, just confirms SQL runs + produces sensible shape).
 - [x] Commit (Phase 3 done).
 
-## Phase 4: Release (~0.5 day)
+## Phase 4: Release verification + bump (DONE)
 
-- [ ] `NEWS.md` 0.28.0 entry (additive new exported function = minor bump under R-package conventions).
-- [ ] `DESCRIPTION` 0.27.6 → 0.28.0.
-- [ ] PR body: closes #201, includes the ADMS parity numbers from Phase 3 in the test plan section.
-- [ ] After merge: `/planning-archive` on fresh side, then `cd ~/Projects/repo/link` to resume link#124 Phase 2 — the consumer wiring that was blocked on this primitive.
+Pre-release sweep (per "fail loud, robust products" preference):
+
+- [x] Live parity 5/5 byte-identical: ADMS PSCIS 1031, BULK PSCIS 13046, HORS PSCIS 9256, ADMS dams 15195, ADMS anthropogenic 15534.
+- [x] `.Rbuildignore` fix: added `^docker/postgres-data$` + `^scripts$` + `^comms$`. Build went 84 GB → 19 MB.
+- [x] Non-ASCII em-dashes in `R/frs_network_features.R` replaced with `--`.
+- [x] `R CMD check`: 1 ERROR + 5 WARN + 2 NOTE remain, **all pre-existing fresh debt**. Filed [fresh#202](https://github.com/NewGraphEnvironment/fresh/issues/202) for the test failure.
+- [x] Full `devtools::test()` via R CMD check: 933 / 935 PASS; 1 FAIL is fresh#202 (pre-existing); 1 SKIP is live parity correctly skipping on CRAN.
+
+Release commit + PR:
+
+- [x] `NEWS.md` 0.28.0 entry.
+- [x] `DESCRIPTION` 0.27.6 → 0.28.0.
+- [ ] Commit + push branch.
+- [ ] Open PR. Body closes #201, includes parity numbers + pre-existing-fresh-debt disclosure.
+- [ ] Merge PR.
+- [ ] After merge: `/planning-archive` on fresh side, then `cd ~/Projects/repo/link` to resume link#124 Phase 2.
 
 ## Validation
 

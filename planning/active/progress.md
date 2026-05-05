@@ -18,4 +18,11 @@
   - SQL pattern: LEFT JOIN → subquery-with-INNER-JOIN matching bcfp's exact `load_dnstr` shape (preserves canonical element ordering via the subquery's ORDER BY triple).
   - Test ref query: filter bcfp's wide-per-source `streams_dnstr_barriers` to `barriers_pscis_dnstr IS NOT NULL` for the apples-to-apples PSCIS slice. The unfiltered 15647 was a red herring — most of those rows have non-NULL `barriers_dams_dnstr` but NULL PSCIS.
 - 6 / 6 PASS in test-frs_network_features-live.R (1 downstream parity + 1 upstream sanity + the 4 mocked tests already passing).
-- Next: Phase 4 — NEWS.md 0.28.0 entry, DESCRIPTION bump, PR.
+- Phase 4 partial: NEWS.md 0.28.0 entry written, DESCRIPTION bumped 0.27.6 → 0.28.0.
+- Pre-release sweep results (per the user's "fail loud, robust products" preference):
+  - Live parity 5/5 byte-identical: ADMS PSCIS 1031, BULK PSCIS 13046, HORS PSCIS 9256, ADMS dams 15195, ADMS anthropogenic 15534.
+  - `R CMD check` initially hung — diagnosed as `docker/postgres-data/` (84 GB!) not in `.Rbuildignore`, so build was slurping the running database. Added `^docker/postgres-data$` + `^scripts$` + `^comms$` to `.Rbuildignore`. Rebuild went 6.9 GB → 19 MB → check completes in normal time.
+  - One WARN of mine: non-ASCII em-dashes in roxygen. Replaced with `--`.
+  - Final check: 1 ERROR + 5 WARN + 2 NOTE — **all pre-existing fresh debt, none introduced by #201**. The 1 ERROR is fresh#202 (`test-frs_params` CO rear-rules drift; reproducible on main).
+  - 933 / 935 tests pass; 1 fail is fresh#202; 1 skip is the live parity test correctly skipping under CRAN.
+- Next: push branch, open PR, merge, then `/planning-archive` + cd back to link#124.

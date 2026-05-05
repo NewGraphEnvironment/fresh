@@ -34,10 +34,10 @@ per-segment unique key column on the segments table.}
 
 \item{feature_id_col}{Character. The unique-key column on the
 features table (e.g. \code{"barriers_pscis_id"},
-\code{"observation_key"}, \code{"station_id"}). \strong{Required — no default;
+\code{"observation_key"}, \code{"station_id"}). \strong{Required -- no default;
 caller passes the actual column name.}}
 
-\item{direction}{Character. \strong{Required — no default.} One of
+\item{direction}{Character. \strong{Required -- no default.} One of
 \code{"downstream"} or \code{"upstream"}. \code{"downstream"} returns features
 that lie below each segment (toward the river mouth). \code{"upstream"}
 returns features above each segment.}
@@ -45,7 +45,7 @@ returns features above each segment.}
 \item{aoi}{Character. Optional area-of-interest filter on segments.
 Today only WSG codes (e.g. \code{"ADMS"}, \code{"BULK"}) are supported and
 filter \code{segments.watershed_group_code = aoi}. Polygon / ltree AOIs
-are forward-compat — they will route through \code{.frs_resolve_aoi()}
+are forward-compat -- they will route through \code{.frs_resolve_aoi()}
 when generalised. Default \code{NULL} processes every row in the
 segments table.}
 
@@ -57,10 +57,10 @@ as relative-direction matches of each other. Mirrors bcfishpass's
 \value{
 A tibble with two columns:
 \itemize{
-\item \verb{<segment_id_col>} — matches the input column name on segments
-\item \code{feature_ids} — a \code{text[]} array of feature IDs in the requested
+\item \verb{<segment_id_col>} -- matches the input column name on segments
+\item \code{feature_ids} -- a \code{text[]} array of feature IDs in the requested
 direction relative to each segment. \strong{\code{NULL} when zero matches}
-(don't expect synthesised empty arrays — \code{array_agg} over zero
+(don't expect synthesised empty arrays -- \code{array_agg} over zero
 rows is \code{NULL} in Postgres and that propagates).
 }
 }
@@ -68,9 +68,9 @@ rows is \code{NULL} in Postgres and that propagates).
 For each row in a segments table, return an array of feature IDs
 from a features table that lie at the requested relative position
 (downstream of, or upstream of) that segment in the FWA stream
-network. The features can be any point dataset snapped to FWA —
+network. The features can be any point dataset snapped to FWA --
 barriers, crossings, observations, water-quality stations, fish
-surveys, sediment-sample points, weather stations — anything with
+surveys, sediment-sample points, weather stations -- anything with
 \verb{(blue_line_key, downstream_route_measure, wscode_ltree, localcode_ltree)} keys.
 }
 \details{

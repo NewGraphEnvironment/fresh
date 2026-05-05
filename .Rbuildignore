@@ -13,3 +13,6 @@
 ^\.Rproj\.user$
 ^data/rag$
 ^figure$
+^docker/postgres-data$
+^scripts$
+^comms$
