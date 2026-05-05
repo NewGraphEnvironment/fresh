@@ -239,111 +239,38 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 </div>
 </div>
 <div class="section level1">
-<h1 id="cartography">Cartography<a class="anchor" aria-label="anchor" href="#cartography"></a></h1>
+<h1 id="ci-monitoring">CI Monitoring<a class="anchor" aria-label="anchor" href="#ci-monitoring"></a></h1>
+<p>When this repo has GitHub Actions workflows, scan recent runs on session start. Catches failed pkgdown deploys, broken vignette builds, and stale citation regenerations that would otherwise linger until the user manually checks.</p>
 <div class="section level2">
-<h2 id="style-registry">Style Registry<a class="anchor" aria-label="anchor" href="#style-registry"></a></h2>
-<p>Use the <code>gq</code> package for all shared layer symbology. Never hardcode hex color values when a registry style exists.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></span><span class="op">)</span></span>
-<span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># load once per script — 51+ layers</span></span></code></pre></div>
-<p><strong>Core pattern:</strong> <code>reg$layers$lake</code>, <code>reg$layers$road</code>, <code>reg$layers$bec_zone</code>, etc.</p>
-<div class="section level3">
-<h3 id="translators">Translators<a class="anchor" aria-label="anchor" href="#translators"></a></h3>
-<table class="table"><colgroup><col width="21%"><col width="34%"><col width="44%"></colgroup><thead><tr><th>Target</th>
-<th>Simple layer</th>
-<th>Classified layer</th>
-</tr></thead><tbody><tr><td>tmap</td>
-<td>
-<code>gq_tmap_style(layer)</code> → <code>do.call(tm_polygons, ...)</code>
-</td>
-<td>
-<code>gq_tmap_classes(layer)</code> → field, values, labels</td>
-</tr><tr><td>mapgl</td>
-<td>
-<code>gq_mapgl_style(layer)</code> → paint properties</td>
-<td>
-<code>gq_mapgl_classes(layer)</code> → match expression</td>
-</tr></tbody></table></div>
-<div class="section level3">
-<h3 id="custom-styles">Custom styles<a class="anchor" aria-label="anchor" href="#custom-styles"></a></h3>
-<p>For project-specific layers not in the main registry, use a hand-curated CSV and merge:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_merge.html" class="external-link">gq_reg_merge</a></span><span class="op">(</span><span class="fu"><a href="https://newgraphenvironment.github.io/gq/reference/gq_reg_main.html" class="external-link">gq_reg_main</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu">gq_reg_read_csv</span><span class="op">(</span><span class="st">"path/to/custom.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>Install: <code>pak::pak("NewGraphEnvironment/gq")</code></p>
-</div>
+<h2 id="on-session-start">On Session Start<a class="anchor" aria-label="anchor" href="#on-session-start"></a></h2>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">gh</span> run list <span class="at">--limit</span> 5 <span class="at">--json</span> status,conclusion,name,createdAt,databaseId <span class="dt">\</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="at">--jq</span> <span class="st">'.[] | select(.conclusion == "failure")'</span></span></code></pre></div>
+<p>If any failures since the last visit, surface to the user before starting other work:</p>
+<blockquote>
+<p>Workflow <code>&lt;name&gt;</code> failed <code>&lt;time&gt;</code> ago (run <code>&lt;id&gt;</code>). Investigate with <code>gh run view &lt;id&gt; --log-failed</code>. Fix or proceed with current task?</p>
+</blockquote>
+<p>User decides; do not auto-fix.</p>
 </div>
 <div class="section level2">
-<h2 id="map-targets">Map Targets<a class="anchor" aria-label="anchor" href="#map-targets"></a></h2>
-<table class="table"><colgroup><col width="40%"><col width="30%"><col width="30%"></colgroup><thead><tr><th>Output</th>
-<th>Tool</th>
-<th>When</th>
-</tr></thead><tbody><tr><td>PDF / print figures</td>
-<td>
-<code>tmap</code> v4</td>
-<td>Bookdown PDF, static reports</td>
-</tr><tr><td>Interactive HTML</td>
-<td>
-<code>mapgl</code> (MapLibre GL)</td>
-<td>Bookdown gitbook, memos, web pages</td>
-</tr><tr><td>QGIS project</td>
-<td>Native QML</td>
-<td>Field work, Mergin Maps</td>
-</tr></tbody></table></div>
-<div class="section level2">
-<h2 id="key-rules">Key Rules<a class="anchor" aria-label="anchor" href="#key-rules"></a></h2>
+<h2 id="particular-failures-worth-naming">Particular Failures Worth Naming<a class="anchor" aria-label="anchor" href="#particular-failures-worth-naming"></a></h2>
 <ul><li>
-<strong><code>sf_use_s2(FALSE)</code></strong> at top of every mapping script</li>
+<strong>pkgdown</strong> — docs site on GitHub Pages broken</li>
 <li>
-<strong>Compute area BEFORE simplify</strong> in SQL</li>
+<strong>R-CMD-check</strong> — package may not install</li>
 <li>
-<strong>No map title</strong> — title belongs in the report caption</li>
+<strong>Vignette / build-vignettes</strong> — vignette docs incomplete</li>
 <li>
-<strong>Legend over least-important terrain</strong> — swap legend and logo sides when it reduces AOI occlusion. No fixed convention for which side.</li>
-<li>
-<strong>Four-corner rule</strong> — legend, logo, scale bar, keymap each get their own corner. Never stack two in the same quadrant.</li>
-<li>
-<strong>Bbox must match canvas aspect ratio</strong> — compute the ratio from geographic extents and page dimensions. Mismatch causes white space bands.</li>
-<li>
-<strong>Consistent element-to-frame spacing</strong> — all inset elements should have visually equal margins from the frame edge</li>
-<li>
-<strong>Map fills to frame</strong> — basemap extends edge-to-edge, no dead bands. Use near-zero <code>inner.margins</code> and <code>outer.margins</code>.</li>
-<li>
-<strong>Suppress auto-legends</strong> — build manual ones from registry values</li>
-<li>
-<strong>ALL CAPS labels appear larger</strong> — use title case for legend labels (gq <code><a href="https://newgraphenvironment.github.io/gq/reference/gq_tmap_classes.html" class="external-link">gq_tmap_classes()</a></code> handles this automatically via <code>to_title()</code> fallback)</li>
+<strong>update-citation-cff</strong> — CITATION.cff stale</li>
 </ul></div>
 <div class="section level2">
-<h2 id="self-review-after-every-render">Self-Review (after every render)<a class="anchor" aria-label="anchor" href="#self-review-after-every-render"></a></h2>
-<p>Read the PNG and check before showing anyone:</p>
-<ol style="list-style-type: decimal"><li>Correct polygon/study area shown? (verify source data, not just the bbox)</li>
-<li>Map fills the page? (no white/black bands)</li>
-<li>Keymap inside frame with spacing from edge?</li>
-<li>No element overlap? (each in its own corner)</li>
-<li>Legend over least-important terrain?</li>
-<li>Consistent spacing across all elements?</li>
-<li>Scale bar breaks appropriate for extent?</li>
-</ol><p>See the <code>cartography</code> skill for full reference: basemap blending, BC spatial data queries, label hierarchy, mapgl gotchas, and worked examples.</p>
+<h2 id="why-this-matters">Why This Matters<a class="anchor" aria-label="anchor" href="#why-this-matters"></a></h2>
+<p>Without this scan, post-merge workflow failures linger until someone (often the user) notices a stale docs site or a missing vignette. The session-start sweep catches them on the first re-entry into the repo.</p>
 </div>
 <div class="section level2">
-<h2 id="land-cover-change">Land Cover Change<a class="anchor" aria-label="anchor" href="#land-cover-change"></a></h2>
-<p>Use <a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a> and <a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a> together for riparian land cover change analysis. flooded delineates floodplain extents from DEMs and stream networks; drift tracks what’s changing inside them over time.</p>
-<p><strong>Pipeline:</strong></p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># 1. Delineate floodplain AOI (flooded)</span></span>
-<span><span class="va">valleys</span> <span class="op">&lt;-</span> <span class="fu">flooded</span><span class="fu">::</span><span class="fu">fl_valley_confine</span><span class="op">(</span><span class="va">dem</span>, <span class="va">streams</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># 2. Fetch, classify, summarize (drift)</span></span>
-<span><span class="va">rasters</span>   <span class="op">&lt;-</span> <span class="fu">drift</span><span class="fu">::</span><span class="fu">dft_stac_fetch</span><span class="op">(</span><span class="va">aoi</span>, source <span class="op">=</span> <span class="st">"io-lulc"</span>, years <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2017</span>, <span class="fl">2020</span>, <span class="fl">2023</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">classified</span> <span class="op">&lt;-</span> <span class="fu">drift</span><span class="fu">::</span><span class="fu">dft_rast_classify</span><span class="op">(</span><span class="va">rasters</span>, source <span class="op">=</span> <span class="st">"io-lulc"</span><span class="op">)</span></span>
-<span><span class="va">summary</span>    <span class="op">&lt;-</span> <span class="fu">drift</span><span class="fu">::</span><span class="fu">dft_rast_summarize</span><span class="op">(</span><span class="va">classified</span>, unit <span class="op">=</span> <span class="st">"ha"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># 3. Interactive map with layer toggle</span></span>
-<span><span class="fu">drift</span><span class="fu">::</span><span class="fu">dft_map_interactive</span><span class="op">(</span><span class="va">classified</span>, aoi <span class="op">=</span> <span class="va">aoi</span><span class="op">)</span></span></code></pre></div>
-<ul><li>Class colors come from drift’s shipped class tables (IO LULC, ESA WorldCover)</li>
-<li>For production COGs on S3, <code>dft_map_interactive()</code> serves tiles via titiler — set <code>options(drift.titiler_url = "...")</code>
-</li>
-<li>See the <a href="https://www.newgraphenvironment.com/drift/articles/neexdzii-kwa.html" class="external-link">drift vignette</a> for a worked example (Neexdzii Kwa floodplain, 2017-2023)</li>
-</ul></div>
+<h2 id="pairs-with-gh-pr-merge">Pairs with <code>/gh-pr-merge</code>
+<a class="anchor" aria-label="anchor" href="#pairs-with-gh-pr-merge"></a></h2>
+<p>The skill watches workflows triggered by a fresh merge in real time — that’s the targeted catch. This convention is the backstop for failures that landed when no one was watching (merges via web UI, scheduled triggers, manually-triggered workflows).</p>
+</div>
 </div>
 <div class="section level1">
 <h1 id="code-check-conventions">Code Check Conventions<a class="anchor" aria-label="anchor" href="#code-check-conventions"></a></h1>
@@ -358,6 +285,20 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <code>"echo '${VAR}'"</code> — if VAR contains <code>'</code>, shell syntax breaks</li>
 <li>Use <code>printf '%s\n' "$VAR" | command</code> to pipe values safely</li>
 <li>Heredocs: unquoted <code>&lt;&lt;EOF</code> expands variables locally, <code>&lt;&lt;'EOF'</code> does not — know which you need</li>
+<li>Pass-through-ssh args: <code>printf '%q'</code> escapes per-arg so workload paths with spaces / quotes / metacharacters survive the local-shell → ssh-argv → remote-shell round-trip. Without it, <code>ssh host 'cmd' "$path"</code> joins args with spaces on remote and re-parses, losing argument boundaries.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="heredoc-precedence-in-pipelines">Heredoc precedence in pipelines<a class="anchor" aria-label="anchor" href="#heredoc-precedence-in-pipelines"></a></h3>
+<ul><li>
+<code>cmd1 | cmd2 &lt;&lt;EOF</code> — the heredoc binds to <code>cmd2</code> (the rightmost simple command). If you intended <code>cmd1</code> to receive it, put <code>&lt;&lt;EOF</code> on cmd1 explicitly: <code>cmd1 &lt;&lt;EOF | cmd2</code>.</li>
+<li>Symptom when wrong: ssh body silently echoed by tee/cat/etc, ssh side gets empty stdin, exits 0 (or near-0) without doing anything. Caught the hard way 2026-05-01 in cypher_restore-fwapg.sh.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="pipefail-with-sshtee">pipefail with ssh+tee<a class="anchor" aria-label="anchor" href="#pipefail-with-sshtee"></a></h3>
+<ul><li>
+<code>set -eu</code> does NOT propagate exit codes through pipelines. <code>ssh ... | tee log</code> returns tee’s exit (always 0 for healthy tee), masking ssh failure.</li>
+<li>Use <code>set -euo pipefail</code> for any script that pipes a meaningful command into tee/cat/grep/etc. Or check <code>${PIPESTATUS[0]}</code> explicitly.</li>
+<li>Symptom when wrong: task notifications report “exit 0 / completed” while remote work was actually skipped or errored.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="paths">Paths<a class="anchor" aria-label="anchor" href="#paths"></a></h3>
@@ -392,15 +333,49 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 </li>
 </ul></div>
 <div class="section level3">
+<h3 id="yaml-flow-mapping-in-runcmd">YAML flow-mapping in runcmd<a class="anchor" aria-label="anchor" href="#yaml-flow-mapping-in-runcmd"></a></h3>
+<ul><li><p>Any runcmd item containing both <code>{</code> and <code>:</code> is at risk of being parsed as a YAML flow-mapping (dict), not a literal string. Cloud-init’s shellify hits a non-string and throws TypeError, <strong>aborting all subsequent runcmd steps silently</strong> while <code>final_message</code> still fires.</p></li>
+<li><p>Don’t write: <code>- test -s /file || { echo "FATAL: ..." }</code> — the <code>:</code> inside braces makes YAML see a dict.</p></li>
+<li>
+<p>Do write: use <code>- |</code> block scalar with explicit <code>if/then/fi</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="kw">- </span><span class="ch">|</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  if [ ! -s /file ]; then</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>    echo "FATAL: ..." &gt;&amp;2</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>    exit 1</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  fi</span></code></pre></div>
+</li>
+<li><p>Validate post-edit: <code>python3 -c "import yaml; runcmd=yaml.safe_load(open('cloud-init.yaml').read().split(chr(10),1)[1])['runcmd']; print([type(x).__name__ for x in runcmd if not isinstance(x,str)] or 'all strings')"</code>. If the output is anything other than <code>all strings</code>, the runcmd will fail.</p></li>
+</ul></div>
+<div class="section level3">
 <h3 id="state">State<a class="anchor" aria-label="anchor" href="#state"></a></h3>
 <ul><li>
 <code>cloud-init clean</code> causes full re-provisioning on next boot — almost never what you want before snapshot</li>
 <li>Use <code>tailscale logout</code> not <code>tailscale down</code> before snapshot (deregister vs disconnect)</li>
+<li>Wipe <code>/var/lib/tailscale/*</code> before snapshot too — <code>tailscale logout</code> deauthorizes server-side but local node identity blob persists in tailscaled.state. Snapshot restored elsewhere inherits prior key material until <code>tailscale up</code> runs again.</li>
+<li>Wipe <code>/etc/ssh/ssh_host_*</code> before snapshot — otherwise droplets spawned from the same image share host identity.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="template-variables">Template Variables<a class="anchor" aria-label="anchor" href="#template-variables"></a></h3>
 <ul><li>Secrets rendered via <code>templatefile()</code> are readable at <code>169.254.169.254</code> metadata endpoint</li>
 <li>Acceptable for ephemeral machines, document the tradeoff</li>
+<li>Heredocs in runcmd that write secrets: <code>&lt;&lt;'EOF'</code> (quoted) prevents bash from re-expanding <code>$X</code> sequences in already-substituted credential strings. AWS keys rarely contain <code>$</code> but base64-padded secrets might.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="repo--key-install-ordering">Repo + key install ordering<a class="anchor" aria-label="anchor" href="#repo--key-install-ordering"></a></h3>
+<ul><li>
+<code>apt-key adv --keyserver</code> is deprecated on Ubuntu 24.04 noble — silently fails AND APT ignores resulting keyring. Use <code>gpg --dearmor</code> + <code>signed-by=</code> keyring file pattern.</li>
+<li>Repo .list files in <code>write_files:</code> trigger the implicit <code>package_update</code> BEFORE runcmd installs the keyring → first apt-get update fails with NO_PUBKEY. Put the repo line in runcmd alongside the key install, not in write_files.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="cloud-init-users-vs-do-ssh-key-injection">Cloud-init users vs DO SSH key injection<a class="anchor" aria-label="anchor" href="#cloud-init-users-vs-do-ssh-key-injection"></a></h3>
+<ul><li><p>DO injects <code>ssh_key_ids</code> only into <code>/root/.ssh/authorized_keys</code> (cloud-init’s <code>cc_ssh</code> module). Cloud-init <code>users:</code> block with <code>ssh_authorized_keys: []</code> does NOT pick those up.</p></li>
+<li>
+<p>Non-root users that need SSH access must copy from root’s keys in runcmd:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> mkdir -p /home/&lt;user&gt;/.ssh</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="kw">-</span><span class="at"> cp /root/.ssh/authorized_keys /home/&lt;user&gt;/.ssh/authorized_keys</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="kw">-</span><span class="at"> chown -R &lt;user&gt;:&lt;user&gt; /home/&lt;user&gt;/.ssh</span></span></code></pre></div>
+</li>
+<li><p>Guard with <code>test -s /root/.ssh/authorized_keys</code> to fail loudly if <code>cc_ssh</code> hasn’t run before runcmd (rare race).</p></li>
 </ul></div>
 </div>
 <div class="section level2">
@@ -417,7 +392,70 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 </li>
 <li>
 <code>tofu destroy</code> without <code>-target</code> destroys everything including reserved IPs</li>
-<li>Snapshot ID extraction: use <code>--resource droplet</code> and <code>grep -F</code> for exact match</li>
+<li>Snapshot ID extraction by name: use <code>awk -v n="$NAME" '$2 == n {print $1}'</code> (exact match on column 2). <code>grep -F "$NAME"</code> is substring-match and can grab a stale snapshot whose name contains the new name as a substring.</li>
+</ul></div>
+</div>
+<div class="section level2">
+<h2 id="digitalocean">DigitalOcean<a class="anchor" aria-label="anchor" href="#digitalocean"></a></h2>
+<div class="section level3">
+<h3 id="snapshot-disk-size-constraint">Snapshot disk-size constraint<a class="anchor" aria-label="anchor" href="#snapshot-disk-size-constraint"></a></h3>
+<ul><li>DO snapshots include the source droplet’s disk size. New droplets from a snapshot must have disk <strong>&gt;=</strong> snapshot disk. Resize <strong>up</strong> is fine; resize <strong>down</strong> below the snapshot disk is impossible without rebuilding.</li>
+<li>Build the snapshot at the smallest droplet size you’d ever want to spin from it. Sizes vs disks at writing: <code>g-4vcpu-16gb</code> = 50 GB, <code>g-8vcpu-32gb</code> / <code>m-4vcpu-32gb</code> = 100 GB, <code>m-8vcpu-64gb</code> = 200 GB.</li>
+<li>If your workload requires X GB RAM minimum, your snapshot floor is whatever droplet has X GB AND the smallest disk class.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="reserved-ip-detach-behavior">Reserved IP detach behavior<a class="anchor" aria-label="anchor" href="#reserved-ip-detach-behavior"></a></h3>
+<ul><li>Targeted destroy (<code>tofu destroy -target=module.droplet -target=...assignment...</code>) preserves the reserved IP at $4/mo. Full <code>tofu destroy</code> releases it (next apply gets a NEW IP).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="reserved-ip-assignment-race-rtj55-rtj85">Reserved IP assignment race (rtj#55, rtj#85)<a class="anchor" aria-label="anchor" href="#reserved-ip-assignment-race-rtj55-rtj85"></a></h3>
+<ul><li>DO returns 422 “Droplet already has a pending event” when reserved IP assignment fires immediately after droplet+firewall creation. The droplet’s internal event queue takes time to drain.</li>
+<li>
+<strong>Every DO droplet module that uses a reserved IP MUST have:</strong>
+<ol style="list-style-type: decimal"><li>
+<code>time_sleep</code> resource between droplet creation and IP assignment, with <code>create_duration ≥ 60s</code> (10s and 30s have both been observed to race; 60s has more headroom)</li>
+<li>
+<code>depends_on = [time_sleep.&lt;name&gt;]</code> on the <code>digitalocean_reserved_ip_assignment</code> resource</li>
+<li>A retry fallback in the wrapping shell script (<code>up.sh</code> style) that detects the 422 in tofu output and uses <code>doctl compute reserved-ip-action assign &lt;ip&gt; &lt;droplet-id&gt;</code> to recover. Tofu doesn’t retry; it leaves state half-applied (assignment recorded but DO didn’t actually attach).</li>
+</ol></li>
+<li>
+<strong>Snapshot-based spins are MORE prone to the race</strong> than first-boot from blank Ubuntu (more startup events compete for the droplet’s event queue).</li>
+<li>
+<strong>Audit existing modules:</strong> <code>grep -L 'time_sleep' env/do/*/&lt;host&gt;/main.tf</code> finds modules missing the gate. As of 2026-05-02, openclaw and geoserv have no <code>time_sleep</code> — they will race eventually.</li>
+</ul></div>
+</div>
+<div class="section level2">
+<h2 id="docker--postgres">Docker / Postgres<a class="anchor" aria-label="anchor" href="#docker--postgres"></a></h2>
+<div class="section level3">
+<h3 id="postgis-init-time">Postgis init time<a class="anchor" aria-label="anchor" href="#postgis-init-time"></a></h3>
+<ul><li>
+<code>imresamu/postgis</code> (and similar postgis images) on first cold start (empty data volume) take <strong>5-12 min</strong> to install all extensions — varies with disk IO and noisy-neighbor lottery on cloud hosts. Health-wait scripts must allow 15 min minimum, ideally with hard-fail + log dump on timeout.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="tuning-vs-host-ram">Tuning vs host RAM<a class="anchor" aria-label="anchor" href="#tuning-vs-host-ram"></a></h3>
+<ul><li>fresh’s <code>docker/docker-compose.yml</code> defaults are tuned for a 128 GB host (<code>shared_buffers=32GB</code>, <code>shm_size=36gb</code>). On smaller hosts, postgres OOMs at startup with “could not map anonymous shared memory”.</li>
+<li>32 GB host floor: use the M1/cypher 32 GB-host preset (<code>scripts/fwapg/compose.override.m1.yml</code>) which sets <code>shared_buffers=8GB, shm_size=12gb</code>.</li>
+<li>Below 32 GB: postgres can technically start with smaller <code>shared_buffers</code> but fwapg work becomes painful. Don’t run fwapg pipelines on &lt;32 GB hosts.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="search_path-is-data-not-config">
+<code>search_path</code> is data, not config<a class="anchor" aria-label="anchor" href="#search_path-is-data-not-config"></a></h3>
+<ul><li>
+<code>ALTER DATABASE &lt;db&gt; SET search_path TO ...</code> is a database-level setting <strong>stored in the postgres data dir</strong>. Wiped with <code>docker compose down -v</code>. Must be re-applied on every restore.</li>
+<li>Codify in your restore script, not in cloud-init or compose env (those don’t apply to db-level settings).</li>
+</ul></div>
+</div>
+<div class="section level2">
+<h2 id="tailscale">Tailscale<a class="anchor" aria-label="anchor" href="#tailscale"></a></h2>
+<div class="section level3">
+<h3 id="acl-users-semantics">ACL “users” semantics<a class="anchor" aria-label="anchor" href="#acl-users-semantics"></a></h3>
+<ul><li>Tailscale SSH ACL <code>"users": ["autogroup:nonroot"]</code> for <code>tag:compute</code> blocks <code>ssh root@&lt;node&gt;</code> over the tailnet. Use <code>ssh &lt;user&gt;@&lt;node&gt;</code> + sudo for root operations.</li>
+<li>For SSH-as-root from off-tailnet (regular OpenSSH on the public IP), the ACL doesn’t apply — but you need the SSH key registered on the node.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="reusable--ephemeral-auth-keys">Reusable + ephemeral auth keys<a class="anchor" aria-label="anchor" href="#reusable--ephemeral-auth-keys"></a></h3>
+<ul><li>Cypher-style ephemeral compute droplets need both flags on the auth key: <strong>Reusable</strong> (same key works across destroy/recreate) + <strong>Ephemeral</strong> (tailnet entries auto-clean when offline &gt;5 min).</li>
+<li>Tag the key (e.g. <code>tag:compute</code>) at creation time. Nodes joining with that key inherit the tag automatically — no <code>--advertise-tags</code> needed at <code>tailscale up</code> time.</li>
 </ul></div>
 </div>
 <div class="section level2">
@@ -461,6 +499,17 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 <div class="section level2">
 <h2 id="general">General<a class="anchor" aria-label="anchor" href="#general"></a></h2>
 <div class="section level3">
+<h3 id="adopting-existing-config">Adopting Existing Config<a class="anchor" aria-label="anchor" href="#adopting-existing-config"></a></h3>
+<p>When importing config from one location into a canonical one (legacy <code>~/.bash_profile</code> → dotfiles repo, old script’s env → repo, another project’s <code>settings.json</code> → soul):</p>
+<ul><li>
+<strong>Verify every referenced path/binary exists.</strong> Dead PATH exports, missing interpreters, stale env vars should be cut, not codified. Shell paths: <code>for p in $(echo "$PATH" | tr ':' ' '); do [ -d "$p" ] || echo "DEAD: $p"; done</code>
+</li>
+<li>
+<strong>Ask before dropping a reference</strong> — it may be something the user forgot to reinstall on this machine, not something to delete.</li>
+<li>
+<strong>Curated subset, not verbatim copy.</strong> The diff should reflect what you verified, not the whole source.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="documentation-staleness">Documentation Staleness<a class="anchor" aria-label="anchor" href="#documentation-staleness"></a></h3>
 <ul><li>Moving/renaming scripts: update CLAUDE.md, READMEs, usage comments</li>
 <li>New variables: update .tfvars.example</li>
@@ -469,64 +518,89 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output</code
 </div>
 </div>
 <div class="section level1">
-<h1 id="communications-conventions">Communications Conventions<a class="anchor" aria-label="anchor" href="#communications-conventions"></a></h1>
-<p>Standards for external communications across New Graph Environment.</p>
-<p><a href="https://github.com/NewGraphEnvironment/compost" class="external-link">compost</a> is the working repo for email drafts, scripts, contact management, and Gmail utilities. These conventions capture the universal principles; compost has the implementation details.</p>
+<h1 id="comms-conventions">Comms Conventions<a class="anchor" aria-label="anchor" href="#comms-conventions"></a></h1>
+<p>This repo has a <code>comms/</code> directory — you’re in the cross-repo Claude-to-Claude messaging system. Full protocol in <code>comms/README.md</code>. Peer list (who to scan) in <code>soul/conventions/comms_peers.md</code> (internal-only). Load-bearing behaviors below.</p>
 <div class="section level2">
-<h2 id="tone">Tone<a class="anchor" aria-label="anchor" href="#tone"></a></h2>
-<p>Three levels. Default to casual unless context dictates otherwise.</p>
-<table style="width:100%;" class="table"><colgroup><col width="35%"><col width="30%"><col width="35%"></colgroup><thead><tr><th>Level</th>
-<th>When</th>
-<th>Style</th>
-</tr></thead><tbody><tr><td><strong>Casual</strong></td>
-<td>Established working relationships</td>
-<td>Professional but warm. Direct, concise. No slang.</td>
-</tr><tr><td><strong>Very casual</strong></td>
-<td>Close collaborators with rapport</td>
-<td>Colloquial OK. Light humor. Slang acceptable.</td>
-</tr><tr><td><strong>Formal</strong></td>
-<td>New contacts, senior officials, formal requests</td>
-<td>Full sentences, no contractions, state purpose early.</td>
-</tr></tbody></table><p><strong>Collaborative, not directive.</strong> Acknowledge their constraints:</p>
-<ul><li>
-<strong>Avoid:</strong> “Work these in as makes sense for your lab”</li>
+<h2 id="on-session-start-1">On Session Start<a class="anchor" aria-label="anchor" href="#on-session-start-1"></a></h2>
+<ol style="list-style-type: decimal"><li>
+<strong>Inbound scan.</strong> <code>&lt;this-repo&gt;/comms/*/</code> — files with <code>status: open</code> and mtime newer than your last <code>comms/</code> commit are mail for you.</li>
 <li>
-<strong>Better:</strong> “If you’re able to work these in when it fits your schedule that would be really helpful”</li>
-</ul></div>
-<div class="section level2">
-<h2 id="email-workflow">Email Workflow<a class="anchor" aria-label="anchor" href="#email-workflow"></a></h2>
-<p>Draft in markdown, convert to HTML at send time via gmailr. See compost for script templates, OAuth setup, and <code>search_gmail.R</code>.</p>
-<p><strong>File naming:</strong> <code>YYYYMMDD_recipient_topic_draft.md</code> + <code>YYYYMMDD_recipient_topic.R</code></p>
-<p><strong>Key gotchas</strong> (documented in detail in compost): - Gmail strips <code>&lt;style&gt;</code> blocks — use inline styles for tables - <code>gm_create_draft()</code> does NOT support <code>thread_id</code> — only <code>gm_send_message()</code> can reply into threads. Drafts land outside the conversation. - Always use <code>test_mode</code> and <code>create_draft</code> variables for safe workflows</p>
+<strong>Outbound scan.</strong> For each peer in <code>comms_peers.md</code>, check <code>&lt;peer&gt;/comms/&lt;this-repo&gt;/*.md</code> — files with <code>from: &lt;this-repo&gt;, status: open</code> are your un-answered sent mail.</li>
+</ol><p>If either surfaces open threads, raise to the user before starting other work.</p>
 </div>
 <div class="section level2">
-<h2 id="data-in-emails">Data in Emails<a class="anchor" aria-label="anchor" href="#data-in-emails"></a></h2>
+<h2 id="commit-prefix">Commit Prefix<a class="anchor" aria-label="anchor" href="#commit-prefix"></a></h2>
 <ul><li>
-<strong>Never manually type data into tables</strong> — generate programmatically from source files</li>
+<code>comms(→peer):</code> — you committed a file in peer’s repo (outbound)</li>
 <li>
-<strong>Link to canonical sources</strong> (GitHub repos, public reports) rather than embedding raw data</li>
+<code>comms(←peer):</code> — you committed a file in your own repo (inbound reply)</li>
 <li>
-<strong>Provide both CSV and Excel</strong> when sharing tabular data</li>
-<li>
-<strong>Document ID codes</strong> — when using compressed IDs (e.g., <code>id_lab</code>), include a reference sheet so recipients can decode</li>
-</ul></div>
-<div class="section level2">
-<h2 id="what-not-to-expose-externally">What Not to Expose Externally<a class="anchor" aria-label="anchor" href="#what-not-to-expose-externally"></a></h2>
-<ul><li>Internal QA info (blanks, control samples, calibration data)</li>
-<li>Internal tracking codes or SRED references</li>
-<li>Draft status or revision history</li>
-<li>Internal project management details</li>
-</ul><p>Keep client-facing communications focused on deliverables and technical content.</p>
+<code>comms:</code> — meta (close, reopen, rename, README update)</li>
+</ul><p>Arrow points to the repo whose <code>comms/</code> contains the file you committed.</p>
 </div>
 <div class="section level2">
-<h2 id="signature">Signature<a class="anchor" aria-label="anchor" href="#signature"></a></h2>
-<pre><code>Al Irvine B.Sc., R.P.Bio.
-New Graph Environment Ltd.
-
-Cell: 250-777-1518
-Email: al@newgraphenvironment.com
-Website: www.newgraphenvironment.com</code></pre>
-<p>In HTML emails, use <code>&lt;br&gt;</code> tags between lines.</p>
+<h2 id="non-negotiables">Non-negotiables<a class="anchor" aria-label="anchor" href="#non-negotiables"></a></h2>
+<ul><li>One commit per appended message.</li>
+<li>
+<strong>Push immediately.</strong> Un-pushed comms is invisible to the other Claude.</li>
+<li>Code + comms = separate commits.</li>
+<li>Status flips bundle with the triggering message.</li>
+<li>
+<strong>Use <code>git commit --only &lt;file&gt;</code></strong> for any commit in a peer’s repo (thread files). Immune to index races from parallel sessions.</li>
+</ul></div>
+<div class="section level2">
+<h2 id="propagation-soul-publishes-peers-pull">Propagation: soul publishes, peers pull<a class="anchor" aria-label="anchor" href="#propagation-soul-publishes-peers-pull"></a></h2>
+<p>Soul is the source of truth for <code>comms/README.md</code>. Peers sync by running <code>/comms-init</code> in their own repo, from their own Claude session. <strong>Do not push README updates into a peer’s repo from another session</strong> — cross-session index races can bundle unrelated staged files into misleading commits.</p>
+<p>Within your own session, the only things you commit into a peer’s repo are <strong>thread files</strong> (hosted in the receiver’s repo per the receiver-hosts rule). Everything else — README syncs, infra — the peer-Claude pulls itself.</p>
+<div class="section level3">
+<h3 id="cross-repo-thread-commits-which-branch">Cross-repo thread commits: which branch?<a class="anchor" aria-label="anchor" href="#cross-repo-thread-commits-which-branch"></a></h3>
+<p>Commit on peer’s <strong>current branch</strong> — whatever they’ve got checked out. Don’t stash, switch, or force main.</p>
+<p>If peer isn’t on main, surface to the user: <em>“thread landing on <code>&lt;peer&gt;</code>:<code>&lt;branch&gt;</code>, won’t hit main until PR merges. Continue or hold?”</em> If peer has complicated local state (mid-rebase, partial merge), defer to the user.</p>
+</div>
+</div>
+</div>
+<div class="section level1">
+<h1 id="nge-feature-workflow">NGE Feature Workflow<a class="anchor" aria-label="anchor" href="#nge-feature-workflow"></a></h1>
+<p>For non-trivial issue-driven work, follow this checklist. Each step exists for a reason — skipping leads to rework, broken builds, and avoidable bugs that we’ve hit repeatedly.</p>
+<div class="section level2">
+<h2 id="the-sequence">The Sequence<a class="anchor" aria-label="anchor" href="#the-sequence"></a></h2>
+<ol style="list-style-type: decimal"><li>
+<strong>Start with <code>/planning-init &lt;N&gt;</code></strong> — given an issue number, enters plan mode for codebase exploration, presents a phase breakdown for user approval, then scaffolds branch + PWF baseline with the approved phases. One command replaces the manual issue → explore → plan → branch → scaffold dance.</li>
+<li>
+<strong>Write robust tests first</strong> — failing tests that reproduce the issue or document the new behavior. Tests are the contract; they fail until the work makes them pass.</li>
+<li>
+<strong>Name with intent</strong> — functions, parameters, internal helpers carry the naming style of the package they live in. Look at existing exports as the guide; consistency over cleverness. (Per-package naming convention TBD — see soul issue tracking.)</li>
+<li>
+<strong>Examples that run</strong> — every exported function gets a runnable <code>@examples</code> block. Pkgdown renders them; CI executes them. An example that doesn’t run is documentation rot.</li>
+<li>
+<strong>Code-check before each commit</strong> — <code>/code-check</code> on staged diff. Catches what tests miss: edge cases, hard-coded paths, unguarded variables, security issues.</li>
+<li>
+<strong>Atomic commits</strong> — each commit bundles code change + checkbox flip in <code>task_plan.md</code>. The diff and the progress live in the same commit; <code>git log -- planning/</code> tells the full story.</li>
+<li>
+<strong><code>/planning-archive</code> when complete</strong> — moves PWF to <code>archive/YYYY-MM-issue-N-slug/</code>, creates a fresh <code>active/</code>. Then <code>/gh-pr-push</code> opens the PR; <code>/gh-pr-merge</code> handles the release bookkeeping.</li>
+</ol></div>
+<div class="section level2">
+<h2 id="when-to-skip">When to Skip<a class="anchor" aria-label="anchor" href="#when-to-skip"></a></h2>
+<p>For one-line typo fixes, version-bump-only PRs, or trivial documentation edits, the full workflow is overhead. Use judgment. The threshold is roughly: <strong>multi-step issue, multi-file change, or anything that requires scoping</strong> → use the workflow.</p>
+</div>
+<div class="section level2">
+<h2 id="skills-that-slot-in">Skills That Slot In<a class="anchor" aria-label="anchor" href="#skills-that-slot-in"></a></h2>
+<ul><li>
+<code>/planning-init &lt;N&gt;</code> — start</li>
+<li>
+<code>/planning-update</code> — sync checkboxes mid-session</li>
+<li>
+<code>/code-check</code> — before every commit</li>
+<li>
+<code>/planning-archive</code> — when issue closes</li>
+<li>
+<code>/gh-pr-push</code> — open the PR</li>
+<li>
+<code>/gh-pr-merge</code> — merge with release bookkeeping</li>
+</ul></div>
+<div class="section level2">
+<h2 id="why-this-exists">Why This Exists<a class="anchor" aria-label="anchor" href="#why-this-exists"></a></h2>
+<p>We’ve hit snags repeatedly when half-doing this — branches that mix concerns, tests bolted on after, code-check skipped (and then a bug ships in the diff), examples that fail in pkgdown. Each step is small; the cumulative reliability gain is real. The convention is here so it becomes the default expectation, not a thing the user has to remind every session about.</p>
 </div>
 </div>
 <div class="section level1">
@@ -572,160 +646,6 @@ Website: www.newgraphenvironment.com</code></pre>
 </div>
 </div>
 <div class="section level1">
-<h1 id="new-graph-environment-conventions">New Graph Environment Conventions<a class="anchor" aria-label="anchor" href="#new-graph-environment-conventions"></a></h1>
-<p>Core patterns for professional, efficient workflows across New Graph Environment repositories.</p>
-<div class="section level2">
-<h2 id="ecosystem-overview">Ecosystem Overview<a class="anchor" aria-label="anchor" href="#ecosystem-overview"></a></h2>
-<p>Five repos form the governance and operations layer across all New Graph Environment work:</p>
-<table class="table"><colgroup><col width="25%"><col width="37%"><col width="37%"></colgroup><thead><tr><th>Repo</th>
-<th>Purpose</th>
-<th>Analogy</th>
-</tr></thead><tbody><tr><td><a href="https://github.com/NewGraphEnvironment/compass" class="external-link">compass</a></td>
-<td>Ethics, values, guiding principles</td>
-<td>The “why”</td>
-</tr><tr><td><a href="https://github.com/NewGraphEnvironment/soul" class="external-link">soul</a></td>
-<td>Standards, skills, conventions for LLM agents</td>
-<td>The “how”</td>
-</tr><tr><td><a href="https://github.com/NewGraphEnvironment/compost" class="external-link">compost</a></td>
-<td>Communications templates, email workflows, contact management</td>
-<td>The “who”</td>
-</tr><tr><td>
-<a href="https://github.com/NewGraphEnvironment/rtj" class="external-link">rtj</a> (formerly awshak)</td>
-<td>Infrastructure as Code, deployment</td>
-<td>The “where”</td>
-</tr><tr><td><a href="https://github.com/NewGraphEnvironment/gq" class="external-link">gq</a></td>
-<td>Cartographic style management across QGIS, tmap, leaflet, web</td>
-<td>The “look”</td>
-</tr></tbody></table><p><strong>Adaptive management:</strong> Conventions evolve from real project work, not theory. When a pattern is learned or refined during project work, propagate it back to soul so all projects benefit. The <code>/claude-md-init</code> skill builds each project’s <code>CLAUDE.md</code> from soul conventions.</p>
-<p><strong>Cross-references:</strong> <a href="https://github.com/NewGraphEnvironment/sred-2025-2026" class="external-link">sred-2025-2026</a> tracks R&amp;D activities across repos. Compost cross-cuts all projects as the centralized communications workflow — email drafts, contact registry, and tone guidelines live there and are copied to individual project <code>communications/</code> folders as needed.</p>
-</div>
-<div class="section level2">
-<h2 id="issue-workflow">Issue Workflow<a class="anchor" aria-label="anchor" href="#issue-workflow"></a></h2>
-<div class="section level3">
-<h3 id="before-creating-an-issue-non-negotiable">Before Creating an Issue (non-negotiable)<a class="anchor" aria-label="anchor" href="#before-creating-an-issue-non-negotiable"></a></h3>
-<ol style="list-style-type: decimal"><li>
-<strong>Check for duplicates:</strong> <code>gh issue list --state open --search "&lt;keywords&gt;"</code> – search before creating</li>
-<li>
-<strong>Link to SRED:</strong> If work involves infrastructure, R&amp;D, tooling, or performance benchmarking, add <code>Relates to NewGraphEnvironment/sred-2025-2026#N</code> (match by repo name in SRED issue title)</li>
-<li>
-<strong>One issue, one concern.</strong> Keep focused.</li>
-</ol></div>
-<div class="section level3">
-<h3 id="professional-issue-writing">Professional Issue Writing<a class="anchor" aria-label="anchor" href="#professional-issue-writing"></a></h3>
-<p>Write issues with clear technical focus:</p>
-<ul><li>
-<strong>Use normal technical language</strong> in titles and descriptions</li>
-<li>
-<strong>Focus on the problem and solution</strong> approach</li>
-<li>
-<strong>Add tracking links at the end</strong> (e.g., <code>Relates to Owner/repo#N</code>)</li>
-</ul><p><strong>Issue body structure:</strong></p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">## Problem</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>&lt;what's wrong or missing&gt;</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="fu">## Proposed Solution</span></span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">approach</span><span class="dt">&gt;</span></span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a></span>
-<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>Relates to #<span class="dt">&lt;</span><span class="kw">local</span><span class="dt">&gt;</span></span>
-<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>Relates to NewGraphEnvironment/sred-2025-2026#<span class="dt">&lt;</span><span class="kw">N</span><span class="dt">&gt;</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="github-issue-creation---always-use-files">GitHub Issue Creation - Always Use Files<a class="anchor" aria-label="anchor" href="#github-issue-creation---always-use-files"></a></h3>
-<p>The <code>gh issue create</code> command with heredoc syntax fails repeatedly with EOF errors. ALWAYS use <code>--body-file</code>:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> /tmp/issue_body.md <span class="op">&lt;&lt; 'EOF'</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="st">## Problem</span></span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="st">...</span></span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a></span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="st">## Proposed Solution</span></span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="st">...</span></span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="op">EOF</span></span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a></span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="ex">gh</span> issue create <span class="at">--title</span> <span class="st">"Brief technical title"</span> <span class="at">--body-file</span> /tmp/issue_body.md</span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="closing-issues">Closing Issues<a class="anchor" aria-label="anchor" href="#closing-issues"></a></h2>
-<p><strong>DO:</strong> Close issues via commit messages. The commit IS the closure and the documentation.</p>
-<pre><code>Fix broken DEM path in loading pipeline
-
-Update hardcoded path to use config-driven resolution.
-
-Fixes #20
-Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
-<p><strong>DON’T:</strong> Close issues with <code>gh issue close</code>. This breaks the audit trail — there’s no linked diff showing what changed.</p>
-<ul><li>
-<code>Fixes #N</code> or <code>Closes #N</code> — auto-closes and links the commit to the issue</li>
-<li>
-<code>Relates to #N</code> — partial progress, does not close</li>
-<li>Always close issues when work is complete. Don’t leave stale open issues.</li>
-</ul></div>
-<div class="section level2">
-<h2 id="commit-quality">Commit Quality<a class="anchor" aria-label="anchor" href="#commit-quality"></a></h2>
-<p>Write clear, informative commit messages:</p>
-<pre><code>Brief description (50 chars or less)
-
-Detailed explanation of changes and impact.
-
-Fixes #&lt;issue&gt; (or Relates to #&lt;issue&gt;)
-Relates to NewGraphEnvironment/sred-2025-2026#&lt;N&gt;
-
-Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
-<p><strong>When to commit:</strong> - Logical, atomic units of work - Working state (tests pass) - Clear description of changes</p>
-<p><strong>What to avoid:</strong> - “WIP” or “temp” commits in main branch - Combining unrelated changes - Vague messages like “fixes” or “updates”</p>
-</div>
-<div class="section level2">
-<h2 id="llm-agent-conventions">LLM Agent Conventions<a class="anchor" aria-label="anchor" href="#llm-agent-conventions"></a></h2>
-<p>Rules learned from real project sessions. These apply across all repos.</p>
-<ul><li>
-<strong>Install missing packages, don’t workaround</strong> — if a package is needed, ask the user to install it (e.g. <code>pak::pak("pkg")</code>). Don’t write degraded fallback code to avoid the dependency.</li>
-<li>
-<strong>Never hardcode extractable data</strong> — if coordinates, station names, or metadata can be pulled from an API or database at runtime, do that. Don’t hardcode values that have a programmatic source.</li>
-<li>
-<strong>Close issues via commits, not <code>gh issue close</code></strong> — see Closing Issues above.</li>
-<li>
-<strong>Cite primary sources</strong> — see references conventions.</li>
-</ul></div>
-<div class="section level2">
-<h2 id="naming-conventions-1">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions-1"></a></h2>
-<p><strong>Pattern: <code>noun_verb-detail</code></strong> – noun first, verb second across all naming:</p>
-<table class="table"><thead><tr><th>What</th>
-<th>Example</th>
-</tr></thead><tbody><tr><td>Skills</td>
-<td>
-<code>claude-md-init</code>, <code>gh-issue-create</code>, <code>planning-update</code>
-</td>
-</tr><tr><td>Scripts</td>
-<td>
-<code>stac_register-baseline.sh</code>, <code>stac_register-pypgstac.sh</code>
-</td>
-</tr><tr><td>Logs</td>
-<td><code>20260209_stac_register-baseline_stac-dem-bc.txt</code></td>
-</tr><tr><td>Log format</td>
-<td><code>yyyymmdd_noun_verb-detail_target.ext</code></td>
-</tr></tbody></table><p>Scripts and logs live together: <code>scripts/&lt;module&gt;/logs/</code></p>
-</div>
-<div class="section level2">
-<h2 id="projects-vs-milestones">Projects vs Milestones<a class="anchor" aria-label="anchor" href="#projects-vs-milestones"></a></h2>
-<ul><li>
-<strong>Projects</strong> = daily cross-repo tracking (always add to relevant project)</li>
-<li>
-<strong>Milestones</strong> = iteration boundaries (only for release/claim prep)</li>
-<li>Don’t double-track unless there’s a reason</li>
-</ul><table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>Content</th>
-<th>Project</th>
-</tr></thead><tbody><tr><td>R&amp;D, experiments, SRED-related</td>
-<td><strong>SRED R&amp;D Tracking (#8)</strong></td>
-</tr><tr><td>Data storage, sqlite, postgres, pipelines</td>
-<td><strong>Data Architecture (#9)</strong></td>
-</tr><tr><td>Fish passage field/reporting</td>
-<td><strong>Fish Passage 2025 (#6)</strong></td>
-</tr><tr><td>Restoration planning</td>
-<td><strong>Aquatic Restoration Planning (#5)</strong></td>
-</tr><tr><td>QGIS, Mergin, field forms</td>
-<td><strong>Collaborative GIS (#3)</strong></td>
-</tr></tbody></table></div>
-</div>
-<div class="section level1">
 <h1 id="planning-conventions">Planning Conventions<a class="anchor" aria-label="anchor" href="#planning-conventions"></a></h1>
 <p>How Claude manages structured planning for complex tasks using planning-with-files (PWF).</p>
 <div class="section level2">
@@ -747,7 +667,9 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <code>progress.md</code> — Session log with timestamps and commit refs</li>
 </ul></li>
 <li>
-<strong>Commit the plan</strong> — Commit the planning files before starting implementation. This is the baseline.</li>
+<strong>Plan-review with the Plan agent before committing the plan</strong> — After scaffolding <code>task_plan.md</code> but BEFORE the baseline commit, spawn the Plan subagent (<code>Agent({subagent_type: "Plan", prompt: "..."}</code>) and ask it to critically review the task_plan against the issue body + actual codebase. Categorize findings as Blocker / Gap / Ordering / Assumption / Scope / Acceptance. Address each before committing. The agent reads files fresh — it catches what you miss when you’ve been thinking about the design too long. Real example: caught 21 issues including hardcoded literals across 4 files not listed in the plan, untested DB column mismatches, unfixable test-literal-string assertions, and a baseline-cache-shadow that would have produced a 6-second no-op run. Cost: ~5 min agent. Saves: hours of mid-implementation rework.</li>
+<li>
+<strong>Commit the plan</strong> — After Plan-agent review + fixes. This is the baseline.</li>
 <li>
 <strong>Work in atomic commits</strong> — Each commit bundles code changes WITH checkbox updates in the planning files. The diff shows both what was done and the checkbox marking it done.</li>
 <li>
@@ -765,33 +687,33 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level3">
 <h3 id="task_planmd">task_plan.md<a class="anchor" aria-label="anchor" href="#task_planmd"></a></h3>
 <p>Phases with checkboxes. This is the core tracking file.</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a></span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
-<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
-<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
-<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a></span>
-<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
-<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
 <p>Mark tasks done as they’re completed: <code>- [x] Task description</code></p>
 </div>
 <div class="section level3">
 <h3 id="findingsmd">findings.md<a class="anchor" aria-label="anchor" href="#findingsmd"></a></h3>
 <p>Append-only research log. Discoveries, technical analysis, things learned.</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a></span>
-<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
-<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="progressmd">progress.md<a class="anchor" aria-label="anchor" href="#progressmd"></a></h3>
 <p>Session entries with commit references.</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a></span>
-<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
-<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
-<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
-<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -820,10 +742,25 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <p><strong>Reference packages:</strong> When starting a new package, study these existing packages for patterns: <code>flooded</code>, <code>gq</code>. They demonstrate the conventions below in practice (DESCRIPTION fields, README layout, NEWS.md style, pkgdown setup, test structure, hex sticker, etc.).</p>
 <div class="section level2">
 <h2 id="style">Style<a class="anchor" aria-label="anchor" href="#style"></a></h2>
-<ul><li>tidyverse style guide: snake_case, pipe operators (<code>|&gt;</code> or <code>%&gt;%</code>)</li>
-<li>Match existing patterns in each codebase</li>
-<li>Use <code>pak</code> for package installation (not <code>install.packages</code>)</li>
-<li>Prefix column name vectors with <code>cols_</code> for discoverability in the environment pane: <code>cols_all</code>, <code>cols_carry</code>, <code>cols_split</code>, <code>cols_writable</code>. Same principle for other grouped vectors (<code>params_</code>, <code>tbl_</code>, etc.)</li>
+<ul><li><p>tidyverse style guide: snake_case, pipe operators (<code>|&gt;</code> or <code>%&gt;%</code>)</p></li>
+<li><p>Match existing patterns in each codebase</p></li>
+<li><p>Use <code>pak</code> for package installation (not <code>install.packages</code>)</p></li>
+<li><p>Prefix column name vectors with <code>cols_</code> for discoverability in the environment pane: <code>cols_all</code>, <code>cols_carry</code>, <code>cols_split</code>, <code>cols_writable</code>. Same principle for other grouped vectors (<code>params_</code>, <code>tbl_</code>, etc.)</p></li>
+<li>
+<p>For SQL DDL+INSERT pairs that share a schema, use a single named vector as the source of truth. Both <code>CREATE TABLE</code> and <code>INSERT (cols) SELECT cols</code> derive their column lists from the same <code>cols_*</code> vector. Avoids drift between table shape and write projection — when columns change, you edit one place. Example:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cols_streams</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  id_segment           <span class="op">=</span> <span class="st">"integer NOT NULL"</span>,</span>
+<span>  watershed_group_code <span class="op">=</span> <span class="st">"varchar(4) NOT NULL"</span>,</span>
+<span>  geom                 <span class="op">=</span> <span class="st">"geometry(MultiLineStringZM, 3005)"</span></span>
+<span>  <span class="co"># …</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># CREATE TABLE consumes both names + types</span></span>
+<span><span class="va">ddl_body</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">cols_streams</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">cols_streams</span><span class="op">)</span>, sep <span class="op">=</span> <span class="st">" "</span>,</span>
+<span>                  collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span></span>
+<span><span class="co"># INSERT consumes names only</span></span>
+<span><span class="va">proj</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">cols_streams</span><span class="op">)</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span></span></code></pre></div>
+</li>
 </ul></div>
 <div class="section level2">
 <h2 id="package-structure">Package Structure<a class="anchor" aria-label="anchor" href="#package-structure"></a></h2>
@@ -846,7 +783,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <p>This gives one PR that contains all commits — a single SRED cross-reference covers the entire body of work. Individual commits within the branch close their respective function issues with <code>Fixes #N</code>.</p>
 </div>
 <div class="section level3">
-<h3 id="closing-issues-1">Closing issues<a class="anchor" aria-label="anchor" href="#closing-issues-1"></a></h3>
+<h3 id="closing-issues">Closing issues<a class="anchor" aria-label="anchor" href="#closing-issues"></a></h3>
 <p>Close function issues via commit messages — see Closing Issues in newgraph conventions.</p>
 </div>
 </div>
@@ -859,7 +796,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li><p>Tests must pass before closing the function’s issue</p></li>
 <li>
 <p>Always grep for errors in the same command as the test run to avoid running twice:</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
 <p>For error context: <code>grep -E "(ERROR:|FAIL )" -A 10 | head -25</code></p>
 </li>
 </ul></div>
@@ -897,7 +834,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <p>Run <code>lintr::lint_package()</code> before committing R package code. Fix all warnings — every lint should be worth fixing.</p>
 <div class="section level3">
 <h3 id="recommended-lintr-config">Recommended .lintr config<a class="anchor" aria-label="anchor" href="#recommended-lintr-config"></a></h3>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linters</span><span class="op">:</span> <span class="fu">linters_with_defaults</span><span class="op">(</span></span>
 <span>    <span class="fu">line_length_linter</span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>,</span>
 <span>    <span class="fu">object_name_linter</span><span class="op">(</span>styles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snake_case"</span>, <span class="st">"dotted.case"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -925,7 +862,7 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li>Later releases: describe what changed and why, not function-by-function. Link to the pkgdown reference page for details — don’t duplicate it.</li>
 <li>Don’t list every function; the pkgdown reference page is the single source of truth for what’s in the package.</li>
 </ul></li>
-<li>Bump version in <code>DESCRIPTION</code> (e.g., <code>0.0.0.9000</code> → <code>0.1.0</code>)</li>
+<li>Bump version in <code>DESCRIPTION</code> (e.g., <code>0.0.0.9000</code> → <code>0.1.0</code>) — as the <strong>final</strong> commit of the branch, after verification numbers/tests are final. Mid-branch bumps are premature and churn: additional code changes end up bundled inside a “release” that already claimed the version.</li>
 <li>Commit as “Release vX.Y.Z”</li>
 <li>Tag: <code>git tag vX.Y.Z &amp;&amp; git push &amp;&amp; git push --tags</code>
 </li>
@@ -935,18 +872,18 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <div class="section level3">
 <h3 id="branch-protection">Branch protection<a class="anchor" aria-label="anchor" href="#branch-protection"></a></h3>
 <p>Protect main from deletion and force pushes:</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
-<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="st">{</span></span>
-<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
-<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
-<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
-<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
-<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
-<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a><span class="st">  ],</span></span>
-<span id="cb20-9"><a href="#cb20-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
-<span id="cb20-10"><a href="#cb20-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
-<span id="cb20-11"><a href="#cb20-11" tabindex="-1"></a><span class="st">}</span></span>
-<span id="cb20-12"><a href="#cb20-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a><span class="st">  ],</span></span>
+<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
+<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
+<span id="cb16-11"><a href="#cb16-11" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb16-12"><a href="#cb16-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scaffold-checklist">Scaffold checklist<a class="anchor" aria-label="anchor" href="#scaffold-checklist"></a></h3>
@@ -1031,11 +968,11 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <h2 id="in-reports-bookdown">In Reports (bookdown)<a class="anchor" aria-label="anchor" href="#in-reports-bookdown"></a></h2>
 <div class="section level3">
 <h3 id="bibliography-generation">Bibliography generation<a class="anchor" aria-label="anchor" href="#bibliography-generation"></a></h3>
-<div class="sourceCode" id="cb21"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
-<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
 <p><code>rbbt</code> pulls from BBT, which syncs with Zotero. Edit references in Zotero → rebuild report → bibliography updates.</p>
 <p><strong>Library targeting:</strong> rbbt must know which Zotero library to search. This is set globally in <code>~/.Rprofile</code>:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># default library — NewGraphEnvironment group (libraryID 9, group 4733734)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>rbbt.default.library_id <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p>Without this option, rbbt searches only the personal library (libraryID 1) and won’t find group library references. The library IDs map to Zotero’s internal numbering — use <code>/zotero-lookup</code> with <code>SELECT DISTINCT libraryID FROM citationkey</code> against the BBT database to discover available libraries.</p>
@@ -1093,47 +1030,6 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 <li>NEVER cite specific numbers without verifying from the source PDF via ragnar search</li>
 <li>NEVER paraphrase equations — copy exact notation and cite page/section</li>
 </ul></div>
-</div>
-</div>
-<div class="section level1">
-<h1 id="sred-conventions">SRED Conventions<a class="anchor" aria-label="anchor" href="#sred-conventions"></a></h1>
-<p>How SR&amp;ED tracking integrates with New Graph Environment’s development workflows.</p>
-<div class="section level2">
-<h2 id="the-claim-one-project">The Claim: One Project<a class="anchor" aria-label="anchor" href="#the-claim-one-project"></a></h2>
-<p>All SRED-eligible work across NGE falls under a <strong>single continuous project</strong>:</p>
-<blockquote>
-<p><strong>Dynamic GIS-based Data Processing and Reporting Framework</strong></p>
-</blockquote>
-<ul><li>
-<strong>Field:</strong> Software Engineering (2.02.09)</li>
-<li>
-<strong>Start date:</strong> May 2022</li>
-<li>
-<strong>Fiscal year:</strong> May 1 – April 30</li>
-<li>
-<strong>Consultant:</strong> Boast Capital (prepares final technical report)</li>
-</ul><p><strong>Do not fragment work into separate claims.</strong> Each fiscal year’s work is structured as iterations within this one project. Internal tracking (experiment numbers in <code>sred-2025-2026</code>) maps to iterations — Boast assembles the final narrative.</p>
-</div>
-<div class="section level2">
-<h2 id="tagging-work-for-sred">Tagging Work for SRED<a class="anchor" aria-label="anchor" href="#tagging-work-for-sred"></a></h2>
-<div class="section level3">
-<h3 id="commits">Commits<a class="anchor" aria-label="anchor" href="#commits"></a></h3>
-<p>Use <code>Relates to NewGraphEnvironment/sred-2025-2026#N</code> in commit messages when work is SRED-eligible.</p>
-</div>
-<div class="section level3">
-<h3 id="time-entries-rolex">Time entries (rolex)<a class="anchor" aria-label="anchor" href="#time-entries-rolex"></a></h3>
-<p>Tag hours with <code>sred_ref</code> field linking to the relevant <code>sred-2025-2026</code> issue number.</p>
-</div>
-<div class="section level3">
-<h3 id="github-issues">GitHub issues<a class="anchor" aria-label="anchor" href="#github-issues"></a></h3>
-<p>Link SRED-eligible issues to the tracking repo: <code>Relates to NewGraphEnvironment/sred-2025-2026#N</code></p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="what-qualifies-as-sred">What Qualifies as SRED<a class="anchor" aria-label="anchor" href="#what-qualifies-as-sred"></a></h2>
-<p><strong>Eligible (systematic investigation to overcome technological uncertainty):</strong> - Building tools/functions that don’t exist in standard practice - Prototyping new integrations between systems (GIS ↔︎ reporting ↔︎ field collection) - Testing whether an approach works and documenting why it did/didn’t - Iterating on failed approaches with new hypotheses</p>
-<p><strong>Not eligible:</strong> - Standard configuration of known tools - Routine bug fixes in working systems - Writing reports using the framework (that’s service delivery)</p>
-<p><strong>The test:</strong> “Did we try something we weren’t sure would work, and did we learn something from the attempt?” If yes, it’s likely eligible.</p>
 </div>
 </div>
 
