@@ -159,33 +159,42 @@ frs_network_features <- function(
     ""
   }
 
-  # SQL pattern mirrors bcfishpass.load_dnstr_chunked
-  # (bcfishpass/db/migrations/archive/v0.7.6/load_dnstr_chunked.sql).
-  # `array_agg` with the bcfp ORDER BY triple (wscode, localcode, drm,
-  # all DESC) preserves canonical element ordering for byte-identical
-  # parity with bcfp's `streams_dnstr_*` precomputed tables. LEFT JOIN
-  # (vs bcfp's INNER) means segments with zero matches still appear
-  # with NULL — array_agg over zero rows is NULL in Postgres and that
-  # propagates.
+  # SQL pattern mirrors bcfishpass.load_dnstr exactly:
+  # subquery-with-INNER-JOIN feeding array_agg + GROUP BY on segment_id.
+  # The `ORDER BY a.<id>, b.wscode DESC, b.localcode DESC, b.drm DESC`
+  # at the subquery level is what gives bcfp its canonical element
+  # ordering; we preserve byte-identical output by reproducing the same
+  # subquery shape.
+  #
+  # INNER JOIN (vs LEFT) means segments with zero matches don't appear
+  # in the output. That matches bcfp's table, where rows are only
+  # populated for segments with at least one downstream feature.
+  # Callers wanting "all segments + NULL for no-match" can LEFT JOIN
+  # the result back to their segments table.
   sql_fmt <- "
     SELECT
-      a.%1$s AS segment_id,
-      array_agg(b.%2$s
-        ORDER BY b.wscode_ltree DESC,
-                 b.localcode_ltree DESC,
-                 b.downstream_route_measure DESC)
-        FILTER (WHERE b.%2$s IS NOT NULL) AS feature_ids
-    FROM %3$s a
-    LEFT JOIN %4$s b ON
-      %5$s(
-        a.blue_line_key, a.downstream_route_measure,
-        a.wscode_ltree, a.localcode_ltree,
-        b.blue_line_key, b.downstream_route_measure,
-        b.wscode_ltree, b.localcode_ltree,
-        %6$s, 1
-      )
-    %7$s
-    GROUP BY a.%1$s"
+      d.%1$s,
+      array_agg(d.feature_id) FILTER (WHERE d.feature_id IS NOT NULL) AS feature_ids
+    FROM (
+      SELECT
+        a.%1$s,
+        b.%2$s AS feature_id
+      FROM %3$s a
+      INNER JOIN %4$s b ON
+        %5$s(
+          a.blue_line_key, a.downstream_route_measure,
+          a.wscode_ltree, a.localcode_ltree,
+          b.blue_line_key, b.downstream_route_measure,
+          b.wscode_ltree, b.localcode_ltree,
+          %6$s, 1
+        )
+      %7$s
+      ORDER BY a.%1$s,
+               b.wscode_ltree DESC,
+               b.localcode_ltree DESC,
+               b.downstream_route_measure DESC
+    ) d
+    GROUP BY d.%1$s"
 
   sql <- sprintf(
     sql_fmt,

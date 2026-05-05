@@ -44,14 +44,15 @@ Naming + design (settled with user):
 - [x] 20 / 20 PASS in test-frs_network_features.R; full fresh suite green; lintr clean.
 - [x] Commit (Phase 2 done).
 
-## Phase 3: Live parity test against bcfp tunnel (~0.5 day)
+## Phase 3: Live parity test against bcfp tunnel (DONE)
 
-- [ ] Add a skippable integration test `tests/testthat/test-frs_network_features-live.R` guarded by `skip_if(Sys.getenv("PG_PASS_SHARE") == "")`.
-- [ ] Runs `frs_network_features(conn, "bcfishpass.streams", "bcfishpass.barriers_pscis", segment_id_col = "segmented_stream_id", feature_id_col = "barriers_pscis_id", direction = "downstream", aoi = "ADMS")` against the bcfp tunnel (`localhost:63333`, db `bcfishpass`, env-var auth).
-- [ ] Compares to `bcfishpass.streams_dnstr_barriers.barriers_pscis_dnstr` filtered to ADMS via `inner join`. Asserts row count match + per-segment array equality after `sort()` on both sides.
-- [ ] Acceptance: 100 % byte-identical (mod sort) on ADMS. The earlier scratch attempt got 15613 / 15647 — the LATERAL pattern was lossy. Pure `LEFT JOIN`+`array_agg` with the bcfp `ORDER BY` should match exactly.
-- [ ] Repeat the same test for `direction = "upstream"` against `bcfishpass.streams_upstr_observations` if a clean reference exists; otherwise skip (parity question is downstream-only for the immediate consumer).
-- [ ] Commit (Phase 3 done).
+- [x] Add `tests/testthat/test-frs_network_features-live.R` guarded by `skip_if(Sys.getenv("PG_PASS_SHARE") == "")` + `skip_on_ci()` + `skip_on_cran()`.
+- [x] Run `frs_network_features(... aoi = "ADMS", include_equivalents = TRUE)` against the bcfp tunnel.
+- [x] Compare to `bcfishpass.streams_dnstr_barriers.barriers_pscis_dnstr` filtered to ADMS where `barriers_pscis_dnstr IS NOT NULL` (the apples-to-apples slice — bcfp's table is wide-per-source so the unfiltered count was a red herring).
+- [x] Refactored SQL from LEFT JOIN to bcfp's exact pattern: subquery-with-INNER-JOIN feeding outer GROUP BY. The subquery `ORDER BY segment_id, wscode DESC, localcode DESC, drm DESC` preserves bcfp's canonical element ordering.
+- [x] **Acceptance: 100 % byte-identical on ADMS.** 1031 / 1031 segments with non-NULL `barriers_pscis_dnstr`; per-segment arrays equal mod sort.
+- [x] Sanity test for `direction = "upstream"` (no clean bcfp reference, just confirms SQL runs + produces sensible shape).
+- [x] Commit (Phase 3 done).
 
 ## Phase 4: Release (~0.5 day)
 

@@ -14,4 +14,8 @@
 - Driver of this work: this session is in `~/Projects/repo/link` but driving fresh#201 from here per user directive ("we just do it here vs switch to fresh handling business").
 - Phase 1 done: `R/frs_network_features.R` shipped with full signature, validation, roxygen examples (downstream + upstream + generic water-quality use case), and stub `stop()` body for Phase 2 to fill. NAMESPACE + Rd updated by document(). 11 / 11 validation tests pass; lintr clean.
 - Phase 2 done: SQL builder filled in. `LEFT JOIN` + `array_agg` with bcfp's `ORDER BY wscode_ltree, localcode_ltree, downstream_route_measure` (all DESC) for canonical element ordering. `direction` flips the `fwa_downstream` / `fwa_upstream` predicate; `aoi` injects WHERE; `include_equivalents` toggles the bool arg. 20 / 20 PASS in test-frs_network_features.R covering 7 SQL-composition cases. lintr clean.
-- Next: Phase 3 — live parity test against bcfp tunnel (ADMS PSCIS barriers).
+- Phase 3 done: live bcfp parity test passes 100 % byte-identical on ADMS (1031 / 1031 segments with non-NULL `barriers_pscis_dnstr`; per-segment arrays equal mod sort). Required two refactors during the phase:
+  - SQL pattern: LEFT JOIN → subquery-with-INNER-JOIN matching bcfp's exact `load_dnstr` shape (preserves canonical element ordering via the subquery's ORDER BY triple).
+  - Test ref query: filter bcfp's wide-per-source `streams_dnstr_barriers` to `barriers_pscis_dnstr IS NOT NULL` for the apples-to-apples PSCIS slice. The unfiltered 15647 was a red herring — most of those rows have non-NULL `barriers_dams_dnstr` but NULL PSCIS.
+- 6 / 6 PASS in test-frs_network_features-live.R (1 downstream parity + 1 upstream sanity + the 4 mocked tests already passing).
+- Next: Phase 4 — NEWS.md 0.28.0 entry, DESCRIPTION bump, PR.
