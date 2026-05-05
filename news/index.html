@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.27.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,10 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.27.6" id="fresh-0276">fresh 0.27.6<a class="anchor" aria-label="anchor" href="#fresh-0276"></a></h2>
+<p>Set SSD-friendly planner-cost defaults in <code>docker/docker-compose.yml</code>: <code>random_page_cost=1.1</code>, <code>effective_io_concurrency=200</code>, <code>temp_buffers=64MB</code>. PostgreSQL ships with values calibrated for spinning rust (4.0 / 1 / 8MB), which biased the planner away from index scans on segment-keyed lookups (<code>WHERE blue_line_key = … AND drm &lt;= …</code> against <code>streams_breaks</code> is the hot path in link’s pipeline). Documents the new settings in <code>docker/tuning.md</code> and notes that the M1/cypher docker-compose override file (tracked separately) needs the same flags — compose merges override <code>command:</code> lists by replacing the base, not appending.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.27.5" id="fresh-0275">fresh 0.27.5<a class="anchor" aria-label="anchor" href="#fresh-0275"></a></h2>
 <p><code>channel_width_min_bypass</code> block schema change: replace single <code>stream_order</code> key with <code>stream_order_min</code> + <code>stream_order_max</code> to express child-order ranges. The single key was modeling only <code>stream_order = 1</code> (bcfp parity), but <code>frs_order_child</code> always supported a range — <code>child_order_min</code> / <code>child_order_max</code> parameters. The new pair maps directly. Validator rejects the legacy <code>stream_order</code> key with <code>unknown keys</code> to flag stale rules.yaml files for regeneration.</p>

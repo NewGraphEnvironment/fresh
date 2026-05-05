@@ -1,5 +1,18 @@
 # Changelog
 
+## fresh 0.27.6
+
+Set SSD-friendly planner-cost defaults in `docker/docker-compose.yml`:
+`random_page_cost=1.1`, `effective_io_concurrency=200`,
+`temp_buffers=64MB`. PostgreSQL ships with values calibrated for
+spinning rust (4.0 / 1 / 8MB), which biased the planner away from index
+scans on segment-keyed lookups (`WHERE blue_line_key = … AND drm <= …`
+against `streams_breaks` is the hot path in link’s pipeline). Documents
+the new settings in `docker/tuning.md` and notes that the M1/cypher
+docker-compose override file (tracked separately) needs the same flags —
+compose merges override `command:` lists by replacing the base, not
+appending.
+
 ## fresh 0.27.5
 
 `channel_width_min_bypass` block schema change: replace single
