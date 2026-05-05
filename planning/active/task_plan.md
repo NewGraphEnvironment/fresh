@@ -34,12 +34,12 @@ Verified on M4 + M1 + cypher (2026-05-04) — all three show
   semantics; same change must land in both
 
 ## Phase 3: Verify and PR
-- [ ] `/code-check` on the diff
-- [ ] Push branch, open PR with `Closes #199`
-- [ ] Note benchmark verification is a post-merge step (≥10% median
+- [x] `/code-check` on the diff (manual; clean)
+- [x] Push branch, open PR with `Closes #199` (PR #200)
+- [x] Note benchmark verification is a post-merge step (≥10% median
   per-WSG wall reduction at unchanged segment count) — owner runs from
   M4 against `data-raw/logs/provincial_default_extrabreaks/<TS>_per_wsg_times.csv`
-  baseline (2026-05-04)
+  baseline (2026-05-04). Documented in PR test-plan.
 
 ## Validation
 - [ ] PWF checkboxes match landed work

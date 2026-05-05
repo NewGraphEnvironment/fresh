@@ -14,4 +14,8 @@
   `docker/tuning.md`, plus an "SSD assumption" section noting the
   M1/cypher override-file caveat (override `command:` replaces base, so
   same flags must land in the rtj-tracked override).
-- Next: Phase 3 (code-check, push, PR)
+- Phase 3 complete: pushed branch, opened PR #200 with `Closes #199`.
+  Manual code-check on the docker/ diff — clean (pure ASCII in the YAML
+  block, no secrets, indentation matches surrounding `-c` flags, DB
+  came up after restart and live `SHOW` confirmed all three values).
+- Next: merge, archive PWF, companion rtj-side change (separate work).
