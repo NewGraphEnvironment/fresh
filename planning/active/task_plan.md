@@ -25,21 +25,24 @@ Naming + design (settled with user):
 - [x] `lintr::lint("R/frs_network_features.R")` clean.
 - [x] Commit (Phase 1 done, atomic with checkbox flip).
 
-## Phase 2: SQL implementation (both directions) + mocked unit tests (~0.5 day)
+## Phase 2: SQL implementation (both directions) + mocked unit tests (DONE)
 
-- [ ] Fill in SQL builder. Pattern based on bcfp's `load_dnstr_chunked.sql`:
+- [x] Fill in SQL builder. Pattern based on bcfp's `load_dnstr_chunked.sql`:
   - `LEFT JOIN` segments to features on `whse_basemapping.fwa_<direction>(a.<keys>, b.<keys>, <include_equivalents>, 1)`.
   - `array_agg(b.<feature_id_col> ORDER BY b.wscode_ltree DESC, b.localcode_ltree DESC, b.downstream_route_measure DESC) FILTER (WHERE b.<feature_id_col> IS NOT NULL)`.
-  - `aoi` becomes a `WHERE a.watershed_group_code = <aoi>` clause when set.
-- [ ] Use `frs_db_query()` (from `R/frs_db_query.R`) for execution — mirrors `frs_network_downstream`'s pattern.
-- [ ] Mocked unit tests (`local_mocked_bindings(frs_db_query = ...)`):
-  - "downstream" direction: SQL contains `fwa_downstream(...)` and the segments-first/features-second arg order.
-  - "upstream" direction: SQL contains `fwa_upstream(...)` with same arg order.
-  - `aoi = "ADMS"` injects `WHERE a.watershed_group_code = 'ADMS'`.
-  - `include_equivalents = TRUE` produces `true` in the SQL; default produces `false`.
-  - Returned tibble preserves the `segment_id_col` name verbatim.
-- [ ] `/code-check` on staged diff.
-- [ ] Commit (Phase 2 done).
+  - `aoi` becomes a `WHERE a.watershed_group_code = '<aoi>'` clause when set (regex-validated, no SQL-injection vector).
+- [x] Use `frs_db_query()` (from `R/frs_db_query.R`) for execution — mirrors `frs_network_downstream`'s pattern.
+- [x] Mocked unit tests (`local_mocked_bindings(frs_db_query = ...)`):
+  - "downstream" direction: SQL contains `fwa_downstream(...)` ✓
+  - "upstream" direction: SQL contains `fwa_upstream(...)` ✓
+  - segments-first / features-second arg order (a.blue_line_key before b.blue_line_key) ✓
+  - `aoi = "ADMS"` injects `WHERE a.watershed_group_code = 'ADMS'` ✓
+  - `aoi = NULL` omits the WHERE clause ✓
+  - `include_equivalents = FALSE` (default) → `false, 1` ✓
+  - `include_equivalents = TRUE` → `true, 1` ✓
+  - Returned tibble preserves the `segment_id_col` name verbatim ✓
+- [x] 20 / 20 PASS in test-frs_network_features.R; full fresh suite green; lintr clean.
+- [x] Commit (Phase 2 done).
 
 ## Phase 3: Live parity test against bcfp tunnel (~0.5 day)
 

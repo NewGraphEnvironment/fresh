@@ -143,9 +143,62 @@ frs_network_features <- function(
     }
   }
 
-  # Phase 2 (next commit): replace this stop() with the SQL implementation.
-  stop("`frs_network_features()` SQL body lands in Phase 2 of #201. ",
-       "Validation passed for: direction = \"", direction, "\", aoi = \"",
-       aoi %||% "NULL", "\".",
-       call. = FALSE)
+  fwa_predicate <- if (direction == "downstream") {
+    "whse_basemapping.fwa_downstream"
+  } else {
+    "whse_basemapping.fwa_upstream"
+  }
+
+  ie_arg <- if (isTRUE(include_equivalents)) "true" else "false"
+
+  # `aoi` is regex-validated `^[A-Z]{3,5}$` above — safe to interpolate
+  # without runtime quoting (no SQL-injection vector).
+  aoi_filter <- if (!is.null(aoi)) {
+    sprintf("WHERE a.watershed_group_code = '%s'", aoi)
+  } else {
+    ""
+  }
+
+  # SQL pattern mirrors bcfishpass.load_dnstr_chunked
+  # (bcfishpass/db/migrations/archive/v0.7.6/load_dnstr_chunked.sql).
+  # `array_agg` with the bcfp ORDER BY triple (wscode, localcode, drm,
+  # all DESC) preserves canonical element ordering for byte-identical
+  # parity with bcfp's `streams_dnstr_*` precomputed tables. LEFT JOIN
+  # (vs bcfp's INNER) means segments with zero matches still appear
+  # with NULL — array_agg over zero rows is NULL in Postgres and that
+  # propagates.
+  sql_fmt <- "
+    SELECT
+      a.%1$s AS segment_id,
+      array_agg(b.%2$s
+        ORDER BY b.wscode_ltree DESC,
+                 b.localcode_ltree DESC,
+                 b.downstream_route_measure DESC)
+        FILTER (WHERE b.%2$s IS NOT NULL) AS feature_ids
+    FROM %3$s a
+    LEFT JOIN %4$s b ON
+      %5$s(
+        a.blue_line_key, a.downstream_route_measure,
+        a.wscode_ltree, a.localcode_ltree,
+        b.blue_line_key, b.downstream_route_measure,
+        b.wscode_ltree, b.localcode_ltree,
+        %6$s, 1
+      )
+    %7$s
+    GROUP BY a.%1$s"
+
+  sql <- sprintf(
+    sql_fmt,
+    segment_id_col,
+    feature_id_col,
+    segments,
+    features,
+    fwa_predicate,
+    ie_arg,
+    aoi_filter
+  )
+
+  res <- frs_db_query(conn, sql)
+  names(res)[1] <- segment_id_col
+  res
 }

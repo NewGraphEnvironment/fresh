@@ -13,4 +13,5 @@
 - Scaffolded PWF baseline (task_plan.md, findings.md, progress.md) with approved 4-phase breakdown.
 - Driver of this work: this session is in `~/Projects/repo/link` but driving fresh#201 from here per user directive ("we just do it here vs switch to fresh handling business").
 - Phase 1 done: `R/frs_network_features.R` shipped with full signature, validation, roxygen examples (downstream + upstream + generic water-quality use case), and stub `stop()` body for Phase 2 to fill. NAMESPACE + Rd updated by document(). 11 / 11 validation tests pass; lintr clean.
-- Next: Phase 2 — fill in the SQL builder for both directions + mocked unit tests.
+- Phase 2 done: SQL builder filled in. `LEFT JOIN` + `array_agg` with bcfp's `ORDER BY wscode_ltree, localcode_ltree, downstream_route_measure` (all DESC) for canonical element ordering. `direction` flips the `fwa_downstream` / `fwa_upstream` predicate; `aoi` injects WHERE; `include_equivalents` toggles the bool arg. 20 / 20 PASS in test-frs_network_features.R covering 7 SQL-composition cases. lintr clean.
+- Next: Phase 3 — live parity test against bcfp tunnel (ADMS PSCIS barriers).
