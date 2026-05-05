@@ -1,0 +1,92 @@
+=== Island gradient breaks benchmark ===
+Date: 2026-04-05 10:06 
+DB: local Docker fwapg
+
+--- Break counts (ADMS, island method) ---
+NOTICE:  table "bench_island" does not exist, skipping
+
+Base segments: 11520 
+
+NOTICE:  table "bench_breaks_tmp" does not exist, skipping
+
+   2.49%:  43542 breaks (2.9s)
+NOTICE:  table "bench_breaks_tmp" does not exist, skipping
+
+   4.49%:  40527 breaks (2.8s)
+NOTICE:  table "bench_breaks_tmp" does not exist, skipping
+
+   5.49%:  39161 breaks (2.8s)
+NOTICE:  table "bench_breaks_tmp" does not exist, skipping
+
+   6.49%:  37928 breaks (2.8s)
+NOTICE:  table "bench_breaks_tmp" does not exist, skipping
+
+  15.00%:  28960 breaks (2.8s)
+NOTICE:  table "bench_breaks_tmp" does not exist, skipping
+
+  20.00%:  24823 breaks (2.8s)
+NOTICE:  table "bench_breaks_tmp" does not exist, skipping
+
+  25.00%:  21295 breaks (2.8s)
+[1] 0
+
+--- Full pipeline: ADMS with falls ---
+ADMS: BT, CH, CO, RB, SK
+NOTICE:  table "streams_adms" does not exist, skipping
+
+  Base: 11520 segments (3.9s)
+NOTICE:  table "breaks_access_adms_015" does not exist, skipping
+
+NOTICE:  relation "breaks_access_adms_015" already exists, skipping
+
+  Access 15%: 4.7s (CH, CO, SK)
+NOTICE:  table "breaks_access_adms_025" does not exist, skipping
+
+NOTICE:  relation "breaks_access_adms_025" already exists, skipping
+
+  Access 25%: 4.2s (BT, RB)
+NOTICE:  table "breaks_habitat_adms_00249" does not exist, skipping
+
+  Habitat 2.49%: 2.9s (SK)
+NOTICE:  table "breaks_habitat_adms_00449" does not exist, skipping
+
+  Habitat 4.49%: 2.9s (CH)
+NOTICE:  table "breaks_habitat_adms_00549" does not exist, skipping
+
+  Habitat 5.49%: 2.9s (BT, CO, RB)
+
+5 species jobs across 1 partition(s)
+  adms/BT: 13.3s -> working.streams_adms_bt
+  adms/CH: 12.9s -> working.streams_adms_ch
+  adms/CO: 12.7s -> working.streams_adms_co
+  adms/RB: 13.3s -> working.streams_adms_rb
+  adms/SK: 13.2s -> working.streams_adms_sk
+Total: 87.1s
+  partition species_code access_threshold habitat_threshold elapsed_s
+1      adms           BT             0.25            0.0549    13.320
+2      adms           CH             0.15            0.0449    12.893
+3      adms           CO             0.15            0.0549    12.747
+4      adms           RB             0.25            0.0549    13.344
+5      adms           SK             0.15            0.0249    13.185
+               table_name
+1 working.streams_adms_bt
+2 working.streams_adms_ch
+3 working.streams_adms_co
+4 working.streams_adms_rb
+5 working.streams_adms_sk
+
+--- Segment counts ---
+  working.streams_adms_bt: 48186 segments
+  working.streams_adms_ch: 49456 segments
+  working.streams_adms_co: 48186 segments
+  working.streams_adms_rb: 48186 segments
+  working.streams_adms_sk: 52234 segments
+
+Total pipeline time: 87.1 s
+
+--- Comparison (old interval method) ---
+Old break counts (from v0.7.0):
+  15.00%: 28960 breaks
+   5.49%: 39161 breaks
+Old CO segments: 48186
+Old pipeline time: 90s

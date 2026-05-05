@@ -1,0 +1,84 @@
+ℹ Loading fresh
+NOTICE:  schema "fresh" already exists, skipping
+
+[1] 0
+=== Segment ===
+NOTICE:  table "prof_tmp" does not exist, skipping
+
+NOTICE:  table "prof_barriers_15" does not exist, skipping
+
+NOTICE:  table "prof_barriers_25" does not exist, skipping
+
+[1] 0
+NOTICE:  table "prof_streams" does not exist, skipping
+
+  Base: 11520 segments (2s)
+NOTICE:  table "prof_streams_breaks" does not exist, skipping
+
+  Breaks from working.falls: 7 (0s)
+NOTICE:  relation "prof_streams_breaks" already exists, skipping
+
+  Breaks from working.prof_barriers_15: 4229 (0.1s)
+NOTICE:  relation "prof_streams_breaks" already exists, skipping
+
+  Breaks from working.prof_barriers_25: 3824 (0s)
+  Segmented: 16606 segments (2.1s)
+  Total: 18.2s
+
+=== Indexes on breaks ===
+[1] indexname
+<0 rows> (or 0-length row.names)
+
+=== Indexes on streams ===
+                                                 indexname
+1                           prof_streams_blue_line_key_idx
+2                            prof_streams_wscode_ltree_idx
+3                           prof_streams_wscode_ltree_idx1
+4                         prof_streams_localcode_ltree_idx
+5                        prof_streams_localcode_ltree_idx1
+6                       prof_streams_linear_feature_id_idx
+7                    prof_streams_watershed_group_code_idx
+8                          prof_streams_blue_line_key_idx1
+9  prof_streams_blue_line_key_downstream_route_measure_idx
+10                          prof_streams_wscode_ltree_idx2
+11                          prof_streams_wscode_ltree_idx3
+12                       prof_streams_localcode_ltree_idx2
+13                       prof_streams_localcode_ltree_idx3
+14                     prof_streams_linear_feature_id_idx1
+15                  prof_streams_watershed_group_code_idx1
+16                             prof_streams_id_segment_idx
+
+=== Breaks table size ===
+        label    n
+1     blocked    7
+2 gradient_15 4229
+3 gradient_25 3824
+
+=== Profile accessibility at 15%% ===
+Label filter: b.label IN ('blocked', 'gradient_15', 'gradient_25') 
+[1] 16606
+Time: 5.3 s
+Accessible: 3719 
+
+Segments: 16606 
+Breaks: 8060 
+
+=== EXPLAIN same-BLK ===
+Aggregate  (cost=4794.19..4794.20 rows=1 width=8) (actual time=5.797..5.798 rows=1 loops=1)
+  Buffers: shared hit=4135
+  ->  Hash Anti Join  (cost=492.35..4753.38 rows=16327 width=0) (actual time=0.927..5.637 rows=6642 loops=1)
+        Hash Cond: (s.blue_line_key = b.blue_line_key)
+        Join Filter: (b.downstream_route_measure <= s.downstream_route_measure)
+        Rows Removed by Join Filter: 19692
+        Buffers: shared hit=4135
+        ->  Seq Scan on prof_streams s  (cost=0.00..4006.06 rows=16606 width=12) (actual time=0.002..3.122 rows=16606 loops=1)
+              Buffers: shared hit=3840
+        ->  Hash  (cost=489.70..489.70 rows=212 width=12) (actual time=0.921..0.921 rows=8060 loops=1)
+              Buckets: 8192 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 442kB
+              Buffers: shared hit=295
+              ->  Seq Scan on prof_streams_breaks b  (cost=0.00..489.70 rows=212 width=12) (actual time=0.003..0.572 rows=8060 loops=1)
+                    Filter: (label = ANY ('{blocked,gradient_15,gradient_25}'::text[]))
+                    Buffers: shared hit=295
+Planning Time: 0.056 ms
+Execution Time: 5.807 ms 
+[1] 0

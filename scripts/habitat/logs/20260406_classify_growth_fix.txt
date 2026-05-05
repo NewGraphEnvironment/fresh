@@ -1,0 +1,295 @@
+ℹ Loading fresh
+NOTICE:  schema "fresh" already exists, skipping
+
+[1] 0
+NOTICE:  table "test_streams" does not exist, skipping
+
+NOTICE:  table "test_habitat" does not exist, skipping
+
+[1] 0
+ADMS: BT, CH, CO, RB, SK
+NOTICE:  table "streams_adms_tmp" does not exist, skipping
+
+NOTICE:  table "barriers_adms_15" does not exist, skipping
+
+NOTICE:  table "barriers_adms_25" does not exist, skipping
+
+NOTICE:  table "streams_adms" does not exist, skipping
+
+  Base: 11520 segments (2s)
+NOTICE:  table "streams_adms_breaks" does not exist, skipping
+
+  Breaks from working.falls: 7 (0s)
+NOTICE:  relation "streams_adms_breaks" already exists, skipping
+
+  Breaks from working.barriers_adms_15: 4229 (0s)
+NOTICE:  relation "streams_adms_breaks" already exists, skipping
+
+  Breaks from working.barriers_adms_25: 3824 (0s)
+  Segmented: 16606 segments (2.9s)
+  Total: 18.9s
+NOTICE:  table "streams_adms_acc_015" does not exist, skipping
+
+  Access 15%%: 3719 accessible (0.4s)
+NOTICE:  table "streams_adms_acc_025" does not exist, skipping
+
+  Access 25%%: 6338 accessible (0.7s)
+  BT: 0.1s (6338 accessible, 732 spawning, 1952 rearing)
+  CH: 0.1s (3719 accessible, 421 spawning, 1214 rearing)
+  CO: 0.1s (3719 accessible, 551 spawning, 1214 rearing)
+  RB: 0.1s (6338 accessible, 732 spawning, 1820 rearing)
+  SK: 0.1s (3719 accessible, 323 spawning, 1594 rearing)
+  ADMS: 16606 segs, 5 spp, 41.1s
+Total: 41.2s
+  Habitat table now: 83030 rows
+
+BULK: BT, CH, CO, PK, RB, SK, ST
+NOTICE:  table "streams_bulk_tmp" does not exist, skipping
+
+NOTICE:  table "barriers_bulk_15" does not exist, skipping
+
+NOTICE:  table "barriers_bulk_20" does not exist, skipping
+
+NOTICE:  table "barriers_bulk_25" does not exist, skipping
+
+NOTICE:  table "streams_bulk" does not exist, skipping
+
+  Base: 32472 segments (3.7s)
+NOTICE:  table "streams_bulk_breaks" does not exist, skipping
+
+  Breaks from working.falls: 37 (0s)
+NOTICE:  relation "streams_bulk_breaks" already exists, skipping
+
+  Breaks from working.barriers_bulk_15: 9126 (0.1s)
+NOTICE:  relation "streams_bulk_breaks" already exists, skipping
+
+  Breaks from working.barriers_bulk_20: 7707 (0.1s)
+NOTICE:  relation "streams_bulk_breaks" already exists, skipping
+
+  Breaks from working.barriers_bulk_25: 6404 (0.1s)
+  Segmented: 46419 segments (5s)
+  Total: 39.8s
+NOTICE:  relation "test_habitat" already exists, skipping
+
+NOTICE:  table "streams_bulk_acc_015" does not exist, skipping
+
+  Access 15%%: 18136 accessible (1s)
+NOTICE:  table "streams_bulk_acc_02" does not exist, skipping
+
+  Access 20%%: 24000 accessible (1.2s)
+NOTICE:  table "streams_bulk_acc_025" does not exist, skipping
+
+  Access 25%%: 29486 accessible (2.6s)
+  BT: 0.5s (35824 accessible, 4146 spawning, 9682 rearing)
+  CH: 0.4s (21855 accessible, 2508 spawning, 7082 rearing)
+  CO: 0.5s (21855 accessible, 3796 spawning, 7082 rearing)
+  PK: 0.3s (18136 accessible, 3391 spawning, 0 rearing)
+  RB: 0.4s (35824 accessible, 4146 spawning, 9056 rearing)
+  SK: 0.4s (21855 accessible, 2274 spawning, 9152 rearing)
+  ST: 0.4s (24000 accessible, 2129 spawning, 7099 rearing)
+NOTICE:  relation "test_streams" already exists, skipping
+
+  BULK: 46419 segs, 7 spp, 80.5s
+Total: 80.6s
+  Habitat table now: 407963 rows
+
+MORR: BT, CH, CO, PK, RB, SK, ST
+NOTICE:  table "streams_morr_tmp" does not exist, skipping
+
+NOTICE:  table "barriers_morr_15" does not exist, skipping
+
+NOTICE:  table "barriers_morr_20" does not exist, skipping
+
+NOTICE:  table "barriers_morr_25" does not exist, skipping
+
+NOTICE:  table "streams_morr" does not exist, skipping
+
+  Base: 24899 segments (2.8s)
+NOTICE:  table "streams_morr_breaks" does not exist, skipping
+
+  Breaks from working.falls: 17 (0s)
+NOTICE:  relation "streams_morr_breaks" already exists, skipping
+
+  Breaks from working.barriers_morr_15: 5983 (0s)
+NOTICE:  relation "streams_morr_breaks" already exists, skipping
+
+  Breaks from working.barriers_morr_20: 5234 (0s)
+NOTICE:  relation "streams_morr_breaks" already exists, skipping
+
+  Breaks from working.barriers_morr_25: 4446 (0s)
+  Segmented: 34014 segments (2.9s)
+  Total: 28.3s
+NOTICE:  relation "test_habitat" already exists, skipping
+
+NOTICE:  table "streams_morr_acc_015" does not exist, skipping
+
+  Access 15%%: 16462 accessible (0.6s)
+NOTICE:  table "streams_morr_acc_02" does not exist, skipping
+
+  Access 20%%: 20136 accessible (0.7s)
+NOTICE:  table "streams_morr_acc_025" does not exist, skipping
+
+  Access 25%%: 24377 accessible (1.5s)
+  BT: 0.6s (60201 accessible, 6764 spawning, 15886 rearing)
+  CH: 0.5s (38317 accessible, 4173 spawning, 12132 rearing)
+  CO: 0.5s (38317 accessible, 6339 spawning, 12132 rearing)
+  PK: 0.4s (34598 accessible, 6027 spawning, 0 rearing)
+  RB: 0.4s (60201 accessible, 6764 spawning, 14944 rearing)
+  SK: 0.5s (38317 accessible, 3898 spawning, 15405 rearing)
+  ST: 0.5s (44136 accessible, 3822 spawning, 12875 rearing)
+NOTICE:  relation "test_streams" already exists, skipping
+
+  MORR: 34014 segs, 7 spp, 65.1s
+Total: 65.1s
+  Habitat table now: 646061 rows
+
+ZYMO: BT, CH, CO, RB, ST
+NOTICE:  table "streams_zymo_tmp" does not exist, skipping
+
+NOTICE:  table "barriers_zymo_15" does not exist, skipping
+
+NOTICE:  table "barriers_zymo_20" does not exist, skipping
+
+NOTICE:  table "barriers_zymo_25" does not exist, skipping
+
+NOTICE:  table "streams_zymo" does not exist, skipping
+
+  Base: 19928 segments (1.9s)
+NOTICE:  table "streams_zymo_breaks" does not exist, skipping
+
+  Breaks from working.falls: 75 (0s)
+NOTICE:  relation "streams_zymo_breaks" already exists, skipping
+
+  Breaks from working.barriers_zymo_15: 7280 (0.1s)
+NOTICE:  relation "streams_zymo_breaks" already exists, skipping
+
+  Breaks from working.barriers_zymo_20: 7005 (0.1s)
+NOTICE:  relation "streams_zymo_breaks" already exists, skipping
+
+  Breaks from working.barriers_zymo_25: 6567 (0.1s)
+  Segmented: 30451 segments (2.8s)
+  Total: 22.9s
+NOTICE:  relation "test_habitat" already exists, skipping
+
+NOTICE:  table "streams_zymo_acc_015" does not exist, skipping
+
+  Access 15%%: 8654 accessible (0.6s)
+NOTICE:  table "streams_zymo_acc_02" does not exist, skipping
+
+  Access 20%%: 11364 accessible (0.7s)
+NOTICE:  table "streams_zymo_acc_025" does not exist, skipping
+
+  Access 25%%: 14411 accessible (1.6s)
+  BT: 0.7s (74612 accessible, 8570 spawning, 19765 rearing)
+  CH: 0.6s (46971 accessible, 5485 spawning, 14985 rearing)
+  CO: 0.6s (46971 accessible, 8049 spawning, 14985 rearing)
+  RB: 0.5s (74612 accessible, 8570 spawning, 18549 rearing)
+  ST: 0.5s (55500 accessible, 5145 spawning, 16351 rearing)
+NOTICE:  relation "test_streams" already exists, skipping
+
+  ZYMO: 30451 segs, 5 spp, 58.5s
+Total: 58.5s
+  Habitat table now: 798316 rows
+
+KISP: BT, CH, CM, CO, PK, RB, SK, ST
+NOTICE:  table "streams_kisp_tmp" does not exist, skipping
+
+NOTICE:  table "barriers_kisp_15" does not exist, skipping
+
+NOTICE:  table "barriers_kisp_20" does not exist, skipping
+
+NOTICE:  table "barriers_kisp_25" does not exist, skipping
+
+NOTICE:  table "streams_kisp" does not exist, skipping
+
+  Base: 24654 segments (2.9s)
+NOTICE:  table "streams_kisp_breaks" does not exist, skipping
+
+  Breaks from working.falls: 12 (0s)
+NOTICE:  relation "streams_kisp_breaks" already exists, skipping
+
+  Breaks from working.barriers_kisp_15: 8800 (0.1s)
+NOTICE:  relation "streams_kisp_breaks" already exists, skipping
+
+  Breaks from working.barriers_kisp_20: 8411 (0.1s)
+NOTICE:  relation "streams_kisp_breaks" already exists, skipping
+
+  Breaks from working.barriers_kisp_25: 7633 (0.1s)
+  Segmented: 37824 segments (4.7s)
+  Total: 32.5s
+NOTICE:  relation "test_habitat" already exists, skipping
+
+NOTICE:  table "streams_kisp_acc_015" does not exist, skipping
+
+  Access 15%%: 11797 accessible (0.7s)
+NOTICE:  table "streams_kisp_acc_02" does not exist, skipping
+
+  Access 20%%: 17054 accessible (0.9s)
+NOTICE:  table "streams_kisp_acc_025" does not exist, skipping
+
+  Access 25%%: 22670 accessible (2.2s)
+  BT: 1.2s (97282 accessible, 11402 spawning, 26041 rearing)
+  CH: 1s (58768 accessible, 7193 spawning, 19219 rearing)
+  CM: 1.1s (11797 accessible, 2682 spawning, 0 rearing)
+  CO: 0.8s (58768 accessible, 10579 spawning, 19219 rearing)
+  PK: 0.8s (46395 accessible, 8709 spawning, 0 rearing)
+  RB: 0.9s (97282 accessible, 11402 spawning, 24284 rearing)
+  SK: 0.9s (50114 accessible, 5442 spawning, 21043 rearing)
+  ST: 0.8s (72554 accessible, 6937 spawning, 21814 rearing)
+NOTICE:  relation "test_streams" already exists, skipping
+
+  KISP: 37824 segs, 8 spp, 77.7s
+Total: 77.7s
+  Habitat table now: 1100908 rows
+
+ATNA: CH, CM, CO, PK, RB, SK, ST
+NOTICE:  table "streams_atna_tmp" does not exist, skipping
+
+NOTICE:  table "barriers_atna_15" does not exist, skipping
+
+NOTICE:  table "barriers_atna_20" does not exist, skipping
+
+NOTICE:  table "barriers_atna_25" does not exist, skipping
+
+NOTICE:  table "streams_atna" does not exist, skipping
+
+  Base: 18684 segments (1.7s)
+NOTICE:  table "streams_atna_breaks" does not exist, skipping
+
+  Breaks from working.falls: 1 (0s)
+NOTICE:  relation "streams_atna_breaks" already exists, skipping
+
+  Breaks from working.barriers_atna_15: 3381 (0s)
+NOTICE:  relation "streams_atna_breaks" already exists, skipping
+
+  Breaks from working.barriers_atna_20: 2648 (0s)
+NOTICE:  relation "streams_atna_breaks" already exists, skipping
+
+  Breaks from working.barriers_atna_25: 2205 (0s)
+  Segmented: 24135 segments (2s)
+  Total: 18.5s
+NOTICE:  relation "test_habitat" already exists, skipping
+
+NOTICE:  table "streams_atna_acc_015" does not exist, skipping
+
+  Access 15%%: 6707 accessible (0.6s)
+NOTICE:  table "streams_atna_acc_02" does not exist, skipping
+
+  Access 20%%: 7940 accessible (0.7s)
+NOTICE:  table "streams_atna_acc_025" does not exist, skipping
+
+  Access 25%%: 11447 accessible (0.9s)
+  CH: 1s (65475 accessible, 7584 spawning, 20774 rearing)
+  CM: 0.8s (18504 accessible, 3282 spawning, 0 rearing)
+  CO: 0.8s (65475 accessible, 11133 spawning, 20774 rearing)
+  PK: 0.6s (53102 accessible, 9309 spawning, 0 rearing)
+  RB: 0.7s (108729 accessible, 12227 spawning, 26702 rearing)
+  SK: 0.7s (56821 accessible, 5781 spawning, 22953 rearing)
+  ST: 0.8s (80494 accessible, 7332 spawning, 23641 rearing)
+NOTICE:  relation "test_streams" already exists, skipping
+
+  ATNA: 24135 segs, 7 spp, 55.4s
+Total: 55.4s
+  Habitat table now: 1269853 rows
+
+[1] 0
