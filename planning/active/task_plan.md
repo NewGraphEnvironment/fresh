@@ -1,45 +1,46 @@
-# Task Plan — fresh#158: frs_order_child
+# Task: pg tuning — SSD planner-cost defaults in docker-compose.yml (#199)
 
-## Phase 1: Setup
-- [x] Branch `158-frs-order-child` from main (HEAD `253abf2`)
-- [ ] PWF baseline (task_plan, findings, progress)
+`docker/docker-compose.yml` doesn't set `random_page_cost` or
+`effective_io_concurrency`, so postgres falls through to PostgreSQL
+defaults of `4.0` and `1` — both calibrated for spinning rust. All
+NewGraph hosts run on SSD (M4 NVMe, M1 Colima virtiofs over APFS,
+cypher DO block storage). With `random_page_cost=4`, the planner
+systematically biases away from index scans for segment-keyed lookups
+in link's pipeline (`WHERE blue_line_key = … AND drm <= …` against
+`streams_breaks` is the hot path).
 
-## Phase 2: Code change — fresh-side
-- [ ] New `R/frs_order_child.R` exporting `frs_order_child(conn, table, habitat, species, label = "rearing", parent_order_min = 5, child_order_min = NULL, child_order_max = NULL, distance_max = NULL)`
-- [ ] SQL per the [issue spec](https://github.com/NewGraphEnvironment/fresh/issues/158): post-classification UPDATE that adds `<label> = TRUE` to segments where `accessible IS TRUE`, `<label> IS NOT TRUE`, `s.stream_order = s.stream_order_max`, `s.stream_order_parent >= parent_order_min`, optionally bounded by `child_order_min/max` and `distance_max`
-- [ ] roxygen docstring with parameters, examples, biology rationale
-- [ ] `devtools::document()` clean
+Verified on M4 + M1 + cypher (2026-05-04) — all three show
+`random_page_cost=4`, `effective_io_concurrency=1`, `temp_buffers=8MB`.
 
-## Phase 3: Tests
-- [ ] `tests/testthat/test-frs_order_child.R`: SQL shape (mock `.frs_db_execute`)
-  - default invocation emits the canonical SQL with parent_order_min=5
-  - `child_order_min/max` bounds appear when set
-  - `distance_max` adds `downstream_route_measure <= ...` clause
-  - `accessible IS TRUE` and `<label> IS NOT TRUE` guards always present
-  - `species` substituted correctly
-- [ ] `devtools::test(filter = "frs_order_child")` clean
+## Phase 1: Add SSD planner-cost flags to docker-compose.yml
+- [x] Append to `db.command` block in `docker/docker-compose.yml`:
+  - `-c random_page_cost=1.1`
+  - `-c effective_io_concurrency=200`
+  - `-c temp_buffers=64MB`
+- [x] Restart local Docker DB (`docker compose down && docker compose up -d db`)
+- [x] Verify via `SHOW random_page_cost; SHOW effective_io_concurrency; SHOW temp_buffers;`
+  (verified live: `random_page_cost=1.1`, `effective_io_concurrency=200`, `temp_buffers=64MB`)
 
-## Phase 4: Code-check
-- [ ] `/code-check` on staged diff
+## Phase 2: Document in tuning.md
+- [x] Add three rows to the "Settings rationale" table
+  (`random_page_cost`, `effective_io_concurrency`, `temp_buffers`) with
+  SSD justification per setting
+- [x] Add a short "SSD assumption" note: all NewGraph hosts run on SSD
+  (M4 NVMe, M1 Colima virtiofs over APFS, cypher DO block storage),
+  these defaults bias the planner toward index scans for segment-keyed
+  lookups in link's pipeline
+- [x] Cross-reference the companion rtj issue for the M1/cypher override
+  file — override `command:` REPLACES base under docker-compose merge
+  semantics; same change must land in both
 
-## Phase 5: Release
-- [ ] DESCRIPTION: 0.26.0 → 0.27.0
-- [ ] NEWS.md: 0.27.0 entry
-- [ ] PR with `Fixes #158`
-- [ ] Merge, tag
+## Phase 3: Verify and PR
+- [x] `/code-check` on the diff (manual; clean)
+- [x] Push branch, open PR with `Closes #199` (PR #200)
+- [x] Note benchmark verification is a post-merge step (≥10% median
+  per-WSG wall reduction at unchanged segment count) — owner runs from
+  M4 against `data-raw/logs/provincial_default_extrabreaks/<TS>_per_wsg_times.csv`
+  baseline (2026-05-04). Documented in PR test-plan.
 
-## Phase 6: Link follow-up
-- [ ] Bump fresh dep 0.26.0 → 0.27.0
-- [ ] dimensions.csv: flip `rear_stream_order_bypass = yes` for BT/CH/CO/ST/WCT in bcfishpass bundle
-- [ ] Default-bundle TBD per methodology decision (issue mentions parametric `distance_max` could differ)
-- [ ] `lnk_rules_build` already emits `channel_width_min_bypass` field but fresh doesn't read it yet — wire to call `frs_order_child` per-species after classify
-- [ ] Verify HORS BT closes from -7.68% to within ±1%
-- [ ] 15-WSG distributed re-run
-
-## Verification
-
-- HORS BT rearing_stream: -7.68% → expected within ±1%
-- HORS CH/CO/ST: similar closure expected
-- COLR/KHOR/CLRH WCT: similar closure expected (provincial Class B)
-- bcfishpass-bundle other WSGs: bit-identical (function only fires where `rear_stream_order_bypass: yes` is set)
-- default-bundle: TBD per methodology
+## Validation
+- [ ] PWF checkboxes match landed work
+- [ ] `/planning-archive` on completion

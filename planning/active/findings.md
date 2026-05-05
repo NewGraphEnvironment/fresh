@@ -1,63 +1,85 @@
-# Findings — fresh#158
+# Findings — pg tuning: SSD planner-cost defaults (#199)
 
-## Diagnosis (2026-05-01)
+## Issue context
 
-bcfishpass's per-species rear rule has an inline OR clause:
+### Problem
 
-```sql
-(cw.channel_width >= t.rear_channel_width_min OR
- (s.stream_order_parent >= 5 AND s.stream_order = 1))
+`fresh/docker/docker-compose.yml` doesn't set `random_page_cost` or
+`effective_io_concurrency`, so postgres falls through to PostgreSQL
+defaults of `4.0` and `1` — both calibrated for spinning rust. All
+NewGraph hosts run on SSD (M4 NVMe, M1 Colima virtiofs over APFS,
+cypher DO block storage). With `random_page_cost=4`, the planner
+systematically biases away from index scans for segment-keyed lookups
+in link's pipeline (`WHERE blue_line_key = … AND drm <= …` against
+`streams_breaks` is the hot path).
+
+Verified on M4 + M1 + cypher today (2026-05-04) — all three show
+`random_page_cost=4`, `effective_io_concurrency=1`, `temp_buffers=8MB`.
+
+### Proposed
+
+Add to the `db.command` block in base `docker-compose.yml`:
+
+```yaml
+-c random_page_cost=1.1
+-c effective_io_concurrency=200
+-c temp_buffers=64MB
 ```
 
-at [`bcfishpass/model/02_habitat_linear/sql/load_habitat_linear_bt.sql`](https://github.com/smnorris/bcfishpass/blob/main/model/02_habitat_linear/sql/load_habitat_linear_bt.sql) lines 89–96 (BT — same pattern in CH/CO/ST/WCT). Direct order-1 tributaries of order-5+ mainstems get credited as rearing **even when cw < rear_min**.
+Document in `fresh/docker/tuning.md` alongside the existing memory
+rationale: SSD cost values, why they matter for link's segment-heavy
+SQL.
 
-Biology: small tribs of large rivers support juvenile rearing despite small FWA-measured channel width — parent supplies flow / temperature / access; cool tributary water mixes at confluence; backwater + off-channel habitat near the mouth is high-value.
+### Verification
 
-fresh has no implementation. link's `dimensions.csv::rear_stream_order_bypass = no` for all species in both bundles (correctly anticipating fresh has nothing to read). Provincial parity baseline (link 0.20.1) shows this gap on HORS / COLR / KHOR / CLRH / etc — Class B in `link/research/provincial_parity_2026_05_01.md`.
+Post-merge, M4 reruns one of link's provincial-style runs. Compare
+per-WSG wall times in `data-raw/logs/<TS>_per_wsg_times.csv` against
+today's baseline (2026-05-04 `default_extrabreaks` run,
+`data-raw/logs/provincial_default_extrabreaks/<TS>_per_wsg_times.csv`).
+Acceptance: median per-WSG wall reduced by ≥ 10 % at unchanged segment
+count.
 
-## Function design (per issue body)
+### Cross-ref
 
-`frs_order_child(conn, table, habitat, species, label = "rearing", parent_order_min = 5, child_order_min = NULL, child_order_max = NULL, distance_max = NULL)`
+Companion rtj issue for the M1/cypher override file — the override's
+`command:` list REPLACES the base under docker-compose's merge
+semantics, so settings added here don't propagate to the 32 GB hosts.
+Same change must land in both.
 
-Post-classification UPDATE:
+## Setting-by-setting rationale
 
-```sql
-UPDATE habitat
-SET <label> = TRUE
-FROM streams s
-WHERE habitat.id_segment = s.id_segment
-  AND habitat.species_code = '<species>'
-  AND habitat.accessible = TRUE
-  AND habitat.<label> IS NOT TRUE
-  AND s.stream_order = s.stream_order_max         -- direct child
-  AND s.stream_order_parent >= <parent_order_min> -- of large river
-  AND s.stream_order >= <child_order_min>         -- if set
-  AND s.stream_order <= <child_order_max>         -- if set
-  AND (<distance_max> IS NULL OR
-       s.downstream_route_measure <= <distance_max>);
-```
+### `random_page_cost = 1.1`
 
-Direct-child filter: `s.stream_order = s.stream_order_max` ensures we stop at the order-change point (once the segment's order would exceed `stream_order_max`, you're no longer on the direct-child reach). Captures "small tributary directly into a large parent."
+PostgreSQL default is `4.0` — the cost ratio for a random vs
+sequential page read on spinning rust (~4× slower for random I/O).
+On SSD, random reads are nearly as cheap as sequential. PostgreSQL
+docs and tuning consensus recommend `1.1` to `1.5` for SSD. With the
+default, the planner systematically over-prices index scans and
+prefers seq scans even when an index would be faster — exactly the
+wrong bias for segment-keyed lookups.
 
-`accessible = TRUE` guard: never adds rearing on segments above a definite barrier.
+### `effective_io_concurrency = 200`
 
-`<label> IS NOT TRUE` guard: idempotent + additive — already-classified segments untouched.
+PostgreSQL default is `1`. This setting tells the planner how many
+concurrent I/O requests the storage can usefully serve, used to drive
+prefetch on bitmap heap scans. SSDs (especially NVMe) handle hundreds
+of concurrent requests trivially — `200` is the standard recommendation
+for SSD. Value of `1` causes the planner to under-issue prefetches and
+underestimate bitmap-scan throughput.
 
-## Pre vs post cluster — design decision (post-cluster wins)
+### `temp_buffers = 64MB`
 
-bcfishpass embeds the bypass in the rule predicate (pre-cluster). Issue body's analysis: post-cluster is cleaner because:
-- Bypassed segments don't need to pass connectivity (they're connected to the large parent by definition; the biology of the bypass IS the connectivity)
-- `accessible = TRUE` already gates barrier-blocked reaches
-- Post-cluster matches the parametric form (function takes WSG/species and applies, not a rule predicate that needs SQL grammar in fresh)
-- Same end-state numbers as bcfp on the BCFP-parity caller-side defaults
+PostgreSQL default is `8MB` — per-session memory for temporary tables.
+Bumping to `64MB` lets short-lived temp/working tables live in RAM
+instead of spilling to disk. fresh/link pipelines build per-WSG temp
+tables (segments, breaks, working scratch) that are read repeatedly
+within a session; spilling these to disk is gratuitous on a dev box
+with 128 GB RAM.
 
-## Caller defaults (link side, separate PR)
+## Repo state
 
-- bcfishpass bundle: `frs_order_child(species, parent_order_min = 5)` (defaults) for BT/CH/CO/ST/WCT
-- default bundle: methodology-pending. Could ship same as bcfp first, tune later
-
-## Versions at start
-
-- fresh main: 253abf2 (0.26.0)
-- link main: 9643be5 (0.21.0)
-- bcfishpass: 440bc1e
+- `docker/docker-compose.yml:21-35` — current `db.command` block has
+  memory + parallelism flags but no I/O cost flags
+- `docker/tuning.md` — has "Settings rationale" table and a "Scaling
+  for other machines" recipe; new flags are global (not RAM-scaled),
+  no scaling change needed

@@ -21,6 +21,26 @@ Tuning notes for the local Docker fwapg instance. Settings in `docker-compose.ym
 | `max_parallel_workers` | 14 | Leave 2 cores for OS/Docker |
 | `max_worker_processes` | 16 | Match core count |
 | `shm_size` | 36gb | Must exceed shared_buffers (Docker constraint) |
+| `random_page_cost` | 1.1 | SSD: random reads ≈ sequential. Default 4.0 (spinning rust) over-prices index scans, biases planner toward seq scans |
+| `effective_io_concurrency` | 200 | SSD/NVMe: hundreds of concurrent requests. Default 1 under-issues prefetch on bitmap heap scans |
+| `temp_buffers` | 64MB | Per-session temp-table memory. Default 8MB spills working tables (per-WSG segments, breaks, scratch) to disk gratuitously on a 128 GB box |
+
+## SSD assumption
+
+All NewGraph hosts run on SSD (M4 NVMe, M1 Colima virtiofs over APFS,
+cypher DO block storage). The `random_page_cost`,
+`effective_io_concurrency`, and `temp_buffers` defaults above bias the
+planner toward index scans for segment-keyed lookups (the
+`WHERE blue_line_key = … AND drm <= …` against `streams_breaks` hot
+path in link's pipeline). Out-of-the-box PostgreSQL defaults (4.0 / 1
+/ 8MB) are calibrated for spinning rust and are wrong for any modern
+host. Don't lower these without a spinning-disk reason.
+
+**M1/cypher hosts use a docker-compose override file.** Compose merges
+override `command:` lists by **replacing** the base, not by appending —
+so any `-c` flags added here must also be added to the M1/cypher
+override (tracked in the rtj repo). Forgetting this silently leaves
+the 32 GB hosts on PostgreSQL defaults.
 
 ## Scaling for other machines
 
