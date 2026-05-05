@@ -15,15 +15,15 @@ Naming + design (settled with user):
 - Output: 2-column tibble `(<segment_id_col>, feature_ids)`. `feature_ids` is `text[]`; **NULL when zero matches** (don't synthesise empty arrays — keep Postgres semantics).
 - Exported. Public.
 
-## Phase 1: Function signature + validation + roxygen + NAMESPACE (~0.5 day)
+## Phase 1: Function signature + validation + roxygen + NAMESPACE (DONE)
 
-- [ ] Create `R/frs_network_features.R` with full signature, arg validation via `.frs_validate_identifier` (from `R/utils.R`), `match.arg(direction)`, and `aoi` validation (WSG-code regex `^[A-Z]{3,5}$` for now; document polygon/ltree as future-compat).
-- [ ] Roxygen with worked `\dontrun{}` example showing both directions + a generic non-barrier use case (e.g. water-quality stations).
-- [ ] Body returns a not-implemented `stop()` for now (or a trivial placeholder query) so the function exists in the namespace but doesn't run real SQL yet. Lets tests of validation alone pass.
-- [ ] `devtools::document()` updates `NAMESPACE` + `man/frs_network_features.Rd`.
-- [ ] `tests/testthat/test-frs_network_features.R` — validation-only tests (missing `feature_id_col` errors; bad identifier characters error; bad direction errors; bad aoi format errors).
-- [ ] `devtools::test()` green; `lintr::lint_package()` clean.
-- [ ] Commit (Phase 1 done, atomic with checkbox flip).
+- [x] Create `R/frs_network_features.R` with full signature, arg validation via `.frs_validate_identifier` (from `R/utils.R`), `match.arg(direction)`, and `aoi` validation (WSG-code regex `^[A-Z]{3,5}$` for now; document polygon/ltree as future-compat).
+- [x] Roxygen with worked `\dontrun{}` example showing both directions + a generic non-barrier use case (e.g. water-quality stations).
+- [x] Body returns a not-implemented `stop()` for now so the function exists in the namespace but doesn't run real SQL yet. Lets tests of validation alone pass.
+- [x] `devtools::document()` updates `NAMESPACE` + `man/frs_network_features.Rd`.
+- [x] `tests/testthat/test-frs_network_features.R` — validation-only tests (missing `feature_id_col` errors; bad identifier characters error; bad direction errors; bad aoi format errors). 11 / 11 PASS.
+- [x] `lintr::lint("R/frs_network_features.R")` clean.
+- [x] Commit (Phase 1 done, atomic with checkbox flip).
 
 ## Phase 2: SQL implementation (both directions) + mocked unit tests (~0.5 day)
 
