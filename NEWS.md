@@ -1,3 +1,12 @@
+# fresh 0.29.0
+
+Closes [#204](https://github.com/NewGraphEnvironment/fresh/issues/204). Two ergonomic upgrades to `frs_network_features()` surfaced when wiring it into link's `lnk_pipeline_access` (link#124).
+
+- Per-side wscode/localcode column overrides. New args `segments_wscode_col`, `segments_localcode_col`, `features_wscode_col`, `features_localcode_col` (all default `"wscode_ltree"` / `"localcode_ltree"`). The original "unified" intent in #204 didn't survive contact with `bcfishpass.observations` (unsuffixed `wscode` / `localcode`) joined against `bcfishpass.streams` (`_ltree`) — segments and features can have different column conventions on the same query. Pass `features_wscode_col = "wscode"` + `features_localcode_col = "localcode"` for that case.
+- `feature_ids` is now an R list-column of character vectors rather than a `pq__text` column of array-literal strings (`"{a,b,c}"`). Callers can `lengths()`, `lapply()`, `%in%` directly. Empty / NULL arrays parse to `character(0)`. Internal helper `.frs_parse_pg_array()` does the parse — limited to unquoted-element arrays (the common case for FWA-snapped IDs); arrays containing commas or quotes inside elements would need a fuller parser per [PostgreSQL arrays I/O](https://www.postgresql.org/docs/current/arrays.html#ARRAYS-IO).
+- Live parity on ADMS PSCIS barriers: still 1031 / 1031 byte-identical to bcfp.
+- Live test added covers `bcfishpass.observations` with the per-side override — confirms column-resolution succeeds and `feature_ids[[1]]` is a character vector of `observation_key` strings, not a `{...}` literal.
+
 # fresh 0.28.0
 
 Closes [#201](https://github.com/NewGraphEnvironment/fresh/issues/201). Adds `frs_network_features()` — a direction-agnostic primitive that returns per-segment arrays of features at a relative position on the FWA stream network. For each row in a segments table, the function `array_agg`s feature IDs from a features table that lie either downstream of, or upstream of, that segment. Generic over any FWA-snapped point dataset (barriers, observations, water-quality stations, fish surveys, sediment samples — anything keyed by `(blue_line_key, downstream_route_measure, wscode_ltree, localcode_ltree)`).
