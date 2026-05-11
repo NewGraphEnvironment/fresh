@@ -160,4 +160,8 @@ obs_per_segment$feature_ids[[1]]            # character vector
 DBI::dbDisconnect(conn)
 }
 }
+\seealso{
+Other network: 
+\code{\link{frs_point_match}()}
+}
 \concept{network}
