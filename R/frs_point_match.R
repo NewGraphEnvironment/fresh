@@ -143,8 +143,12 @@ frs_point_match <- function(
   # then keeps one row per (table_a_id, blue_line_key) — the matched
   # one if it exists, the un-matched row otherwise. NULLS LAST on
   # distance_instream ensures real matches outrank unmatched rows.
+  # RPostgres can't run multi-statement SQL in a single dbExecute call
+  # ("cannot insert multiple commands into a prepared statement"), so
+  # DROP and CREATE go in separate dispatches.
+  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", table_to))
+
   sql_fmt <- "
-    DROP TABLE IF EXISTS %3$s;
     CREATE TABLE %3$s AS
     SELECT DISTINCT ON (a.%4$s, a.blue_line_key)
       a.*,

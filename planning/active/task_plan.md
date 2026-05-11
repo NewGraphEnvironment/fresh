@@ -25,10 +25,14 @@ Concrete use case driving this: link's bcfp parity layer needs to reproduce bcfp
 
 ## Phase 3: live byte-identical validation against bcfp
 
-- [ ] Run `frs_point_match` against `bcfishpass.pscis_assessment_svw` (filtered to ADMS) and `bcfishpass.modelled_stream_crossings` (filtered to ADMS), with `distance_max = 100`.
-- [ ] Diff result vs `bcfishpass.pscis_streams_150m` for ADMS rows where `modelled_xing_dist_instream < 100` (the rows that would survive our 100m filter).
-- [ ] Acceptance: every (stream_crossing_id, modelled_crossing_id) pair in our output matches bcfp's output. Document the diff in `tests/integration/` or PR body.
-- [ ] Note: bcfp's `pscis_streams_150m` is a SCORING table (keeps multiple matches with name/width scores). Our output is the deduped subset (one match per PSCIS per stream). The byte-identical claim is on the final pairing, not the intermediate scoring.
+- [x] Run `frs_point_match` against `bcfishpass.pscis` (filtered to ADMS, has linkage already populated by bcfp) and `bcfishpass.modelled_stream_crossings` (filtered to ADMS), with `distance_max = 100`.
+- [x] Diff result vs `bcfishpass.pscis.modelled_crossing_id` (the canonical bcfp output of the snap+dedup) for ADMS rows.
+- [x] **Acceptance met: 60 / 60 (stream_crossing_id, modelled_crossing_id) pairs identical. 0 in ours-not-ref. 0 in ref-not-ours.**
+- [x] Note: bcfp's `pscis_streams_150m` is a SCORING intermediate (multiple matches per PSCIS pre-dedup). The canonical post-dedup linkage lives on `bcfishpass.pscis.modelled_crossing_id`. Our output is the deduped subset — byte-identical to that.
+
+### Live test script
+
+Captured at `/tmp/fresh_206_live_validation.R` for the PR body — runs against the bcfp tunnel, stages PSCIS+modelled subsets for ADMS, calls frs_point_match, diffs result vs `bcfishpass.pscis.modelled_crossing_id`.
 
 ## Phase 4: release
 

@@ -107,10 +107,12 @@ test_that("`table_a_id_col` and `table_b_id_col` must differ", {
 # ----- Phase 2: SQL composition (mocked .frs_db_execute) -----
 
 with_captured_sql <- function(call_expr) {
-  captured <- NULL
+  # RPostgres requires one statement per dbExecute call, so the
+  # function dispatches DROP and CREATE separately. Capture both.
+  captured <- list()
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
-      captured <<- sql
+      captured[[length(captured) + 1L]] <<- sql
       0L
     }
   )
@@ -119,7 +121,7 @@ with_captured_sql <- function(call_expr) {
 }
 
 test_that("SQL composes DROP + CREATE + same-blk join + DISTINCT ON", {
-  sql <- with_captured_sql(function() {
+  sqls <- with_captured_sql(function() {
     frs_point_match(
       conn = "mock",
       table_a = "working_adms.pscis_assessment_snapped",
@@ -130,14 +132,15 @@ test_that("SQL composes DROP + CREATE + same-blk join + DISTINCT ON", {
       table_b_id_col = "modelled_crossing_id"
     )
   })
-  expect_match(sql, "DROP TABLE IF EXISTS working_adms\\.pscis")
-  expect_match(sql, "CREATE TABLE working_adms\\.pscis AS")
-  expect_match(sql, "DISTINCT ON \\(a\\.stream_crossing_id, a\\.blue_line_key\\)")
-  expect_match(sql, "a\\.blue_line_key = b\\.blue_line_key")
+  expect_length(sqls, 2L)
+  expect_match(sqls[[1]], "DROP TABLE IF EXISTS working_adms\\.pscis")
+  expect_match(sqls[[2]], "CREATE TABLE working_adms\\.pscis AS")
+  expect_match(sqls[[2]], "DISTINCT ON \\(a\\.stream_crossing_id, a\\.blue_line_key\\)")
+  expect_match(sqls[[2]], "a\\.blue_line_key = b\\.blue_line_key")
 })
 
 test_that("distance_max appears as a numeric literal in the join predicate", {
-  sql <- with_captured_sql(function() {
+  sqls <- with_captured_sql(function() {
     frs_point_match(
       conn = "mock",
       table_a = "schema_a.x",
@@ -148,12 +151,15 @@ test_that("distance_max appears as a numeric literal in the join predicate", {
       table_b_id_col = "b_id"
     )
   })
-  # ABS(a.drm - b.drm) < 100
-  expect_match(sql, "ABS\\(a\\.downstream_route_measure - b\\.downstream_route_measure\\)\\s*\\n?\\s*<\\s*100")
+  # ABS(a.drm - b.drm) < 100 (in the CREATE statement, sqls[[2]])
+  expect_match(
+    sqls[[2]],
+    "ABS\\(a\\.downstream_route_measure - b\\.downstream_route_measure\\)\\s*\\n?\\s*<\\s*100"
+  )
 })
 
 test_that("LEFT JOIN preserves table_a rows with no match", {
-  sql <- with_captured_sql(function() {
+  sqls <- with_captured_sql(function() {
     frs_point_match(
       conn = "mock",
       table_a = "schema_a.x",
@@ -164,12 +170,12 @@ test_that("LEFT JOIN preserves table_a rows with no match", {
       table_b_id_col = "b_id"
     )
   })
-  expect_match(sql, "LEFT JOIN schema_b\\.y b")
-  expect_no_match(sql, "INNER JOIN")
+  expect_match(sqls[[2]], "LEFT JOIN schema_b\\.y b")
+  expect_no_match(sqls[[2]], "INNER JOIN")
 })
 
 test_that("ORDER BY uses distance_instream ASC NULLS LAST for dedup tiebreak", {
-  sql <- with_captured_sql(function() {
+  sqls <- with_captured_sql(function() {
     frs_point_match(
       conn = "mock",
       table_a = "schema_a.x",
@@ -180,11 +186,11 @@ test_that("ORDER BY uses distance_instream ASC NULLS LAST for dedup tiebreak", {
       table_b_id_col = "b_id"
     )
   })
-  expect_match(sql, "ASC NULLS LAST")
+  expect_match(sqls[[2]], "ASC NULLS LAST")
 })
 
 test_that("table_b_id_col carried through SELECT as named column", {
-  sql <- with_captured_sql(function() {
+  sqls <- with_captured_sql(function() {
     frs_point_match(
       conn = "mock",
       table_a = "schema_a.x",
@@ -195,5 +201,5 @@ test_that("table_b_id_col carried through SELECT as named column", {
       table_b_id_col = "b_id"
     )
   })
-  expect_match(sql, "b\\.b_id AS b_id")
+  expect_match(sqls[[2]], "b\\.b_id AS b_id")
 })
