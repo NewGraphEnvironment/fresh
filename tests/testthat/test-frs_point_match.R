@@ -13,8 +13,8 @@ test_that("`table_a` is required (no default)", {
       table_b = "fresh.modelled_stream_crossings",
       table_to = "working_adms.pscis",
       distance_max = 100,
-      table_a_id_col = "stream_crossing_id",
-      table_b_id_col = "modelled_crossing_id"
+      col_a_id = "stream_crossing_id",
+      col_b_id = "modelled_crossing_id"
     ),
     regexp = "`table_a` is required"
   )
@@ -27,8 +27,8 @@ test_that("`table_b` is required (no default)", {
       table_a = "working_adms.pscis_assessment_snapped",
       table_to = "working_adms.pscis",
       distance_max = 100,
-      table_a_id_col = "stream_crossing_id",
-      table_b_id_col = "modelled_crossing_id"
+      col_a_id = "stream_crossing_id",
+      col_b_id = "modelled_crossing_id"
     ),
     regexp = "`table_b` is required"
   )
@@ -41,8 +41,8 @@ test_that("`table_to` is required (no default)", {
       table_a = "working_adms.pscis_assessment_snapped",
       table_b = "fresh.modelled_stream_crossings",
       distance_max = 100,
-      table_a_id_col = "stream_crossing_id",
-      table_b_id_col = "modelled_crossing_id"
+      col_a_id = "stream_crossing_id",
+      col_b_id = "modelled_crossing_id"
     ),
     regexp = "`table_to` is required"
   )
@@ -54,8 +54,8 @@ test_that("`distance_max` must be positive scalar numeric", {
     table_a = "working_adms.pscis_assessment_snapped",
     table_b = "fresh.modelled_stream_crossings",
     table_to = "working_adms.pscis",
-    table_a_id_col = "stream_crossing_id",
-    table_b_id_col = "modelled_crossing_id"
+    col_a_id = "stream_crossing_id",
+    col_b_id = "modelled_crossing_id"
   )
 
   expect_error(do.call(frs_point_match, c(base_args, list(distance_max = -1))),
@@ -77,19 +77,19 @@ test_that("identifiers reject characters outside [A-Za-z_][A-Za-z0-9_.]*", {
     table_b = "fresh.modelled_stream_crossings",
     table_to = "working_adms.pscis",
     distance_max = 100,
-    table_a_id_col = "stream_crossing_id",
-    table_b_id_col = "modelled_crossing_id"
+    col_a_id = "stream_crossing_id",
+    col_b_id = "modelled_crossing_id"
   )
 
   expect_error(do.call(frs_point_match,
                        modifyList(base_args, list(table_a = "schema; DROP TABLE x"))),
                regexp = "invalid characters")
   expect_error(do.call(frs_point_match,
-                       modifyList(base_args, list(table_b_id_col = "id with spaces"))),
+                       modifyList(base_args, list(col_b_id = "id with spaces"))),
                regexp = "invalid characters")
 })
 
-test_that("`table_a_id_col` and `table_b_id_col` must differ", {
+test_that("`col_a_id` and `col_b_id` must differ", {
   expect_error(
     frs_point_match(
       conn = "mock",
@@ -97,8 +97,8 @@ test_that("`table_a_id_col` and `table_b_id_col` must differ", {
       table_b = "schema_b.points",
       table_to = "schema_out.matched",
       distance_max = 100,
-      table_a_id_col = "id",
-      table_b_id_col = "id"
+      col_a_id = "id",
+      col_b_id = "id"
     ),
     regexp = "must differ"
   )
@@ -130,8 +130,8 @@ test_that("SQL composes DROP + CREATE + same-blk join + DISTINCT ON", {
       table_b = "fresh.modelled_stream_crossings",
       table_to = "working_adms.pscis",
       distance_max = 100,
-      table_a_id_col = "stream_crossing_id",
-      table_b_id_col = "modelled_crossing_id"
+      col_a_id = "stream_crossing_id",
+      col_b_id = "modelled_crossing_id"
     )
   })
   expect_length(sqls, 2L)
@@ -149,8 +149,8 @@ test_that("SQL applies bidirectional dedup via ROW_NUMBER OVER (PARTITION BY b_i
       table_b = "schema_b.y",
       table_to = "schema_out.z",
       distance_max = 100,
-      table_a_id_col = "a_id",
-      table_b_id_col = "b_id"
+      col_a_id = "a_id",
+      col_b_id = "b_id"
     )
   })
   # The b-side dedup is what mirrors bcfp's "ensure modelled matches one PSCIS".
@@ -169,8 +169,8 @@ test_that("SQL refuses table_a containing reserved output column names", {
           table_b = "schema_b.y",
           table_to = "schema_out.z",
           distance_max = 100,
-          table_a_id_col = "a_id",
-          table_b_id_col = "b_id"
+          col_a_id = "a_id",
+          col_b_id = "b_id"
         )
       },
       cols_a = c("a_id", "blue_line_key", "downstream_route_measure", "b_id")  # b_id collides
@@ -187,8 +187,8 @@ test_that("distance_max appears as a numeric literal in the join predicate", {
       table_b = "schema_b.y",
       table_to = "schema_out.z",
       distance_max = 100,
-      table_a_id_col = "a_id",
-      table_b_id_col = "b_id"
+      col_a_id = "a_id",
+      col_b_id = "b_id"
     )
   })
   # ABS(a.drm - b.drm) < 100 (in the CREATE statement, sqls[[2]])
@@ -206,8 +206,8 @@ test_that("LEFT JOIN preserves table_a rows with no match", {
       table_b = "schema_b.y",
       table_to = "schema_out.z",
       distance_max = 100,
-      table_a_id_col = "a_id",
-      table_b_id_col = "b_id"
+      col_a_id = "a_id",
+      col_b_id = "b_id"
     )
   })
   expect_match(sqls[[2]], "LEFT JOIN schema_b\\.y b")
@@ -222,14 +222,14 @@ test_that("ORDER BY uses distance_instream ASC NULLS LAST for dedup tiebreak", {
       table_b = "schema_b.y",
       table_to = "schema_out.z",
       distance_max = 100,
-      table_a_id_col = "a_id",
-      table_b_id_col = "b_id"
+      col_a_id = "a_id",
+      col_b_id = "b_id"
     )
   })
   expect_match(sqls[[2]], "ASC NULLS LAST")
 })
 
-test_that("table_b_id_col carried through SELECT as named column", {
+test_that("col_b_id carried through SELECT as named column", {
   sqls <- with_captured_sql(function() {
     frs_point_match(
       conn = "mock",
@@ -237,8 +237,8 @@ test_that("table_b_id_col carried through SELECT as named column", {
       table_b = "schema_b.y",
       table_to = "schema_out.z",
       distance_max = 100,
-      table_a_id_col = "a_id",
-      table_b_id_col = "b_id"
+      col_a_id = "a_id",
+      col_b_id = "b_id"
     )
   })
   expect_match(sqls[[2]], "b\\.b_id AS b_id")

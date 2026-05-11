@@ -10,8 +10,8 @@ frs_point_match(
   table_b,
   table_to,
   distance_max,
-  table_a_id_col = "id",
-  table_b_id_col = "id",
+  col_a_id = "id",
+  col_b_id = "id",
   tiebreak = c("instream", "planar")
 )
 }
@@ -21,16 +21,16 @@ frs_point_match(
 \item{table_a}{Character. Schema-qualified source table. Points to
 match \strong{from}. Must already be snapped to FWA — required columns
 are \code{blue_line_key} and \code{downstream_route_measure} plus the ID
-column named in \code{table_a_id_col}.}
+column named in \code{col_a_id}.}
 
 \item{table_b}{Character. Schema-qualified target table. Points to
 match \strong{to}. Same column requirements as \code{table_a}. The
-ID column named in \code{table_b_id_col} is the value carried over to
+ID column named in \code{col_b_id} is the value carried over to
 \code{table_to}.}
 
 \item{table_to}{Character. Schema-qualified destination. Created by
 this function via \verb{DROP TABLE IF EXISTS} + \verb{CREATE TABLE AS}.
-Columns are all of \code{table_a}'s columns plus \verb{<table_b_id_col>}
+Columns are all of \code{table_a}'s columns plus \verb{<col_b_id>}
 (the matched target ID, nullable) plus \code{distance_instream} (numeric,
 the absolute difference in \code{downstream_route_measure} between the
 matched pair; NULL for unmatched rows).}
@@ -40,10 +40,10 @@ metres. Computed as
 \code{ABS(table_a.downstream_route_measure - table_b.downstream_route_measure)}.
 bcfp's PSCIS↔modelled case uses 100.}
 
-\item{table_a_id_col}{Character. Default \code{"id"}. The unique-key
+\item{col_a_id}{Character. Default \code{"id"}. The unique-key
 column on \code{table_a}.}
 
-\item{table_b_id_col}{Character. Default \code{"id"}. The unique-key
+\item{col_b_id}{Character. Default \code{"id"}. The unique-key
 column on \code{table_b} carried forward into \code{table_to}.}
 
 \item{tiebreak}{Character. Distance metric used to pick a winner
@@ -76,7 +76,7 @@ the same FWA stream (\code{blue_line_key}) within \code{distance_max} instream
 metres, and write the joined result to \code{table_to}. Each \code{table_a}
 point links to at most one \code{table_b} point — the closest one within
 the threshold; points with no match within the threshold appear in
-the output with \verb{<table_b_id_col>} set to NULL.
+the output with \verb{<col_b_id>} set to NULL.
 }
 \details{
 Generic over any pair of FWA-snapped point datasets (PSCIS to
@@ -126,8 +126,8 @@ frs_point_match(
   table_b        = "fresh.modelled_stream_crossings",
   table_to       = "working_adms.pscis",
   distance_max   = 100,
-  table_a_id_col = "stream_crossing_id",
-  table_b_id_col = "modelled_crossing_id"
+  col_a_id = "stream_crossing_id",
+  col_b_id = "modelled_crossing_id"
 )
 
 # Field-assessed crossings vs user-added crossings (deduplication)
@@ -137,8 +137,8 @@ frs_point_match(
   table_b        = "wsg_adms.crossings_user",
   table_to       = "wsg_adms.crossings_matched",
   distance_max   = 50,
-  table_a_id_col = "field_id",
-  table_b_id_col = "user_id"
+  col_a_id = "field_id",
+  col_b_id = "user_id"
 )
 
 DBI::dbDisconnect(conn)

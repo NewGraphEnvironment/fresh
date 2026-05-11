@@ -31,7 +31,8 @@ Concrete use case driving this: link's bcfp parity layer needs to reproduce bcfp
 - [x] Repeat on BULK (xref-excluded subset for snap-only comparison). Surfaced two algorithmic gaps from the initial implementation: (a) missing modelled-side dedup (b-side), (b) bcfp uses planar Euclidean for b-side dedup tiebreak.
 - [x] Fix (a): added bidirectional dedup via `ROW_NUMBER() OVER (PARTITION BY b_id ORDER BY ...)`. BULK went from 14 → 6 diffs.
 - [x] Fix (b): added `tiebreak = c("instream", "planar")` parameter. With `tiebreak = "planar"` + raw geom input, BULK goes from 6 → 5 diffs.
-- [x] Remaining 5 BULK diffs documented as out-of-scope: bcfp considers multi-stream candidates within 150m planar before settling on (PSCIS, stream); `frs_point_match` assumes single-stream input. Caller (link's `lnk_pipeline_crossings`) can layer multi-stream selection on top if needed; not blocking Phase A mapping_code parity (5 segments out of ~39k).
+- [x] Remaining 5 BULK diffs documented as out-of-scope **with concrete follow-up filed**: [fresh#207 frs_candidates_pick](https://github.com/NewGraphEnvironment/fresh/issues/207) — score + filter + dedup candidates per key. Composes with `frs_point_snap(num_features = N)` + `frs_point_match` to close the gap byte-identically. Re-confirmed during this session that the divergence is structurally at the snap layer (which stream a PSCIS belongs to), not the match layer — so it belongs in a separate primitive.
+- [x] Renamed `table_a_id_col` → `col_a_id`, `table_b_id_col` → `col_b_id` per the `col_<role>` convention extension in link/CLAUDE.md. ADMS re-validated post-rename: still 60/60 byte-identical.
 
 ### Live test scripts
 

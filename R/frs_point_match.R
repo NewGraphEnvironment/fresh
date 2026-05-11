@@ -5,7 +5,7 @@
 #' metres, and write the joined result to `table_to`. Each `table_a`
 #' point links to at most one `table_b` point — the closest one within
 #' the threshold; points with no match within the threshold appear in
-#' the output with `<table_b_id_col>` set to NULL.
+#' the output with `<col_b_id>` set to NULL.
 #'
 #' Generic over any pair of FWA-snapped point datasets (PSCIS to
 #' modelled crossings, observations to habitat-confirmation points,
@@ -19,14 +19,14 @@
 #' @param table_a Character. Schema-qualified source table. Points to
 #'   match **from**. Must already be snapped to FWA — required columns
 #'   are `blue_line_key` and `downstream_route_measure` plus the ID
-#'   column named in `table_a_id_col`.
+#'   column named in `col_a_id`.
 #' @param table_b Character. Schema-qualified target table. Points to
 #'   match **to**. Same column requirements as `table_a`. The
-#'   ID column named in `table_b_id_col` is the value carried over to
+#'   ID column named in `col_b_id` is the value carried over to
 #'   `table_to`.
 #' @param table_to Character. Schema-qualified destination. Created by
 #'   this function via `DROP TABLE IF EXISTS` + `CREATE TABLE AS`.
-#'   Columns are all of `table_a`'s columns plus `<table_b_id_col>`
+#'   Columns are all of `table_a`'s columns plus `<col_b_id>`
 #'   (the matched target ID, nullable) plus `distance_instream` (numeric,
 #'   the absolute difference in `downstream_route_measure` between the
 #'   matched pair; NULL for unmatched rows).
@@ -34,9 +34,9 @@
 #'   metres. Computed as
 #'   `ABS(table_a.downstream_route_measure - table_b.downstream_route_measure)`.
 #'   bcfp's PSCIS↔modelled case uses 100.
-#' @param table_a_id_col Character. Default `"id"`. The unique-key
+#' @param col_a_id Character. Default `"id"`. The unique-key
 #'   column on `table_a`.
-#' @param table_b_id_col Character. Default `"id"`. The unique-key
+#' @param col_b_id Character. Default `"id"`. The unique-key
 #'   column on `table_b` carried forward into `table_to`.
 #' @param tiebreak Character. Distance metric used to pick a winner
 #'   when multiple `table_a` rows compete for the same `table_b` row
@@ -104,8 +104,8 @@
 #'   table_b        = "fresh.modelled_stream_crossings",
 #'   table_to       = "working_adms.pscis",
 #'   distance_max   = 100,
-#'   table_a_id_col = "stream_crossing_id",
-#'   table_b_id_col = "modelled_crossing_id"
+#'   col_a_id = "stream_crossing_id",
+#'   col_b_id = "modelled_crossing_id"
 #' )
 #'
 #' # Field-assessed crossings vs user-added crossings (deduplication)
@@ -115,8 +115,8 @@
 #'   table_b        = "wsg_adms.crossings_user",
 #'   table_to       = "wsg_adms.crossings_matched",
 #'   distance_max   = 50,
-#'   table_a_id_col = "field_id",
-#'   table_b_id_col = "user_id"
+#'   col_a_id = "field_id",
+#'   col_b_id = "user_id"
 #' )
 #'
 #' DBI::dbDisconnect(conn)
@@ -127,8 +127,8 @@ frs_point_match <- function(
     table_b,
     table_to,
     distance_max,
-    table_a_id_col = "id",
-    table_b_id_col = "id",
+    col_a_id = "id",
+    col_b_id = "id",
     tiebreak = c("instream", "planar")) {
 
   tiebreak <- match.arg(tiebreak)
@@ -154,11 +154,11 @@ frs_point_match <- function(
   .frs_validate_identifier(table_a, "table_a")
   .frs_validate_identifier(table_b, "table_b")
   .frs_validate_identifier(table_to, "table_to")
-  .frs_validate_identifier(table_a_id_col, "table_a_id_col")
-  .frs_validate_identifier(table_b_id_col, "table_b_id_col")
+  .frs_validate_identifier(col_a_id, "col_a_id")
+  .frs_validate_identifier(col_b_id, "col_b_id")
 
-  if (identical(table_a_id_col, table_b_id_col)) {
-    stop("`table_a_id_col` and `table_b_id_col` must differ; the output ",
+  if (identical(col_a_id, col_b_id)) {
+    stop("`col_a_id` and `col_b_id` must differ; the output ",
          "carries both columns side-by-side, so identical names would ",
          "collide. Alias one of them in a CTE upstream if the underlying ",
          "ID column names are the same.", call. = FALSE)
@@ -167,16 +167,16 @@ frs_point_match <- function(
   # Introspect table_a so the final SELECT can carry every column
   # forward explicitly (PostgreSQL has no SELECT * EXCEPT). Guard
   # against table_a containing columns that would collide with the
-  # ones we add (`<table_b_id_col>`, `distance_instream`,
+  # ones we add (`<col_b_id>`, `distance_instream`,
   # `dedup_metric_internal`).
   cols_a <- .frs_table_columns(conn, table_a)
-  reserved <- c(table_b_id_col, "distance_instream", "dedup_metric_internal")
+  reserved <- c(col_b_id, "distance_instream", "dedup_metric_internal")
   collide <- intersect(cols_a, reserved)
   if (length(collide) > 0L) {
     stop(sprintf(
       paste0(
         "`table_a` already has column(s) frs_point_match adds (%s). ",
-        "Rename in a CTE upstream or pick a different `table_b_id_col`."
+        "Rename in a CTE upstream or pick a different `col_b_id`."
       ),
       paste(collide, collapse = ", ")
     ), call. = FALSE)
@@ -193,7 +193,7 @@ frs_point_match <- function(
 
   # SQL composition. Argument order in sprintf:
   #   1 = table_a, 2 = table_b, 3 = table_to,
-  #   4 = table_a_id_col, 5 = table_b_id_col, 6 = distance_max literal,
+  #   4 = col_a_id, 5 = col_b_id, 6 = distance_max literal,
   #   7 = ranked.<col> projection for table_a columns
   #
   # Bidirectional dedup mirrors bcfp's two-pass algorithm in
@@ -258,8 +258,8 @@ frs_point_match <- function(
     table_a,
     table_b,
     table_to,
-    table_a_id_col,
-    table_b_id_col,
+    col_a_id,
+    col_b_id,
     .frs_sql_num(distance_max),
     cols_a_list,
     dedup_metric_sql
