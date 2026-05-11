@@ -136,6 +136,7 @@ wanting them apply downstream of this primitive.
 ## See also
 
 Other network:
+[`frs_candidates_pick()`](https://newgraphenvironment.github.io/fresh/reference/frs_candidates_pick.md),
 [`frs_network_features()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_features.md)
 
 ## Examples

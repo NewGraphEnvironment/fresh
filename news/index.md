@@ -1,5 +1,52 @@
 # Changelog
 
+## fresh 0.31.0
+
+Closes [\#207](https://github.com/NewGraphEnvironment/fresh/issues/207).
+Adds
+[`frs_candidates_pick()`](https://newgraphenvironment.github.io/fresh/reference/frs_candidates_pick.md)
+— fourth primitive in the point-handling family (alongside
+`frs_point_snap`, `frs_network_features`, `frs_point_match`). Given a
+candidates table where multiple rows can share the same key value,
+optionally compute a per-row score from a caller-supplied SQL
+expression, optionally filter via a caller-supplied WHERE clause, then
+keep one row per key via `DISTINCT ON (col_key) ORDER BY ...`.
+
+- Generic over any “score + filter + dedup per key” workflow where
+  column-to-column comparisons disambiguate matches: stream-name
+  matching, watershed-group agreement, species-code overlap,
+  assessment-date proximity, channel-width × stream-order compatibility,
+  etc.
+- Closes the BULK 5-diff gap from fresh#206 at the dedup-step level.
+  Live validation on BULK PSCIS-to-stream selection (using bcfp’s
+  pre-computed `pscis_streams_150m` as the scored-candidates input):
+  **102 / 102 ref picks byte-identical**, 0 missing. The 4 “extras” are
+  bcfp’s downstream `suspect_match` routing filter that lives
+  caller-side, not in this primitive.
+- Parameter naming follows the `table_<role>` / `col_<role>` /
+  `exp_<role>` conventions (link/CLAUDE.md): `table_in`, `table_to`,
+  `col_key`, `exp_score`, `exp_filter`, `order_by`.
+- Composition: `frs_point_snap(num_features = N)` →
+  `frs_candidates_pick(exp_score, exp_filter, order_by)` →
+  `frs_point_match(distance_max, tiebreak)` reproduces the bcfp
+  PSCIS-build pipeline byte-identically. First consumer: link#154
+  (`lnk_pipeline_crossings` PSCIS↔︎modelled auto-snap), which will rewire
+  to this three-step composition.
+- SQL composition: optional
+  `WITH scored AS (SELECT *, (<exp_score>) AS score FROM <table_in>)`
+  CTE; `SELECT DISTINCT ON (<col_key>) * FROM (scored | table_in)`;
+  optional `WHERE <exp_filter>`;
+  `ORDER BY <col_key>, <caller's order_by clauses>`. `col_key` prepended
+  to ORDER BY to satisfy PostgreSQL’s DISTINCT-ON requirement. DROP +
+  CREATE split into two
+  [`DBI::dbExecute`](https://dbi.r-dbi.org/reference/dbExecute.html)
+  calls (RPostgres can’t run multi-statement SQL).
+- 25 mocked tests covering input validation, identifier sanitization,
+  reserved-column collision (when `exp_score` set), SQL composition
+  (full path + `exp_score = NULL` variant + `exp_filter = NULL`
+  variant), and the existing-`score`-column-allowed-when-exp_score-null
+  edge case.
+
 ## fresh 0.30.0
 
 Closes [\#206](https://github.com/NewGraphEnvironment/fresh/issues/206).

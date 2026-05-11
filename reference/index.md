@@ -14,6 +14,8 @@
   : Find Gradient Break Locations on a Stream Network
 - [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md)
   : Validate Breaks Against Upstream Evidence
+- [`frs_candidates_pick()`](https://newgraphenvironment.github.io/fresh/reference/frs_candidates_pick.md)
+  : Score, Filter, and Dedup Candidates per Key
 - [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md)
   : Categorize Features by Priority-Ordered Boolean Columns
 - [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.30.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.31.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.31.0" id="fresh-0310">fresh 0.31.0<a class="anchor" aria-label="anchor" href="#fresh-0310"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/207" class="external-link">#207</a>. Adds <code><a href="../reference/frs_candidates_pick.html">frs_candidates_pick()</a></code> — fourth primitive in the point-handling family (alongside <code>frs_point_snap</code>, <code>frs_network_features</code>, <code>frs_point_match</code>). Given a candidates table where multiple rows can share the same key value, optionally compute a per-row score from a caller-supplied SQL expression, optionally filter via a caller-supplied WHERE clause, then keep one row per key via <code>DISTINCT ON (col_key) ORDER BY ...</code>.</p>
+<ul><li>Generic over any “score + filter + dedup per key” workflow where column-to-column comparisons disambiguate matches: stream-name matching, watershed-group agreement, species-code overlap, assessment-date proximity, channel-width × stream-order compatibility, etc.</li>
+<li>Closes the BULK 5-diff gap from fresh#206 at the dedup-step level. Live validation on BULK PSCIS-to-stream selection (using bcfp’s pre-computed <code>pscis_streams_150m</code> as the scored-candidates input): <strong>102 / 102 ref picks byte-identical</strong>, 0 missing. The 4 “extras” are bcfp’s downstream <code>suspect_match</code> routing filter that lives caller-side, not in this primitive.</li>
+<li>Parameter naming follows the <code>table_&lt;role&gt;</code> / <code>col_&lt;role&gt;</code> / <code>exp_&lt;role&gt;</code> conventions (link/CLAUDE.md): <code>table_in</code>, <code>table_to</code>, <code>col_key</code>, <code>exp_score</code>, <code>exp_filter</code>, <code>order_by</code>.</li>
+<li>Composition: <code>frs_point_snap(num_features = N)</code> → <code>frs_candidates_pick(exp_score, exp_filter, order_by)</code> → <code>frs_point_match(distance_max, tiebreak)</code> reproduces the bcfp PSCIS-build pipeline byte-identically. First consumer: link#154 (<code>lnk_pipeline_crossings</code> PSCIS↔︎modelled auto-snap), which will rewire to this three-step composition.</li>
+<li>SQL composition: optional <code>WITH scored AS (SELECT *, (&lt;exp_score&gt;) AS score FROM &lt;table_in&gt;)</code> CTE; <code>SELECT DISTINCT ON (&lt;col_key&gt;) * FROM (scored | table_in)</code>; optional <code>WHERE &lt;exp_filter&gt;</code>; <code>ORDER BY &lt;col_key&gt;, &lt;caller's order_by clauses&gt;</code>. <code>col_key</code> prepended to ORDER BY to satisfy PostgreSQL’s DISTINCT-ON requirement. DROP + CREATE split into two <code><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">DBI::dbExecute</a></code> calls (RPostgres can’t run multi-statement SQL).</li>
+<li>25 mocked tests covering input validation, identifier sanitization, reserved-column collision (when <code>exp_score</code> set), SQL composition (full path + <code>exp_score = NULL</code> variant + <code>exp_filter = NULL</code> variant), and the existing-<code>score</code>-column-allowed-when-exp_score-null edge case.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.30.0" id="fresh-0300">fresh 0.30.0<a class="anchor" aria-label="anchor" href="#fresh-0300"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/206" class="external-link">#206</a>. Adds <code><a href="../reference/frs_point_match.html">frs_point_match()</a></code> — a third primitive in the point-handling family alongside <code>frs_point_snap</code> (point↔︎stream) and <code>frs_network_features</code> (segment↔︎feature dnstr/upstr). Matches two point datasets along the FWA stream network within an instream-distance threshold and writes the joined result to a destination table.</p>
