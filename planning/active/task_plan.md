@@ -42,13 +42,13 @@ When matching point datasets along the FWA network, a single "key" entity (a PSC
 
 ## Phase 4: release
 
-- [ ] Update link/CLAUDE.md to add the `exp_<role>` parameter convention alongside the existing `table_<role>` and `col_<role>` rules. SQL-expression params (`exp_score`, `exp_filter`, future `exp_where`, `exp_select`, etc.) prefix `exp_` for autocomplete grouping. Separate commit on link main.
-- [ ] DESCRIPTION 0.30.0 → 0.31.0 (minor bump — new exported function)
-- [ ] NEWS.md 0.31.0 entry covering: semantics, composition with `frs_point_snap` + `frs_point_match`, BULK validation result, first consumer (link#154 will rewire to use this chain)
-- [ ] `devtools::document()` regenerates NAMESPACE + man/
-- [ ] `devtools::check()`: 0 errors / pre-existing warnings/notes only (verify identical to main pre-PR)
-- [ ] `lintr::lint_package()` clean for the new R file
-- [ ] PR body covers semantics, composition story, BULK validation numbers, link#154 as the downstream consumer
+- [x] Update link/CLAUDE.md to add the `exp_<role>` parameter convention. Separate commit on link main.
+- [x] DESCRIPTION 0.30.0 → 0.31.0 (minor bump — new exported function)
+- [x] NEWS.md 0.31.0 entry covering: semantics, composition with `frs_point_snap` + `frs_point_match`, BULK validation result, first consumer (link#154 will rewire to use this chain)
+- [x] `devtools::document()` regenerated NAMESPACE + man/ (committed Phase 1)
+- [x] `devtools::check()`: 0 errors / 4 warnings / 4 notes — identical to main pre-PR
+- [x] `lintr::lint("R/frs_candidates_pick.R")` clean
+- [ ] PR body covers semantics, composition story, BULK validation numbers, link#154 as the downstream consumer (at PR-creation time)
 
 ## Validation
 
