@@ -6,14 +6,14 @@ Concrete use case driving this: link's bcfp parity layer needs to reproduce bcfp
 
 ## Phase 1: scaffold + R/frs_point_match.R
 
-- [ ] Read `R/frs_network_features.R` end-to-end as the template (the right v0.29.0+ template with per-side overrides, identifier validation pattern, sprintf composition)
-- [ ] Read `R/utils.R` to find `.frs_validate_identifier()` and other private helpers
-- [ ] Verify bcfp algorithm unchanged between local v0.7.13 source and tunnel v0.7.14-125 (already done — `git log` shows no commits to `02_pscis_streams_150m.sql` between those refs)
-- [ ] Write `R/frs_point_match.R`:
+- [x] Read `R/frs_network_features.R` end-to-end as the template (the right v0.29.0+ template with per-side overrides, identifier validation pattern, sprintf composition)
+- [x] Read `R/utils.R` to find `.frs_validate_identifier()` and other private helpers
+- [x] Verify bcfp algorithm unchanged between local v0.7.13 source and tunnel v0.7.14-125 (already done — `git log` shows no commits to `02_pscis_streams_150m.sql` between those refs)
+- [x] Write `R/frs_point_match.R`:
   - Signature per Approach (see `/Users/airvine/.claude/plans/snuggly-fluttering-hopper.md`)
   - Input validation: identifier sanitization for `table_a`, `table_b`, `table_to`, `table_a_id_col`, `table_b_id_col`; numeric+positive check for `distance_max`
   - SQL composition via sprintf template
-  - `frs_db_query()` or equivalent execute (no return value needed)
+  - `.frs_db_execute()` (no return value needed — DDL)
   - Returns `invisible(conn)`
   - Roxygen: `@family network`, `@export`, `@examples \dontrun{}`, NOT documented stream-name scoring (out of scope)
 
