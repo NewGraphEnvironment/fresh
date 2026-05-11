@@ -6,8 +6,8 @@ When matching point datasets along the FWA network, a single "key" entity (a PSC
 
 ## Phase 1: scaffold R/frs_candidates_pick.R
 
-- [ ] Read `R/frs_point_match.R` (just-shipped v0.30.0) one more time as the immediate-template — the SQL composition shape, validation pattern, and ID-introspection guard are directly reusable.
-- [ ] Write `R/frs_candidates_pick.R`:
+- [x] Read `R/frs_point_match.R` (just-shipped v0.30.0) one more time as the immediate-template — the SQL composition shape, validation pattern, and ID-introspection guard are directly reusable.
+- [x] Write `R/frs_candidates_pick.R`:
   - Signature per Approach above
   - Input validation: `.frs_validate_identifier()` for `table_in`, `table_to`, `col_key`. Required-args checks for `order_by`. `exp_score` / `exp_filter` are nullable strings; when supplied, just length-1 character checks (caller writes the SQL — we don't validate its inside).
   - Reserved-column collision: when `exp_score` is set, the output has a `score` column. Guard against `table_in` already having a `score` column (similar to fresh#206's distance_instream guard).
@@ -15,8 +15,8 @@ When matching point datasets along the FWA network, a single "key" entity (a PSC
   - `.frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", table_to))` first, then the CTE+SELECT
   - Returns `invisible(conn)`
   - Roxygen: `@family network` (sibling to frs_point_snap, frs_point_match), `@export`, `@examples \dontrun{}` covering bcfp PSCIS-to-stream case + a more generic case (observations dedup or similar)
-- [ ] `devtools::document()` to regenerate man page + NAMESPACE export
-- [ ] `lintr::lint("R/frs_candidates_pick.R")` clean
+- [x] `devtools::document()` to regenerate man page + NAMESPACE export
+- [x] `lintr::lint("R/frs_candidates_pick.R")` clean
 
 ## Phase 2: tests/testthat/test-frs_candidates_pick.R
 
