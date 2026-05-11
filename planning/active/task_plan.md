@@ -19,9 +19,9 @@ Concrete use case driving this: link's bcfp parity layer needs to reproduce bcfp
 
 ## Phase 2: tests/testthat/test-frs_point_match.R
 
-- [ ] Tier 1 — validation tests (no DB): each arg validation path triggers `expect_error()`. Mirror the structure of `tests/testthat/test-frs_network_features.R` lines 6–124.
-- [ ] Tier 2 — SQL composition tests (mocked `frs_db_query` via `withr::local_mocked_bindings`): capture the SQL string, `expect_match` for the key clauses (`DISTINCT ON`, `ABS(... - ...) < <n>`, `blue_line_key = blue_line_key`, schema-qualified table refs). Mirror `test-frs_network_features.R` lines 127–374.
-- [ ] Tier 3 — live DB integration test (`skip_if_not(.frs_db_available())`): create two small test point tables, run frs_point_match, verify expected matches and NULLs.
+- [x] Tier 1 — validation tests (no DB): each arg validation path triggers `expect_error()`. Mirror the structure of `tests/testthat/test-frs_network_features.R` lines 6–124.
+- [x] Tier 2 — SQL composition tests (mocked `.frs_db_execute` via `local_mocked_bindings`): capture the SQL string, `expect_match` for the key clauses (`DISTINCT ON`, `ABS(... - ...) < <n>`, `blue_line_key = blue_line_key`, schema-qualified table refs). Mirror `test-frs_network_features.R` lines 127–374.
+- [ ] Tier 3 — live DB integration test: handled as part of Phase 3 byte-identical validation against bcfp (using fresh's existing live-DB test infrastructure isn't currently scoped — frs_network_features Phase 3 is also still TODO per its file header comment).
 
 ## Phase 3: live byte-identical validation against bcfp
 
