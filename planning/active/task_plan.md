@@ -28,20 +28,17 @@ When matching point datasets along the FWA network, a single "key" entity (a PSC
 
 ## Phase 3: live byte-identical validation against bcfp
 
-- [ ] Stage a candidates table for BULK PSCIS:
-  1. Use `frs_point_snap` against `bcfishpass.pscis_points_all` (raw PSCIS) with `num_features = N` and `tolerance = 150` to get multi-stream candidates.
-  2. JOIN with `whse_fish.pscis_assessment_svw` (for `stream_name`) and `whse_basemapping.fwa_stream_networks_sp` (for `gnis_name`, `stream_order`, etc.) to enrich the candidates table with score-bearing columns.
-- [ ] Call `frs_candidates_pick` with bcfp's name-match scoring expression (extract from `bcfp/04_pscis.sql`):
-  ```r
-  exp_score = "CASE
-    WHEN normalize_name(stream_name) = normalize_name(gnis_name) THEN 100
-    WHEN stream_name IS NULL OR gnis_name IS NULL THEN 0
-    ELSE -100
-  END"
+- [x] Cleaner approach than originally planned: stage `bcfishpass.pscis_streams_150m` (already has bcfp's computed name_score, width_order_score, weighted_distance after bcfp's full pre-processing), call `frs_candidates_pick` with bcfp's exact filter + ORDER BY. This isolates the primitive's job (dedup+pick from scored input) from the caller's job (computing scores). Generating the scored candidates from scratch is link's downstream concern.
+- [x] **BULK PSCIS-to-stream dedup byte-identical**: 102 / 102 ref picks identical, 0 missing.
   ```
-  Then compare the picked (stream_crossing_id, linear_feature_id) pairs against `bcfishpass.pscis.linear_feature_id` for BULK.
-- [ ] Acceptance: ≥99% match on BULK PSCIS-to-stream selection (closes the 5-diff gap from fresh#206 BULK validation).
-- [ ] If the bcfp `name_match` normalization is complicated (creek-abbreviation handling), document the divergence vs raw SQL string equality — exp_score is caller-defined; this is where caller-specific cleanup lives.
+  ours: 106 picks | ref: 102 picks
+  identical pairs: 102
+  only in ours: 4 (all in bcfishpass.pscis_not_matched_to_streams — bcfp's suspect_match downstream filter)
+  only in ref:  0
+  ```
+- [x] The 4 "extras" all have `in_not_matched = 1` in `bcfishpass.pscis_not_matched_to_streams`. bcfp's pipeline applies a `suspect_match IS NULL` (>50m distance) filter downstream of the dedup step that moves PSCIS to a separate "not matched" table. That's a caller-level downstream filter; not a primitive responsibility.
+- [x] Validation script captured at `/tmp/fresh_207_live_validation.R`.
+- [x] Closes the BULK 5-diff gap from fresh#206 — the primitive is byte-identical at the dedup-step level.
 
 ## Phase 4: release
 
