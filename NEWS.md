@@ -1,3 +1,16 @@
+# fresh 0.30.0
+
+Closes [#206](https://github.com/NewGraphEnvironment/fresh/issues/206). Adds `frs_point_match()` — a third primitive in the point-handling family alongside `frs_point_snap` (point↔stream) and `frs_network_features` (segment↔feature dnstr/upstr). Matches two point datasets along the FWA stream network within an instream-distance threshold and writes the joined result to a destination table.
+
+- Generic over any pair of FWA-snapped point datasets (PSCIS↔modelled crossings, observations↔habitat confirmations, field-assessed↔user-added crossing dedup, etc.). All point inputs must already carry `blue_line_key` and `downstream_route_measure` (the FWA convention) — typically via `frs_point_snap` upstream.
+- Algorithm mirrors bcfp's `02_pscis_streams_150m.sql` (at `smnorris/bcfishpass@v0.7.14-125-g6e9cf1c`, tunnel `bcfishpass.log.model_run_id=121` rebuilt 2026-05-05) — same-`blue_line_key` join + `ABS(drm_a - drm_b) < distance_max` + `DISTINCT ON (table_a_id, blue_line_key) ORDER BY distance_instream ASC NULLS LAST`. LEFT JOIN preserves `table_a` rows with no match (their `table_b_id_col` ends up NULL).
+- Function parameters follow the `table_*` convention from link/CLAUDE.md: `table_a` / `table_b` / `table_to` for the three tables, `table_a_id_col` / `table_b_id_col` for the ID columns.
+- Network-position columns (`blue_line_key`, `downstream_route_measure`) hard-coded to the FWA convention. Per-side overrides (à la `frs_network_features` v0.29.0) can be added if a real divergence appears.
+- Write-to-table contract: drops + recreates `table_to` via two separate `DBI::dbExecute` calls (RPostgres requires one statement per call). Returns `conn` invisibly. Different from `frs_point_snap` (returns sf) and `frs_network_features` (returns tibble) because the result here is a derived *dataset* not a query result, and bcfp's analog also writes table→table.
+- Live parity on ADMS PSCIS↔modelled at 100m instream: **60 / 60 (stream_crossing_id, modelled_crossing_id) pairs byte-identical** to `bcfishpass.pscis.modelled_crossing_id`. 0 in ours-not-ref, 0 in ref-not-ours.
+- 21 mocked tests covering validation (required args, scalar positive numeric `distance_max`, identifier sanitization, same-name guard) and SQL composition (DROP + CREATE order, DISTINCT ON, same-`blue_line_key` join predicate, `distance_max` literal, LEFT JOIN, ASC NULLS LAST tiebreak, ID-column carry-through).
+- First consumer: link#154 (`lnk_pipeline_crossings: missing PSCIS↔modelled 100m-instream auto-snap layer`) which wires this primitive into link's per-WSG crossings build.
+
 # fresh 0.29.0
 
 Closes [#204](https://github.com/NewGraphEnvironment/fresh/issues/204). Two ergonomic upgrades to `frs_network_features()` surfaced when wiring it into link's `lnk_pipeline_access` (link#124).

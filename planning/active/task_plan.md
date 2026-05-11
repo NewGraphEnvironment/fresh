@@ -36,12 +36,12 @@ Captured at `/tmp/fresh_206_live_validation.R` for the PR body — runs against 
 
 ## Phase 4: release
 
-- [ ] DESCRIPTION: 0.29.0 → 0.30.0 (minor bump per R-package conventions — new exported function)
-- [ ] NEWS.md: 0.30.0 entry — `frs_point_match` description + closes #206
-- [ ] `devtools::document()` to regenerate NAMESPACE + man/
-- [ ] `devtools::check()` clean (no ERROR/WARNING; pre-existing NOTEs OK if unchanged)
-- [ ] `lintr::lint_package()` clean
-- [ ] PR body cites the link parity context (link#154 consumes this primitive)
+- [x] DESCRIPTION: 0.29.0 → 0.30.0 (minor bump per R-package conventions — new exported function)
+- [x] NEWS.md: 0.30.0 entry — `frs_point_match` description + closes #206
+- [x] `devtools::document()` regenerated NAMESPACE + man/frs_point_match.Rd + frs_network_features.Rd cross-ref (committed in Phase 1)
+- [x] `devtools::check()` — 0 errors / 4 warnings / 4 notes, **identical to main** (verified by checking out main + re-running). Zero new check issues introduced.
+- [x] `lintr::lint("R/frs_point_match.R")` clean (zero lints).
+- [ ] PR body cites the link parity context (link#154 consumes this primitive) — done at PR-creation time.
 
 ## Validation
 
