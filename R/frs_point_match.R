@@ -38,6 +38,23 @@
 #'   column on `table_a`.
 #' @param table_b_id_col Character. Default `"id"`. The unique-key
 #'   column on `table_b` carried forward into `table_to`.
+#' @param tiebreak Character. Distance metric used to pick a winner
+#'   when multiple `table_a` rows compete for the same `table_b` row
+#'   (b-side dedup). One of:
+#'   - `"instream"` (default): order by `ABS(drm_a - drm_b)`. Self-
+#'     consistent with the threshold filter; works on any FWA-snapped
+#'     point dataset without requiring geometry columns.
+#'   - `"planar"`: order by `ST_Distance(a.geom, b.geom)`. Mirrors
+#'     bcfp's `02_pscis_streams_150m.sql` tiebreak (line 190). Requires
+#'     a `geom` column on both `table_a` and `table_b` (FWA convention).
+#'     Use this when bcfp-byte-identical output is required and your
+#'     input tables carry geom.
+#'
+#'   The threshold filter (`distance_max`) and the a-side dedup tiebreak
+#'   are instream-distance in **both** modes — only the b-side dedup
+#'   tiebreak changes. The two modes converge when no `table_b` row has
+#'   multiple competing `table_a` matches; they diverge only in
+#'   clustered-point edge cases.
 #'
 #' @return `conn` invisibly, for piping. Side effect: drops + recreates
 #'   `table_to`.
@@ -47,6 +64,20 @@
 #' are hard-coded to the FWA convention. Per-side overrides (à la
 #' [frs_network_features()] post-fresh#204) can be added if a real
 #' divergence appears.
+#'
+#' **Single-stream-per-input assumption.** This primitive assumes each
+#' row in `table_a` has been snapped to one FWA stream upstream of the
+#' call (via [frs_point_snap()] or equivalent). It does not consider
+#' alternate stream candidates within a planar buffer. bcfp's
+#' `02_pscis_streams_150m.sql` does — it starts from raw PSCIS points,
+#' considers all FWA streams within 150m planar, then scores by
+#' name/width to pick the best (PSCIS, stream) pair. As a result,
+#' `frs_point_match` matches bcfp's final `bcfishpass.pscis.modelled_crossing_id`
+#' byte-identically when the input PSCIS lands on the same stream bcfp
+#' chose; ~0.5% edge cases on a large WSG (BULK validation 2026-05-11)
+#' diverge where bcfp's multi-stream consideration picks a different
+#' stream than the caller's single-stream snap. Workaround: caller can
+#' run multi-stream candidate selection before calling this primitive.
 #'
 #' **Dedup semantics**: SQL `DISTINCT ON (table_a_id, blue_line_key)
 #' ORDER BY distance_instream ASC NULLS LAST` ensures each `table_a`
@@ -97,7 +128,10 @@ frs_point_match <- function(
     table_to,
     distance_max,
     table_a_id_col = "id",
-    table_b_id_col = "id") {
+    table_b_id_col = "id",
+    tiebreak = c("instream", "planar")) {
+
+  tiebreak <- match.arg(tiebreak)
 
   if (missing(table_a) || !is.character(table_a) ||
         length(table_a) != 1L || !nzchar(table_a)) {
@@ -130,39 +164,94 @@ frs_point_match <- function(
          "ID column names are the same.", call. = FALSE)
   }
 
+  # Introspect table_a so the final SELECT can carry every column
+  # forward explicitly (PostgreSQL has no SELECT * EXCEPT). Guard
+  # against table_a containing columns that would collide with the
+  # ones we add (`<table_b_id_col>`, `distance_instream`,
+  # `dedup_metric_internal`).
+  cols_a <- .frs_table_columns(conn, table_a)
+  reserved <- c(table_b_id_col, "distance_instream", "dedup_metric_internal")
+  collide <- intersect(cols_a, reserved)
+  if (length(collide) > 0L) {
+    stop(sprintf(
+      paste0(
+        "`table_a` already has column(s) frs_point_match adds (%s). ",
+        "Rename in a CTE upstream or pick a different `table_b_id_col`."
+      ),
+      paste(collide, collapse = ", ")
+    ), call. = FALSE)
+  }
+  cols_a_list <- paste0("ranked.", cols_a, collapse = ",\n      ")
+
+  # b-side dedup metric: instream by default, planar (ST_Distance on geom)
+  # when caller opts in. Threshold filter + a-side dedup stay instream.
+  dedup_metric_sql <- if (tiebreak == "planar") {
+    "ST_Distance(a.geom, b.geom)"
+  } else {
+    "ABS(a.downstream_route_measure - b.downstream_route_measure)"
+  }
+
   # SQL composition. Argument order in sprintf:
-  #   1 = table_a              (FROM)
-  #   2 = table_b              (LEFT JOIN)
-  #   3 = table_to             (CREATE TABLE)
-  #   4 = table_a_id_col       (DISTINCT ON + ORDER BY)
-  #   5 = table_b_id_col       (the linking column carried to output)
-  #   6 = distance_max         (numeric literal in the join predicate)
+  #   1 = table_a, 2 = table_b, 3 = table_to,
+  #   4 = table_a_id_col, 5 = table_b_id_col, 6 = distance_max literal,
+  #   7 = ranked.<col> projection for table_a columns
   #
-  # LEFT JOIN preserves all table_a rows even when there's no match
-  # within `distance_max` on the same blue_line_key. The DISTINCT ON
-  # then keeps one row per (table_a_id, blue_line_key) — the matched
-  # one if it exists, the un-matched row otherwise. NULLS LAST on
-  # distance_instream ensures real matches outrank unmatched rows.
-  # RPostgres can't run multi-statement SQL in a single dbExecute call
-  # ("cannot insert multiple commands into a prepared statement"), so
-  # DROP and CREATE go in separate dispatches.
+  # Bidirectional dedup mirrors bcfp's two-pass algorithm in
+  # 02_pscis_streams_150m.sql:
+  #
+  # 1. `candidates` — LEFT JOIN within `distance_max` on same blue_line_key.
+  #    Multiple b-rows per a-row possible; unmatched a-rows carry NULL.
+  # 2. `a_dedup` — DISTINCT ON (a_id, blue_line_key) keeps each a-row's
+  #    nearest b-row. Unmatched a-rows persist (NULLS LAST in ORDER).
+  # 3. `ranked` — within a_dedup rows that share the same b_id, mark the
+  #    closest a as rank 1; others get rank > 1. NULL-b rows are rank 1
+  #    trivially (they don't compete).
+  # 4. Final SELECT — emit b_id only when b_rank = 1 (winning a per b).
+  #    Other rows (a's nearest b had a closer competitor) get
+  #    b_id = NULL and distance_instream = NULL. Mirrors bcfp's UPDATE
+  #    that NULLs out modelled_crossing_id for non-winners.
+  #
+  # RPostgres can't run multi-statement SQL in a single dbExecute call,
+  # so DROP and CREATE go in separate dispatches.
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", table_to))
 
   sql_fmt <- "
     CREATE TABLE %3$s AS
-    SELECT DISTINCT ON (a.%4$s, a.blue_line_key)
-      a.*,
-      b.%5$s AS %5$s,
-      ABS(a.downstream_route_measure - b.downstream_route_measure)
+    WITH candidates AS (
+      SELECT
+        a.*,
+        b.%5$s AS %5$s,
+        ABS(a.downstream_route_measure - b.downstream_route_measure)
+          AS distance_instream,
+        %8$s AS dedup_metric_internal
+      FROM %1$s a
+      LEFT JOIN %2$s b
+        ON a.blue_line_key = b.blue_line_key
+       AND ABS(a.downstream_route_measure - b.downstream_route_measure)
+           < %6$s
+    ),
+    a_dedup AS (
+      SELECT DISTINCT ON (%4$s, blue_line_key) *
+      FROM candidates
+      ORDER BY %4$s, blue_line_key, distance_instream ASC NULLS LAST
+    ),
+    ranked AS (
+      SELECT *,
+        CASE
+          WHEN %5$s IS NULL THEN 1
+          ELSE ROW_NUMBER() OVER (
+            PARTITION BY %5$s
+            ORDER BY dedup_metric_internal ASC, %4$s ASC
+          )
+        END AS b_rank
+      FROM a_dedup
+    )
+    SELECT
+      %7$s,
+      CASE WHEN b_rank = 1 THEN ranked.%5$s ELSE NULL END AS %5$s,
+      CASE WHEN b_rank = 1 THEN distance_instream ELSE NULL END
         AS distance_instream
-    FROM %1$s a
-    LEFT JOIN %2$s b
-      ON a.blue_line_key = b.blue_line_key
-     AND ABS(a.downstream_route_measure - b.downstream_route_measure)
-         < %6$s
-    ORDER BY a.%4$s, a.blue_line_key,
-             ABS(a.downstream_route_measure - b.downstream_route_measure)
-             ASC NULLS LAST"
+    FROM ranked"
 
   sql <- sprintf(
     sql_fmt,
@@ -171,7 +260,9 @@ frs_point_match <- function(
     table_to,
     table_a_id_col,
     table_b_id_col,
-    .frs_sql_num(distance_max)
+    .frs_sql_num(distance_max),
+    cols_a_list,
+    dedup_metric_sql
   )
 
   .frs_db_execute(conn, sql)

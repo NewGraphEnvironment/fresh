@@ -106,15 +106,17 @@ test_that("`table_a_id_col` and `table_b_id_col` must differ", {
 
 # ----- Phase 2: SQL composition (mocked .frs_db_execute) -----
 
-with_captured_sql <- function(call_expr) {
+with_captured_sql <- function(call_expr, cols_a = c("stream_crossing_id", "blue_line_key", "downstream_route_measure", "linear_feature_id")) {
   # RPostgres requires one statement per dbExecute call, so the
   # function dispatches DROP and CREATE separately. Capture both.
+  # `.frs_table_columns` introspects table_a — also mocked.
   captured <- list()
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
       captured[[length(captured) + 1L]] <<- sql
       0L
-    }
+    },
+    .frs_table_columns = function(conn, table, exclude_generated = FALSE) cols_a
   )
   call_expr()
   captured
@@ -135,8 +137,46 @@ test_that("SQL composes DROP + CREATE + same-blk join + DISTINCT ON", {
   expect_length(sqls, 2L)
   expect_match(sqls[[1]], "DROP TABLE IF EXISTS working_adms\\.pscis")
   expect_match(sqls[[2]], "CREATE TABLE working_adms\\.pscis AS")
-  expect_match(sqls[[2]], "DISTINCT ON \\(a\\.stream_crossing_id, a\\.blue_line_key\\)")
+  expect_match(sqls[[2]], "DISTINCT ON \\(stream_crossing_id, blue_line_key\\)")
   expect_match(sqls[[2]], "a\\.blue_line_key = b\\.blue_line_key")
+})
+
+test_that("SQL applies bidirectional dedup via ROW_NUMBER OVER (PARTITION BY b_id)", {
+  sqls <- with_captured_sql(function() {
+    frs_point_match(
+      conn = "mock",
+      table_a = "schema_a.x",
+      table_b = "schema_b.y",
+      table_to = "schema_out.z",
+      distance_max = 100,
+      table_a_id_col = "a_id",
+      table_b_id_col = "b_id"
+    )
+  })
+  # The b-side dedup is what mirrors bcfp's "ensure modelled matches one PSCIS".
+  expect_match(sqls[[2]], "ROW_NUMBER\\(\\) OVER \\(\\s*\\n?\\s*PARTITION BY b_id")
+  # And losers get NULL'd out via CASE WHEN b_rank = 1 ...
+  expect_match(sqls[[2]], "CASE WHEN b_rank = 1 THEN ranked\\.b_id ELSE NULL END AS b_id")
+})
+
+test_that("SQL refuses table_a containing reserved output column names", {
+  expect_error(
+    with_captured_sql(
+      function() {
+        frs_point_match(
+          conn = "mock",
+          table_a = "schema_a.x",
+          table_b = "schema_b.y",
+          table_to = "schema_out.z",
+          distance_max = 100,
+          table_a_id_col = "a_id",
+          table_b_id_col = "b_id"
+        )
+      },
+      cols_a = c("a_id", "blue_line_key", "downstream_route_measure", "b_id")  # b_id collides
+    ),
+    regexp = "frs_point_match adds"
+  )
 })
 
 test_that("distance_max appears as a numeric literal in the join predicate", {

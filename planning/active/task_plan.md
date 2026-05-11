@@ -27,12 +27,17 @@ Concrete use case driving this: link's bcfp parity layer needs to reproduce bcfp
 
 - [x] Run `frs_point_match` against `bcfishpass.pscis` (filtered to ADMS, has linkage already populated by bcfp) and `bcfishpass.modelled_stream_crossings` (filtered to ADMS), with `distance_max = 100`.
 - [x] Diff result vs `bcfishpass.pscis.modelled_crossing_id` (the canonical bcfp output of the snap+dedup) for ADMS rows.
-- [x] **Acceptance met: 60 / 60 (stream_crossing_id, modelled_crossing_id) pairs identical. 0 in ours-not-ref. 0 in ref-not-ours.**
-- [x] Note: bcfp's `pscis_streams_150m` is a SCORING intermediate (multiple matches per PSCIS pre-dedup). The canonical post-dedup linkage lives on `bcfishpass.pscis.modelled_crossing_id`. Our output is the deduped subset — byte-identical to that.
+- [x] **ADMS acceptance met: 60 / 60 pairs byte-identical.**
+- [x] Repeat on BULK (xref-excluded subset for snap-only comparison). Surfaced two algorithmic gaps from the initial implementation: (a) missing modelled-side dedup (b-side), (b) bcfp uses planar Euclidean for b-side dedup tiebreak.
+- [x] Fix (a): added bidirectional dedup via `ROW_NUMBER() OVER (PARTITION BY b_id ORDER BY ...)`. BULK went from 14 → 6 diffs.
+- [x] Fix (b): added `tiebreak = c("instream", "planar")` parameter. With `tiebreak = "planar"` + raw geom input, BULK goes from 6 → 5 diffs.
+- [x] Remaining 5 BULK diffs documented as out-of-scope: bcfp considers multi-stream candidates within 150m planar before settling on (PSCIS, stream); `frs_point_match` assumes single-stream input. Caller (link's `lnk_pipeline_crossings`) can layer multi-stream selection on top if needed; not blocking Phase A mapping_code parity (5 segments out of ~39k).
 
-### Live test script
+### Live test scripts
 
-Captured at `/tmp/fresh_206_live_validation.R` for the PR body — runs against the bcfp tunnel, stages PSCIS+modelled subsets for ADMS, calls frs_point_match, diffs result vs `bcfishpass.pscis.modelled_crossing_id`.
+- `/tmp/fresh_206_live_validation.R` — ADMS 60/60 byte-identical
+- `/tmp/fresh_206_live_validation_bulk_snap_only.R` — BULK snap-only subset, default tiebreak
+- `/tmp/fresh_206_bulk_raw_geom.R` — BULK with raw geom + tiebreak="planar"
 
 ## Phase 4: release
 

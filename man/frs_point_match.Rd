@@ -11,7 +11,8 @@ frs_point_match(
   table_to,
   distance_max,
   table_a_id_col = "id",
-  table_b_id_col = "id"
+  table_b_id_col = "id",
+  tiebreak = c("instream", "planar")
 )
 }
 \arguments{
@@ -44,6 +45,26 @@ column on \code{table_a}.}
 
 \item{table_b_id_col}{Character. Default \code{"id"}. The unique-key
 column on \code{table_b} carried forward into \code{table_to}.}
+
+\item{tiebreak}{Character. Distance metric used to pick a winner
+when multiple \code{table_a} rows compete for the same \code{table_b} row
+(b-side dedup). One of:
+\itemize{
+\item \code{"instream"} (default): order by \code{ABS(drm_a - drm_b)}. Self-
+consistent with the threshold filter; works on any FWA-snapped
+point dataset without requiring geometry columns.
+\item \code{"planar"}: order by \code{ST_Distance(a.geom, b.geom)}. Mirrors
+bcfp's \verb{02_pscis_streams_150m.sql} tiebreak (line 190). Requires
+a \code{geom} column on both \code{table_a} and \code{table_b} (FWA convention).
+Use this when bcfp-byte-identical output is required and your
+input tables carry geom.
+}
+
+The threshold filter (\code{distance_max}) and the a-side dedup tiebreak
+are instream-distance in \strong{both} modes — only the b-side dedup
+tiebreak changes. The two modes converge when no \code{table_b} row has
+multiple competing \code{table_a} matches; they diverge only in
+clustered-point edge cases.}
 }
 \value{
 \code{conn} invisibly, for piping. Side effect: drops + recreates
@@ -70,6 +91,20 @@ Network-position columns (\code{blue_line_key}, \code{downstream_route_measure})
 are hard-coded to the FWA convention. Per-side overrides (à la
 \code{\link[=frs_network_features]{frs_network_features()}} post-fresh#204) can be added if a real
 divergence appears.
+
+\strong{Single-stream-per-input assumption.} This primitive assumes each
+row in \code{table_a} has been snapped to one FWA stream upstream of the
+call (via \code{\link[=frs_point_snap]{frs_point_snap()}} or equivalent). It does not consider
+alternate stream candidates within a planar buffer. bcfp's
+\verb{02_pscis_streams_150m.sql} does — it starts from raw PSCIS points,
+considers all FWA streams within 150m planar, then scores by
+name/width to pick the best (PSCIS, stream) pair. As a result,
+\code{frs_point_match} matches bcfp's final \code{bcfishpass.pscis.modelled_crossing_id}
+byte-identically when the input PSCIS lands on the same stream bcfp
+chose; ~0.5\% edge cases on a large WSG (BULK validation 2026-05-11)
+diverge where bcfp's multi-stream consideration picks a different
+stream than the caller's single-stream snap. Workaround: caller can
+run multi-stream candidate selection before calling this primitive.
 
 \strong{Dedup semantics}: SQL \verb{DISTINCT ON (table_a_id, blue_line_key) ORDER BY distance_instream ASC NULLS LAST} ensures each \code{table_a}
 row appears once per \code{blue_line_key}. The closest non-NULL match
