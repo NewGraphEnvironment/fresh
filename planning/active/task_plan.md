@@ -20,8 +20,8 @@ When matching point datasets along the FWA network, a single "key" entity (a PSC
 
 ## Phase 2: tests/testthat/test-frs_candidates_pick.R
 
-- [ ] Tier 1 — validation tests (no DB): required args, identifier sanitization rejection, reserved-column collision check.
-- [ ] Tier 2 — SQL composition tests via `withr::local_mocked_bindings` on `.frs_db_execute` + `.frs_table_columns` — mirrors `tests/testthat/test-frs_point_match.R` structure.
+- [x] Tier 1 — validation tests (no DB): required args, identifier sanitization rejection, reserved-column collision check.
+- [x] Tier 2 — SQL composition tests via `withr::local_mocked_bindings` on `.frs_db_execute` + `.frs_table_columns` — mirrors `tests/testthat/test-frs_point_match.R` structure.
   - `expect_match` on key clauses: DROP + CREATE, `WITH scored AS`, `SELECT DISTINCT ON (col_key)`, score expression appearing as a derived column, ORDER BY containing col_key first then caller's clauses.
   - `expect_no_match` when `exp_score = NULL` → no `WITH scored` CTE.
   - `expect_no_match` when `exp_filter = NULL` → no `WHERE` clause.
