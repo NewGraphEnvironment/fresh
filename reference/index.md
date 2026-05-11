@@ -74,6 +74,8 @@
   : Load Habitat Model Parameter Sets
 - [`frs_point_locate()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_locate.md)
   : Locate a Point on the FWA Stream Network
+- [`frs_point_match()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_match.md)
+  : Match Two Point Datasets Along FWA Network Within Instream Distance
 - [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
   : Snap a Point to the Nearest FWA Stream
 - [`frs_stream_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_stream_fetch.md)

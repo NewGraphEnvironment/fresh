@@ -1,5 +1,76 @@
 # Changelog
 
+## fresh 0.30.0
+
+Closes [\#206](https://github.com/NewGraphEnvironment/fresh/issues/206).
+Adds
+[`frs_point_match()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_match.md)
+— a third primitive in the point-handling family alongside
+`frs_point_snap` (point↔︎stream) and `frs_network_features`
+(segment↔︎feature dnstr/upstr). Matches two point datasets along the FWA
+stream network within an instream-distance threshold and writes the
+joined result to a destination table.
+
+- Generic over any pair of FWA-snapped point datasets (PSCIS↔︎modelled
+  crossings, observations↔︎habitat confirmations,
+  field-assessed↔︎user-added crossing dedup, etc.). All point inputs must
+  already carry `blue_line_key` and `downstream_route_measure` (the FWA
+  convention) — typically via `frs_point_snap` upstream.
+- Algorithm mirrors bcfp’s `02_pscis_streams_150m.sql` (at
+  `smnorris/bcfishpass@v0.7.14-125-g6e9cf1c`, tunnel
+  `bcfishpass.log.model_run_id=121` rebuilt 2026-05-05) —
+  same-`blue_line_key` join + `ABS(drm_a - drm_b) < distance_max` +
+  `DISTINCT ON (table_a_id, blue_line_key) ORDER BY distance_instream ASC NULLS LAST`.
+  LEFT JOIN preserves `table_a` rows with no match (their
+  `table_b_id_col` ends up NULL).
+- Function parameters follow the `table_*` convention from
+  link/CLAUDE.md: `table_a` / `table_b` / `table_to` for the three
+  tables, `table_a_id_col` / `table_b_id_col` for the ID columns.
+- Network-position columns (`blue_line_key`, `downstream_route_measure`)
+  hard-coded to the FWA convention. Per-side overrides (à la
+  `frs_network_features` v0.29.0) can be added if a real divergence
+  appears.
+- Write-to-table contract: drops + recreates `table_to` via two separate
+  [`DBI::dbExecute`](https://dbi.r-dbi.org/reference/dbExecute.html)
+  calls (RPostgres requires one statement per call). Returns `conn`
+  invisibly. Different from `frs_point_snap` (returns sf) and
+  `frs_network_features` (returns tibble) because the result here is a
+  derived *dataset* not a query result, and bcfp’s analog also writes
+  table→table.
+- Live parity on ADMS PSCIS↔︎modelled at 100m instream: **60 / 60
+  (stream_crossing_id, modelled_crossing_id) pairs byte-identical** to
+  `bcfishpass.pscis.modelled_crossing_id`. 0 in ours-not-ref, 0 in
+  ref-not-ours.
+- Live parity on BULK PSCIS↔︎modelled (xref-excluded snap-only subset):
+  **77 / 78 ref pairs identical** (98.7% on ref, 5 in ours-not-ref). The
+  4–5 BULK edge-case divergences are documented in the function’s
+  `@details` — bcfp considers multi-stream candidates within 150m planar
+  before settling on (PSCIS, stream), while `frs_point_match` assumes
+  the caller has already snapped each PSCIS to one stream. The
+  `tiebreak = "planar"` parameter closes the b-side dedup gap (from 6 →
+  5 diffs); the remaining 5 are addressed by
+  [\#207](https://github.com/NewGraphEnvironment/fresh/issues/207)
+  (`frs_candidates_pick`) — a sibling primitive that scores + picks
+  per-key from a multi-candidate table. With
+  [\#206](https://github.com/NewGraphEnvironment/fresh/issues/206) +
+  [\#207](https://github.com/NewGraphEnvironment/fresh/issues/207)
+  composed, the bcfp PSCIS-to-stream + PSCIS-to-modelled algorithm
+  reproduces byte-identically.
+- `tiebreak` parameter (`c("instream", "planar")`) controls the b-side
+  dedup metric. Default `"instream"` (`ABS(drm_a - drm_b)`) requires no
+  geometry and is self-consistent with the threshold filter. `"planar"`
+  (`ST_Distance(a.geom, b.geom)`) mirrors bcfp’s
+  `02_pscis_streams_150m.sql` line 190 tiebreak; requires `geom` column
+  on both tables.
+- 21 mocked tests covering validation (required args, scalar positive
+  numeric `distance_max`, identifier sanitization, same-name guard) and
+  SQL composition (DROP + CREATE order, DISTINCT ON,
+  same-`blue_line_key` join predicate, `distance_max` literal, LEFT
+  JOIN, ASC NULLS LAST tiebreak, ID-column carry-through).
+- First consumer: link#154
+  (`lnk_pipeline_crossings: missing PSCIS↔︎modelled 100m-instream auto-snap layer`)
+  which wires this primitive into link’s per-WSG crossings build.
+
 ## fresh 0.29.0
 
 Closes [\#204](https://github.com/NewGraphEnvironment/fresh/issues/204).

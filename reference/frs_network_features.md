@@ -130,6 +130,11 @@ generalises to either direction. The SQL pattern joins via
 `whse_basemapping.fwa_<direction>()` for cross-mainstem ltree
 comparison, then `array_agg`s feature IDs grouped by segment ID.
 
+## See also
+
+Other network:
+[`frs_point_match()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_match.md)
+
 ## Examples
 
 ``` r
