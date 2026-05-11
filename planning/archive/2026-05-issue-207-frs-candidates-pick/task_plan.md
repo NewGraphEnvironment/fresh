@@ -1,0 +1,58 @@
+# Task: frs_candidates_pick: score + filter + dedup candidates per key (#207)
+
+When matching point datasets along the FWA network, a single "key" entity (a PSCIS crossing, an observation, a field-assessed crossing) can have multiple candidate matches in another table. Picking the best candidate often requires more than distance — it requires column-to-column comparisons against shared attributes that disambiguate beyond pure geometry: stream name, watershed group, stream order, channel width, species code, observer name, etc.
+
+`frs_candidates_pick` is the missing primitive. Combined with `frs_point_snap(num_features = N)` upstream and `frs_point_match` downstream, the bcfp PSCIS-build algorithm reproduces byte-identically via composition.
+
+## Phase 1: scaffold R/frs_candidates_pick.R
+
+- [x] Read `R/frs_point_match.R` (just-shipped v0.30.0) one more time as the immediate-template — the SQL composition shape, validation pattern, and ID-introspection guard are directly reusable.
+- [x] Write `R/frs_candidates_pick.R`:
+  - Signature per Approach above
+  - Input validation: `.frs_validate_identifier()` for `table_in`, `table_to`, `col_key`. Required-args checks for `order_by`. `exp_score` / `exp_filter` are nullable strings; when supplied, just length-1 character checks (caller writes the SQL — we don't validate its inside).
+  - Reserved-column collision: when `exp_score` is set, the output has a `score` column. Guard against `table_in` already having a `score` column (similar to fresh#206's distance_instream guard).
+  - SQL composition via `sprintf` template
+  - `.frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", table_to))` first, then the CTE+SELECT
+  - Returns `invisible(conn)`
+  - Roxygen: `@family network` (sibling to frs_point_snap, frs_point_match), `@export`, `@examples \dontrun{}` covering bcfp PSCIS-to-stream case + a more generic case (observations dedup or similar)
+- [x] `devtools::document()` to regenerate man page + NAMESPACE export
+- [x] `lintr::lint("R/frs_candidates_pick.R")` clean
+
+## Phase 2: tests/testthat/test-frs_candidates_pick.R
+
+- [x] Tier 1 — validation tests (no DB): required args, identifier sanitization rejection, reserved-column collision check.
+- [x] Tier 2 — SQL composition tests via `withr::local_mocked_bindings` on `.frs_db_execute` + `.frs_table_columns` — mirrors `tests/testthat/test-frs_point_match.R` structure.
+  - `expect_match` on key clauses: DROP + CREATE, `WITH scored AS`, `SELECT DISTINCT ON (col_key)`, score expression appearing as a derived column, ORDER BY containing col_key first then caller's clauses.
+  - `expect_no_match` when `exp_score = NULL` → no `WITH scored` CTE.
+  - `expect_no_match` when `exp_filter = NULL` → no `WHERE` clause.
+
+## Phase 3: live byte-identical validation against bcfp
+
+- [x] Cleaner approach than originally planned: stage `bcfishpass.pscis_streams_150m` (already has bcfp's computed name_score, width_order_score, weighted_distance after bcfp's full pre-processing), call `frs_candidates_pick` with bcfp's exact filter + ORDER BY. This isolates the primitive's job (dedup+pick from scored input) from the caller's job (computing scores). Generating the scored candidates from scratch is link's downstream concern.
+- [x] **BULK PSCIS-to-stream dedup byte-identical**: 102 / 102 ref picks identical, 0 missing.
+  ```
+  ours: 106 picks | ref: 102 picks
+  identical pairs: 102
+  only in ours: 4 (all in bcfishpass.pscis_not_matched_to_streams — bcfp's suspect_match downstream filter)
+  only in ref:  0
+  ```
+- [x] The 4 "extras" all have `in_not_matched = 1` in `bcfishpass.pscis_not_matched_to_streams`. bcfp's pipeline applies a `suspect_match IS NULL` (>50m distance) filter downstream of the dedup step that moves PSCIS to a separate "not matched" table. That's a caller-level downstream filter; not a primitive responsibility.
+- [x] Validation script captured at `/tmp/fresh_207_live_validation.R`.
+- [x] Closes the BULK 5-diff gap from fresh#206 — the primitive is byte-identical at the dedup-step level.
+
+## Phase 4: release
+
+- [x] Update link/CLAUDE.md to add the `exp_<role>` parameter convention. Separate commit on link main.
+- [x] DESCRIPTION 0.30.0 → 0.31.0 (minor bump — new exported function)
+- [x] NEWS.md 0.31.0 entry covering: semantics, composition with `frs_point_snap` + `frs_point_match`, BULK validation result, first consumer (link#154 will rewire to use this chain)
+- [x] `devtools::document()` regenerated NAMESPACE + man/ (committed Phase 1)
+- [x] `devtools::check()`: 0 errors / 4 warnings / 4 notes — identical to main pre-PR
+- [x] `lintr::lint("R/frs_candidates_pick.R")` clean
+- [ ] PR body covers semantics, composition story, BULK validation numbers, link#154 as the downstream consumer (at PR-creation time)
+
+## Validation
+
+- [ ] Tests pass
+- [ ] `/code-check` clean on each commit
+- [ ] PWF checkboxes match landed work
+- [ ] `/planning-archive` on completion

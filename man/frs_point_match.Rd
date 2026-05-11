@@ -146,6 +146,7 @@ DBI::dbDisconnect(conn)
 }
 \seealso{
 Other network: 
+\code{\link{frs_candidates_pick}()},
 \code{\link{frs_network_features}()}
 }
 \concept{network}
