@@ -8,7 +8,7 @@ Local PostGIS instance with BC Freshwater Atlas data for running the fresh habit
 - Local clone of [smnorris/fwapg](https://github.com/smnorris/fwapg) (default: `../../fwapg` sibling directory)
 - Optional: local clone of [smnorris/bcfishobs](https://github.com/smnorris/bcfishobs) for fish observation queries
 
-## Quick start
+## Quick start (first time — empty `postgres-data/`)
 
 ```bash
 cd docker
@@ -23,6 +23,37 @@ docker compose run --rm loader
 # Optional: also load bcfishobs
 docker compose run --rm loader --bcfishobs
 ```
+
+## Restart after stop (data already loaded)
+
+If `postgres-data/` is already populated from a previous run, **don't re-run the loader** — just start the DB:
+
+```bash
+cd docker
+docker compose up -d db
+
+# Wait a few seconds, then verify
+docker exec fresh-db pg_isready -U postgres -d fwapg
+docker exec fresh-db psql -U postgres -d fwapg -c "\dn"
+```
+
+The schema list should include `whse_basemapping`, `bcfishpass_ref`, `bcfishobs`, `fwapg`, `cabd`, `fresh`, `psf`, etc. If you only see `public` and the postgis system schemas, the loader hasn't been run — go back to "Quick start" above.
+
+## Connect from QGIS
+
+Data Source Manager → PostgreSQL → **New**:
+
+| Field | Value |
+|---|---|
+| Name | `fresh-local` (or anything) |
+| Host | `localhost` |
+| Port | `5432` |
+| Database | `fwapg` |
+| Username | `postgres` |
+| Password | `postgres` |
+| SSL mode | `disable` |
+
+Test Connection → Save. The fwapg schemas (`whse_basemapping.fwa_*`, `bcfishpass_ref.*`, `bcfishobs.*`, etc.) appear under the connection in the Browser panel.
 
 ## Directory layout
 
