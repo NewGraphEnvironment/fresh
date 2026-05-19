@@ -9,7 +9,7 @@ habitat modelling with parallel workers.
 ## Repository Context
 
 **Repository:** NewGraphEnvironment/fresh **Primary Language:** R
-(package) **Version:** 0.24.1 **License:** MIT
+(package) **Version:** 0.31.0 **License:** MIT
 
 ## Ecosystem
 
@@ -140,10 +140,31 @@ Legend: `[link]` = building block used directly by `link` (called by
 ## Dependencies
 
 - **Runtime:** DBI, RPostgres, sf
+
 - **Suggests:** mirai, tmap (\>= 4.0), gq, bookdown, knitr, rmarkdown
+
 - **Database:** PostgreSQL with fwapg (local Docker or remote tunnel)
+
 - **Connection:** Local Docker on port 5432 or SSH tunnel on 63333; see
   db-newgraph skill
+
+- **R version:** targets R \>= 4.1. Do NOT use `%||%` (R 4.4+ only)
+  without importing from `rlang`; current `Imports:` doesn’t include
+  `rlang`. Use `if (is.null(x)) default else x` instead.
+
+- **FWA User Guide ragnar store:** `data/rag/fwa_user_guide.duckdb`
+  (gitignored, built locally). 171 chunks of GeoBC (2010) Freshwater
+  Atlas User Guide — edge types, feature codes, watershed codes, stream
+  network structure. Query:
+
+  ``` r
+
+  store <- ragnar::ragnar_store_connect("data/rag/fwa_user_guide.duckdb")
+  results <- ragnar::ragnar_retrieve(store, "query", top_k = 5)
+  DBI::dbDisconnect(store@con)
+  ```
+
+  Zotero source: parent key `S2EMGWR5`, attachment key `NC5QSXCI`.
 
 ## Testing on alternate hosts
 
@@ -226,6 +247,17 @@ ssh m1 'cd /Users/airvine/Projects/repo/fresh && Rscript -e "
 - `break_sources` — list of break source specs with `table`, `where`,
   `label`, `label_col`, `label_map`, `col_blk`, `col_measure`
 
+### Column-name vectors (`cols_` prefix)
+
+Vectors of column names in internal code use `cols_` prefix so they
+cluster in the RStudio environment pane and autocomplete:
+
+- `cols_all` — all columns in a table
+- `cols_carry` — columns to carry forward from parent
+- `cols_split` — columns from the split/new geometry
+- `cols_writable` — non-generated columns (can `INSERT INTO`)
+- `cols_insert` — final column list for INSERT statement
+
 ### Function names
 
 - `frs_noun_verb` pattern: `frs_network_segment`, `frs_point_snap`,
@@ -254,6 +286,128 @@ ssh m1 'cd /Users/airvine/Projects/repo/fresh && Rscript -e "
   `lake_rearing`. No geometry.
 - Views per species: `{to_streams}_co_vw` = join streams + habitat WHERE
   species_code = ‘CO’
+
+## Technical notes
+
+Small durable technical reference for internal behavior worth
+remembering.
+
+### Stream guards (`.frs_stream_guards()`, `.frs_snap_guards()`)
+
+- `.frs_stream_guards()` = placeholder (999 wscode) + unmapped (NULL
+  localcode) only
+- `.frs_snap_guards()` excludes **only** edge type 1425 (subsurface
+  flow). 1410 (network connector) is real wetland connectivity — NOT
+  excluded (#52)
+- `frs_point_snap(exclude_edge_types = ...)` exposes this as a parameter
+  (default 1425, NULL = snap to everything)
+- Placeholder / unmapped segments are never returned by `fwa_upstream` /
+  `fwa_downstream` anyway (ltree traversal excludes them)
+
+### Watershed family
+
+- [`frs_watershed_at_measure()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_at_measure.md)
+  and
+  [`frs_watershed_split()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_split.md)
+  share `@family watershed`
+- [`frs_watershed_split()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_split.md)
+  preserves extra columns from input (e.g. `name_basin`)
+- Stable IDs via `blk` / `drm` — never change regardless of point count
+
+## Working Conventions
+
+### Design principles — build functions, not workarounds
+
+Four rules for fresh feature development:
+
+1.  **Functions not hacks** — if the vignette needs a workaround, that’s
+    a signal to update the function, add a param, or add a helper. The
+    vignette IS the intended use case; optimize the API for it.
+2.  **Network-agnostic** — fresh operates on networks, not just the
+    Freshwater Atlas. Column names, table names, traversal functions
+    should be configurable (via `.frs_opt()`). Don’t hardcode
+    FWA-specific names. Think spyda compatibility.
+3.  **Leverage PostgreSQL** — use generated columns, GiST indexes, CTEs,
+    lateral joins. Understand what’s indexed and what’s not. Traversal
+    on indexed tables only. Know when a view will hang vs a table will
+    fly.
+4.  **No painted corners** — before implementing, ask “does this work
+    with a different network?” If not, abstract it.
+
+**Why:** fresh is the operations layer for any spyda-built network. FWA
+is just the first network. The API decisions made now set the pattern
+for all future networks.
+
+**How to apply:** when writing SQL or function signatures, use
+`.frs_opt()` for table/column names. When traversing, always use the
+indexed network table. When adding params, think “would this name/type
+make sense for a LiDAR-derived channel network?”
+
+### Test output — combine, don’t double-run
+
+When running tests, pipe stderr to grep in the same command to avoid
+running twice:
+
+``` bash
+Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5
+```
+
+For full error context:
+
+``` bash
+Rscript -e 'devtools::test()' 2>&1 | grep -E "(ERROR:|FAIL )" -A 10 | head -25
+```
+
+**Why:** integration tests against remote DB can take 30-60s. Running
+once + grepping is much faster than running, seeing failures, running
+again.
+
+**How to apply:** use the combined pattern on every `devtools::test()`
+call.
+
+### Version tagging — bump freely, tag sparsely
+
+Bump `DESCRIPTION` version with each feature merge, but don’t create git
+tags on every bump. Tags are for milestones someone would pin to:
+release announcements, dependency pins, SRED claim boundaries. Pre-1.0,
+the semver contract hasn’t started — version numbers are cheap; tags are
+noise.
+
+**Why:** rapid tagging (v0.8.0 → v0.9.0 → v0.10.0 in days) creates
+clutter with no consumers. PRs and commits document everything for SRED
+— tags don’t add to that.
+
+**How to apply:** `git tag` only when batching a coherent set of
+features worth announcing. Version bumps in `DESCRIPTION` and `NEWS.md`
+still happen per feature merge.
+
+### Data generation — scripts in `data-raw/`, never ad-hoc
+
+All cached test/vignette data must be regenerable via a script in
+`data-raw/`. Never use ad-hoc `Rscript -e` commands for data
+regeneration.
+
+**Why:** reproducibility. The next person (or next-you on a new machine)
+needs to be able to rebuild the data from source.
+
+**How to apply:** before committing a cached `.rds` / `.gpkg` / `.tif`,
+ensure a `data-raw/<name>.R` script that produces it exists. Example:
+`data-raw/example_byman_ailport.R` generates all byman-ailport cached
+data.
+
+### Vignette `.Rmd.orig` pattern
+
+- `.Rmd.orig` = source with live DB queries; `.Rmd` = pre-knitted cached
+  version
+- `params$update_gis` controls live vs cached: `TRUE` = hit DB, `FALSE`
+  = use RDS
+- Knit with:
+  `params <- list(update_gis = TRUE); knitr::knit("vignettes/name.Rmd.orig", output = "vignettes/name.Rmd")`
+- Copy figures: `cp figure/*.png vignettes/figure/`
+- `subbasin-query` figure (`plot-subbasin-1.png`) gets accidentally
+  deleted when wiping `vignettes/figure/` — always restore
+- Bookdown cross-refs (`\@ref`) don’t work with pre-knit pattern — don’t
+  use them in vignettes
 
 # CI Monitoring
 
