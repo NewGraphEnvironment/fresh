@@ -19,9 +19,9 @@ Param name `watershed_group_code` (not `wsgs`) for fresh-internal vocabulary con
 
 ## Phase 2 — Function + roxygen
 
-- [ ] Write `R/frs_wsg_drainage.R` with signature, arg validation (`stopifnot` + `.frs_validate_identifier`), SQL via `sprintf` + `DBI::dbQuoteLiteral`, `\dontrun{}` example showing PARS+BULK, `@family wsg`, `@export`
-- [ ] `devtools::document()` → regenerate `NAMESPACE` + `man/frs_wsg_drainage.Rd`
-- [ ] `/code-check` clean → atomic commit (function + checkbox flip)
+- [x] Write `R/frs_wsg_drainage.R` with signature, arg validation (`stopifnot` + `.frs_validate_identifier`), SQL via `sprintf` + `DBI::dbQuoteLiteral`, `\dontrun{}` example showing PARS+BULK, `@family wsg`, `@export`. Also: upper-case focal codes internally; warn on unmatched focals (caught by code-check Round 1); scalar `table` check (caught by code-check Round 1); use `DBI::dbGetQuery` (non-spatial, avoids sf warning).
+- [x] `devtools::document()` → regenerate `NAMESPACE` + `man/frs_wsg_drainage.Rd`
+- [x] `/code-check` clean (Round 1: 2 findings fixed; Round 2: Clean) → atomic commit (function + checkbox flip)
 
 ## Phase 3 — Tests
 
