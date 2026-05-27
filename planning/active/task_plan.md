@@ -25,12 +25,9 @@ Param name `watershed_group_code` (not `wsgs`) for fresh-internal vocabulary con
 
 ## Phase 3 — Tests
 
-- [ ] `tests/testthat/test-frs_wsg_drainage.R`:
-  - Arg validation: non-character / empty / `NA` input rejected; invalid `table` rejected by `.frs_validate_identifier`
-  - DB-gated (skip on missing `PG_DB_SHARE` per `R/frs_db_conn.R:31`) live test: `frs_wsg_drainage(conn, c("PARS","BULK"))` returns the 15-WSG closure in DS-first order
-  - Ordering invariance: result equal for `c("BULK","PARS")` vs `c("PARS","BULK")`
-- [ ] `devtools::test()` green
-- [ ] `/code-check` clean → atomic commit
+- [x] `tests/testthat/test-frs_wsg_drainage.R`: 6 arg-validation (non-character / empty / `NA` / empty-string / vector table / invalid identifier — last asserts validator's specific `"table contains invalid characters"` message after code-check Round 1) + 5 live-DB tests (skip on missing `PG_DB_SHARE`): PARS+BULK 15-WSG exact match, focal-order invariance, case-folding, unmatched-focal warning, no-match error
+- [x] `devtools::test()` green — all 14 expectations pass against live fwapg (env-overridden to bypass dead `:63333` tunnel)
+- [x] `/code-check` clean (Round 1: 1 finding fixed, 3 accepted as stopifnot-idiom tradeoffs; Round 2: Clean) → atomic commit
 
 ## Phase 4 — Release
 
