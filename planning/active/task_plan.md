@@ -14,8 +14,8 @@ Param name `watershed_group_code` (not `wsgs`) for fresh-internal vocabulary con
 
 ## Phase 1 — Live-DB column verification
 
-- [ ] Confirm actual column name in `public.wsg_outlet` (`wsg` vs `watershed_group_code`) via `\d public.wsg_outlet` on the live DB so the SQL matches reality
-- [ ] Run the unmodified link query against current fwapg to confirm PARS+BULK → 15 WSGs (the regression baseline before any code lands)
+- [x] Confirm actual column name in `public.wsg_outlet` (`wsg` vs `watershed_group_code`) via `\d public.wsg_outlet` on the live DB so the SQL matches reality — **`wsg` varchar(4)** confirmed; also has `outlet ltree` (GIST) + `lvl integer`
+- [x] Run the unmodified link query against current fwapg to confirm PARS+BULK → 15 WSGs (the regression baseline before any code lands) — **15/15 match**: `KISP, KLUM, LKEL, LSKE, MSKE, USKE, BULK, FINA, LBTN, LPCE, MORR, PARA, PCEA, UPCE, PARS` (DS-first, depths 1/1/1/1/1/1/2/2/2/2/2/2/2/2/3)
 
 ## Phase 2 — Function + roxygen
 
