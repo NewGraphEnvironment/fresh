@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.31.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.32.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.32.0" id="fresh-0320">fresh 0.32.0<a class="anchor" aria-label="anchor" href="#fresh-0320"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/211" class="external-link">#211</a>. Adds <code><a href="../reference/frs_wsg_drainage.html">frs_wsg_drainage()</a></code> — a pure FWA-topology primitive that returns the drainage closure of a focal set of watershed groups (focal + every WSG they flow through), ordered downstream-first by outlet ltree depth.</p>
+<ul><li>Promotes the inline closure query from <code>NewGraphEnvironment/link@v0.40.5</code> <code>data-raw/study_area_wsgs.R</code> into a reusable, tested function. Pure FWA topology — no species / bundle / overrides knowledge — so other fresh consumers (vignettes, ad-hoc R sessions, future provincial drivers) can use it without going through link.</li>
+<li>Closure predicate <code>f.outlet &lt;@ w.outlet</code> against <code>public.wsg_outlet</code> (ltree-based FWA WSG outlet table). Order <code>nlevel(outlet) ASC, wsg ASC</code> — most downstream WSGs first, alphabetical within a depth. Running per-WSG work in this order persists downstream barriers before upstream WSGs read them, which is what link’s study-area runner relies on for cross-WSG access flags to settle within a single pass.</li>
+<li>Signature <code>frs_wsg_drainage(conn, watershed_group_code, table = "public.wsg_outlet")</code> follows fresh vocabulary (<code>watershed_group_code</code>, matches <code>frs_wsg_species</code> + <code>frs_stream_fetch</code>). Table identifier validated via <code>.frs_validate_identifier</code>; focal codes upper-cased internally and quoted via <code><a href="https://dbi.r-dbi.org/reference/dbQuoteLiteral.html" class="external-link">DBI::dbQuoteLiteral</a></code> (no injection surface). Unmatched focal codes warn rather than silently drop; all-unmatched errors.</li>
+<li>First consumer: <code>link::lnk_wsg_resolve</code> (<a href="https://github.com/NewGraphEnvironment/link/issues/207" class="external-link">NewGraphEnvironment/link#207</a>) — the link wrapper composes this primitive with the bundle’s species-presence filter (<a href="https://github.com/NewGraphEnvironment/fresh/issues/157" class="external-link">#157</a>) to drive <code>data-raw/study_area_wsgs.R</code> (and replaces the inline query there).</li>
+<li>New <code>@family wsg</code> family. <code>frs_wsg_species</code> retag deferred to a separate concern.</li>
+<li>11 tests / 14 expectations: 6 arg-validation (no DB), 5 live-DB (gated on <code>PG_DB_SHARE</code>) covering the 15-WSG PARS+BULK regression baseline, focal-order invariance, case-folding, unmatched-focal warning, and all-unmatched error. Live-validated against fwapg.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.31.0" id="fresh-0310">fresh 0.31.0<a class="anchor" aria-label="anchor" href="#fresh-0310"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/207" class="external-link">#207</a>. Adds <code><a href="../reference/frs_candidates_pick.html">frs_candidates_pick()</a></code> — fourth primitive in the point-handling family (alongside <code>frs_point_snap</code>, <code>frs_network_features</code>, <code>frs_point_match</code>). Given a candidates table where multiple rows can share the same key value, optionally compute a per-row score from a caller-supplied SQL expression, optionally filter via a caller-supplied WHERE clause, then keep one row per key via <code>DISTINCT ON (col_key) ORDER BY ...</code>.</p>
