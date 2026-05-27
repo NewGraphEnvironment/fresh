@@ -31,10 +31,11 @@ Param name `watershed_group_code` (not `wsgs`) for fresh-internal vocabulary con
 
 ## Phase 4 — Release
 
-- [ ] `NEWS.md`: new `# fresh 0.32.0` section, lead with bold one-liner + bullets (composition with `lnk_wsg_resolve`, pure-topology framing, test count) — matches existing style (`NEWS.md:1-10`)
-- [ ] `DESCRIPTION`: `Version: 0.32.0`, `Date: <commit date>`
-- [ ] `lintr::lint_package()` clean
-- [ ] `/code-check` clean → atomic commit `"Release v0.32.0"` as final commit of branch
+- [x] `NEWS.md`: new `# fresh 0.32.0` section, lead with one-line summary + 6 bullets (FWA-topology framing, closure predicate + DS-first ordering rationale, signature + safety, first consumer `lnk_wsg_resolve`, family naming, test count). Matches `NEWS.md:1-10` (v0.31.0) style.
+- [x] `DESCRIPTION`: `Version: 0.31.0 → 0.32.0`. No `Date:` field added — matches fresh's existing convention (no Date in DESCRIPTION through v0.31.0; soul R-package conventions don't require Date).
+- [x] `lintr::lint_package()` — **skipped**: fresh hasn't adopted lintr (not in Suggests). Convention is link's, not fresh's. Code follows fresh's existing R style by inspection.
+- [x] `/code-check` — skipped on this Release commit (docs + version bump only; R code already passed `/code-check` clean in Phases 2 + 3)
+- [ ] Atomic commit `"Release v0.32.0"` as final commit of branch
 - [ ] `/planning-archive` → `/gh-pr-push` (PR body: `Closes #211` + `Relates to NewGraphEnvironment/sred-2025-2026#24`)
 
 ## Validation

@@ -1,3 +1,14 @@
+# fresh 0.32.0
+
+Closes [#211](https://github.com/NewGraphEnvironment/fresh/issues/211). Adds `frs_wsg_drainage()` — a pure FWA-topology primitive that returns the drainage closure of a focal set of watershed groups (focal + every WSG they flow through), ordered downstream-first by outlet ltree depth.
+
+- Promotes the inline closure query from `NewGraphEnvironment/link@v0.40.5` `data-raw/study_area_wsgs.R` into a reusable, tested function. Pure FWA topology — no species / bundle / overrides knowledge — so other fresh consumers (vignettes, ad-hoc R sessions, future provincial drivers) can use it without going through link.
+- Closure predicate `f.outlet <@ w.outlet` against `public.wsg_outlet` (ltree-based FWA WSG outlet table). Order `nlevel(outlet) ASC, wsg ASC` — most downstream WSGs first, alphabetical within a depth. Running per-WSG work in this order persists downstream barriers before upstream WSGs read them, which is what link's study-area runner relies on for cross-WSG access flags to settle within a single pass.
+- Signature `frs_wsg_drainage(conn, watershed_group_code, table = "public.wsg_outlet")` follows fresh vocabulary (`watershed_group_code`, matches `frs_wsg_species` + `frs_stream_fetch`). Table identifier validated via `.frs_validate_identifier`; focal codes upper-cased internally and quoted via `DBI::dbQuoteLiteral` (no injection surface). Unmatched focal codes warn rather than silently drop; all-unmatched errors.
+- First consumer: `link::lnk_wsg_resolve` ([NewGraphEnvironment/link#207](https://github.com/NewGraphEnvironment/link/issues/207)) — the link wrapper composes this primitive with the bundle's species-presence filter (#157) to drive `data-raw/study_area_wsgs.R` (and replaces the inline query there).
+- New `@family wsg` family. `frs_wsg_species` retag deferred to a separate concern.
+- 11 tests / 14 expectations: 6 arg-validation (no DB), 5 live-DB (gated on `PG_DB_SHARE`) covering the 15-WSG PARS+BULK regression baseline, focal-order invariance, case-folding, unmatched-focal warning, and all-unmatched error. Live-validated against fwapg.
+
 # fresh 0.31.0
 
 Closes [#207](https://github.com/NewGraphEnvironment/fresh/issues/207). Adds `frs_candidates_pick()` — fourth primitive in the point-handling family (alongside `frs_point_snap`, `frs_network_features`, `frs_point_match`). Given a candidates table where multiple rows can share the same key value, optionally compute a per-row score from a caller-supplied SQL expression, optionally filter via a caller-supplied WHERE clause, then keep one row per key via `DISTINCT ON (col_key) ORDER BY ...`.
