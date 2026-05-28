@@ -95,7 +95,7 @@ vignettes and function reference.
 
 fresh has two layers:
 
-**Generic primitives** —
+**Generic primitives** — segment / classify / cluster on the network:
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md),
@@ -105,9 +105,20 @@ fresh has two layers:
 [`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md),
 [`frs_aggregate()`](https://newgraphenvironment.github.io/fresh/reference/frs_aggregate.md),
 [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md).
-Domain-neutral building blocks. Classify on any attribute into any label
-column. Break at any position. Cluster by any connectivity rule. No
-assumptions about what’s being modelled.
+Plus FWA-spanning operations on arbitrary point datasets:
+[`frs_network_features()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_features.md)
+(per-segment feature arrays for any FWA-snapped points),
+[`frs_point_match()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_match.md)
+(match two point datasets along the network within in-stream distance),
+[`frs_candidates_pick()`](https://newgraphenvironment.github.io/fresh/reference/frs_candidates_pick.md)
+(score + filter + dedup, e.g. multi-stream PSCIS-to-stream selection),
+`frs_trace_downstream()` (FWA-averaged gradient with localized-barrier
+handling),
+[`frs_wsg_drainage()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_drainage.md)
+(watershed-group drainage-closure primitive). Domain-neutral building
+blocks. Classify on any attribute into any label column. Break at any
+position. Cluster by any connectivity rule. No assumptions about what’s
+being modelled.
 
 **Fish-habitat wrapper** —
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md),
@@ -162,6 +173,33 @@ Fresh still runs standalone on any break sources you construct yourself
 - Fish habitat: **link → fresh**
 - Land cover change: fresh (network) → flooded (floodplains) → drift
   (land cover change)
+
+## Roadmap
+
+fresh is currently FWA-grounded; the architecture is intentionally
+network-agnostic and active design work targets generalization beyond
+BC’s Freshwater Atlas:
+
+- **`spyda`** — a stream-network topology engine for non-FWA networks
+  (LiDAR-derived hydrography, OSM-derived networks, custom watershed
+  delineations); design placeholder
+  ([\#41](https://github.com/NewGraphEnvironment/fresh/issues/41))
+- **Configurable column names** via
+  [`options()`](https://rdrr.io/r/base/options.html) so the primitives
+  work against networks that don’t use FWA’s `blue_line_key` /
+  `wscode_ltree` / `downstream_route_measure` conventions
+  ([\#44](https://github.com/NewGraphEnvironment/fresh/issues/44))
+- **MAD predicate Phase 2** in the rule grammar — extend habitat rules
+  to incorporate mean annual discharge
+  ([\#114](https://github.com/NewGraphEnvironment/fresh/issues/114))
+- **Channel-width estimation** from bankfull regression for small-order
+  streams
+  ([\#28](https://github.com/NewGraphEnvironment/fresh/issues/28),
+  [\#29](https://github.com/NewGraphEnvironment/fresh/issues/29))
+
+The primitives layer is designed so that swapping the underlying network
+(FWA → spyda) does not require re-implementing the modelling logic —
+only the network-aware indexing and topology adapters change.
 
 ## License
 

@@ -130,7 +130,7 @@
 <h2 id="primitives-vs-domain-wrappers">Primitives vs domain wrappers<a class="anchor" aria-label="anchor" href="#primitives-vs-domain-wrappers"></a>
 </h2>
 <p>fresh has two layers:</p>
-<p><strong>Generic primitives</strong> — <code><a href="reference/frs_classify.html">frs_classify()</a></code>, <code><a href="reference/frs_break_find.html">frs_break_find()</a></code>, <code><a href="reference/frs_break_apply.html">frs_break_apply()</a></code>, <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code>, <code><a href="reference/frs_barriers_minimal.html">frs_barriers_minimal()</a></code>, <code><a href="reference/frs_col_generate.html">frs_col_generate()</a></code>, <code><a href="reference/frs_col_join.html">frs_col_join()</a></code>, <code><a href="reference/frs_aggregate.html">frs_aggregate()</a></code>, <code><a href="reference/frs_cluster.html">frs_cluster()</a></code>. Domain-neutral building blocks. Classify on any attribute into any label column. Break at any position. Cluster by any connectivity rule. No assumptions about what’s being modelled.</p>
+<p><strong>Generic primitives</strong> — segment / classify / cluster on the network: <code><a href="reference/frs_classify.html">frs_classify()</a></code>, <code><a href="reference/frs_break_find.html">frs_break_find()</a></code>, <code><a href="reference/frs_break_apply.html">frs_break_apply()</a></code>, <code><a href="reference/frs_network_segment.html">frs_network_segment()</a></code>, <code><a href="reference/frs_barriers_minimal.html">frs_barriers_minimal()</a></code>, <code><a href="reference/frs_col_generate.html">frs_col_generate()</a></code>, <code><a href="reference/frs_col_join.html">frs_col_join()</a></code>, <code><a href="reference/frs_aggregate.html">frs_aggregate()</a></code>, <code><a href="reference/frs_cluster.html">frs_cluster()</a></code>. Plus FWA-spanning operations on arbitrary point datasets: <code><a href="reference/frs_network_features.html">frs_network_features()</a></code> (per-segment feature arrays for any FWA-snapped points), <code><a href="reference/frs_point_match.html">frs_point_match()</a></code> (match two point datasets along the network within in-stream distance), <code><a href="reference/frs_candidates_pick.html">frs_candidates_pick()</a></code> (score + filter + dedup, e.g. multi-stream PSCIS-to-stream selection), <code>frs_trace_downstream()</code> (FWA-averaged gradient with localized-barrier handling), <code><a href="reference/frs_wsg_drainage.html">frs_wsg_drainage()</a></code> (watershed-group drainage-closure primitive). Domain-neutral building blocks. Classify on any attribute into any label column. Break at any position. Cluster by any connectivity rule. No assumptions about what’s being modelled.</p>
 <p><strong>Fish-habitat wrapper</strong> — <code><a href="reference/frs_habitat_classify.html">frs_habitat_classify()</a></code>, <code><a href="reference/frs_habitat.html">frs_habitat()</a></code>, <code><a href="reference/frs_params.html">frs_params()</a></code>. Convenience wrappers that classify segments as <code>accessible / spawning / rearing / lake_rearing</code> per <code>species_code</code>, driven by a per-species rules YAML. The output schema is fish-specific.</p>
 <p>For non-fish domains — thermal refugia, riparian connectivity, sediment-transport models, custom classifications — compose the primitives directly on your own output schema. <code><a href="reference/frs_classify.html">frs_classify()</a></code> is pipeable and takes any <code>label</code> column name. The wrappers are a convenience, not the only way in.</p>
 </div>
@@ -184,6 +184,22 @@
 </li>
 <li>Land cover change: fresh (network) → flooded (floodplains) → drift (land cover change)</li>
 </ul>
+</div>
+<div class="section level2">
+<h2 id="roadmap">Roadmap<a class="anchor" aria-label="anchor" href="#roadmap"></a>
+</h2>
+<p>fresh is currently FWA-grounded; the architecture is intentionally network-agnostic and active design work targets generalization beyond BC’s Freshwater Atlas:</p>
+<ul>
+<li>
+<strong><code>spyda</code></strong> — a stream-network topology engine for non-FWA networks (LiDAR-derived hydrography, OSM-derived networks, custom watershed delineations); design placeholder (<a href="https://github.com/NewGraphEnvironment/fresh/issues/41" class="external-link">#41</a>)</li>
+<li>
+<strong>Configurable column names</strong> via <code><a href="https://rdrr.io/r/base/options.html" class="external-link">options()</a></code> so the primitives work against networks that don’t use FWA’s <code>blue_line_key</code> / <code>wscode_ltree</code> / <code>downstream_route_measure</code> conventions (<a href="https://github.com/NewGraphEnvironment/fresh/issues/44" class="external-link">#44</a>)</li>
+<li>
+<strong>MAD predicate Phase 2</strong> in the rule grammar — extend habitat rules to incorporate mean annual discharge (<a href="https://github.com/NewGraphEnvironment/fresh/issues/114" class="external-link">#114</a>)</li>
+<li>
+<strong>Channel-width estimation</strong> from bankfull regression for small-order streams (<a href="https://github.com/NewGraphEnvironment/fresh/issues/28" class="external-link">#28</a>, <a href="https://github.com/NewGraphEnvironment/fresh/issues/29" class="external-link">#29</a>)</li>
+</ul>
+<p>The primitives layer is designed so that swapping the underlying network (FWA → spyda) does not require re-implementing the modelling logic — only the network-aware indexing and topology adapters change.</p>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
