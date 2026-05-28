@@ -78,7 +78,7 @@ See the [pkgdown site](https://newgraphenvironment.github.io/fresh/) for vignett
 
 fresh has two layers:
 
-**Generic primitives** — `frs_classify()`, `frs_break_find()`, `frs_break_apply()`, `frs_network_segment()`, `frs_barriers_minimal()`, `frs_col_generate()`, `frs_col_join()`, `frs_aggregate()`, `frs_cluster()`. Domain-neutral building blocks. Classify on any attribute into any label column. Break at any position. Cluster by any connectivity rule. No assumptions about what's being modelled.
+**Generic primitives** — segment / classify / cluster on the network: `frs_classify()`, `frs_break_find()`, `frs_break_apply()`, `frs_network_segment()`, `frs_barriers_minimal()`, `frs_col_generate()`, `frs_col_join()`, `frs_aggregate()`, `frs_cluster()`. Plus FWA-spanning operations on arbitrary point datasets: `frs_network_features()` (per-segment feature arrays for any FWA-snapped points), `frs_point_match()` (match two point datasets along the network within in-stream distance), `frs_candidates_pick()` (score + filter + dedup, e.g. multi-stream PSCIS-to-stream selection), `frs_trace_downstream()` (FWA-averaged gradient with localized-barrier handling), `frs_wsg_drainage()` (watershed-group drainage-closure primitive). Domain-neutral building blocks. Classify on any attribute into any label column. Break at any position. Cluster by any connectivity rule. No assumptions about what's being modelled.
 
 **Fish-habitat wrapper** — `frs_habitat_classify()`, `frs_habitat()`, `frs_params()`. Convenience wrappers that classify segments as `accessible / spawning / rearing / lake_rearing` per `species_code`, driven by a per-species rules YAML. The output schema is fish-specific.
 
@@ -108,6 +108,17 @@ Fresh still runs standalone on any break sources you construct yourself — link
 
 - Fish habitat: **link &rarr; fresh**
 - Land cover change: fresh (network) &rarr; flooded (floodplains) &rarr; drift (land cover change)
+
+## Roadmap
+
+fresh is currently FWA-grounded; the architecture is intentionally network-agnostic and active design work targets generalization beyond BC's Freshwater Atlas:
+
+- **`spyda`** — a stream-network topology engine for non-FWA networks (LiDAR-derived hydrography, OSM-derived networks, custom watershed delineations); design placeholder ([#41](https://github.com/NewGraphEnvironment/fresh/issues/41))
+- **Configurable column names** via `options()` so the primitives work against networks that don't use FWA's `blue_line_key` / `wscode_ltree` / `downstream_route_measure` conventions ([#44](https://github.com/NewGraphEnvironment/fresh/issues/44))
+- **MAD predicate Phase 2** in the rule grammar — extend habitat rules to incorporate mean annual discharge ([#114](https://github.com/NewGraphEnvironment/fresh/issues/114))
+- **Channel-width estimation** from bankfull regression for small-order streams ([#28](https://github.com/NewGraphEnvironment/fresh/issues/28), [#29](https://github.com/NewGraphEnvironment/fresh/issues/29))
+
+The primitives layer is designed so that swapping the underlying network (FWA → spyda) does not require re-implementing the modelling logic — only the network-aware indexing and topology adapters change.
 
 ## License
 
