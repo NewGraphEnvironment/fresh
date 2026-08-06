@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.32.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.33.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.33.0" id="fresh-0330">fresh 0.33.0<a class="anchor" aria-label="anchor" href="#fresh-0330"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/214" class="external-link">#214</a>. Rebuilds <code><a href="../reference/frs_wsg_drainage.html">frs_wsg_drainage()</a></code> on a per-group outlet <strong>point</strong> and the measure-aware <code>whse_basemapping.fwa_downstream()</code>, replacing the single-ltree ancestry test introduced in <a href="https://github.com/NewGraphEnvironment/fresh/issues/211" class="external-link">#211</a>. That test was wrong, and the fact that its backing table — <code>public.wsg_outlet</code>, materialized ad-hoc and never committed (<a href="https://github.com/NewGraphEnvironment/link/issues/227" class="external-link">link#227</a>) — kept going missing was masking it. A lone ltree cannot order two groups sharing a stem: all 14 Fraser groups carry wscode <code>100</code> and five Skeena groups carry <code>400</code>, so <code>frs_wsg_drainage(conn, "UFRA")</code> silently omitted <strong>LFRA</strong>, the group the entire basin drains through. Province-wide, 62 of 246 groups resolved to an outlet shallower than their own polygon code, only 167 distinct outlets existed for 246 groups, and equal outlets fell through to an alphabetical <code>wsg ASC</code> tiebreak — which is a correctness hazard, not just wasted work, because downstream-first ordering is what makes cross-WSG barrier state settle in a single pass.</p>
+<p>Outlets now come from <code>fwa_stream_networks_sp</code>, selected as <strong>max stream order first, then shallowest <code>wscode_ltree</code>, then lowest measure</strong>. The order filter is what removes the polygon slivers that defeated the old derivation: MORR (Morice) clips a 2-segment, 0 km, order-1 piece of the Bulkley-coded line <code>400.431358</code> alongside 1,236 segments and 275 km of the order-8 Morice line, and selecting on ltree depth alone picked the sliver — making the Bulkley appear to drain through the Morice, exactly inverting the hydrology. FWA carried the “Bulkley” name down through the confluence, so the larger flow is filed as the tributary; the fixtures now pin that case by name.</p>
+<p>The 246-row table ships as <code>inst/extdata/wsg_outlet.csv</code> with a documented generator at <code>data-raw/wsg_outlet.R</code>, and is read by the new exported <code><a href="../reference/frs_wsg_outlets.html">frs_wsg_outlets()</a></code>. Outlets are passed to the database as a <code>VALUES</code> list, so <strong>no table is required in the target database</strong> — only the <code>fwa_downstream()</code> routine. That removes the <code>public.wsg_outlet</code> dependency outright rather than repairing it. Ordering is now derived from topology (count of groups downstream) instead of ltree depth. Validated on 12 hydrology fixtures plus province-wide structural invariants: 0 cycles, 0 self-edges, <strong>0 transitivity violations across 3,537 checks</strong>, 62 coastal terminal groups, and every non-terminal group reaching one.</p>
+<p>Breaking: the <code>table</code> argument is replaced by <code>outlets</code>, a data frame. Closures get tighter and more correct — <code>frs_wsg_drainage(conn, c("PARS","BULK"))</code> returns 9 groups where it previously returned 15, dropping LKEL (a separate tributary), MSKE/USKE (upstream of the confluence), LBTN (a sibling) and MORR (upstream).</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.32.0" id="fresh-0320">fresh 0.32.0<a class="anchor" aria-label="anchor" href="#fresh-0320"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/211" class="external-link">#211</a>. Adds <code><a href="../reference/frs_wsg_drainage.html">frs_wsg_drainage()</a></code> — a pure FWA-topology primitive that returns the drainage closure of a focal set of watershed groups (focal + every WSG they flow through), ordered downstream-first by outlet ltree depth.</p>
@@ -608,7 +615,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

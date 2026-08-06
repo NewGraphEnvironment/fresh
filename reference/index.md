@@ -92,5 +92,7 @@
   : Fetch FWA Wetlands
 - [`frs_wsg_drainage()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_drainage.md)
   : WSG Drainage Closure (FWA Topology)
+- [`frs_wsg_outlets()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_outlets.md)
+  : FWA Watershed Group Outlets
 - [`frs_wsg_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_wsg_species.md)
   : Species Present in a Watershed Group
