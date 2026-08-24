@@ -36,14 +36,60 @@ jobs:
           extra-packages: any::pkgdown, local::.
           needs: website
 
+      # pkgdown renders every root-level .md except a hardcoded allowlist
+      # (README, LICENSE, NEWS and two templates). CLAUDE.md is not on it and
+      # there is no config option to exclude a file, so the site would publish
+      # our internal working notes -- including, on a private repo, the
+      # conventions the visibility system marks internal-only.
+      #
+      # Repo visibility does not help: GitHub Pages serves publicly regardless,
+      # and there is no private mode below Enterprise Cloud.
+      #
+      # This removes it from the CI checkout only, never from the repo, and it
+      # has to happen BEFORE the build. Deleting afterwards would still leave
+      # the verbatim CLAUDE.md copy pkgdown makes and the entry it writes into
+      # the full-text search.json index.
+      - name: Keep internal notes out of the published site
+        run: rm -f CLAUDE.md
+
       - name: Build site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
+
+
+      # A skip here would be invisible, so assert rather than assume. Any
+      # top-level page beyond the ones pkgdown is expected to produce means a
+      # root markdown file reached the site -- the exact shape of the leak this
+      # workflow exists to prevent, and the shape a future INTERNAL.md would
+      # take.
+      - name: Fail if an unexpected page reached the site
+        run: |
+          allowed="404 authors index LICENSE LICENSE-text"
+          unexpected=""
+          for f in docs/*.html docs/*.md; do
+            [ -e "$f" ] || continue
+            b=$(basename "$f"); b="${b%.*}"
+            case " $allowed " in *" $b "*) ;; *) unexpected="$unexpected $(basename "$f")";; esac
+          done
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected top-level page(s) in docs/:$unexpected"
+            echo "pkgdown renders every root .md; remove internal ones before the build."
+            exit 1
+          fi
+          echo "no unexpected top-level pages"
 
       - name: Deploy to GitHub pages 🚀
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4.5.0
         with:
-          clean: false
+          # clean: true so the deployed site equals what the build produced.
+          # With clean: false the action never deletes, so removing a file from
+          # the repo does not unpublish it -- measured on gq, where
+          # task_plan.html and friends were still returning 200 long after the
+          # PWF documents left the root. Checked before flipping: no CNAME (the
+          # domain comes from the org site repo), no dev/ versioned docs, and
+          # the favicon/webmanifest assets are build output rather than
+          # hand-added.
+          clean: true
           branch: gh-pages
           folder: docs
