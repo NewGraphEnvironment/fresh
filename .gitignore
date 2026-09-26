@@ -10,3 +10,7 @@ data-raw/nge-icon_white.png
 .Renviron
 .env
 data/rag/
+
+# testthat failure snapshots
+tests/testthat/_problems/
+tests/testthat/testthat-problems.rds
