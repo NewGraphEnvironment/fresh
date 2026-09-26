@@ -4,13 +4,16 @@
 \alias{frs_habitat_predicates}
 \title{Build SQL predicates for one species' habitat classification}
 \usage{
-frs_habitat_predicates(sp_params)
+frs_habitat_predicates(sp_params, model = "cw")
 }
 \arguments{
 \item{sp_params}{A single-species params list as produced by one
 element of \code{\link[=frs_habitat_species]{frs_habitat_species()}}. Must contain \code{species_code},
 \code{spawn_gradient_min}, \code{spawn_gradient_max}, \code{ranges}, optionally
 \code{rules}, optionally \code{spawn_edge_types} / \code{rear_edge_types}.}
+
+\item{model}{Character. Habitat size model: \code{"cw"} (channel width,
+default) or \code{"mad"} (mean annual discharge, \code{mad_m3s}).}
 }
 \value{
 A named list with four character scalars: \code{spawn}, \code{rear},
@@ -35,15 +38,24 @@ present in \code{sp_params}:
 \enumerate{
 \item \strong{Rules path} — when \verb{sp_params$rules$<spawn|rear>} is non-NULL,
 the rules YAML is compiled to SQL via \code{\link[=.frs_rules_to_sql]{.frs_rules_to_sql()}}.
-CSV thresholds (gradient + channel_width) are passed as the
-inheritance fallback for rules that omit explicit thresholds.
+CSV thresholds (gradient + the \code{model}'s size dimension) are passed
+as the inheritance fallback for rules that omit explicit thresholds.
 \item \strong{CSV-ranges path} — pre-rules behaviour. Builds the SQL
 directly from \code{sp_params$ranges} + \verb{sp_params$<spawn|rear>_edge_types}.
 }
 
-CSV MAD ranges (\verb{ranges$<spawn|rear>$mad_m3s}, parsed by
-\code{\link[=frs_params]{frs_params()}}) are not applied on either path. MAD filtering happens
-only through an explicit \verb{mad: [min, max]} rule in the rules YAML.
+\code{model} picks the size dimension, mirroring bcfishpass
+\code{parameters_habitat_method.csv}. \code{"cw"} (default) uses the CSV
+channel-width ranges (\verb{ranges$<spawn|rear>$channel_width}). \code{"mad"}
+uses the CSV mean annual discharge ranges (\verb{ranges$<spawn|rear>$mad_m3s})
+against \code{s.mad_m3s} instead, on both paths and for lake / wetland
+rearing. Under \code{"mad"}, matching bcfishpass: a species with no MAD
+thresholds (e.g. BT) gets no stream spawning / rearing from inheriting
+rules; segments with NULL \code{mad_m3s} fail; rule-level \verb{channel_width:}
+(the cw-model river-polygon bypass) is ignored; and lake / wetland
+rearing for a species with no rear MAD window is polygon-based only.
+An explicit \verb{mad: [min, max]} rule applies under either model.
+\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} resolves the model per watershed group.
 
 Lake / wetland rearing predicates are gated on the presence of a
 \code{waterbody_type: L} / \code{waterbody_type: W} rule in \verb{rear:}. Without
@@ -52,7 +64,8 @@ wetland-rearing. With the rule, an optional \code{lake_ha_min} /
 \code{wetland_ha_min} filters the polygon join.
 
 Segments must still fall within the species' rear channel-width
-window for lake / wetland rearing.
+window (or rear MAD window under \code{model = "mad"}) for lake / wetland
+rearing.
 }
 \examples{
 \dontrun{
@@ -66,6 +79,9 @@ preds$spawn
 #> "s.gradient >= 0 AND s.gradient <= 0.0549 AND ..."
 preds$lake_rear
 #> "FALSE"  (CO has no waterbody_type: L rule under bcfishpass)
+
+# Discharge-based model, as for a `mad` watershed group
+frs_habitat_predicates(species_params[[1]], model = "mad")$spawn
 }
 }
 \seealso{

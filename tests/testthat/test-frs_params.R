@@ -655,16 +655,33 @@ test_that(".frs_rule_to_sql mad composes with edge_types and CSV thresholds", {
   expect_match(sql, "s\\.mad_m3s BETWEEN 0\\.03 AND 40")
 })
 
-test_that(".frs_rule_to_sql does not inherit CSV mad_m3s (fresh#114)", {
-  # cw vs mad is a per-WSG model choice; MAD only applies when a rule
-  # asks for it explicitly.
+test_that(".frs_rule_to_sql inherits CSV mad_m3s when supplied (fresh#220)", {
+  # frs_habitat_predicates() only passes mad_m3s under model = "mad".
   rule <- list(edge_types_explicit = c(1000L))
   csv_thresholds <- list(
     gradient = c(0, 0.0549),
-    channel_width = c(2, 9999),
     mad_m3s = c(0.164, 9999))
   sql <- .frs_rule_to_sql(rule, csv_thresholds)
-  expect_false(grepl("mad_m3s", sql))
+  expect_match(sql, "s\\.mad_m3s BETWEEN 0\\.164 AND 9999")
+  expect_false(grepl("channel_width", sql))
+})
+
+test_that(".frs_rule_to_sql explicit mad overrides inherited mad_m3s", {
+  rule <- list(mad = c(1, 2))
+  sql <- .frs_rule_to_sql(rule, list(mad_m3s = c(0.164, 9999)))
+  expect_equal(sql, "(s.mad_m3s BETWEEN 1 AND 2)")
+})
+
+test_that(".frs_rule_to_sql NA mad_m3s inheritance emits FALSE", {
+  # Species without MAD thresholds in a mad-model WSG (bcfishpass parity)
+  sql <- .frs_rule_to_sql(list(edge_types_explicit = c(1000L)),
+                          list(mad_m3s = c(NA_real_, NA_real_)))
+  expect_match(sql, "FALSE")
+  # thresholds: false skips it
+  sql_off <- .frs_rule_to_sql(
+    list(edge_types_explicit = c(1000L), thresholds = FALSE),
+    list(mad_m3s = c(NA_real_, NA_real_)))
+  expect_false(grepl("FALSE", sql_off))
 })
 
 test_that(".frs_rule_to_sql empty rule returns (TRUE)", {

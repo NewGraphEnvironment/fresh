@@ -177,3 +177,85 @@ test_that(".frs_persist_columns errors on a shared column type mismatch (fresh#1
   expect_error(.frs_persist_columns(conn, dst, src),
                "mad_m3s \\(text vs double precision\\)")
 })
+
+# -- Per-WSG habitat model (fresh#220) ----------------------------------------
+
+test_that(".frs_habitat_models resolves per WSG, defaulting to cw", {
+  pm <- data.frame(watershed_group_code = c("ADMS", "BULK"),
+                   model = c("mad", "cw"), stringsAsFactors = FALSE)
+  res <- .frs_habitat_models(c("ADMS", "BULK", "LDEN"), pm)
+  expect_equal(res, c(ADMS = "mad", BULK = "cw", LDEN = "cw"))
+  # NA WSG (custom AOI rows without a group) -> cw
+  expect_equal(unname(.frs_habitat_models(NA_character_, pm)), "cw")
+  # An NA key in params_method does not claim NULL-group rows
+  pm_na <- data.frame(watershed_group_code = c(NA, "ADMS"),
+                      model = c("mad", "cw"))
+  expect_equal(unname(.frs_habitat_models(NA_character_, pm_na)), "cw")
+  expect_equal(.frs_habitat_models(character(0), pm),
+               stats::setNames(character(0), character(0)))
+})
+
+test_that(".frs_habitat_models validates params_method", {
+  expect_error(.frs_habitat_models("ADMS", data.frame(wsg = "ADMS")),
+               "watershed_group_code")
+  expect_error(.frs_habitat_models("ADMS",
+    data.frame(watershed_group_code = "ADMS", model = "xx")),
+    "cw.*mad")
+})
+
+test_that("bundled parameters_habitat_method.csv resolves all cw", {
+  pm <- utils::read.csv(system.file("extdata",
+    "parameters_habitat_method.csv", package = "fresh"))
+  expect_true(all(.frs_habitat_models(pm$watershed_group_code, pm) == "cw"))
+})
+
+test_that(".frs_preds_by_model single model returns preds untouched", {
+  cw <- list(spawn = "A", rear = "B")
+  mad <- list(spawn = "C", rear = "D")
+  expect_identical(
+    .frs_preds_by_model(list(cw = cw, mad = mad), c(X = "cw", Y = "cw")), cw)
+  expect_identical(
+    .frs_preds_by_model(list(cw = cw, mad = mad), c(X = "mad")), mad)
+})
+
+test_that(".frs_preds_by_model mixed models switch on watershed_group_code", {
+  cw <- list(spawn = "A", rear = "B")
+  mad <- list(spawn = "C", rear = "D")
+  res <- .frs_preds_by_model(list(cw = cw, mad = mad),
+                             c(ADMS = "mad", BULK = "cw", LDEN = "mad"))
+  expect_equal(res$spawn,
+    "CASE WHEN s.watershed_group_code IN ('ADMS', 'LDEN') THEN (C) ELSE (A) END")
+  expect_equal(res$rear,
+    "CASE WHEN s.watershed_group_code IN ('ADMS', 'LDEN') THEN (D) ELSE (B) END")
+})
+
+test_that(".frs_sql_num renders Inf as a Postgres infinity literal", {
+  # frs_params() fills a blank *_mad_max / *_channel_width_max with Inf
+  expect_equal(.frs_sql_num(Inf), "'Infinity'::double precision")
+  expect_equal(.frs_sql_num(-Inf), "'-Infinity'::double precision")
+  expect_equal(.frs_sql_num(0.0549), "0.0549")
+})
+
+test_that(".frs_sql_num handles every input shape it receives", {
+  # Enumerates the shapes that reach it from CSV params and rules YAML
+  expect_equal(.frs_sql_num(2), "2")
+  expect_equal(.frs_sql_num(2L), "2")
+  expect_equal(.frs_sql_num(list(0.05)), "0.05")          # yaml list element
+  expect_equal(.frs_sql_num(list(Inf)), "'Infinity'::double precision")
+  expect_equal(.frs_sql_num(c(1, 2)), c("1", "2"))        # vector unchanged
+  expect_equal(.frs_sql_num(NA_real_), "NA")              # pre-existing
+  # Mixed int/float YAML sequence end to end
+  rule <- yaml::yaml.load("gradient: [0, 0.05]\nchannel_width: [1, 9999.5]")
+  expect_true(is.list(rule$gradient))
+  expect_equal(.frs_rule_to_sql(rule),
+    "(s.gradient BETWEEN 0 AND 0.05 AND s.channel_width BETWEEN 1 AND 9999.5)")
+})
+
+test_that(".frs_preds_by_model with no WSGs (empty table) returns cw", {
+  cw <- list(spawn = "A")
+  expect_identical(
+    .frs_preds_by_model(list(cw = cw, mad = NULL),
+                        .frs_habitat_models(character(0), data.frame(
+                          watershed_group_code = "ADMS", model = "mad"))),
+    cw)
+})

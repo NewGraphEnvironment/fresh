@@ -28,6 +28,17 @@
 #'   bundled CSV.
 #' @param params_fresh Data frame from `parameters_fresh.csv`. Default
 #'   reads from bundled CSV.
+#' @param params_method Data frame with columns `watershed_group_code`
+#'   and `model` (`"cw"` or `"mad"`), as in bcfishpass
+#'   `parameters_habitat_method.csv`. Picks the habitat size model per
+#'   watershed group: channel width (`cw`) or mean annual discharge
+#'   (`mad`, which needs a `mad_m3s` column on `table`, as joined by
+#'   [frs_network_segment()]). Watershed groups missing from it use
+#'   `cw`. A table spanning groups on both models is classified per row
+#'   on `watershed_group_code`. Default reads the bundled CSV (all
+#'   `cw`). See [frs_habitat_predicates()] for how `mad` differs.
+#'   Discharge coverage is incomplete: segments with NULL `mad_m3s` fail
+#'   size thresholds in a `mad` group.
 #' @param gate Logical. If `TRUE` (default), breaks restrict
 #'   classification — segments downstream of blocking breaks are marked
 #'   inaccessible. If `FALSE`, all segments are classified regardless of
@@ -100,6 +111,7 @@ frs_habitat_classify <- function(conn, table, to,
                                  species,
                                  params = NULL,
                                  params_fresh = NULL,
+                                 params_method = NULL,
                                  gate = TRUE,
                                  label_block = "blocked",
                                  barrier_overrides = NULL,
@@ -125,15 +137,36 @@ frs_habitat_classify <- function(conn, table, to,
       "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
   }
 
-  # Ensure input tables are indexed — critical when called directly
-  # (bypassing frs_habitat which indexes during frs_network_segment)
-  .frs_index_working(conn, table)
-  if (gate) .frs_index_working(conn, breaks_tbl)
+  if (is.null(params_method)) {
+    params_method <- utils::read.csv(system.file("extdata",
+      "parameters_habitat_method.csv", package = "fresh"),
+      stringsAsFactors = FALSE)
+  }
 
   # Get WSG codes from streams table (for idempotent delete)
   wsg_codes <- DBI::dbGetQuery(conn, sprintf(
     "SELECT DISTINCT watershed_group_code FROM %s", table
   ))$watershed_group_code
+
+  # Habitat size model per WSG (cw / mad). Checked before any writes so
+  # a mad group on a table without mad_m3s fails cleanly.
+  models <- .frs_habitat_models(wsg_codes, params_method)
+  # Column names from the table itself: information_schema lookups miss
+  # mixed-case labels, temp tables and non-public search_path schemas.
+  if (any(models == "mad") && !"mad_m3s" %in% names(DBI::dbGetQuery(conn,
+      sprintf("SELECT * FROM %s LIMIT 0", table)))) {
+    stop(sprintf(paste0(
+      "params_method sets model = \"mad\" for %s but %s has no ",
+      "mad_m3s column (join it with frs_col_join() or ",
+      "frs_network_segment())"),
+      paste(names(models)[models == "mad"], collapse = ", "), table),
+      call. = FALSE)
+  }
+
+  # Ensure input tables are indexed — critical when called directly
+  # (bypassing frs_habitat which indexes during frs_network_segment)
+  .frs_index_working(conn, table)
+  if (gate) .frs_index_working(conn, breaks_tbl)
 
   # Create output table if not exists
   .frs_db_execute(conn, sprintf(
@@ -248,7 +281,14 @@ frs_habitat_classify <- function(conn, table, to,
     # Build per-species SQL predicates (pure-R, no DB).
     # Returns list(spawn, rear, lake_rear, wetland_rear) ready to embed
     # in CASE WHEN ... THEN TRUE ELSE FALSE END.
-    preds <- frs_habitat_predicates(sp_params)
+    # cw is always built: it is the fallback for groups missing from
+    # params_method and for an empty table (no WSGs resolved).
+    preds <- .frs_preds_by_model(
+      list(cw = frs_habitat_predicates(sp_params, model = "cw"),
+           mad = if ("mad" %in% models) {
+             frs_habitat_predicates(sp_params, model = "mad")
+           }),
+      models)
     spawn_cond        <- preds$spawn
     rear_cond         <- preds$rear
     lake_rear_cond    <- preds$lake_rear

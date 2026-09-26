@@ -65,10 +65,20 @@
 #' Uses `sprintf` which is not affected by `options(OutDec)`,
 #' unlike `format()` or `formatC()`.
 #'
+#' Infinite values render as `'Infinity'::double precision` (or
+#' `'-Infinity'`) — [frs_params()] fills a blank `*_max` threshold with
+#' `Inf`, and a bare `Inf` would parse as a column name.
+#'
 #' @param x Numeric scalar.
 #' @return Character string safe for SQL interpolation.
 #' @noRd
 .frs_sql_num <- function(x) {
+  # yaml reads a mixed int/float sequence (`[0, 0.05]`) as a list
+  x <- unlist(x)
+  if (length(x) == 1L && is.infinite(x)) {
+    return(if (x > 0) "'Infinity'::double precision" else
+      "'-Infinity'::double precision")
+  }
   sprintf("%.10g", x)
 }
 
@@ -190,11 +200,10 @@
 #'   `in_waterbody`, `thresholds`, `gradient`, `channel_width`, `mad`.
 #'
 #'   `mad` is a `c(min, max)` mean annual discharge range (m3/s) that
-#'   adds `s.mad_m3s BETWEEN min AND max`. Unlike gradient and
-#'   channel_width it is never inherited from `csv_thresholds`: channel
-#'   width vs MAD is a per-watershed-group model choice, so MAD applies
-#'   only where a rule asks for it. Segments with NULL `mad_m3s` (no
-#'   discharge modelled) fail a `mad` rule.
+#'   adds `s.mad_m3s BETWEEN min AND max`. It overrides an inherited
+#'   `csv_thresholds$mad_m3s`, which is present only for watershed
+#'   groups on the `mad` model (fresh#220). Segments with NULL `mad_m3s`
+#'   (no discharge modelled) fail a `mad` rule.
 #'
 #'   `in_waterbody` is a logical that constrains the rule to segments
 #'   inside or outside any waterbody polygon — `FALSE` adds
@@ -207,8 +216,12 @@
 #'   `waterbody_type:` — the positive `waterbody_type` predicate already
 #'   implies `IS NOT NULL`, so the two together are redundant rather
 #'   than contradictory.
-#' @param csv_thresholds Named list with `gradient = c(min, max)`
-#'   and/or `channel_width = c(min, max)`. Either may be NULL.
+#' @param csv_thresholds Named list with `gradient = c(min, max)`,
+#'   `channel_width = c(min, max)` and/or `mad_m3s = c(min, max)`. Any
+#'   may be NULL. [frs_habitat_predicates()] passes `channel_width` under
+#'   the `cw` model and `mad_m3s` under the `mad` model; `mad_m3s =
+#'   c(NA, NA)` marks a species without MAD thresholds and makes
+#'   inheriting rules match nothing.
 #' @return Character. A parenthesized SQL predicate.
 #'   Returns `"(TRUE)"` if the rule has no predicates and no
 #'   thresholds to inherit (a wide-open rule).
@@ -309,10 +322,19 @@
       .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
   }
 
-  # MAD: rule-level only, no CSV inheritance (see @param rule).
+  # MAD: same override-then-inherit pattern. csv_thresholds only carries
+  # mad_m3s under the per-WSG "mad" model (fresh#220). An NA range means
+  # the species has no MAD thresholds: nothing qualifies (bcfishpass
+  # parity — `mad > NULL` is never true).
   if (!is.null(rule[["mad"]])) {
     mad <- unlist(rule[["mad"]])
     parts <- c(parts, sprintf(
+      "s.mad_m3s BETWEEN %s AND %s",
+      .frs_sql_num(mad[1]), .frs_sql_num(mad[2])))
+  } else if (inherit_thresholds && !is.null(csv_thresholds) &&
+             !is.null(csv_thresholds$mad_m3s)) {
+    mad <- csv_thresholds$mad_m3s
+    parts <- c(parts, if (anyNA(mad)) "FALSE" else sprintf(
       "s.mad_m3s BETWEEN %s AND %s",
       .frs_sql_num(mad[1]), .frs_sql_num(mad[2])))
   }
@@ -836,4 +858,71 @@
 .frs_transform <- function(x, crs = NULL) {
   if (is.null(crs)) return(x)
   sf::st_transform(x, crs)
+}
+
+
+#' Resolve the habitat size model (cw / mad) per watershed group
+#'
+#' Looks up each watershed group in a bcfishpass-style
+#' `parameters_habitat_method.csv` table. Groups missing from the table
+#' (or `NA`, e.g. custom-network rows) default to `"cw"` (fresh#220).
+#'
+#' @param wsg_codes Character. Watershed group codes to resolve.
+#' @param params_method Data frame with `watershed_group_code` and
+#'   `model` columns. `model` must be `"cw"` or `"mad"`.
+#' @return Named character vector of models, names = `wsg_codes`.
+#' @noRd
+.frs_habitat_models <- function(wsg_codes, params_method) {
+  if (!is.data.frame(params_method) ||
+      !all(c("watershed_group_code", "model") %in% names(params_method))) {
+    stop("params_method must be a data frame with columns ",
+         "watershed_group_code and model", call. = FALSE)
+  }
+  pm_model <- as.character(params_method$model)
+  bad <- setdiff(unique(pm_model), c("cw", "mad"))
+  if (length(bad) > 0) {
+    stop(sprintf('params_method model must be "cw" or "mad", got: %s',
+                 paste(bad, collapse = ", ")), call. = FALSE)
+  }
+  pm_wsg <- as.character(params_method$watershed_group_code)
+  dup <- unique(pm_wsg[duplicated(pm_wsg)])
+  if (length(dup) > 0) {
+    stop(sprintf("params_method has duplicate watershed_group_code: %s",
+                 paste(dup, collapse = ", ")), call. = FALSE)
+  }
+  wsg_codes <- as.character(wsg_codes)
+  # incomparables: an NA key in params_method must not claim NULL-group rows
+  models <- pm_model[match(wsg_codes, pm_wsg, incomparables = NA)]
+  models[is.na(models)] <- "cw"
+  stats::setNames(models, wsg_codes)
+}
+
+
+#' Combine per-model habitat predicates on watershed_group_code
+#'
+#' When every watershed group resolves to one model, returns that
+#' model's predicates untouched (cw-only SQL is unchanged). When models
+#' are mixed, each predicate becomes
+#' `CASE WHEN s.watershed_group_code IN (<mad groups>) THEN (<mad>) ELSE
+#' (<cw>) END`, so rows outside the listed groups (including NULL
+#' `watershed_group_code`) use cw (fresh#220).
+#'
+#' @param preds_by_model Named list (`cw`, `mad`) of predicate lists from
+#'   [frs_habitat_predicates()]. Entries for unused models may be NULL.
+#' @param models Named character vector from [.frs_habitat_models()].
+#' @return A predicate list with the same names as the inputs.
+#' @noRd
+.frs_preds_by_model <- function(preds_by_model, models) {
+  wsg_mad <- names(models)[models == "mad"]
+  if (length(wsg_mad) == 0) return(preds_by_model$cw)
+  if (length(wsg_mad) == length(models)) return(preds_by_model$mad)
+  in_sql <- paste(vapply(wsg_mad, .frs_quote_string, character(1)),
+                  collapse = ", ")
+  cw <- preds_by_model$cw
+  mad <- preds_by_model$mad
+  stats::setNames(lapply(names(cw), function(k) {
+    sprintf(
+      "CASE WHEN s.watershed_group_code IN (%s) THEN (%s) ELSE (%s) END",
+      in_sql, mad[[k]], cw[[k]])
+  }), names(cw))
 }
