@@ -23,6 +23,7 @@ frs_habitat(
   to_barriers = NULL,
   params = NULL,
   params_fresh = NULL,
+  params_method = NULL,
   workers = 1L,
   password = "",
   cleanup = TRUE,
@@ -112,6 +113,12 @@ bundled \code{parameters_habitat_thresholds.csv} and rules YAML.}
 
 \item{params_fresh}{Data frame from \code{parameters_fresh.csv}, or
 \code{NULL} to use bundled default.}
+
+\item{params_method}{Data frame with \code{watershed_group_code} and
+\code{model} (\code{"cw"} or \code{"mad"}) columns picking the habitat size model
+per watershed group (bcfishpass \code{parameters_habitat_method.csv}), or
+\code{NULL} to use the bundled default (all \code{cw}). Groups missing from it
+use \code{cw}. See \code{\link[=frs_habitat_classify]{frs_habitat_classify()}}.}
 
 \item{workers}{Integer. Number of parallel workers. Default \code{1}.
 Values > 1 require the \code{mirai} package. Only used in WSG mode.}

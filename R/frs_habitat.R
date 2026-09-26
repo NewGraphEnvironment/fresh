@@ -80,6 +80,11 @@
 #'   bundled `parameters_habitat_thresholds.csv` and rules YAML.
 #' @param params_fresh Data frame from `parameters_fresh.csv`, or
 #'   `NULL` to use bundled default.
+#' @param params_method Data frame with `watershed_group_code` and
+#'   `model` (`"cw"` or `"mad"`) columns picking the habitat size model
+#'   per watershed group (bcfishpass `parameters_habitat_method.csv`), or
+#'   `NULL` to use the bundled default (all `cw`). Groups missing from it
+#'   use `cw`. See [frs_habitat_classify()].
 #' @param workers Integer. Number of parallel workers. Default `1`.
 #'   Values > 1 require the `mirai` package. Only used in WSG mode.
 #' @param password Character. Database password for parallel workers.
@@ -200,6 +205,7 @@ frs_habitat <- function(conn, wsg = NULL,
                         to_barriers = NULL,
                         params = NULL,
                         params_fresh = NULL,
+                        params_method = NULL,
                         workers = 1L,
                         password = "",
                         cleanup = TRUE, verbose = TRUE) {
@@ -229,6 +235,11 @@ frs_habitat <- function(conn, wsg = NULL,
   if (is.null(params_fresh)) {
     params_fresh <- utils::read.csv(system.file("extdata",
       "parameters_fresh.csv", package = "fresh"), stringsAsFactors = FALSE)
+  }
+  if (is.null(params_method)) {
+    params_method <- utils::read.csv(system.file("extdata",
+      "parameters_habitat_method.csv", package = "fresh"),
+      stringsAsFactors = FALSE)
   }
 
   # -- Build job specs ---------------------------------------------------------
@@ -316,8 +327,8 @@ frs_habitat <- function(conn, wsg = NULL,
   # -- Per-job worker function -------------------------------------------------
   .run_job <- function(spec, conn_params, break_sources, breaks_gradient,
                        gradient_recompute, measure_precision, params,
-                       params_fresh, to_streams, to_habitat, to_barriers,
-                       verbose) {
+                       params_fresh, params_method, to_streams, to_habitat,
+                       to_barriers, verbose) {
     # Connect (parallel) or reuse (sequential)
     if (!is.null(conn_params)) {
       library(fresh)
@@ -449,6 +460,7 @@ frs_habitat <- function(conn, wsg = NULL,
       species = species,
       params = params,
       params_fresh = params_fresh,
+      params_method = params_method,
       gate = gate, label_block = label_block,
       barrier_overrides = barrier_overrides,
       verbose = verbose && is.null(conn_params))
@@ -612,6 +624,7 @@ frs_habitat <- function(conn, wsg = NULL,
 
       frs_habitat_classify(w_conn, table = streams_tbl, to = habitat_tbl,
         species = species, params = params, params_fresh = params_fresh,
+        params_method = params_method,
         gate = gate, label_block = label_block,
         barrier_overrides = barrier_overrides, verbose = FALSE)
 
@@ -673,6 +686,7 @@ frs_habitat <- function(conn, wsg = NULL,
       measure_precision = measure_precision,
       barrier_overrides = barrier_overrides,
       params = params, params_fresh = params_fresh,
+      params_method = params_method,
       to_streams = to_streams, to_habitat = to_habitat, to_barriers = to_barriers,
       gate = gate, label_block = label_block,
       verbose = verbose)[]
@@ -693,6 +707,7 @@ frs_habitat <- function(conn, wsg = NULL,
         gradient_recompute = gradient_recompute,
         measure_precision = measure_precision,
         params = params, params_fresh = params_fresh,
+        params_method = params_method,
         to_streams = to_streams, to_habitat = to_habitat, to_barriers = to_barriers,
         verbose = verbose)
       if (verbose) {

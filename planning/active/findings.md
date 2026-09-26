@@ -72,3 +72,20 @@ In the local fwapg build, `whse_basemapping.fwa_stream_networks_discharge` cover
 - Accepted divergence: bcfishpass mad spawning for CH/CM/CO/PK/SK/ST is `mad > min OR stream_order >= 8`. fresh does not implement the order-8 bypass, so large mainstems with NULL or low MAD are not spawning in fresh. Recorded in NEWS.
 - Round 2: clean. All 30 `.frs_sql_num()` call sites put the value straight into SQL.
 - Round 3: found a defect inside the round 1 fix. `is.infinite()` errors on a length-1 list, which is what yaml returns for mixed int/float sequences (`[0, 0.05]`); before, sprintf coerced the list silently. Fixed with `unlist()` + a `length == 1L` guard. The round ended on an enumeration: round 3 listed every site where params values reach SQL, and a test pins every input shape of `.frs_sql_num()` (numeric, integer, list, list(Inf), vector, NA). Bare `NA`/`NaN` on the cw path is pre-existing and out of scope.
+
+## Verification (Phase 3, local Docker fwapg)
+
+- `frs_habitat()` on the ADMS sub-basin AOI, sequential, with `params_method` ADMS=cw vs ADMS=mad:
+  - BT spawning 90 → 0 (no MAD thresholds), rearing 214 → 38 (non-inheriting rules only), lake_rearing 4 → 8 (polygon-only gate, no rear MAD window)
+  - CO spawning 44 → 39, rearing 55 → 50
+  - SK 0 / 0 both
+- Full ADMS `wsg`, `workers = 2` (mirai path), mad: CO spawning 470, BT spawning 0, so `params_method` reaches the workers. Took 34 s.
+- Integration test: the mad-model spawning count equals a direct SQL count on `mad_m3s` (gradient min comes from `parameters_fresh.csv`, 0.0025 for CO).
+
+## Code-check (Phase 3)
+
+- Round 1, bug: with an empty streams table no model resolved, so `preds` was NULL and the INSERT `sprintf()` returned `character(0)`, which `dbExecute` rejects. `.run_job` reaches this when `n_seg == 0`. Fixed: the cw predicates are always built.
+- Round 1, fragile: the `mad_m3s` guard used `.frs_table_columns()`, whose information_schema lookup on the literal name misses mixed-case AOI labels (`working.streams_<Label>`), temp tables and non-public search_path schemas. The result was a false "no mad_m3s column" stop. Fixed: columns now come from `SELECT * FROM <table> LIMIT 0`.
+- Round 2: `.frs_habitat_models()` matched an NA `watershed_group_code` in `params_method` to NULL-group rows (mad under all-mad, cw under mixed). Fixed: `match(..., incomparables = NA)`. This was in the original helper, not inside a round 1 fix.
+- Round 3: clean, and it ended on an enumeration. The shared mechanism: the watershed-group set R reads via `SELECT DISTINCT` must match the rows the CASE/INSERT touches. Models resolution, the `IN (...)` list, the all-cw and all-mad short-circuits, the guard and the per-WSG DELETE all checked consistent.
+- Out of scope, pre-existing (`R/frs_habitat_classify.R` overwrite DELETE): `.frs_quote_string(NA)` gives `'NA'`, so rows with a NULL `watershed_group_code` are never deleted and a rerun duplicates them. Only custom networks are affected. Candidate follow-up issue.

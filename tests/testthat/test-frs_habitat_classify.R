@@ -316,12 +316,15 @@ test_that("integration: params_method = mad classifies on mad_m3s", {
   n_mad <- run("mad")
 
   sp <- params$CO$ranges$spawn$mad_m3s
+  params_fresh <- utils::read.csv(system.file("extdata",
+    "parameters_fresh.csv", package = "fresh"))
   expected <- DBI::dbGetQuery(conn, sprintf(
     "SELECT count(*)::int AS n FROM %s s
-     WHERE s.gradient >= 0 AND s.gradient <= %s
+     WHERE s.gradient >= %s AND s.gradient <= %s
        AND s.mad_m3s >= %s AND s.mad_m3s <= %s
        AND s.edge_type IN (%s)",
-    tbl_s, params$CO$spawn_gradient_max, sp[1], sp[2],
+    tbl_s, params_fresh$spawn_gradient_min[params_fresh$species_code == "CO"],
+    params$CO$spawn_gradient_max, sp[1], sp[2],
     paste(c(frs_edge_types(category = "stream")$edge_type,
             frs_edge_types(category = "canal")$edge_type),
           collapse = ", ")))$n
@@ -342,4 +345,43 @@ test_that("integration: params_method = mad classifies on mad_m3s", {
                                  model = "mad"),
       gate = FALSE, verbose = FALSE),
     "mad_m3s")
+})
+
+test_that("integration: mad guard reads columns from mixed-case / empty tables", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  # Mixed-case unquoted name folds to lower case in Postgres; an
+  # information_schema lookup on the literal text would miss it.
+  tbl_s <- "working.Test_220_Empty"
+  tbl_h <- "working.test_220_empty_habitat"
+  on.exit({
+    for (t in c(tbl_s, tbl_h)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", tbl_s))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s (id_segment integer, watershed_group_code varchar(4),
+       blue_line_key integer, downstream_route_measure double precision,
+       wscode_ltree ltree, localcode_ltree ltree, edge_type integer,
+       waterbody_key integer, gradient double precision,
+       channel_width double precision, mad_m3s double precision)", tbl_s))
+
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"))
+  # Empty table: no WSGs resolve; classify is a no-op, not an error
+  expect_no_error(frs_habitat_classify(conn, table = tbl_s, to = tbl_h,
+    species = "CO", params = params,
+    params_method = data.frame(watershed_group_code = "ADMS", model = "mad"),
+    gate = FALSE, verbose = FALSE))
+
+  # One mad-group row: the guard must find mad_m3s on the mixed-case name
+  DBI::dbExecute(conn, sprintf(
+    "INSERT INTO %s (id_segment, watershed_group_code) VALUES (1, 'ADMS')",
+    tbl_s))
+  expect_no_error(frs_habitat_classify(conn, table = tbl_s, to = tbl_h,
+    species = "CO", params = params,
+    params_method = data.frame(watershed_group_code = "ADMS", model = "mad"),
+    gate = FALSE, verbose = FALSE))
 })

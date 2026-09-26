@@ -19,10 +19,10 @@ bcfishpass uses channel width **or** MAD, chosen per watershed group through `pa
 - [x] `frs_habitat_predicates()`: add a `model` arg; size-dimension selection on both paths plus lake/wetland; rewrite the "CSV MAD ranges are not applied" doc paragraph
 
 ## Phase 3: Per-WSG resolution in classify + thread through frs_habitat
-- [ ] Internal helpers in `R/utils.R`: `.frs_habitat_models(wsg_codes, params_method)` and `.frs_preds_by_model()` (CASE combiner)
-- [ ] `frs_habitat_classify()`: `params_method` param (after `params_fresh`, NULL default → bundled CSV; validate columns, model values, duplicate WSGs), `mad_m3s` column guard via `.frs_table_columns()` run before indexing/DELETE, per-model predicates
-- [ ] `frs_habitat()`: `params_method` param, passed on the sequential `.run_job` path and the mirai `mirai_map` path (`R/frs_habitat.R` ~L451, ~L614, and the `mirai_map` `...` args ~L675)
-- [ ] `devtools::document()`; runnable/`\dontrun` examples updated
+- [x] Internal helpers in `R/utils.R`: `.frs_habitat_models(wsg_codes, params_method)` and `.frs_preds_by_model()` (CASE combiner)
+- [x] `frs_habitat_classify()`: `params_method` param (after `params_fresh`, NULL default → bundled CSV; validate columns, model values, duplicate WSGs), `mad_m3s` column guard via `.frs_table_columns()` run before indexing/DELETE, per-model predicates
+- [x] `frs_habitat()`: `params_method` param, passed on the sequential `.run_job` path and the mirai `mirai_map` path (`R/frs_habitat.R` ~L451, ~L614, and the `mirai_map` `...` args ~L675)
+- [x] `devtools::document()`; runnable/`\dontrun` examples updated
 
 ## Phase 4: Docs + release
 - [ ] NEWS.md entry: NA-MAD species behaviour, R-rule channel_width dropped under mad, SK/KO lake rearing, `BETWEEN` vs bcfishpass strict `>`, `stream_order >= 8` bypass not implemented, `frs_habitat_partition()`/`frs_habitat_species()` not model-aware, link follow-up

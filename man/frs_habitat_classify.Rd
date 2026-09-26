@@ -11,6 +11,7 @@ frs_habitat_classify(
   species,
   params = NULL,
   params_fresh = NULL,
+  params_method = NULL,
   gate = TRUE,
   label_block = "blocked",
   barrier_overrides = NULL,
@@ -35,6 +36,18 @@ bundled CSV.}
 
 \item{params_fresh}{Data frame from \code{parameters_fresh.csv}. Default
 reads from bundled CSV.}
+
+\item{params_method}{Data frame with columns \code{watershed_group_code}
+and \code{model} (\code{"cw"} or \code{"mad"}), as in bcfishpass
+\code{parameters_habitat_method.csv}. Picks the habitat size model per
+watershed group: channel width (\code{cw}) or mean annual discharge
+(\code{mad}, which needs a \code{mad_m3s} column on \code{table}, as joined by
+\code{\link[=frs_network_segment]{frs_network_segment()}}). Watershed groups missing from it use
+\code{cw}. A table spanning groups on both models is classified per row
+on \code{watershed_group_code}. Default reads the bundled CSV (all
+\code{cw}). See \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}} for how \code{mad} differs.
+Discharge coverage is incomplete: segments with NULL \code{mad_m3s} fail
+size thresholds in a \code{mad} group.}
 
 \item{gate}{Logical. If \code{TRUE} (default), breaks restrict
 classification — segments downstream of blocking breaks are marked

@@ -859,3 +859,70 @@
   if (is.null(crs)) return(x)
   sf::st_transform(x, crs)
 }
+
+
+#' Resolve the habitat size model (cw / mad) per watershed group
+#'
+#' Looks up each watershed group in a bcfishpass-style
+#' `parameters_habitat_method.csv` table. Groups missing from the table
+#' (or `NA`, e.g. custom-network rows) default to `"cw"` (fresh#220).
+#'
+#' @param wsg_codes Character. Watershed group codes to resolve.
+#' @param params_method Data frame with `watershed_group_code` and
+#'   `model` columns. `model` must be `"cw"` or `"mad"`.
+#' @return Named character vector of models, names = `wsg_codes`.
+#' @noRd
+.frs_habitat_models <- function(wsg_codes, params_method) {
+  if (!is.data.frame(params_method) ||
+      !all(c("watershed_group_code", "model") %in% names(params_method))) {
+    stop("params_method must be a data frame with columns ",
+         "watershed_group_code and model", call. = FALSE)
+  }
+  pm_model <- as.character(params_method$model)
+  bad <- setdiff(unique(pm_model), c("cw", "mad"))
+  if (length(bad) > 0) {
+    stop(sprintf('params_method model must be "cw" or "mad", got: %s',
+                 paste(bad, collapse = ", ")), call. = FALSE)
+  }
+  pm_wsg <- as.character(params_method$watershed_group_code)
+  dup <- unique(pm_wsg[duplicated(pm_wsg)])
+  if (length(dup) > 0) {
+    stop(sprintf("params_method has duplicate watershed_group_code: %s",
+                 paste(dup, collapse = ", ")), call. = FALSE)
+  }
+  wsg_codes <- as.character(wsg_codes)
+  # incomparables: an NA key in params_method must not claim NULL-group rows
+  models <- pm_model[match(wsg_codes, pm_wsg, incomparables = NA)]
+  models[is.na(models)] <- "cw"
+  stats::setNames(models, wsg_codes)
+}
+
+
+#' Combine per-model habitat predicates on watershed_group_code
+#'
+#' When every watershed group resolves to one model, returns that
+#' model's predicates untouched (cw-only SQL is unchanged). When models
+#' are mixed, each predicate becomes
+#' `CASE WHEN s.watershed_group_code IN (<mad groups>) THEN (<mad>) ELSE
+#' (<cw>) END`, so rows outside the listed groups (including NULL
+#' `watershed_group_code`) use cw (fresh#220).
+#'
+#' @param preds_by_model Named list (`cw`, `mad`) of predicate lists from
+#'   [frs_habitat_predicates()]. Entries for unused models may be NULL.
+#' @param models Named character vector from [.frs_habitat_models()].
+#' @return A predicate list with the same names as the inputs.
+#' @noRd
+.frs_preds_by_model <- function(preds_by_model, models) {
+  wsg_mad <- names(models)[models == "mad"]
+  if (length(wsg_mad) == 0) return(preds_by_model$cw)
+  if (length(wsg_mad) == length(models)) return(preds_by_model$mad)
+  in_sql <- paste(vapply(wsg_mad, .frs_quote_string, character(1)),
+                  collapse = ", ")
+  cw <- preds_by_model$cw
+  mad <- preds_by_model$mad
+  stats::setNames(lapply(names(cw), function(k) {
+    sprintf(
+      "CASE WHEN s.watershed_group_code IN (%s) THEN (%s) ELSE (%s) END",
+      in_sql, mad[[k]], cw[[k]])
+  }), names(cw))
+}

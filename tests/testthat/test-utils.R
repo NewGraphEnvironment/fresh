@@ -187,6 +187,10 @@ test_that(".frs_habitat_models resolves per WSG, defaulting to cw", {
   expect_equal(res, c(ADMS = "mad", BULK = "cw", LDEN = "cw"))
   # NA WSG (custom AOI rows without a group) -> cw
   expect_equal(unname(.frs_habitat_models(NA_character_, pm)), "cw")
+  # An NA key in params_method does not claim NULL-group rows
+  pm_na <- data.frame(watershed_group_code = c(NA, "ADMS"),
+                      model = c("mad", "cw"))
+  expect_equal(unname(.frs_habitat_models(NA_character_, pm_na)), "cw")
   expect_equal(.frs_habitat_models(character(0), pm),
                stats::setNames(character(0), character(0)))
 })
@@ -245,4 +249,13 @@ test_that(".frs_sql_num handles every input shape it receives", {
   expect_true(is.list(rule$gradient))
   expect_equal(.frs_rule_to_sql(rule),
     "(s.gradient BETWEEN 0 AND 0.05 AND s.channel_width BETWEEN 1 AND 9999.5)")
+})
+
+test_that(".frs_preds_by_model with no WSGs (empty table) returns cw", {
+  cw <- list(spawn = "A")
+  expect_identical(
+    .frs_preds_by_model(list(cw = cw, mad = NULL),
+                        .frs_habitat_models(character(0), data.frame(
+                          watershed_group_code = "ADMS", model = "mad"))),
+    cw)
 })
