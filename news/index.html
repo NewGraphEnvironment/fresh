@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.35.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.36.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.36.0" id="fresh-0360">fresh 0.36.0<a class="anchor" aria-label="anchor" href="#fresh-0360"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/213" class="external-link">#213</a>.</p>
+<p><strong><code><a href="../reference/frs_db_conn.html">frs_db_conn()</a></code> reads the standard libpq env vars.</strong> Connection parameters now resolve as explicit args → <code>PGHOST</code> / <code>PGPORT</code> / <code>PGDATABASE</code> / <code>PGUSER</code> / <code>PGPASSWORD</code> (and anything else libpq reads, such as <code>PGSERVICE</code> or <code>~/.pgpass</code>) → legacy <code>PG_*_SHARE</code> → libpq defaults. Arguments default to <code>NULL</code>, and it no longer <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code>s when variables are unset. - <code>PG_*_SHARE</code> is a deprecated fallback. It is used only when none of the standard variables are set, and shows a message once per session. - The two groups are never mixed, so a <code>PG_DB_SHARE</code> name is never paired with a <code>PGHOST</code> host.</p>
+<p><strong>Behaviour change.</strong> On a machine that sets both groups, a bare <code><a href="../reference/frs_db_conn.html">frs_db_conn()</a></code> now connects to the <code>PG*</code> target instead of the <code>PG_*_SHARE</code> one. If <code>PG*</code> points at a local fwapg and <code>PG_*_SHARE</code> at the bcfishpass tunnel, code reading <code>bcfishpass.*</code> through the default connection now errors with “relation does not exist”. That includes <code>frs_params(conn)</code> and some <code>data-raw/</code> scripts. Point <code>PG*</code> at the tunnel or pass arguments explicitly. - <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> parallel workers inherit <code>password = ""</code> and let libpq read the worker’s <code>PGPASSWORD</code>. Pass <code>password</code> when connecting through the legacy fallback.</p>
+<p>The test suite gates DB tests on <code>.frs_db_available()</code> and skips <code>bcfishpass.*</code> tests when that schema is absent.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.35.0" id="fresh-0350">fresh 0.35.0<a class="anchor" aria-label="anchor" href="#fresh-0350"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/220" class="external-link">#220</a>.</p>

@@ -31,8 +31,9 @@ docker compose run --rm loader
 ```
 
 See `docker/README.md` for details. Connection via
-[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
-or direct
+[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md),
+which reads the standard libpq env vars (`PGHOST`, `PGPORT`,
+`PGDATABASE`, `PGUSER`, `PGPASSWORD`), or direct
 [`DBI::dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html).
 
 ## Example

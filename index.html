@@ -23,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.35.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.36.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -77,7 +77,7 @@
 <div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="bu">cd</span> docker</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">-d</span> db</span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="ex">docker</span> compose run <span class="at">--rm</span> loader</span></code></pre></div>
-<p>See <code>docker/README.md</code> for details. Connection via <code><a href="reference/frs_db_conn.html">frs_db_conn()</a></code> or direct <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>.</p>
+<p>See <code>docker/README.md</code> for details. Connection via <code><a href="reference/frs_db_conn.html">frs_db_conn()</a></code>, which reads the standard libpq env vars (<code>PGHOST</code>, <code>PGPORT</code>, <code>PGDATABASE</code>, <code>PGUSER</code>, <code>PGPASSWORD</code>), or direct <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
