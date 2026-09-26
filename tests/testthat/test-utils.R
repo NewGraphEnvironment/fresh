@@ -177,3 +177,50 @@ test_that(".frs_persist_columns errors on a shared column type mismatch (fresh#1
   expect_error(.frs_persist_columns(conn, dst, src),
                "mad_m3s \\(text vs double precision\\)")
 })
+
+# -- Per-WSG habitat model (fresh#220) ----------------------------------------
+
+test_that(".frs_habitat_models resolves per WSG, defaulting to cw", {
+  pm <- data.frame(watershed_group_code = c("ADMS", "BULK"),
+                   model = c("mad", "cw"), stringsAsFactors = FALSE)
+  res <- .frs_habitat_models(c("ADMS", "BULK", "LDEN"), pm)
+  expect_equal(res, c(ADMS = "mad", BULK = "cw", LDEN = "cw"))
+  # NA WSG (custom AOI rows without a group) -> cw
+  expect_equal(unname(.frs_habitat_models(NA_character_, pm)), "cw")
+  expect_equal(.frs_habitat_models(character(0), pm),
+               stats::setNames(character(0), character(0)))
+})
+
+test_that(".frs_habitat_models validates params_method", {
+  expect_error(.frs_habitat_models("ADMS", data.frame(wsg = "ADMS")),
+               "watershed_group_code")
+  expect_error(.frs_habitat_models("ADMS",
+    data.frame(watershed_group_code = "ADMS", model = "xx")),
+    "cw.*mad")
+})
+
+test_that("bundled parameters_habitat_method.csv resolves all cw", {
+  pm <- utils::read.csv(system.file("extdata",
+    "parameters_habitat_method.csv", package = "fresh"))
+  expect_true(all(.frs_habitat_models(pm$watershed_group_code, pm) == "cw"))
+})
+
+test_that(".frs_preds_by_model single model returns preds untouched", {
+  cw <- list(spawn = "A", rear = "B")
+  mad <- list(spawn = "C", rear = "D")
+  expect_identical(
+    .frs_preds_by_model(list(cw = cw, mad = mad), c(X = "cw", Y = "cw")), cw)
+  expect_identical(
+    .frs_preds_by_model(list(cw = cw, mad = mad), c(X = "mad")), mad)
+})
+
+test_that(".frs_preds_by_model mixed models switch on watershed_group_code", {
+  cw <- list(spawn = "A", rear = "B")
+  mad <- list(spawn = "C", rear = "D")
+  res <- .frs_preds_by_model(list(cw = cw, mad = mad),
+                             c(ADMS = "mad", BULK = "cw", LDEN = "mad"))
+  expect_equal(res$spawn,
+    "CASE WHEN s.watershed_group_code IN ('ADMS', 'LDEN') THEN (C) ELSE (A) END")
+  expect_equal(res$rear,
+    "CASE WHEN s.watershed_group_code IN ('ADMS', 'LDEN') THEN (D) ELSE (B) END")
+})

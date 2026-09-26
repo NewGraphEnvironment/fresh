@@ -7,12 +7,12 @@
 bcfishpass uses channel width **or** MAD, chosen per watershed group through `parameters_habitat_method.csv` (`model = cw | mad`). fresh bundles that CSV (`inst/extdata/parameters_habitat_method.csv`) but never reads it. The bundled `example_newgraph` copy sets all 187 WSGs to `cw`, so nothing changes today. A config that sets `mad` for some WSGs would not be honoured.
 
 ## Phase 1: Tests first (failing)
-- [ ] `test-frs_habitat_predicates.R`: `model = "mad"` CSV path emits `s.mad_m3s BETWEEN` for spawn/rear and no `channel_width`; `model = "cw"` is unchanged (update the existing "does not apply mad" test to be cw-scoped)
-- [ ] predicates: rules path under `mad` inherits the MAD range. An explicit rule `mad:` overrides it; rule-level `channel_width:` is dropped under `mad` (bundled R-rule river bypass is cw-only, per bcfishpass). `thresholds: false` and `L`/`W` rules don't inherit it
-- [ ] predicates: species with NA MAD under `mad` → spawn/rear size predicate `FALSE`; lake/wetland rearing use the rear MAD window, or polygon membership only when the species has no rear MAD window (SK/KO keep lake rearing)
-- [ ] `test-frs_params.R` (where the `.frs_rule_to_sql()` tests live): MAD inheritance cases, including the NA-range → `FALSE` sentinel; rewrite the #114 "does not inherit mad" test
-- [ ] `test-utils.R`: unit tests for the new pure helpers: WSG→model resolution (missing → cw, invalid → error) and the mixed-model CASE combiner
-- [ ] Integration (`test-frs_habitat_classify.R`): one WSG with MAD coverage run under `params_method` = mad vs cw. Spawning counts differ, and the mad count matches a direct SQL count on `mad_m3s`. Direct `frs_habitat_classify(gate = FALSE)` on the CSV path (not `frs_habitat()`, whose gating + connectivity would skew counts); ADMS sub-basin (local fwapg: 10,449 / 11,520 segments have MAD). Missing `mad_m3s` column → error
+- [x] `test-frs_habitat_predicates.R`: `model = "mad"` CSV path emits `s.mad_m3s BETWEEN` for spawn/rear and no `channel_width`; `model = "cw"` is unchanged (update the existing "does not apply mad" test to be cw-scoped)
+- [x] predicates: rules path under `mad` inherits the MAD range. An explicit rule `mad:` overrides it; rule-level `channel_width:` is dropped under `mad` (bundled R-rule river bypass is cw-only, per bcfishpass). `thresholds: false` and `L`/`W` rules don't inherit it
+- [x] predicates: species with NA MAD under `mad` → spawn/rear size predicate `FALSE`; lake/wetland rearing use the rear MAD window, or polygon membership only when the species has no rear MAD window (SK/KO keep lake rearing)
+- [x] `test-frs_params.R` (where the `.frs_rule_to_sql()` tests live): MAD inheritance cases, including the NA-range → `FALSE` sentinel; rewrite the #114 "does not inherit mad" test
+- [x] `test-utils.R`: unit tests for the new pure helpers: WSG→model resolution (missing → cw, invalid → error) and the mixed-model CASE combiner
+- [x] Integration (`test-frs_habitat_classify.R`): one WSG with MAD coverage run under `params_method` = mad vs cw. Spawning counts differ, and the mad count matches a direct SQL count on `mad_m3s`. Direct `frs_habitat_classify(gate = FALSE)` on the CSV path (not `frs_habitat()`, whose gating + connectivity would skew counts); ADMS sub-basin (local fwapg: 10,449 / 11,520 segments have MAD). Missing `mad_m3s` column → error
 
 ## Phase 2: Predicate + rule SQL
 - [ ] `.frs_rule_to_sql()`: MAD inheritance from `csv_thresholds$mad_m3s` (`c(NA, NA)` sentinel → `FALSE` part for inheriting rules); update the roxygen `@param rule` / `csv_thresholds` docs

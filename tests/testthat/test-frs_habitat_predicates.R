@@ -261,14 +261,15 @@ test_that("area_only=false (or absent) does not filter — backward compat", {
 
 # -- MAD (fresh#114) ---------------------------------------------------------
 
-test_that("CSV ranges path does not apply mad_m3s ranges", {
-  # CSV MAD thresholds are parsed by frs_params() but only applied through
-  # explicit `mad:` rules — the cw-model default must be unchanged.
+test_that("cw model (default) does not apply CSV mad_m3s ranges", {
+  # CSV MAD thresholds only apply under model = "mad" (fresh#220) or
+  # through explicit `mad:` rules — the cw-model default is unchanged.
   sp <- sp_with_rules(rules = NULL)
   sp$params_sp$ranges$spawn$mad_m3s <- c(0.164, 9999)
   sp$params_sp$ranges$rear$mad_m3s <- c(0.03, 40)
   preds <- frs_habitat_predicates(sp)
   for (p in preds) expect_false(grepl("mad_m3s", p))
+  expect_identical(preds, frs_habitat_predicates(sp, model = "cw"))
 })
 
 test_that("rules path emits mad_m3s for explicit mad rules", {
@@ -280,4 +281,113 @@ test_that("rules path emits mad_m3s for explicit mad rules", {
   preds <- frs_habitat_predicates(sp)
   expect_match(preds$spawn, "s\\.mad_m3s BETWEEN 0\\.164 AND 9999")
   expect_match(preds$rear, "s\\.mad_m3s BETWEEN 0\\.03 AND 40")
+})
+
+# -- Per-WSG model = "mad" (fresh#220) ---------------------------------------
+
+# Helper: sp_params with CSV MAD ranges alongside channel width
+sp_with_mad <- function(rules = NULL,
+                        spawn_mad = c(0.164, 9999),
+                        rear_mad = c(0.03, 40)) {
+  sp <- sp_with_rules(rules = rules)
+  sp$params_sp$ranges$spawn$mad_m3s <- spawn_mad
+  sp$params_sp$ranges$rear$mad_m3s <- rear_mad
+  sp
+}
+
+test_that("model validates", {
+  expect_error(frs_habitat_predicates(sp_with_mad(), model = "xx"),
+               "model")
+  expect_error(frs_habitat_predicates(sp_with_mad(), model = c("cw", "mad")),
+               "model")
+})
+
+test_that("mad model CSV path swaps channel_width for mad_m3s", {
+  preds <- frs_habitat_predicates(sp_with_mad(), model = "mad")
+  expect_match(preds$spawn, "s\\.mad_m3s >= 0\\.164 AND s\\.mad_m3s <= 9999")
+  expect_match(preds$spawn, "s\\.gradient <= 0\\.0549")
+  expect_match(preds$rear, "s\\.mad_m3s >= 0\\.03 AND s\\.mad_m3s <= 40")
+  expect_false(grepl("channel_width", preds$spawn))
+  expect_false(grepl("channel_width", preds$rear))
+})
+
+test_that("mad model rules path inherits CSV mad_m3s, not channel_width", {
+  sp <- sp_with_mad(rules = list(
+    spawn = list(list(edge_types = c("stream", "canal"))),
+    rear = list(list(edge_types = c("stream", "canal")))))
+  preds <- frs_habitat_predicates(sp, model = "mad")
+  expect_match(preds$spawn, "s\\.mad_m3s BETWEEN 0\\.164 AND 9999")
+  expect_match(preds$rear, "s\\.mad_m3s BETWEEN 0\\.03 AND 40")
+  expect_false(grepl("channel_width", preds$spawn))
+  expect_false(grepl("channel_width", preds$rear))
+})
+
+test_that("mad model: explicit rule mad overrides the inherited range", {
+  sp <- sp_with_mad(rules = list(
+    spawn = list(list(edge_types = c("stream"), mad = c(1, 2)))))
+  preds <- frs_habitat_predicates(sp, model = "mad")
+  expect_match(preds$spawn, "s\\.mad_m3s BETWEEN 1 AND 2")
+  expect_false(grepl("0\\.164", preds$spawn))
+})
+
+test_that("mad model: thresholds: false and L/W rules do not inherit mad", {
+  sp <- sp_with_mad(rules = list(
+    rear = list(
+      list(edge_types_explicit = c(1050L, 1150L), thresholds = FALSE),
+      list(waterbody_type = "L"))))
+  preds <- frs_habitat_predicates(sp, model = "mad")
+  expect_false(grepl("mad_m3s", preds$rear))
+})
+
+test_that("mad model: species without MAD thresholds get no size habitat", {
+  # bcfishpass parity: `mad > NULL` is never true, so a species with NA
+  # MAD thresholds has no spawning/rearing on inheriting rules in a mad WSG.
+  sp <- sp_with_mad(spawn_mad = NULL, rear_mad = NULL)
+  preds <- frs_habitat_predicates(sp, model = "mad")
+  expect_match(preds$spawn, "FALSE")
+  expect_match(preds$rear, "FALSE")
+  expect_false(grepl("channel_width", preds$spawn))
+
+  sp_rules <- sp_with_mad(spawn_mad = NULL, rear_mad = NULL, rules = list(
+    spawn = list(list(edge_types = c("stream", "canal"))),
+    rear = list(
+      list(edge_types = c("stream", "canal")),
+      list(edge_types_explicit = c(1050L, 1150L), thresholds = FALSE))))
+  preds_r <- frs_habitat_predicates(sp_rules, model = "mad")
+  expect_match(preds_r$spawn, "FALSE")
+  # Non-inheriting carve-out still qualifies
+  expect_match(preds_r$rear, "s\\.edge_type IN \\(1050, 1150\\)")
+})
+
+test_that("mad model: lake / wetland rearing use the rear MAD window", {
+  sp <- sp_with_mad(rules = list(
+    rear = list(list(waterbody_type = "L", lake_ha_min = 10),
+                list(waterbody_type = "W"))))
+  preds <- frs_habitat_predicates(sp, model = "mad")
+  expect_match(preds$lake_rear, "s\\.mad_m3s >= 0\\.03 AND s\\.mad_m3s <= 40")
+  expect_match(preds$wetland_rear, "s\\.mad_m3s >= 0\\.03")
+  expect_false(grepl("channel_width", preds$lake_rear))
+
+  # No rear MAD window (SK, KO): lake rearing is polygon-based only
+  sp_na <- sp_with_mad(rear_mad = NULL, rules = sp$params_sp$rules)
+  lr <- frs_habitat_predicates(sp_na, model = "mad")$lake_rear
+  expect_match(lr, "fwa_lakes_poly WHERE area_ha >= 10")
+  expect_false(grepl("mad_m3s|channel_width", lr))
+  # cw model without a rear cw window is unchanged: FALSE
+  sp_cw_na <- sp_with_rules(rear_cw = NULL, rules = sp$params_sp$rules)
+  expect_equal(frs_habitat_predicates(sp_cw_na)$lake_rear, "FALSE")
+})
+
+test_that("mad model: rule-level channel_width is ignored, MAD inherited", {
+  # Bundled `waterbody_type: R` rules carry channel_width: [0, 9999] as the
+  # cw-model river bypass; bcfishpass's mad branch applies MAD to rivers.
+  rules <- list(spawn = list(
+    list(waterbody_type = "R", channel_width = c(0, 9999))))
+  preds_mad <- frs_habitat_predicates(sp_with_mad(rules = rules),
+                                      model = "mad")
+  expect_false(grepl("channel_width", preds_mad$spawn))
+  expect_match(preds_mad$spawn, "s\\.mad_m3s BETWEEN 0\\.164 AND 9999")
+  preds_cw <- frs_habitat_predicates(sp_with_mad(rules = rules))
+  expect_match(preds_cw$spawn, "s\\.channel_width BETWEEN 0 AND 9999")
+  expect_false(grepl("mad_m3s", preds_cw$spawn))
 })

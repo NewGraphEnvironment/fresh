@@ -275,3 +275,71 @@ test_that("integration: lake_rearing column preserved with rules", {
   # Should be >= 0 (not NULL or error). Smoke test verified 4.
   expect_true(!is.na(bt$lake_rr))
 })
+
+
+# --- Integration: per-WSG cw/mad model switch (fresh#220) ---
+
+test_that("integration: params_method = mad classifies on mad_m3s", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+  tbl_s <- "working.test_220_streams"
+  tbl_h <- "working.test_220_habitat"
+  tbl_nomad <- "working.test_220_streams_nomad"
+
+  on.exit({
+    for (t in c(tbl_s, tbl_h, tbl_nomad, paste0(tbl_nomad, "_habitat"))) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+
+  frs_network_segment(conn, aoi = aoi, to = tbl_s, verbose = FALSE)
+
+  # CSV-ranges path (no rules) so the expected count is a plain SQL filter
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"))
+  params$CO$rules <- NULL
+
+  run <- function(model) {
+    pm <- data.frame(watershed_group_code = "ADMS", model = model)
+    frs_habitat_classify(conn, table = tbl_s, to = tbl_h, species = "CO",
+      params = params, params_method = pm, gate = FALSE, verbose = FALSE)
+    DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*) FILTER (WHERE spawning)::int AS spn,
+              count(*) FILTER (WHERE rearing)::int AS rr
+       FROM %s WHERE species_code = 'CO'", tbl_h))
+  }
+
+  n_cw <- run("cw")
+  n_mad <- run("mad")
+
+  sp <- params$CO$ranges$spawn$mad_m3s
+  expected <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s s
+     WHERE s.gradient >= 0 AND s.gradient <= %s
+       AND s.mad_m3s >= %s AND s.mad_m3s <= %s
+       AND s.edge_type IN (%s)",
+    tbl_s, params$CO$spawn_gradient_max, sp[1], sp[2],
+    paste(c(frs_edge_types(category = "stream")$edge_type,
+            frs_edge_types(category = "canal")$edge_type),
+          collapse = ", ")))$n
+
+  expect_gt(n_mad$spn, 0)
+  expect_equal(n_mad$spn, expected)
+  expect_false(identical(n_cw, n_mad))
+
+  # mad model without a mad_m3s column is a clear error
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT * FROM %s", tbl_nomad, tbl_s))
+  DBI::dbExecute(conn, sprintf(
+    "ALTER TABLE %s DROP COLUMN mad_m3s", tbl_nomad))
+  expect_error(
+    frs_habitat_classify(conn, table = tbl_nomad,
+      to = paste0(tbl_nomad, "_habitat"), species = "CO", params = params,
+      params_method = data.frame(watershed_group_code = "ADMS",
+                                 model = "mad"),
+      gate = FALSE, verbose = FALSE),
+    "mad_m3s")
+})
