@@ -1,3 +1,16 @@
+# fresh 0.34.0
+
+Closes [#114](https://github.com/NewGraphEnvironment/fresh/issues/114).
+
+**Streams carry `mad_m3s`.** `frs_network_segment()` and `frs_habitat()` now join `mad_m3s` (mean annual discharge) from `whse_basemapping.fwa_stream_networks_discharge`, next to `channel_width`.
+
+**New `mad` rule predicate.** The rules YAML accepts `mad: [min, max]`, which compiles to `s.mad_m3s BETWEEN min AND max`. The validator rejects an empty value, non-numeric entries, the wrong number of values, non-finite bounds, and a reversed range.
+- MAD applies only where a rule asks for it. CSV `*_mad_min`/`*_mad_max` thresholds are still parsed but never applied or inherited, because the choice between channel width and MAD is made per watershed group. The bundled method table sets every group to `cw`, so existing outputs are unchanged.
+- The per-group switch is [#220](https://github.com/NewGraphEnvironment/fresh/issues/220).
+- Segments with no modelled discharge (NULL `mad_m3s`) fail a `mad` rule. Coverage is uneven: the local fwapg has discharge for 123 groups, and BULK and LDEN are absent entirely.
+
+**Fix: saving `to_streams` in `frs_habitat()`.** It now inserts by column name, and adds any columns missing from a table persisted by an older run. Previously the save was a positional `INSERT ... SELECT *` that ran after the per-group DELETE. On an older table, the new column would have made the insert fail and lost that group's rows. A type mismatch on a shared column now stops the run before anything is deleted.
+
 # fresh 0.33.0
 
 Closes [#214](https://github.com/NewGraphEnvironment/fresh/issues/214). Rebuilds `frs_wsg_drainage()` on a per-group outlet **point** and the measure-aware `whse_basemapping.fwa_downstream()`, replacing the single-ltree ancestry test introduced in #211. That test was wrong, and the fact that its backing table — `public.wsg_outlet`, materialized ad-hoc and never committed ([link#227](https://github.com/NewGraphEnvironment/link/issues/227)) — kept going missing was masking it. A lone ltree cannot order two groups sharing a stem: all 14 Fraser groups carry wscode `100` and five Skeena groups carry `400`, so `frs_wsg_drainage(conn, "UFRA")` silently omitted **LFRA**, the group the entire basin drains through. Province-wide, 62 of 246 groups resolved to an outlet shallower than their own polygon code, only 167 distinct outlets existed for 246 groups, and equal outlets fell through to an alphabetical `wsg ASC` tiebreak — which is a correctness hazard, not just wasted work, because downstream-first ordering is what makes cross-WSG barrier state settle in a single pass.
