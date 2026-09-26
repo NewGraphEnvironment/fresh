@@ -1,5 +1,16 @@
 # Changelog
 
+## fresh 0.36.1
+
+Closes [\#223](https://github.com/NewGraphEnvironment/fresh/issues/223).
+
+- The bundled-rules test
+  (`frs_params bundled rules has expected species blocks`) now checks
+  rule content instead of rule count and position. It had failed since
+  v0.34.0, when link’s `lnk_rules_build()` added a CO lake rearing rule.
+  It now finds the `thresholds: false` carve-out by predicate and checks
+  R/W/L waterbody coverage, so future rule resyncs won’t break it.
+
 ## fresh 0.36.0
 
 Closes [\#213](https://github.com/NewGraphEnvironment/fresh/issues/213).

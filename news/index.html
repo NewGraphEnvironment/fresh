@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.36.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.36.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.36.1" id="fresh-0361">fresh 0.36.1<a class="anchor" aria-label="anchor" href="#fresh-0361"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/223" class="external-link">#223</a>.</p>
+<ul><li>The bundled-rules test (<code>frs_params bundled rules has expected species blocks</code>) now checks rule content instead of rule count and position. It had failed since v0.34.0, when link’s <code>lnk_rules_build()</code> added a CO lake rearing rule. It now finds the <code>thresholds: false</code> carve-out by predicate and checks R/W/L waterbody coverage, so future rule resyncs won’t break it.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.36.0" id="fresh-0360">fresh 0.36.0<a class="anchor" aria-label="anchor" href="#fresh-0360"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/213" class="external-link">#213</a>.</p>
