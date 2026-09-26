@@ -174,6 +174,7 @@ ssh m1 'cd /Users/airvine/Projects/repo/fresh && Rscript -e "
 ### Generated column names
 
 - `id_*` prefix for fresh-generated identifiers: `id_segment` (sub-segment after breaking)
+- `id_segment` is unique only **within a watershed group**: each WSG numbers its segments independently, so the same value recurs across groups. Persisted tables (`fresh.streams`, `fresh.streams_habitat_<sp>`) key on `(id_segment, watershed_group_code)` — always join on both. Joining on `id_segment` alone multiplies rows by the number of groups sharing that value (measured 2026-09-26: 187 Naver Creek segments matched 22 groups; this was the whole of #218).
 - FWA columns kept as-is: `linear_feature_id`, `blue_line_key`, `downstream_route_measure`, `wscode_ltree`, `localcode_ltree`
 - Habitat classification columns are generic (not species-prefixed): `accessible`, `spawning`, `rearing`, `lake_rearing`. Species is a row value (`species_code`), not a column name.
 
