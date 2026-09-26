@@ -56,9 +56,9 @@ test_that("PG_*_SHARE fallback resolves and messages once per session", {
                PG_PASS_SHARE = "secret")
   expect_message(res <- fresh:::.frs_conn_resolve(), "PG_\\*_SHARE")
   expect_identical(res$source, "share")
-  expect_identical(res$params, list(
-    dbname = "bcfishpass", host = "localhost", port = "63333",
-    user = "newgraph", password = "secret"))
+  expected <- list(dbname = "bcfishpass", host = "localhost", port = "63333",
+                   user = "newgraph", password = "secret")
+  expect_identical(res$params, expected)
   expect_silent(fresh:::.frs_conn_resolve())
 })
 

@@ -1,3 +1,16 @@
+# fresh 0.36.0
+
+Closes [#213](https://github.com/NewGraphEnvironment/fresh/issues/213).
+
+**`frs_db_conn()` reads the standard libpq env vars.** Connection parameters now resolve as explicit args → `PGHOST` / `PGPORT` / `PGDATABASE` / `PGUSER` / `PGPASSWORD` (and anything else libpq reads, such as `PGSERVICE` or `~/.pgpass`) → legacy `PG_*_SHARE` → libpq defaults. Arguments default to `NULL`, and it no longer `stop()`s when variables are unset.
+- `PG_*_SHARE` is a deprecated fallback. It is used only when none of the standard variables are set, and shows a message once per session.
+- The two groups are never mixed, so a `PG_DB_SHARE` name is never paired with a `PGHOST` host.
+
+**Behaviour change.** On a machine that sets both groups, a bare `frs_db_conn()` now connects to the `PG*` target instead of the `PG_*_SHARE` one. If `PG*` points at a local fwapg and `PG_*_SHARE` at the bcfishpass tunnel, code reading `bcfishpass.*` through the default connection now errors with "relation does not exist". That includes `frs_params(conn)` and some `data-raw/` scripts. Point `PG*` at the tunnel or pass arguments explicitly.
+- `frs_habitat()` parallel workers inherit `password = ""` and let libpq read the worker's `PGPASSWORD`. Pass `password` when connecting through the legacy fallback.
+
+The test suite gates DB tests on `.frs_db_available()` and skips `bcfishpass.*` tests when that schema is absent.
+
 # fresh 0.35.0
 
 Closes [#220](https://github.com/NewGraphEnvironment/fresh/issues/220).

@@ -99,10 +99,9 @@ frs_db_conn <- function(
   }
 
   if (!isTRUE(.frs_state$share_msg_shown)) {
-    message(
-      "frs_db_conn(): using deprecated PG_*_SHARE env vars. Set the ",
-      "standard PGHOST / PGPORT / PGDATABASE / PGUSER / PGPASSWORD ",
-      "instead. (Shown once per session.)")
+    message("frs_db_conn(): using deprecated PG_*_SHARE env vars. Set the ",
+            "standard PGHOST / PGPORT / PGDATABASE / PGUSER / PGPASSWORD ",
+            "instead. (Shown once per session.)")
     .frs_state$share_msg_shown <- TRUE
   }
   for (nm in names(vals_share)) {

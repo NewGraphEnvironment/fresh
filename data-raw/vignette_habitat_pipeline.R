@@ -10,6 +10,10 @@
 # The vignette loads this .rds and produces all plots and tables from it.
 # Bookdown controls the full knit, so figure numbering and cross-references
 # work.
+#
+# Needs a connection with the bcfishpass schema (the shared tunnel DB).
+# frs_db_conn() reads standard PG* env vars; point them at the tunnel,
+# e.g. PGPORT=63333 PGDATABASE=bcfishpass, or pass args explicitly.
 
 devtools::load_all()
 library(sf)

@@ -40,11 +40,11 @@ every argument explicitly.
 - [ ] Fallback run (`PG*` unset, `PG_*_SHARE` set): message fires once; bcfishpass tests run when tunnel is up (skip/record if tunnel down).
 
 ## Phase 4: Docs
-- [ ] CLAUDE.md: architecture line for `frs_db_conn.R`, Dependencies "Connection" line, and the "Testing on alternate hosts" section incl. the m1 recipe — standard `PG*` now drive tests; tunnel only when `PG*` point at it.
-- [ ] Update the connection line in README.md. (`docker/README.md` has no `frs_db_conn` refs — no-op.)
-- [ ] Header comment in bcfishpass-dependent `data-raw/` scripts (`pipeline_wsg.R`, `vignette_habitat_pipeline.R`, `example_byman_ailport.R`) noting they need a conn with the bcfishpass schema.
-- [ ] Add a comment above `conn <- frs_db_conn()` in the vignette `.Rmd.orig` files saying these chunks need a database with bcfishpass (the tunnel). Do not re-knit.
-- [ ] Add a NEWS.md entry flagging the behaviour change: machines with both `PG*` and `PG_*_SHARE` set now connect to the `PG*` target. The version bump to 0.36.0 is the final commit.
+- [x] CLAUDE.md: architecture line for `frs_db_conn.R`, Dependencies "Connection" line, and the "Testing on alternate hosts" section incl. the m1 recipe — standard `PG*` now drive tests; tunnel only when `PG*` point at it.
+- [x] Update the connection line in README.md. (`docker/README.md` has no `frs_db_conn` refs — no-op.)
+- [x] Header comment in bcfishpass-dependent `data-raw/` scripts (`pipeline_wsg.R`, `vignette_habitat_pipeline.R`, `example_byman_ailport.R`) noting they need a conn with the bcfishpass schema.
+- [x] Add a comment above `conn <- frs_db_conn()` in the vignette `.Rmd.orig` files saying these chunks need a database with bcfishpass (the tunnel). Do not re-knit.
+- [x] Add a NEWS.md entry flagging the behaviour change: machines with both `PG*` and `PG_*_SHARE` set now connect to the `PG*` target. The version bump to 0.36.0 is the final commit.
 
 ## Phase 5: Cross-repo follow-up
 - [ ] Draft a link issue: `lnk_db_conn()` (`link/R/lnk_db_conn.R:38`) still prefers `PG_*_SHARE`, which now diverges from fresh. Ask the user before filing.

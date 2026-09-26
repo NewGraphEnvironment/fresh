@@ -20,7 +20,7 @@ docker compose up -d db
 docker compose run --rm loader
 ```
 
-See `docker/README.md` for details. Connection via `frs_db_conn()` or direct `DBI::dbConnect()`.
+See `docker/README.md` for details. Connection via `frs_db_conn()`, which reads the standard libpq env vars (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`), or direct `DBI::dbConnect()`.
 
 ## Example
 

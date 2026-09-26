@@ -4,6 +4,10 @@
 # for use in examples and tests without requiring a database.
 #
 # Area: Neexdzii Kwa (Upper Bulkley River), Byman Creek to Ailport Creek
+#
+# Needs a connection with the bcfishpass schema (the shared tunnel DB).
+# frs_db_conn() reads standard PG* env vars; point them at the tunnel,
+# e.g. PGPORT=63333 PGDATABASE=bcfishpass, or pass args explicitly.
 
 devtools::load_all()
 library(sf)

@@ -32,6 +32,7 @@ zooming in to order 4+ coho rearing/spawning habitat from bcfishpass.
 library(fresh)
 library(sf)
 
+# Needs the bcfishpass schema (shared tunnel DB): point PG* env vars at it
 conn <- frs_db_conn()
 
 blk <- 360873822
