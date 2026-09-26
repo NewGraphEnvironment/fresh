@@ -5,35 +5,63 @@
 \title{Connect to FWA PostgreSQL Database}
 \usage{
 frs_db_conn(
-  dbname = Sys.getenv("PG_DB_SHARE"),
-  host = Sys.getenv("PG_HOST_SHARE"),
-  port = Sys.getenv("PG_PORT_SHARE"),
-  user = Sys.getenv("PG_USER_SHARE"),
-  password = Sys.getenv("PG_PASS_SHARE")
+  dbname = NULL,
+  host = NULL,
+  port = NULL,
+  user = NULL,
+  password = NULL
 )
 }
 \arguments{
-\item{dbname}{Database name. Default: \code{Sys.getenv("PG_DB_SHARE")}.}
+\item{dbname}{Database name. Default \code{NULL} (resolved as above).}
 
-\item{host}{Host name. Default: \code{Sys.getenv("PG_HOST_SHARE")}.}
+\item{host}{Host name. Default \code{NULL}.}
 
-\item{port}{Port number. Default: \code{Sys.getenv("PG_PORT_SHARE")}.}
+\item{port}{Port number. Default \code{NULL}.}
 
-\item{user}{User name. Default: \code{Sys.getenv("PG_USER_SHARE")}.}
+\item{user}{User name. Default \code{NULL}.}
 
-\item{password}{Password. Default: \code{Sys.getenv("PG_PASS_SHARE")}.}
+\item{password}{Password. Default \code{NULL}.}
 }
 \value{
 A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object.
 }
 \description{
-Opens a connection to a PostgreSQL database containing fwapg, bcfishpass,
-and bcfishobs. Connection parameters default to environment variables
-matching the \verb{PG_*_SHARE} convention used by fpr.
+Opens a connection to a PostgreSQL database containing fwapg (and
+optionally bcfishpass / bcfishobs). Connection parameters follow the
+standard libpq conventions, so \code{frs_db_conn()} connects to whatever the
+caller's environment points at, e.g. the local fwapg Docker database
+in \verb{docker/}, or a remote host.
+}
+\details{
+Parameters resolve in this order:
+\enumerate{
+\item Explicit arguments, field by field.
+\item Standard libpq environment variables (\code{PGHOST}, \code{PGPORT},
+\code{PGDATABASE}, \code{PGUSER}, \code{PGPASSWORD}, \code{PGSERVICE}, ...). If any of
+\code{PGHOST}, \code{PGHOSTADDR}, \code{PGPORT}, \code{PGDATABASE}, \code{PGUSER} or
+\code{PGSERVICE} is set, libpq resolves the unset fields itself and the
+legacy variables below are ignored.
+\item Legacy \verb{PG_*_SHARE} variables (\code{PG_DB_SHARE}, \code{PG_HOST_SHARE},
+\code{PG_PORT_SHARE}, \code{PG_USER_SHARE}, \code{PG_PASS_SHARE}), used only when
+none of the standard variables are set. Deprecated: a message is
+shown once per session.
+\item libpq defaults (local socket or \code{localhost}, OS user name,
+\verb{~/.pgpass}, \verb{~/.pg_service.conf}).
+}
+
+The two variable groups are never mixed, so a legacy database name can
+not be paired with a standard host.
 }
 \examples{
 \dontrun{
+# Standard libpq env vars, e.g. in ~/.Renviron:
+#   PGHOST=localhost PGPORT=5432 PGDATABASE=fwapg PGUSER=postgres
 conn <- frs_db_conn()
+DBI::dbDisconnect(conn)
+
+# Explicit arguments override the environment per field
+conn <- frs_db_conn(port = 63333, dbname = "bcfishpass")
 DBI::dbDisconnect(conn)
 }
 }

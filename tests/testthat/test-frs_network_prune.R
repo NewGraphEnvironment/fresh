@@ -28,7 +28,7 @@ test_that("frs_network_prune skips guards with include_all = TRUE", {
 # -- live DB tests ------------------------------------------------------------
 
 test_that("frs_network_prune filters upstream by stream order", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -46,7 +46,7 @@ test_that("frs_network_prune filters upstream by stream order", {
 })
 
 test_that("frs_network_prune filters by gradient", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 

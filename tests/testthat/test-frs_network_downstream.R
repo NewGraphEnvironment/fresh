@@ -30,7 +30,7 @@ test_that("guards are skipped with include_all = TRUE", {
 # -- live DB tests ------------------------------------------------------------
 
 test_that("frs_network_downstream returns sf of downstream segments", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 

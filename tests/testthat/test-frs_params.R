@@ -930,6 +930,7 @@ test_that(".frs_validate_rule errors on bad gradient format", {
 
 test_that("frs_params reads bcfishpass parameter table", {
   skip_if_not(.frs_db_available(), "DB not available")
+  skip_if_no_schema("bcfishpass")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -943,6 +944,7 @@ test_that("frs_params reads bcfishpass parameter table", {
 
 test_that("frs_params ranges match DB values", {
   skip_if_not(.frs_db_available(), "DB not available")
+  skip_if_no_schema("bcfishpass")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 

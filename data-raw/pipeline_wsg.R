@@ -18,6 +18,10 @@
 #   - PostgreSQL tuning: max_parallel_workers_per_gather, work_mem
 #
 # TODO: benchmark sequential vs parallel, profile PG-side bottlenecks
+#
+# Needs a connection with the bcfishpass schema (the shared tunnel DB).
+# frs_db_conn() reads standard PG* env vars; point them at the tunnel,
+# e.g. PGPORT=63333 PGDATABASE=bcfishpass, or pass args explicitly.
 
 devtools::load_all()
 library(sf)
