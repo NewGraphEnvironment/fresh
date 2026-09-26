@@ -1,0 +1,8 @@
+# Progress — frs_db_conn(): default to standard libpq env vars instead of PG_*_SHARE (#213)
+
+## Session 2026-09-26
+
+- Plan-mode exploration — phases approved by user
+- Created branch `213-frs-db-conn-default-to-standard-libpq-en` off main
+- Scaffolded PWF baseline from issue #213 with approved phases
+- Next: start Phase 1
