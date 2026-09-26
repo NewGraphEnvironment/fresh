@@ -379,6 +379,31 @@ test_that("integration: multiple labels at same position preserved in breaks", {
   expect_true(all(dupes$n_labels >= 2))
 })
 
+test_that("integration: frs_network_segment carries mad_m3s (fresh#114)", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+  tbl_s <- "working.test_114_streams"
+
+  on.exit({
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl_s))
+    DBI::dbDisconnect(conn)
+  })
+
+  frs_network_segment(conn, aoi = aoi, to = tbl_s, verbose = FALSE)
+
+  col <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT data_type FROM information_schema.columns
+     WHERE table_schema || '.' || table_name = '%s'
+       AND column_name = 'mad_m3s'", tbl_s))
+  expect_equal(col$data_type, "double precision")
+
+  n <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(mad_m3s)::int AS n FROM %s", tbl_s))$n
+  expect_gt(n, 0)
+})
+
 
 # =====================================================================
 # .frs_connected_waterbody: lake_adjacent knob (fresh#191)

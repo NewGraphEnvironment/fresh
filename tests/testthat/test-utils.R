@@ -120,3 +120,60 @@ test_that(".frs_find_waterbody_rule returns the first match if multiple", {
   r <- .frs_find_waterbody_rule(rules, "L")
   expect_equal(r$lake_ha_min, 50)
 })
+
+test_that(".frs_persist_columns adds missing columns to a stale target (fresh#114)", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_114_persist_src"
+  dst <- "working.test_114_persist_dst"
+  on.exit({
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  # Target built by an "older" run: no mad_m3s, which the source now
+  # carries *before* id_segment — a positional INSERT would fail.
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s (linear_feature_id integer, id_segment integer)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 1::integer AS linear_feature_id,
+       0.5::double precision AS mad_m3s, 7::integer AS id_segment", src))
+
+  cols <- .frs_persist_columns(conn, dst, src)
+  DBI::dbExecute(conn, sprintf(
+    "INSERT INTO %s (%s) SELECT %s FROM %s", dst, cols, cols, src))
+
+  res <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT linear_feature_id, id_segment, mad_m3s FROM %s", dst))
+  expect_equal(res$id_segment, 7L)
+  expect_equal(res$mad_m3s, 0.5)
+  # Idempotent on an already-aligned target
+  expect_no_error(.frs_persist_columns(conn, dst, src))
+})
+
+test_that(".frs_persist_columns errors on a shared column type mismatch (fresh#114)", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_114_persist_src2"
+  dst <- "working.test_114_persist_dst2"
+  on.exit({
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  DBI::dbExecute(conn, sprintf("CREATE TABLE %s (mad_m3s text)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 0.5::double precision AS mad_m3s", src))
+  expect_error(.frs_persist_columns(conn, dst, src),
+               "mad_m3s \\(text vs double precision\\)")
+})

@@ -1,8 +1,14 @@
 #' Segment a Stream Network at Break Points
 #'
 #' Build a segmented stream network by extracting base streams, enriching
-#' with channel width, and splitting at break points from any number of
-#' sources. Assigns a unique `id_segment` to each sub-segment.
+#' with channel width and mean annual discharge, and splitting at break
+#' points from any number of sources. Assigns a unique `id_segment` to each
+#' sub-segment.
+#'
+#' Enrichment adds `channel_width` / `channel_width_source` (from
+#' `fwa_stream_networks_channel_width`) and `mad_m3s` (from
+#' `fwa_stream_networks_discharge`). Either may be `NULL` on segments the
+#' source table doesn't cover.
 #'
 #' This function is domain-agnostic — it segments a network at points
 #' without knowing what those points represent. Use [frs_break_find()]
@@ -143,10 +149,14 @@ frs_network_segment <- function(conn, aoi, to,
         round((proc.time() - t0)["elapsed"], 1), "s)\n", sep = "")
   }
 
-  # -- Enrich with channel width ---------------------------------------------
+  # -- Enrich with channel width + mean annual discharge ---------------------
   frs_col_join(conn, to,
     from = "fwa_stream_networks_channel_width",
     cols = c("channel_width", "channel_width_source"),
+    by = "linear_feature_id")
+  frs_col_join(conn, to,
+    from = "fwa_stream_networks_discharge",
+    cols = "mad_m3s",
     by = "linear_feature_id")
 
   # -- Add id_segment --------------------------------------------------------

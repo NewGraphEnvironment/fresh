@@ -187,7 +187,14 @@
 #'
 #' @param rule Named list with optional fields: `edge_types`,
 #'   `edge_types_explicit`, `waterbody_type`, `lake_ha_min`,
-#'   `in_waterbody`, `thresholds`.
+#'   `in_waterbody`, `thresholds`, `gradient`, `channel_width`, `mad`.
+#'
+#'   `mad` is a `c(min, max)` mean annual discharge range (m3/s) that
+#'   adds `s.mad_m3s BETWEEN min AND max`. Unlike gradient and
+#'   channel_width it is never inherited from `csv_thresholds`: channel
+#'   width vs MAD is a per-watershed-group model choice, so MAD applies
+#'   only where a rule asks for it. Segments with NULL `mad_m3s` (no
+#'   discharge modelled) fail a `mad` rule.
 #'
 #'   `in_waterbody` is a logical that constrains the rule to segments
 #'   inside or outside any waterbody polygon — `FALSE` adds
@@ -300,6 +307,14 @@
     parts <- c(parts, sprintf(
       "s.channel_width BETWEEN %s AND %s",
       .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
+  }
+
+  # MAD: rule-level only, no CSV inheritance (see @param rule).
+  if (!is.null(rule[["mad"]])) {
+    mad <- unlist(rule[["mad"]])
+    parts <- c(parts, sprintf(
+      "s.mad_m3s BETWEEN %s AND %s",
+      .frs_sql_num(mad[1]), .frs_sql_num(mad[2])))
   }
 
   if (length(parts) == 0) return("(TRUE)")
@@ -736,6 +751,62 @@
     tbl_schema, tbl_name, gen_filter
   )
   DBI::dbGetQuery(conn, sql)$column_name
+}
+
+
+#' Align a persist target's columns with its source before INSERT
+#'
+#' Persisted tables (e.g. `to_streams` in [frs_habitat()]) are created once
+#' with `CREATE TABLE IF NOT EXISTS ... AS SELECT * ... LIMIT 0` and then
+#' appended to per run. When the source gains a column (e.g. `mad_m3s`,
+#' fresh#114), a positional `INSERT ... SELECT *` into a target built by an
+#' older run fails — after the partition DELETE has already run. This adds
+#' any source columns the target lacks (same type) and returns the source
+#' column names, for use as an explicit `INSERT (cols) SELECT cols` list.
+#' Errors if a column both tables share has a different type.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param to Character. Schema-qualified persist target (must exist).
+#' @param from Character. Schema-qualified source table.
+#' @return Character scalar: the source column names, quoted and
+#'   comma-joined, ready to splice into SQL.
+#' @noRd
+.frs_persist_columns <- function(conn, to, from) {
+  .frs_validate_identifier(to, "persist target")
+  .frs_validate_identifier(from, "persist source")
+  col_types <- function(tbl) {
+    DBI::dbGetQuery(conn, sprintf(
+      "SELECT a.attname AS col,
+              format_type(a.atttypid, a.atttypmod) AS type
+       FROM pg_attribute a
+       WHERE a.attrelid = %s::regclass
+         AND a.attnum > 0 AND NOT a.attisdropped
+       ORDER BY a.attnum", .frs_quote_string(tbl)))
+  }
+  cols_from <- col_types(from)
+  types_to <- col_types(to)
+  # A shared column with a different type would be silently cast by the
+  # INSERT (e.g. double into text) — fail before any ALTER or DELETE.
+  shared <- merge(cols_from, types_to, by = "col",
+                  suffixes = c("_from", "_to"))
+  bad <- shared[shared$type_from != shared$type_to, , drop = FALSE]
+  if (nrow(bad) > 0) {
+    stop(sprintf(
+      "%s column type differs from %s: %s. Drop or migrate %s and re-run.",
+      to, from,
+      paste0(bad$col, " (", bad$type_to, " vs ", bad$type_from, ")",
+             collapse = ", "),
+      to), call. = FALSE)
+  }
+  cols_to <- types_to$col
+  cols_missing <- cols_from[!cols_from$col %in% cols_to, , drop = FALSE]
+  for (i in seq_len(nrow(cols_missing))) {
+    .frs_db_execute(conn, sprintf(
+      "ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s",
+      to, DBI::dbQuoteIdentifier(conn, cols_missing$col[i]),
+      cols_missing$type[i]))
+  }
+  paste(DBI::dbQuoteIdentifier(conn, cols_from$col), collapse = ", ")
 }
 
 

@@ -463,6 +463,7 @@ frs_habitat <- function(conn, wsg = NULL,
       .frs_db_execute(w_conn, sprintf(
         "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
         to_streams, streams_tbl))
+      cols_insert <- .frs_persist_columns(w_conn, to_streams, streams_tbl)
       # Partition delete: by WSG if available, otherwise by id_segment
       if (!is.null(wsg_code)) {
         .frs_db_execute(w_conn, sprintf(
@@ -474,8 +475,8 @@ frs_habitat <- function(conn, wsg = NULL,
           to_streams, streams_tbl))
       }
       .frs_db_execute(w_conn, sprintf(
-        "INSERT INTO %s SELECT * FROM %s",
-        to_streams, streams_tbl))
+        "INSERT INTO %s (%s) SELECT %s FROM %s",
+        to_streams, cols_insert, cols_insert, streams_tbl))
     }
 
     # 5b. Persist gradient barriers (if to_barriers provided)
@@ -622,6 +623,7 @@ frs_habitat <- function(conn, wsg = NULL,
         DBI::dbExecute(w_conn, sprintf(
           "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
           to_streams, streams_tbl))
+        cols_insert <- .frs_persist_columns(w_conn, to_streams, streams_tbl)
         if (!is.null(wsg_code)) {
           DBI::dbExecute(w_conn, sprintf(
             "DELETE FROM %s WHERE watershed_group_code = '%s'",
@@ -632,7 +634,8 @@ frs_habitat <- function(conn, wsg = NULL,
             to_streams, streams_tbl))
         }
         DBI::dbExecute(w_conn, sprintf(
-          "INSERT INTO %s SELECT * FROM %s", to_streams, streams_tbl))
+          "INSERT INTO %s (%s) SELECT %s FROM %s",
+          to_streams, cols_insert, cols_insert, streams_tbl))
       }
 
       # Persist gradient barriers
@@ -818,6 +821,10 @@ frs_habitat_partition <- function(conn, aoi, label, species,
   frs_col_join(conn, base_tbl,
     from = "fwa_stream_networks_channel_width",
     cols = c("channel_width", "channel_width_source"),
+    by = "linear_feature_id")
+  frs_col_join(conn, base_tbl,
+    from = "fwa_stream_networks_discharge",
+    cols = "mad_m3s",
     by = "linear_feature_id")
 
   if (verbose) {

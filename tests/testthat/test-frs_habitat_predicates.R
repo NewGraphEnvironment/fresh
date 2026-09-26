@@ -258,3 +258,26 @@ test_that("area_only=false (or absent) does not filter — backward compat", {
   expect_match(preds$rear, "fwa_lakes_poly")
   expect_match(preds$lake_rear, "fwa_lakes_poly")
 })
+
+# -- MAD (fresh#114) ---------------------------------------------------------
+
+test_that("CSV ranges path does not apply mad_m3s ranges", {
+  # CSV MAD thresholds are parsed by frs_params() but only applied through
+  # explicit `mad:` rules — the cw-model default must be unchanged.
+  sp <- sp_with_rules(rules = NULL)
+  sp$params_sp$ranges$spawn$mad_m3s <- c(0.164, 9999)
+  sp$params_sp$ranges$rear$mad_m3s <- c(0.03, 40)
+  preds <- frs_habitat_predicates(sp)
+  for (p in preds) expect_false(grepl("mad_m3s", p))
+})
+
+test_that("rules path emits mad_m3s for explicit mad rules", {
+  sp <- sp_with_rules(rules = list(
+    spawn = list(list(edge_types = c("stream", "canal"),
+                      mad = c(0.164, 9999))),
+    rear = list(list(edge_types = c("stream", "canal"),
+                     mad = c(0.03, 40)))))
+  preds <- frs_habitat_predicates(sp)
+  expect_match(preds$spawn, "s\\.mad_m3s BETWEEN 0\\.164 AND 9999")
+  expect_match(preds$rear, "s\\.mad_m3s BETWEEN 0\\.03 AND 40")
+})

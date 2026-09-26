@@ -135,7 +135,7 @@ frs_params <- function(conn = NULL,
   valid_predicates <- c("edge_types", "edge_types_explicit",
                         "waterbody_type", "lake_ha_min", "wetland_ha_min",
                         "in_waterbody", "area_only",
-                        "thresholds", "gradient", "channel_width",
+                        "thresholds", "gradient", "channel_width", "mad",
                         "channel_width_min_bypass",
                         "requires_connected", "connected_distance_max")
 
@@ -161,6 +161,11 @@ frs_params <- function(conn = NULL,
             sp, habitat, i), call. = FALSE)
         }
         .frs_validate_rule(rule, sp, habitat, i, valid_predicates)
+        # yaml reads mixed int/float sequences like [0.164, 9999] as a
+        # list; store mad as a plain numeric vector for downstream use.
+        if (!is.null(rule[["mad"]])) {
+          raw[[sp]][[habitat]][[i]][["mad"]] <- as.numeric(unlist(rule[["mad"]]))
+        }
       }
     }
   }
@@ -171,21 +176,14 @@ frs_params <- function(conn = NULL,
 
 #' Validate a single rule entry
 #'
-#' Errors on unknown predicate keys, on `mad` (deferred to #114),
-#' on `lake_ha_min` without `waterbody_type: L`, on bad
-#' `waterbody_type`, or on a non-logical `thresholds` field.
+#' Errors on unknown predicate keys, on a `mad` range that is not a
+#' numeric `[min, max]` pair with `min <= max`, on `lake_ha_min`
+#' without `waterbody_type: L`, on bad `waterbody_type`, or on a
+#' non-logical `thresholds` field.
 #'
 #' @noRd
 .frs_validate_rule <- function(rule, sp, habitat, idx, valid_predicates) {
   keys <- names(rule)
-
-  if ("mad" %in% keys) {
-    stop(sprintf(
-      paste0("rules YAML %s/%s rule %d uses 'mad' predicate which is ",
-             "not supported in Phase 1. ",
-             "MAD support is tracked in fresh#114."),
-      sp, habitat, idx), call. = FALSE)
-  }
 
   unknown <- setdiff(keys, valid_predicates)
   if (length(unknown) > 0) {
@@ -198,6 +196,23 @@ frs_params <- function(conn = NULL,
 
   # Use [[ ]] not $ to avoid partial matching (e.g. rule$lake matching
   # rule$lake_ha_min by prefix).
+  # Key presence, not !is.null(): an empty `mad:` parses to NULL and must
+  # error rather than silently mean "no MAD filter".
+  if ("mad" %in% keys) {
+    # Check each element: unlist() would coerce list(TRUE, 5) to c(1, 5)
+    # and flatten a nested [[0.1, 0.2], 5] to c(0.1, 0.2, 5).
+    all_num <- all(vapply(as.list(rule[["mad"]]),
+                          function(x) is.numeric(x) && length(x) == 1L,
+                          logical(1)))
+    mad <- unlist(rule[["mad"]])
+    if (!all_num || !is.numeric(mad) || length(mad) != 2L || !all(is.finite(mad)) ||
+        mad[1] > mad[2]) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d mad must be a finite numeric [min, max] with min <= max (got: %s)",
+        sp, habitat, idx, paste(mad, collapse = ", ")), call. = FALSE)
+    }
+  }
+
   if (!is.null(rule[["waterbody_type"]])) {
     wt <- rule[["waterbody_type"]]
     if (!is.character(wt) || length(wt) != 1 ||

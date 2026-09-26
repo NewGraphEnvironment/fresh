@@ -54,10 +54,16 @@ Default \code{TRUE}.}
 }
 \description{
 Build a segmented stream network by extracting base streams, enriching
-with channel width, and splitting at break points from any number of
-sources. Assigns a unique \code{id_segment} to each sub-segment.
+with channel width and mean annual discharge, and splitting at break
+points from any number of sources. Assigns a unique \code{id_segment} to each
+sub-segment.
 }
 \details{
+Enrichment adds \code{channel_width} / \code{channel_width_source} (from
+\code{fwa_stream_networks_channel_width}) and \code{mad_m3s} (from
+\code{fwa_stream_networks_discharge}). Either may be \code{NULL} on segments the
+source table doesn't cover.
+
 This function is domain-agnostic — it segments a network at points
 without knowing what those points represent. Use \code{\link[=frs_break_find]{frs_break_find()}}
 to generate gradient barriers, then pass the result as a break source
