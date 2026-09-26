@@ -224,3 +224,25 @@ test_that(".frs_preds_by_model mixed models switch on watershed_group_code", {
   expect_equal(res$rear,
     "CASE WHEN s.watershed_group_code IN ('ADMS', 'LDEN') THEN (D) ELSE (B) END")
 })
+
+test_that(".frs_sql_num renders Inf as a Postgres infinity literal", {
+  # frs_params() fills a blank *_mad_max / *_channel_width_max with Inf
+  expect_equal(.frs_sql_num(Inf), "'Infinity'::double precision")
+  expect_equal(.frs_sql_num(-Inf), "'-Infinity'::double precision")
+  expect_equal(.frs_sql_num(0.0549), "0.0549")
+})
+
+test_that(".frs_sql_num handles every input shape it receives", {
+  # Enumerates the shapes that reach it from CSV params and rules YAML
+  expect_equal(.frs_sql_num(2), "2")
+  expect_equal(.frs_sql_num(2L), "2")
+  expect_equal(.frs_sql_num(list(0.05)), "0.05")          # yaml list element
+  expect_equal(.frs_sql_num(list(Inf)), "'Infinity'::double precision")
+  expect_equal(.frs_sql_num(c(1, 2)), c("1", "2"))        # vector unchanged
+  expect_equal(.frs_sql_num(NA_real_), "NA")              # pre-existing
+  # Mixed int/float YAML sequence end to end
+  rule <- yaml::yaml.load("gradient: [0, 0.05]\nchannel_width: [1, 9999.5]")
+  expect_true(is.list(rule$gradient))
+  expect_equal(.frs_rule_to_sql(rule),
+    "(s.gradient BETWEEN 0 AND 0.05 AND s.channel_width BETWEEN 1 AND 9999.5)")
+})

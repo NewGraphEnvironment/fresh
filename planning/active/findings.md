@@ -65,3 +65,10 @@ In the local fwapg build, `whse_basemapping.fwa_stream_networks_discharge` cover
 - `frs_habitat_partition()` / `frs_habitat_species()` are exported and cw-only via `frs_classify()`, not orphaned. Documented as not model-aware, not changed.
 - link `lnk_pipeline_classify.R:95` calls classify by name. `params_method` goes after `params_fresh` with a NULL default, so nothing breaks.
 - Pre-existing failure on main: `test-frs_params.R:92` (CO spawn rule count vs `inst/testdata/test_params.csv`). It fails with this branch's changes stashed too, so it's unrelated.
+
+## Code-check (Phase 2)
+
+- Round 1: `frs_params()` fills a blank `*_max` with `Inf`, and `.frs_sql_num(Inf)` rendered a bare `Inf`, which Postgres parses as a column. This is the first diff to put CSV MAD ranges into SQL. Fixed: `.frs_sql_num()` now emits `'Infinity'::double precision`. It was latent for channel_width too.
+- Accepted divergence: bcfishpass mad spawning for CH/CM/CO/PK/SK/ST is `mad > min OR stream_order >= 8`. fresh does not implement the order-8 bypass, so large mainstems with NULL or low MAD are not spawning in fresh. Recorded in NEWS.
+- Round 2: clean. All 30 `.frs_sql_num()` call sites put the value straight into SQL.
+- Round 3: found a defect inside the round 1 fix. `is.infinite()` errors on a length-1 list, which is what yaml returns for mixed int/float sequences (`[0, 0.05]`); before, sprintf coerced the list silently. Fixed with `unlist()` + a `length == 1L` guard. The round ended on an enumeration: round 3 listed every site where params values reach SQL, and a test pins every input shape of `.frs_sql_num()` (numeric, integer, list, list(Inf), vector, NA). Bare `NA`/`NaN` on the cw path is pre-existing and out of scope.

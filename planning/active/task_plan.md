@@ -15,8 +15,8 @@ bcfishpass uses channel width **or** MAD, chosen per watershed group through `pa
 - [x] Integration (`test-frs_habitat_classify.R`): one WSG with MAD coverage run under `params_method` = mad vs cw. Spawning counts differ, and the mad count matches a direct SQL count on `mad_m3s`. Direct `frs_habitat_classify(gate = FALSE)` on the CSV path (not `frs_habitat()`, whose gating + connectivity would skew counts); ADMS sub-basin (local fwapg: 10,449 / 11,520 segments have MAD). Missing `mad_m3s` column → error
 
 ## Phase 2: Predicate + rule SQL
-- [ ] `.frs_rule_to_sql()`: MAD inheritance from `csv_thresholds$mad_m3s` (`c(NA, NA)` sentinel → `FALSE` part for inheriting rules); update the roxygen `@param rule` / `csv_thresholds` docs
-- [ ] `frs_habitat_predicates()`: add a `model` arg; size-dimension selection on both paths plus lake/wetland; rewrite the "CSV MAD ranges are not applied" doc paragraph
+- [x] `.frs_rule_to_sql()`: MAD inheritance from `csv_thresholds$mad_m3s` (`c(NA, NA)` sentinel → `FALSE` part for inheriting rules); update the roxygen `@param rule` / `csv_thresholds` docs
+- [x] `frs_habitat_predicates()`: add a `model` arg; size-dimension selection on both paths plus lake/wetland; rewrite the "CSV MAD ranges are not applied" doc paragraph
 
 ## Phase 3: Per-WSG resolution in classify + thread through frs_habitat
 - [ ] Internal helpers in `R/utils.R`: `.frs_habitat_models(wsg_codes, params_method)` and `.frs_preds_by_model()` (CASE combiner)

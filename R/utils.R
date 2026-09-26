@@ -65,10 +65,20 @@
 #' Uses `sprintf` which is not affected by `options(OutDec)`,
 #' unlike `format()` or `formatC()`.
 #'
+#' Infinite values render as `'Infinity'::double precision` (or
+#' `'-Infinity'`) — [frs_params()] fills a blank `*_max` threshold with
+#' `Inf`, and a bare `Inf` would parse as a column name.
+#'
 #' @param x Numeric scalar.
 #' @return Character string safe for SQL interpolation.
 #' @noRd
 .frs_sql_num <- function(x) {
+  # yaml reads a mixed int/float sequence (`[0, 0.05]`) as a list
+  x <- unlist(x)
+  if (length(x) == 1L && is.infinite(x)) {
+    return(if (x > 0) "'Infinity'::double precision" else
+      "'-Infinity'::double precision")
+  }
   sprintf("%.10g", x)
 }
 
@@ -190,11 +200,10 @@
 #'   `in_waterbody`, `thresholds`, `gradient`, `channel_width`, `mad`.
 #'
 #'   `mad` is a `c(min, max)` mean annual discharge range (m3/s) that
-#'   adds `s.mad_m3s BETWEEN min AND max`. Unlike gradient and
-#'   channel_width it is never inherited from `csv_thresholds`: channel
-#'   width vs MAD is a per-watershed-group model choice, so MAD applies
-#'   only where a rule asks for it. Segments with NULL `mad_m3s` (no
-#'   discharge modelled) fail a `mad` rule.
+#'   adds `s.mad_m3s BETWEEN min AND max`. It overrides an inherited
+#'   `csv_thresholds$mad_m3s`, which is present only for watershed
+#'   groups on the `mad` model (fresh#220). Segments with NULL `mad_m3s`
+#'   (no discharge modelled) fail a `mad` rule.
 #'
 #'   `in_waterbody` is a logical that constrains the rule to segments
 #'   inside or outside any waterbody polygon — `FALSE` adds
@@ -207,8 +216,12 @@
 #'   `waterbody_type:` — the positive `waterbody_type` predicate already
 #'   implies `IS NOT NULL`, so the two together are redundant rather
 #'   than contradictory.
-#' @param csv_thresholds Named list with `gradient = c(min, max)`
-#'   and/or `channel_width = c(min, max)`. Either may be NULL.
+#' @param csv_thresholds Named list with `gradient = c(min, max)`,
+#'   `channel_width = c(min, max)` and/or `mad_m3s = c(min, max)`. Any
+#'   may be NULL. [frs_habitat_predicates()] passes `channel_width` under
+#'   the `cw` model and `mad_m3s` under the `mad` model; `mad_m3s =
+#'   c(NA, NA)` marks a species without MAD thresholds and makes
+#'   inheriting rules match nothing.
 #' @return Character. A parenthesized SQL predicate.
 #'   Returns `"(TRUE)"` if the rule has no predicates and no
 #'   thresholds to inherit (a wide-open rule).
@@ -309,10 +322,19 @@
       .frs_sql_num(cw[1]), .frs_sql_num(cw[2])))
   }
 
-  # MAD: rule-level only, no CSV inheritance (see @param rule).
+  # MAD: same override-then-inherit pattern. csv_thresholds only carries
+  # mad_m3s under the per-WSG "mad" model (fresh#220). An NA range means
+  # the species has no MAD thresholds: nothing qualifies (bcfishpass
+  # parity — `mad > NULL` is never true).
   if (!is.null(rule[["mad"]])) {
     mad <- unlist(rule[["mad"]])
     parts <- c(parts, sprintf(
+      "s.mad_m3s BETWEEN %s AND %s",
+      .frs_sql_num(mad[1]), .frs_sql_num(mad[2])))
+  } else if (inherit_thresholds && !is.null(csv_thresholds) &&
+             !is.null(csv_thresholds$mad_m3s)) {
+    mad <- csv_thresholds$mad_m3s
+    parts <- c(parts, if (anyNA(mad)) "FALSE" else sprintf(
       "s.mad_m3s BETWEEN %s AND %s",
       .frs_sql_num(mad[1]), .frs_sql_num(mad[2])))
   }
