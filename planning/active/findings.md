@@ -70,3 +70,35 @@ For ADMS (cw model) this should be a no-op — MAD predicates not used.
 - #113 Phase 1 — depends on this for the evaluator to extend
 - bcfishpass v0.5.0 — reference for which species/WSGs use MAD model
 
+
+## Code-check enumeration (2026-09-25)
+
+Round 3 found a defect inside round 1's fix: `.frs_persist_columns` matched names but not types. So the loop ended on an enumeration, not a quiet round. **Mechanism:** a value crosses a trust boundary (a persisted table, a parsed YAML value), and an implicit coercion reconciles the shape difference without checking it. The candidate set this diff touches, with each item closed:
+
+**Persist boundary: `to_streams` in `frs_habitat()`, serial and mirai paths (7)**
+1. Column set: missing columns are added by `ALTER ... ADD COLUMN IF NOT EXISTS`.
+2. Column order: the INSERT now uses a named column list.
+3. Shared-column type: a mismatch stops the run before any ALTER or DELETE (test added).
+4. Target-only columns: they get NULL (verified by the round-2 reviewer).
+5. Generated or NOT NULL columns on the target: CTAS copies neither, and a violation would error loudly.
+6. Concurrent ALTER: the table lock serialises it, and IF NOT EXISTS makes the later calls a no-op.
+7. Other append sites (`break_apply`, `habitat_species`, `to_habitat`, `to_barriers`): none of them receive `mad_m3s` through a positional insert.
+
+**YAML `mad` boundary (8)**
+
+Rejected, each with a test:
+1. Missing value: `mad:`, `~`.
+2. Non-numeric element: `[a, b]`, `[true, 5]`.
+3. Nested element: `[[0.1, 0.2], 5]`. `[[0.1], 5]` is collapsed by yaml to `[0.1, 5]` before R sees it, so it means the same thing and is harmless.
+4. Wrong length: `[0.5]`, `[0.5, 1, 2]`, `0.5`.
+5. Non-finite: `.inf`.
+6. Reversed range: `[10, 1]`.
+
+Handled without rejection:
+7. Mixed int and float, e.g. `[0.164, 9999]`: normalised with `as.numeric`.
+8. Scientific notation, e.g. `1e-3`: yaml reads it as a string, so it's rejected loudly (round 3).
+
+**Evaluator boundary (1)**
+- The only entry point is `.frs_load_rules()`, reached via `frs_params(rules_yaml=)`. `.frs_sql_num()` errors on character input.
+
+Pre-existing instances outside this diff are listed in `review-round3.md`: `to_habitat` persist, `frs_feature_find` append, the `frs_col_join` text fallback, and `gradient`/`channel_width` validation. They're candidates for a follow-up.

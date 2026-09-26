@@ -19,26 +19,28 @@ Rules YAML (#113 Phase 1) can't express MAD (mean annual discharge) predicates. 
 - [x] DB integration (skip if no DB): `frs_network_segment()` output has a numeric `mad_m3s` column, populated for a small ADMS AOI
 
 ## Phase 2: Enrich segmented streams with mad_m3s
-- [ ] `R/frs_network_segment.R:147`: add a parallel `frs_col_join(conn, to, from = "fwa_stream_networks_discharge", cols = "mad_m3s", by = "linear_feature_id")` next to the channel_width join
-- [ ] `R/frs_habitat.R:818` (base table build): same join, so both pipelines carry `mad_m3s`
-- [ ] Update the roxygen on `frs_network_segment()` that describes output columns to mention `mad_m3s` (NULL where the source has no MAD)
+- [x] `R/frs_network_segment.R:147`: add a parallel `frs_col_join(conn, to, from = "fwa_stream_networks_discharge", cols = "mad_m3s", by = "linear_feature_id")` next to the channel_width join
+- [x] `R/frs_habitat.R:818` (base table build): same join, so both pipelines carry `mad_m3s`
+- [x] Update the roxygen on `frs_network_segment()` that describes output columns to mention `mad_m3s` (NULL where the source has no MAD)
+
+- [x] (code-check) `.frs_persist_columns()`: `to_streams` persist aligns columns by name/type, so adding `mad_m3s` doesn't break tables persisted by older runs
 
 ## Phase 3: `mad` predicate in rule validator + evaluator
-- [ ] `R/frs_params.R`: remove the Phase-1 `mad` stop; add `"mad"` to `valid_predicates`; validate numeric length-2 with min ≤ max (same message style as `lake_ha_min`); update the roxygen predicate list and `.frs_validate_rule` docs
-- [ ] `R/utils.R` `.frs_rule_to_sql()`: `if (!is.null(rule[["mad"]]))` → `s.mad_m3s BETWEEN %s AND %s` via `.frs_sql_num()`. No CSV inheritance branch (document why: cw vs mad is a per-WSG model choice). Update the `@param rule` docs
-- [ ] Document the NULL semantics: segments with NULL `mad_m3s` fail a `mad:` rule (BETWEEN on NULL → not TRUE)
-- [ ] `frs_habitat_predicates()` roxygen: note that CSV MAD ranges are parsed but only applied through explicit `mad:` rules
-- [ ] `devtools::document()`, `lintr::lint_package()`
+- [x] `R/frs_params.R`: remove the Phase-1 `mad` stop; add `"mad"` to `valid_predicates`; validate numeric length-2 with min ≤ max (same message style as `lake_ha_min`); update the roxygen predicate list and `.frs_validate_rule` docs
+- [x] `R/utils.R` `.frs_rule_to_sql()`: `if (!is.null(rule[["mad"]]))` → `s.mad_m3s BETWEEN %s AND %s` via `.frs_sql_num()`. No CSV inheritance branch (document why: cw vs mad is a per-WSG model choice). Update the `@param rule` docs
+- [x] Document the NULL semantics: segments with NULL `mad_m3s` fail a `mad:` rule (BETWEEN on NULL → not TRUE)
+- [x] `frs_habitat_predicates()` roxygen: note that CSV MAD ranges are parsed but only applied through explicit `mad:` rules
+- [x] `devtools::document()`, `lintr::lint_package()`
 
 ## Phase 4: Verify + follow-up
 - [ ] Full `devtools::test()` (local fwapg override, per CLAUDE.md)
-- [ ] Spot-check on a real sub-basin: a rules YAML with `mad:` for CO gives a strict subset of the no-`mad` spawning segments; no rules gives output identical to main (no-op)
-- [ ] File a follow-up issue: per-WSG `model` (cw|mad) switch reading `parameters_habitat_method.csv`, mirroring bcfishpass
+- [x] Spot-check on a real sub-basin: a rules YAML with `mad:` for CO gives a strict subset of the no-`mad` spawning segments; no rules gives output identical to main (no-op)
+- [x] File a follow-up issue (#220): per-WSG `model` (cw|mad) switch reading `parameters_habitat_method.csv`, mirroring bcfishpass
 - [ ] NEWS.md entry (version bump at merge via `/gh-pr-merge`)
 
 ## Validation
 - [ ] Tests pass
-- [ ] `/code-check` clean on each commit
+- [x] `/code-check` clean on each commit
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

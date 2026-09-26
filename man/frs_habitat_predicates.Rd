@@ -41,6 +41,10 @@ inheritance fallback for rules that omit explicit thresholds.
 directly from \code{sp_params$ranges} + \verb{sp_params$<spawn|rear>_edge_types}.
 }
 
+CSV MAD ranges (\verb{ranges$<spawn|rear>$mad_m3s}, parsed by
+\code{\link[=frs_params]{frs_params()}}) are not applied on either path. MAD filtering happens
+only through an explicit \verb{mad: [min, max]} rule in the rules YAML.
+
 Lake / wetland rearing predicates are gated on the presence of a
 \code{waterbody_type: L} / \code{waterbody_type: W} rule in \verb{rear:}. Without
 the rule, the predicate is \code{"FALSE"} — the species is not lake or

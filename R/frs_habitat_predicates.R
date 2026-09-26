@@ -21,6 +21,10 @@
 #' 2. **CSV-ranges path** — pre-rules behaviour. Builds the SQL
 #'    directly from `sp_params$ranges` + `sp_params$<spawn|rear>_edge_types`.
 #'
+#' CSV MAD ranges (`ranges$<spawn|rear>$mad_m3s`, parsed by
+#' [frs_params()]) are not applied on either path. MAD filtering happens
+#' only through an explicit `mad: [min, max]` rule in the rules YAML.
+#'
 #' Lake / wetland rearing predicates are gated on the presence of a
 #' `waterbody_type: L` / `waterbody_type: W` rule in `rear:`. Without
 #' the rule, the predicate is `"FALSE"` — the species is not lake or
