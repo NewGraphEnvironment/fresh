@@ -25,13 +25,13 @@ bcfishpass uses channel width **or** MAD, chosen per watershed group through `pa
 - [x] `devtools::document()`; runnable/`\dontrun` examples updated
 
 ## Phase 4: Docs + release
-- [ ] NEWS.md entry: NA-MAD species behaviour, R-rule channel_width dropped under mad, SK/KO lake rearing, `BETWEEN` vs bcfishpass strict `>`, `stream_order >= 8` bypass not implemented, `frs_habitat_partition()`/`frs_habitat_species()` not model-aware, link follow-up
-- [ ] Full `devtools::test()` + `lintr::lint_package()` clean
-- [ ] Final commit: bump DESCRIPTION version (0.34.0 → 0.35.0)
+- [x] NEWS text for the release (NA-MAD species, R-rule channel_width dropped under mad, SK/KO lake rearing, `BETWEEN` vs strict `>`, no `stream_order >= 8` bypass, `frs_habitat_partition()`/`frs_habitat_species()` not model-aware, link follow-up). It goes in the PR body; `/gh-pr-merge` writes NEWS.md + the version bump on main after merge, as for v0.34.0 (changed from the plan's in-branch bump to avoid a double bump)
+- [x] Full `devtools::test()` against local fwapg: 1122 pass, 6 fail. None are from this change: 5 need the tunnel / `bcfishpass` schema, and `test-frs_params.R:92` fails on main too. `lintr`: no new lint classes; new hits are `indentation_linter` only, matching the file style (main already has hundreds)
+- [x] Version bump: deferred to `/gh-pr-merge` (0.34.0 → 0.35.0)
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass (bar the environment / pre-existing failures noted in Phase 4)
+- [x] `/code-check` clean on each commit (3 rounds each on Phase 2 and Phase 3, both ended on an enumeration)
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
