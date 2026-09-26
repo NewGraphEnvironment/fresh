@@ -11,9 +11,10 @@ local_pg_env <- function(..., .env = parent.frame()) {
   vals[names(set)] <- set
   withr::local_envvar(vals, .local_envir = .env)
   # Reset the once-per-session message flag for this test
-  old <- fresh:::.frs_state$share_msg_shown
-  fresh:::.frs_state$share_msg_shown <- FALSE
-  withr::defer(fresh:::.frs_state$share_msg_shown <- old, envir = .env)
+  state <- fresh:::.frs_state
+  old <- state$share_msg_shown
+  state$share_msg_shown <- FALSE
+  withr::defer(state$share_msg_shown <- old, envir = .env)
 }
 
 test_that("standard PG* vars are left to libpq", {

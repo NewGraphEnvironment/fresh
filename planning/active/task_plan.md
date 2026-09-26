@@ -26,10 +26,10 @@ every argument explicitly.
 - [x] Confirm the new tests fail on main (trivial red — resolver doesn't exist yet).
 
 ## Phase 2: Implement
-- [ ] Add `.frs_conn_resolve()` and the session-message state in `R/frs_db_conn.R`.
-- [ ] Rewrite `frs_db_conn()` with NULL defaults, resolve, and `do.call` dbConnect. Update the roxygen: precedence order, the deprecation note, a pointer to `docker/` for local fwapg, and the `@examples`.
-- [ ] Fix `.frs_conn_params()` roxygen (still names `PG_*_SHARE`); document that workers get `password = ""` → libpq reads the worker's `PGPASSWORD`, so the SHARE-fallback path needs an explicit `password` arg to `frs_habitat()` (pre-existing, doc only).
-- [ ] `devtools::document()`, then check that the new unit tests pass.
+- [x] Add `.frs_conn_resolve()` and the session-message state in `R/frs_db_conn.R`.
+- [x] Rewrite `frs_db_conn()` with NULL defaults, resolve, and `do.call` dbConnect. Update the roxygen: precedence order, the deprecation note, a pointer to `docker/` for local fwapg, and the `@examples`.
+- [x] Fix `.frs_conn_params()` roxygen (still names `PG_*_SHARE`); document that workers get `password = ""` → libpq reads the worker's `PGPASSWORD`, so the SHARE-fallback path needs an explicit `password` arg to `frs_habitat()` (pre-existing, doc only).
+- [x] `devtools::document()`, then check that the new unit tests pass.
 
 ## Phase 3: Test-suite guards
 - [ ] Replace the 21 `skip_if(Sys.getenv("PG_DB_SHARE") == "", ...)` guards across 11 test files with `skip_if_not(.frs_db_available(), "DB not available")`, the existing helper at `R/utils.R:633`.
