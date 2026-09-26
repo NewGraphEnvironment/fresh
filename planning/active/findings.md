@@ -18,3 +18,17 @@ Rear:
 Spawn (unchanged, 2 rules): stream/canal with `in_waterbody: false`; `waterbody_type: R`.
 
 No other test in `tests/` references bundled rule counts.
+
+## Verification (2026-09-26)
+
+- `devtools::test(filter = "frs_params")`: FAIL 0 | SKIP 2 | PASS 153.
+- Sanity: with `thresholds: false` flipped to `true` in a temp copy of the bundle, the carve-out filter finds 0 rules, so `expect_length(carve, 1)` fails. The assertion is not vacuous.
+- `/code-check`: 3 rounds, all Clean. Accepted tradeoff: `expect_length(carve, 1)` deliberately pins exactly one `thresholds: false` rule.
+
+## Out of scope: tunnel-live tests error instead of skipping
+
+Full `devtools::test()` on m4 (local fwapg): FAIL 3 | SKIP 2 | PASS 1145. All 3 errors are in
+`test-frs_network_features-live.R` (lines 26, 89, 123): "connection to localhost:63333 refused".
+That file is gated only on `PG_PASS_SHARE` being set, and it is set in `~/.Renviron` here while
+the tunnel is down, so the tests error rather than skip. Fixing this needs a connect-or-skip
+gate; that is a separate issue from #223.

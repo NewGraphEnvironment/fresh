@@ -7,19 +7,19 @@ If we do it: the suite goes green off-tunnel, apart from the DB-schema tests. If
 Approach: assert on content, not count/position, so the next link resync that appends a rule doesn't break the test again.
 
 ## Phase 1: Content-based assertions
-- [ ] Rewrite `frs_params bundled rules has expected species blocks` to locate the `thresholds: false` carve-out by predicate and check its edge types (1050, 1150)
-- [ ] Assert CO rear covers waterbody types R, W, L with `wetland_ha_min` / `lake_ha_min` present on the W / L rules
-- [ ] Assert CO spawn content (one `in_waterbody: false` stream rule, one `waterbody_type: R` rule) instead of count
-- [ ] Update the inline comment to describe the bundle as link-generated, not a fixed count
+- [x] Rewrite `frs_params bundled rules has expected species blocks` to locate the `thresholds: false` carve-out by predicate and check its edge types (1050, 1150)
+- [x] Assert CO rear covers waterbody types R, W, L with `wetland_ha_min` / `lake_ha_min` present on the W / L rules
+- [x] Assert CO spawn content (one `in_waterbody: false` stream rule, one `waterbody_type: R` rule) instead of count
+- [x] Update the inline comment to describe the bundle as link-generated, not a fixed count
 
 ## Phase 2: Verify
-- [ ] `devtools::test(filter = "frs_params")` green locally
-- [ ] Full `devtools::test()` off-tunnel: only DB-schema skips, no failures
-- [ ] Sanity: temporarily confirm test fails if carve-out's `thresholds` flipped (throwaway check, not committed)
+- [x] `devtools::test(filter = "frs_params")` green locally
+- [x] Full `devtools::test()` off-tunnel: #223 failure gone (FAIL 3 | SKIP 2 | PASS 1145); the 3 remaining errors are `test-frs_network_features-live.R`, unrelated (see findings)
+- [x] Sanity: temporarily confirm test fails if carve-out's `thresholds` flipped (throwaway check, not committed)
 
 ## Validation
 
-- [ ] Tests pass
+- [x] Tests pass
 - [ ] `/code-check` clean on each commit
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
