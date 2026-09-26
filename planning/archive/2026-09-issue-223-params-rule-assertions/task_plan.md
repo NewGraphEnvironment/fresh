@@ -20,6 +20,6 @@ Approach: assert on content, not count/position, so the next link resync that ap
 ## Validation
 
 - [x] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
