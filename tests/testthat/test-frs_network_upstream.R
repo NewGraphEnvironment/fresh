@@ -47,7 +47,7 @@ test_that("guards are skipped for non-FWA tables", {
 # -- live DB tests ------------------------------------------------------------
 
 test_that("frs_network_upstream returns sf of upstream segments", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -63,7 +63,7 @@ test_that("frs_network_upstream returns sf of upstream segments", {
 })
 
 test_that("include_all = TRUE returns more or equal segments (placeholder/unmapped)", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 

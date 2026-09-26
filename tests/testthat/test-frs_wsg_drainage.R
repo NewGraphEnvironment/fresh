@@ -76,10 +76,10 @@ test_that("outlet selection avoids the sliver that broke public.wsg_outlet", {
   )
 })
 
-# -- live DB tests (gated on PG_DB_SHARE) ------------------------------------
+# -- live DB tests (gated on .frs_db_available()) ---------------------------
 
 test_that("frs_wsg_drainage respects hydrology where FWA naming inverts it", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -95,7 +95,7 @@ test_that("frs_wsg_drainage respects hydrology where FWA naming inverts it", {
 })
 
 test_that("frs_wsg_drainage orders same-stem groups by measure, not alphabet", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -109,7 +109,7 @@ test_that("frs_wsg_drainage orders same-stem groups by measure, not alphabet", {
 })
 
 test_that("frs_wsg_drainage excludes tributaries and upstream neighbours", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -120,7 +120,7 @@ test_that("frs_wsg_drainage excludes tributaries and upstream neighbours", {
 })
 
 test_that("frs_wsg_drainage includes the focal groups themselves", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -130,7 +130,7 @@ test_that("frs_wsg_drainage includes the focal groups themselves", {
 })
 
 test_that("frs_wsg_drainage closure is invariant to focal input order", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -141,7 +141,7 @@ test_that("frs_wsg_drainage closure is invariant to focal input order", {
 })
 
 test_that("frs_wsg_drainage upper-cases focal codes internally", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -152,7 +152,7 @@ test_that("frs_wsg_drainage upper-cases focal codes internally", {
 })
 
 test_that("frs_wsg_drainage warns on unmatched focal codes but returns valid ones", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 

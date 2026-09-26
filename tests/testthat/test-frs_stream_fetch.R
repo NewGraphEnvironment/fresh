@@ -1,5 +1,5 @@
 test_that("frs_stream_fetch returns sf with watershed_group_code filter", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
@@ -11,7 +11,7 @@ test_that("frs_stream_fetch returns sf with watershed_group_code filter", {
 })
 
 test_that("frs_stream_fetch filters by stream_order_min", {
-  skip_if(Sys.getenv("PG_DB_SHARE") == "", "PG_DB_SHARE not set")
+  skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 

@@ -32,11 +32,11 @@ every argument explicitly.
 - [x] `devtools::document()`, then check that the new unit tests pass.
 
 ## Phase 3: Test-suite guards
-- [ ] Replace the 21 `skip_if(Sys.getenv("PG_DB_SHARE") == "", ...)` guards across 11 test files with `skip_if_not(.frs_db_available(), "DB not available")`, the existing helper at `R/utils.R:633`.
-- [ ] Add a test helper `skip_if_no_schema(schema)` in `tests/testthat/helper-db.R`. Apply it to the `bcfishpass.*` tests in `test-frs_break.R`, `test-frs_extract.R`, `test-frs_network_upstream.R`, `test-frs_network.R`, and the two live `frs_params(conn)` tests in `test-frs_params.R` (~931-953, default table `bcfishpass.parameters_habitat_thresholds`). `test-frs_network_features.R` refs are mocked — no change.
-- [ ] Note: ~45 existing `.frs_db_available()`-gated tests also move from tunnel to local fwapg on m4; they rely on `whse_basemapping` + `working` (created by `docker/load.sh:70`).
-- [ ] Leave `test-frs_network_features-live.R` alone. It builds its own tunnel connection and is gated on `PG_PASS_SHARE`.
-- [ ] Run the full `devtools::test()` against local fwapg (the new default). Record pass/skip counts; zero new failures vs main baseline, bcfishpass tests skipped.
+- [x] Replace the 21 `skip_if(Sys.getenv("PG_DB_SHARE") == "", ...)` guards across 11 test files with `skip_if_not(.frs_db_available(), "DB not available")`, the existing helper at `R/utils.R:633`.
+- [x] Add a test helper `skip_if_no_schema(schema)` in `tests/testthat/helper-db.R`. Apply it to the `bcfishpass.*` tests in `test-frs_break.R`, `test-frs_extract.R`, `test-frs_network_upstream.R`, `test-frs_network.R`, and the two live `frs_params(conn)` tests in `test-frs_params.R` (~931-953, default table `bcfishpass.parameters_habitat_thresholds`). `test-frs_network_features.R` refs are mocked — no change.
+- [x] Note: ~45 existing `.frs_db_available()`-gated tests also move from tunnel to local fwapg on m4; they rely on `whse_basemapping` + `working` (created by `docker/load.sh:70`).
+- [x] Leave `test-frs_network_features-live.R` alone. It builds its own tunnel connection and is gated on `PG_PASS_SHARE`.
+- [x] Run the full `devtools::test()` against local fwapg (the new default). Record pass/skip counts; zero new failures vs main baseline, bcfishpass tests skipped.
 - [ ] Fallback run (`PG*` unset, `PG_*_SHARE` set): message fires once; bcfishpass tests run when tunnel is up (skip/record if tunnel down).
 
 ## Phase 4: Docs
