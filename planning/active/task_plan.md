@@ -37,7 +37,7 @@ every argument explicitly.
 - [x] Note: ~45 existing `.frs_db_available()`-gated tests also move from tunnel to local fwapg on m4; they rely on `whse_basemapping` + `working` (created by `docker/load.sh:70`).
 - [x] Leave `test-frs_network_features-live.R` alone. It builds its own tunnel connection and is gated on `PG_PASS_SHARE`.
 - [x] Run the full `devtools::test()` against local fwapg (the new default). Record pass/skip counts; zero new failures vs main baseline, bcfishpass tests skipped.
-- [ ] Fallback run (`PG*` unset, `PG_*_SHARE` set): message fires once; bcfishpass tests run when tunnel is up (skip/record if tunnel down).
+- [x] Fallback run (`PG*` unset, `PG_*_SHARE` set): message fires once; bcfishpass tests run when tunnel is up (skip/record if tunnel down). — message + connect verified live against local 5432; tunnel down this session, tunnel-side run not done.
 
 ## Phase 4: Docs
 - [x] CLAUDE.md: architecture line for `frs_db_conn.R`, Dependencies "Connection" line, and the "Testing on alternate hosts" section incl. the m1 recipe — standard `PG*` now drive tests; tunnel only when `PG*` point at it.
@@ -47,12 +47,12 @@ every argument explicitly.
 - [x] Add a NEWS.md entry flagging the behaviour change: machines with both `PG*` and `PG_*_SHARE` set now connect to the `PG*` target. The version bump to 0.36.0 is the final commit.
 
 ## Phase 5: Cross-repo follow-up
-- [ ] Draft a link issue: `lnk_db_conn()` (`link/R/lnk_db_conn.R:38`) still prefers `PG_*_SHARE`, which now diverges from fresh. Ask the user before filing.
+- [x] Draft a link issue: `lnk_db_conn()` (`link/R/lnk_db_conn.R:38`) still prefers `PG_*_SHARE`, which now diverges from fresh. Ask the user before filing.
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `lintr::lint_package()` clean on touched files
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `lintr::lint_package()` clean on touched files
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

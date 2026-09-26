@@ -39,3 +39,13 @@ document the env rename — so current pipelines keep working.
 - No positional-arg callers (only external named-arg use in stewardship_upper_wedzin_kwa). CI (pkgdown only) has no DB.
 - `PGSERVICE` / `PGHOSTADDR` added to standard-group trigger set.
 - Bare `frs_db_conn()` callers needing bcfishpass (data-raw scripts, vignette .Rmd.orig) get "relation does not exist" on hosts with both groups set → NEWS flags behaviour change.
+
+## Draft link issue (not filed — awaiting user OK)
+
+**Title:** lnk_db_conn(): prefer standard PG* env vars to match fresh 0.36.0
+
+**If done:** `lnk_db_conn()` and `fresh::frs_db_conn()` connect to the same database in the same environment. **If never:** on hosts that set both groups, a bare `lnk_db_conn()` goes to the `PG_*_SHARE` target (the bcfishpass tunnel) while `frs_db_conn()` goes to the `PG*` target (local fwapg). A pipeline mixing the two helpers reads from one DB and writes to another.
+
+fresh#213 (fresh 0.36.0) changed `frs_db_conn()` to resolve explicit args → standard libpq vars → legacy `PG_*_SHARE` (deprecated, message once) → libpq defaults, and never mixes the groups. `lnk_db_conn()` (`R/lnk_db_conn.R:38`) still does `PG_*_SHARE` first, then `PG*`, then hardcoded defaults, per field. Its roxygen says it "works identically to `frs_db_conn()`", which is no longer true.
+
+Proposed: have `lnk_db_conn()` delegate to `fresh::frs_db_conn()`, or mirror its resolver. Bump the fresh minimum to 0.36.0.

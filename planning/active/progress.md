@@ -19,3 +19,4 @@
   - R4: defect inside the R3 fix. `fresh:::.frs_db_available()` before `devtools::test()` hits the *installed* 0.34.0, which reads PG_*_SHARE, so it checks the wrong target. Also the m1 recipe had no guard.
   - Fixed both with `devtools::load_all(); DBI::dbDisconnect(frs_db_conn())`.
   - Loop ended by enumeration: R4 listed 11 places the mechanism reaches (recipe values that must match env, plus connect-failure-to-skip). 9 verified correct and untouched. The 2 changed recipes were executed: local 5432 passes the guard; bogus port and tunnel-down each halt with exit 1.
+- Phase 5: link issue drafted in findings.md (not filed; needs user OK). Fallback-run checkbox closed with tunnel-down caveat.
