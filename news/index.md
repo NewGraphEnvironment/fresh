@@ -1,5 +1,42 @@
 # Changelog
 
+## fresh 0.35.0
+
+Closes [\#220](https://github.com/NewGraphEnvironment/fresh/issues/220).
+
+**Per-watershed-group channel width vs MAD model.**
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+and
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+take `params_method`, the bcfishpass `parameters_habitat_method.csv`
+table (`watershed_group_code`, `model`). Groups set to `mad` classify on
+`mad_m3s` using the CSV `*_mad_min`/`*_mad_max` thresholds in place of
+channel width. This covers the CSV-ranges path, rules-path inheritance,
+and lake/wetland rearing. -
+[`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)
+gains `model = "cw" | "mad"`. - The bundled table is all `cw`, so
+default outputs are unchanged. Groups missing from `params_method` use
+`cw`. - A table spanning both models is classified per row on
+`watershed_group_code`. - A `mad` group on a table without `mad_m3s`
+stops before any writes.
+
+Under `mad`, fresh follows bcfishpass: - Species with no MAD thresholds
+(BT, GR, KO, RB) get no stream habitat from rules that inherit
+thresholds. - Rule-level `channel_width` (the river-polygon bypass) is
+ignored. - SK/KO lake rearing is based on polygon membership.
+
+Divergences from bcfishpass: - The minimum is inclusive (`BETWEEN`)
+where bcfishpass uses a strict `>`. - fresh does not implement
+bcfishpass’s `stream_order >= 8` spawning bypass. -
+[`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md)
+/
+[`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)
+remain cw-only.
+
+**Fix: infinite thresholds.** A blank `*_max` threshold (`Inf` from
+[`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md))
+now renders as valid SQL. Previously it produced a bare `Inf` token.
+
 ## fresh 0.34.0
 
 Closes [\#114](https://github.com/NewGraphEnvironment/fresh/issues/114).

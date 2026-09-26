@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.34.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.35.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,14 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.35.0" id="fresh-0350">fresh 0.35.0<a class="anchor" aria-label="anchor" href="#fresh-0350"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/220" class="external-link">#220</a>.</p>
+<p><strong>Per-watershed-group channel width vs MAD model.</strong> <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> and <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> take <code>params_method</code>, the bcfishpass <code>parameters_habitat_method.csv</code> table (<code>watershed_group_code</code>, <code>model</code>). Groups set to <code>mad</code> classify on <code>mad_m3s</code> using the CSV <code>*_mad_min</code>/<code>*_mad_max</code> thresholds in place of channel width. This covers the CSV-ranges path, rules-path inheritance, and lake/wetland rearing. - <code><a href="../reference/frs_habitat_predicates.html">frs_habitat_predicates()</a></code> gains <code>model = "cw" | "mad"</code>. - The bundled table is all <code>cw</code>, so default outputs are unchanged. Groups missing from <code>params_method</code> use <code>cw</code>. - A table spanning both models is classified per row on <code>watershed_group_code</code>. - A <code>mad</code> group on a table without <code>mad_m3s</code> stops before any writes.</p>
+<p>Under <code>mad</code>, fresh follows bcfishpass: - Species with no MAD thresholds (BT, GR, KO, RB) get no stream habitat from rules that inherit thresholds. - Rule-level <code>channel_width</code> (the river-polygon bypass) is ignored. - SK/KO lake rearing is based on polygon membership.</p>
+<p>Divergences from bcfishpass: - The minimum is inclusive (<code>BETWEEN</code>) where bcfishpass uses a strict <code>&gt;</code>. - fresh does not implement bcfishpass’s <code>stream_order &gt;= 8</code> spawning bypass. - <code><a href="../reference/frs_habitat_partition.html">frs_habitat_partition()</a></code> / <code><a href="../reference/frs_habitat_species.html">frs_habitat_species()</a></code> remain cw-only.</p>
+<p><strong>Fix: infinite thresholds.</strong> A blank <code>*_max</code> threshold (<code>Inf</code> from <code><a href="../reference/frs_params.html">frs_params()</a></code>) now renders as valid SQL. Previously it produced a bare <code>Inf</code> token.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.34.0" id="fresh-0340">fresh 0.34.0<a class="anchor" aria-label="anchor" href="#fresh-0340"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/114" class="external-link">#114</a>.</p>
