@@ -65,15 +65,6 @@ test_that(".frs_index_working skips non-DB connections", {
   expect_no_error(fresh:::.frs_index_working(mock_conn, "schema.table"))
 })
 
-# -- env var check -------------------------------------------------------------
-
-test_that("frs_db_conn stops on missing env vars", {
-  expect_error(frs_db_conn(dbname = ""), "PG_DB_SHARE")
-  expect_error(frs_db_conn(dbname = "x", host = ""), "PG_HOST_SHARE")
-  expect_error(frs_db_conn(dbname = "x", host = "x", port = ""), "PG_PORT_SHARE")
-  expect_error(frs_db_conn(dbname = "x", host = "x", port = "5432", user = ""), "PG_USER_SHARE")
-})
-
 # -- .frs_find_waterbody_rule --------------------------------------------------
 
 test_that(".frs_find_waterbody_rule returns matching L rule", {

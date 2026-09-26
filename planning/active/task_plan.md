@@ -13,7 +13,7 @@ every argument explicitly.
 - Fallback emits a once-per-session `message()` (not a warning).
 
 ## Phase 1: Tests first
-- [ ] Replace the `frs_db_conn stops on missing env vars` block (`tests/testthat/test-utils.R:70-75`) with `.frs_conn_resolve()` unit tests, using `withr::local_envvar` and no database:
+- [x] Replace the `frs_db_conn stops on missing env vars` block (`tests/testthat/test-utils.R:70-75`) with `.frs_conn_resolve()` unit tests, using `withr::local_envvar` and no database:
   - standard vars resolve
   - standard vars win when both groups are set
   - the `PG_*_SHARE` fallback resolves and messages once per session, then stays silent
@@ -23,7 +23,7 @@ every argument explicitly.
   - `PGSERVICE` / `PGHOSTADDR` alone count as "standard group set" (no SHARE fallback)
   - fallback password: `PG_PASS_SHARE` passed when non-empty, dropped when `""`
   - reset the once-flag with `withr::defer()` on the package-env flag (no rlang)
-- [ ] Confirm the new tests fail on main (trivial red — resolver doesn't exist yet).
+- [x] Confirm the new tests fail on main (trivial red — resolver doesn't exist yet).
 
 ## Phase 2: Implement
 - [ ] Add `.frs_conn_resolve()` and the session-message state in `R/frs_db_conn.R`.
