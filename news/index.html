@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.34.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,13 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.34.0" id="fresh-0340">fresh 0.34.0<a class="anchor" aria-label="anchor" href="#fresh-0340"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/114" class="external-link">#114</a>.</p>
+<p><strong>Streams carry <code>mad_m3s</code>.</strong> <code><a href="../reference/frs_network_segment.html">frs_network_segment()</a></code> and <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> now join <code>mad_m3s</code> (mean annual discharge) from <code>whse_basemapping.fwa_stream_networks_discharge</code>, next to <code>channel_width</code>.</p>
+<p><strong>New <code>mad</code> rule predicate.</strong> The rules YAML accepts <code>mad: [min, max]</code>, which compiles to <code>s.mad_m3s BETWEEN min AND max</code>. The validator rejects an empty value, non-numeric entries, the wrong number of values, non-finite bounds, and a reversed range. - MAD applies only where a rule asks for it. CSV <code>*_mad_min</code>/<code>*_mad_max</code> thresholds are still parsed but never applied or inherited, because the choice between channel width and MAD is made per watershed group. The bundled method table sets every group to <code>cw</code>, so existing outputs are unchanged. - The per-group switch is <a href="https://github.com/NewGraphEnvironment/fresh/issues/220" class="external-link">#220</a>. - Segments with no modelled discharge (NULL <code>mad_m3s</code>) fail a <code>mad</code> rule. Coverage is uneven: the local fwapg has discharge for 123 groups, and BULK and LDEN are absent entirely.</p>
+<p><strong>Fix: saving <code>to_streams</code> in <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code>.</strong> It now inserts by column name, and adds any columns missing from a table persisted by an older run. Previously the save was a positional <code>INSERT ... SELECT *</code> that ran after the per-group DELETE. On an older table, the new column would have made the insert fail and lost that group’s rows. A type mismatch on a shared column now stops the run before anything is deleted.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.33.0" id="fresh-0330">fresh 0.33.0<a class="anchor" aria-label="anchor" href="#fresh-0330"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/214" class="external-link">#214</a>. Rebuilds <code><a href="../reference/frs_wsg_drainage.html">frs_wsg_drainage()</a></code> on a per-group outlet <strong>point</strong> and the measure-aware <code>whse_basemapping.fwa_downstream()</code>, replacing the single-ltree ancestry test introduced in <a href="https://github.com/NewGraphEnvironment/fresh/issues/211" class="external-link">#211</a>. That test was wrong, and the fact that its backing table — <code>public.wsg_outlet</code>, materialized ad-hoc and never committed (<a href="https://github.com/NewGraphEnvironment/link/issues/227" class="external-link">link#227</a>) — kept going missing was masking it. A lone ltree cannot order two groups sharing a stem: all 14 Fraser groups carry wscode <code>100</code> and five Skeena groups carry <code>400</code>, so <code>frs_wsg_drainage(conn, "UFRA")</code> silently omitted <strong>LFRA</strong>, the group the entire basin drains through. Province-wide, 62 of 246 groups resolved to an outlet shallower than their own polygon code, only 167 distinct outlets existed for 246 groups, and equal outlets fell through to an alphabetical <code>wsg ASC</code> tiebreak — which is a correctness hazard, not just wasted work, because downstream-first ordering is what makes cross-WSG barrier state settle in a single pass.</p>
