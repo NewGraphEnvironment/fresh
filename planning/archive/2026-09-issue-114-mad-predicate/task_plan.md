@@ -33,16 +33,16 @@ Rules YAML (#113 Phase 1) can't express MAD (mean annual discharge) predicates. 
 - [x] `devtools::document()`, `lintr::lint_package()`
 
 ## Phase 4: Verify + follow-up
-- [ ] Full `devtools::test()` (local fwapg override, per CLAUDE.md)
+- [x] Full `devtools::test()` (local fwapg override, per CLAUDE.md)
 - [x] Spot-check on a real sub-basin: a rules YAML with `mad:` for CO gives a strict subset of the no-`mad` spawning segments; no rules gives output identical to main (no-op)
 - [x] File a follow-up issue (#220): per-WSG `model` (cw|mad) switch reading `parameters_habitat_method.csv`, mirroring bcfishpass
-- [ ] NEWS.md entry (version bump at merge via `/gh-pr-merge`)
+- [x] NEWS.md entry + version bump deferred to `/gh-pr-merge` (it writes both)
 
 ## Validation
-- [ ] Tests pass
+- [x] Tests pass
 - [x] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 ## Critical files
 `R/frs_network_segment.R`, `R/frs_habitat.R`, `R/frs_params.R`, `R/utils.R`, `R/frs_habitat_predicates.R`, `tests/testthat/test-{frs_params,frs_habitat_predicates,frs_habitat}.R`
