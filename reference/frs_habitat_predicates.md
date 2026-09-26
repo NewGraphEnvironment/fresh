@@ -11,7 +11,7 @@ habitat columns.
 ## Usage
 
 ``` r
-frs_habitat_predicates(sp_params)
+frs_habitat_predicates(sp_params, model = "cw")
 ```
 
 ## Arguments
@@ -23,6 +23,11 @@ frs_habitat_predicates(sp_params)
   Must contain `species_code`, `spawn_gradient_min`,
   `spawn_gradient_max`, `ranges`, optionally `rules`, optionally
   `spawn_edge_types` / `rear_edge_types`.
+
+- model:
+
+  Character. Habitat size model: `"cw"` (channel width, default) or
+  `"mad"` (mean annual discharge, `mad_m3s`).
 
 ## Value
 
@@ -43,16 +48,25 @@ Two paths are supported, selected per habitat type by what's present in
 
 1.  **Rules path** — when `sp_params$rules$<spawn|rear>` is non-NULL,
     the rules YAML is compiled to SQL via `.frs_rules_to_sql()`. CSV
-    thresholds (gradient + channel_width) are passed as the inheritance
-    fallback for rules that omit explicit thresholds.
+    thresholds (gradient + the `model`'s size dimension) are passed as
+    the inheritance fallback for rules that omit explicit thresholds.
 
 2.  **CSV-ranges path** — pre-rules behaviour. Builds the SQL directly
     from `sp_params$ranges` + `sp_params$<spawn|rear>_edge_types`.
 
-CSV MAD ranges (`ranges$<spawn|rear>$mad_m3s`, parsed by
-[`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md))
-are not applied on either path. MAD filtering happens only through an
-explicit `mad: [min, max]` rule in the rules YAML.
+`model` picks the size dimension, mirroring bcfishpass
+`parameters_habitat_method.csv`. `"cw"` (default) uses the CSV
+channel-width ranges (`ranges$<spawn|rear>$channel_width`). `"mad"` uses
+the CSV mean annual discharge ranges (`ranges$<spawn|rear>$mad_m3s`)
+against `s.mad_m3s` instead, on both paths and for lake / wetland
+rearing. Under `"mad"`, matching bcfishpass: a species with no MAD
+thresholds (e.g. BT) gets no stream spawning / rearing from inheriting
+rules; segments with NULL `mad_m3s` fail; rule-level `channel_width:`
+(the cw-model river-polygon bypass) is ignored; and lake / wetland
+rearing for a species with no rear MAD window is polygon-based only. An
+explicit `mad: [min, max]` rule applies under either model.
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+resolves the model per watershed group.
 
 Lake / wetland rearing predicates are gated on the presence of a
 `waterbody_type: L` / `waterbody_type: W` rule in `rear:`. Without the
@@ -61,7 +75,7 @@ wetland-rearing. With the rule, an optional `lake_ha_min` /
 `wetland_ha_min` filters the polygon join.
 
 Segments must still fall within the species' rear channel-width window
-for lake / wetland rearing.
+(or rear MAD window under `model = "mad"`) for lake / wetland rearing.
 
 ## See also
 
@@ -101,5 +115,8 @@ preds$spawn
 #> "s.gradient >= 0 AND s.gradient <= 0.0549 AND ..."
 preds$lake_rear
 #> "FALSE"  (CO has no waterbody_type: L rule under bcfishpass)
+
+# Discharge-based model, as for a `mad` watershed group
+frs_habitat_predicates(species_params[[1]], model = "mad")$spawn
 } # }
 ```

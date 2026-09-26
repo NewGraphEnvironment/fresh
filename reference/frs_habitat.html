@@ -69,6 +69,7 @@ habitat via <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a>
 <span>  to_barriers <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  params <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  params_fresh <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  params_method <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  password <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  cleanup <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -186,6 +187,14 @@ bundled <code>parameters_habitat_thresholds.csv</code> and rules YAML.</p></dd>
 <dt id="arg-params-fresh">params_fresh<a class="anchor" aria-label="anchor" href="#arg-params-fresh"></a></dt>
 <dd><p>Data frame from <code>parameters_fresh.csv</code>, or
 <code>NULL</code> to use bundled default.</p></dd>
+
+
+<dt id="arg-params-method">params_method<a class="anchor" aria-label="anchor" href="#arg-params-method"></a></dt>
+<dd><p>Data frame with <code>watershed_group_code</code> and
+<code>model</code> (<code>"cw"</code> or <code>"mad"</code>) columns picking the habitat size model
+per watershed group (bcfishpass <code>parameters_habitat_method.csv</code>), or
+<code>NULL</code> to use the bundled default (all <code>cw</code>). Groups missing from it
+use <code>cw</code>. See <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code>.</p></dd>
 
 
 <dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>

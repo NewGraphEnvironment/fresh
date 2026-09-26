@@ -56,7 +56,7 @@ to produce the per-species habitat columns.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_habitat_predicates</span><span class="op">(</span><span class="va">sp_params</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_habitat_predicates</span><span class="op">(</span><span class="va">sp_params</span>, model <span class="op">=</span> <span class="st">"cw"</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -68,6 +68,11 @@ to produce the per-species habitat columns.</p>
 element of <code><a href="frs_habitat_species.html">frs_habitat_species()</a></code>. Must contain <code>species_code</code>,
 <code>spawn_gradient_min</code>, <code>spawn_gradient_max</code>, <code>ranges</code>, optionally
 <code>rules</code>, optionally <code>spawn_edge_types</code> / <code>rear_edge_types</code>.</p></dd>
+
+
+<dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
+<dd><p>Character. Habitat size model: <code>"cw"</code> (channel width,
+default) or <code>"mad"</code> (mean annual discharge, <code>mad_m3s</code>).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -85,20 +90,30 @@ embedding them in a complete query.</p>
 <p>Two paths are supported, selected per habitat type by what's
 present in <code>sp_params</code>:</p><ol><li><p><strong>Rules path</strong> — when <code>sp_params$rules$&lt;spawn|rear&gt;</code> is non-NULL,
 the rules YAML is compiled to SQL via <code>.frs_rules_to_sql()</code>.
-CSV thresholds (gradient + channel_width) are passed as the
-inheritance fallback for rules that omit explicit thresholds.</p></li>
+CSV thresholds (gradient + the <code>model</code>'s size dimension) are passed
+as the inheritance fallback for rules that omit explicit thresholds.</p></li>
 <li><p><strong>CSV-ranges path</strong> — pre-rules behaviour. Builds the SQL
 directly from <code>sp_params$ranges</code> + <code>sp_params$&lt;spawn|rear&gt;_edge_types</code>.</p></li>
-</ol><p>CSV MAD ranges (<code>ranges$&lt;spawn|rear&gt;$mad_m3s</code>, parsed by
-<code><a href="frs_params.html">frs_params()</a></code>) are not applied on either path. MAD filtering happens
-only through an explicit <code>mad: [min, max]</code> rule in the rules YAML.</p>
+</ol><p><code>model</code> picks the size dimension, mirroring bcfishpass
+<code>parameters_habitat_method.csv</code>. <code>"cw"</code> (default) uses the CSV
+channel-width ranges (<code>ranges$&lt;spawn|rear&gt;$channel_width</code>). <code>"mad"</code>
+uses the CSV mean annual discharge ranges (<code>ranges$&lt;spawn|rear&gt;$mad_m3s</code>)
+against <code>s.mad_m3s</code> instead, on both paths and for lake / wetland
+rearing. Under <code>"mad"</code>, matching bcfishpass: a species with no MAD
+thresholds (e.g. BT) gets no stream spawning / rearing from inheriting
+rules; segments with NULL <code>mad_m3s</code> fail; rule-level <code>channel_width:</code>
+(the cw-model river-polygon bypass) is ignored; and lake / wetland
+rearing for a species with no rear MAD window is polygon-based only.
+An explicit <code>mad: [min, max]</code> rule applies under either model.
+<code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code> resolves the model per watershed group.</p>
 <p>Lake / wetland rearing predicates are gated on the presence of a
 <code>waterbody_type: L</code> / <code>waterbody_type: W</code> rule in <code>rear:</code>. Without
 the rule, the predicate is <code>"FALSE"</code> — the species is not lake or
 wetland-rearing. With the rule, an optional <code>lake_ha_min</code> /
 <code>wetland_ha_min</code> filters the polygon join.</p>
 <p>Segments must still fall within the species' rear channel-width
-window for lake / wetland rearing.</p>
+window (or rear MAD window under <code>model = "mad"</code>) for lake / wetland
+rearing.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -138,6 +153,9 @@ window for lake / wetland rearing.</p>
 <span class="r-in"><span><span class="co">#&gt; "s.gradient &gt;= 0 AND s.gradient &lt;= 0.0549 AND ..."</span></span></span>
 <span class="r-in"><span><span class="va">preds</span><span class="op">$</span><span class="va">lake_rear</span></span></span>
 <span class="r-in"><span><span class="co">#&gt; "FALSE"  (CO has no waterbody_type: L rule under bcfishpass)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Discharge-based model, as for a `mad` watershed group</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat_predicates</span><span class="op">(</span><span class="va">species_params</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, model <span class="op">=</span> <span class="st">"mad"</span><span class="op">)</span><span class="op">$</span><span class="va">spawn</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

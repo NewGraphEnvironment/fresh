@@ -16,6 +16,7 @@ frs_habitat_classify(
   species,
   params = NULL,
   params_fresh = NULL,
+  params_method = NULL,
   gate = TRUE,
   label_block = "blocked",
   barrier_overrides = NULL,
@@ -57,6 +58,21 @@ frs_habitat_classify(
 
   Data frame from `parameters_fresh.csv`. Default reads from bundled
   CSV.
+
+- params_method:
+
+  Data frame with columns `watershed_group_code` and `model` (`"cw"` or
+  `"mad"`), as in bcfishpass `parameters_habitat_method.csv`. Picks the
+  habitat size model per watershed group: channel width (`cw`) or mean
+  annual discharge (`mad`, which needs a `mad_m3s` column on `table`, as
+  joined by
+  [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)).
+  Watershed groups missing from it use `cw`. A table spanning groups on
+  both models is classified per row on `watershed_group_code`. Default
+  reads the bundled CSV (all `cw`). See
+  [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)
+  for how `mad` differs. Discharge coverage is incomplete: segments with
+  NULL `mad_m3s` fail size thresholds in a `mad` group.
 
 - gate:
 

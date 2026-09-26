@@ -29,6 +29,7 @@ frs_habitat(
   to_barriers = NULL,
   params = NULL,
   params_fresh = NULL,
+  params_method = NULL,
   workers = 1L,
   password = "",
   cleanup = TRUE,
@@ -159,6 +160,14 @@ frs_habitat(
 
   Data frame from `parameters_fresh.csv`, or `NULL` to use bundled
   default.
+
+- params_method:
+
+  Data frame with `watershed_group_code` and `model` (`"cw"` or `"mad"`)
+  columns picking the habitat size model per watershed group (bcfishpass
+  `parameters_habitat_method.csv`), or `NULL` to use the bundled default
+  (all `cw`). Groups missing from it use `cw`. See
+  [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md).
 
 - workers:
 
