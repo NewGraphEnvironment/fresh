@@ -1,8 +1,9 @@
 # Segment a Stream Network at Break Points
 
 Build a segmented stream network by extracting base streams, enriching
-with channel width, and splitting at break points from any number of
-sources. Assigns a unique `id_segment` to each sub-segment.
+with channel width and mean annual discharge, and splitting at break
+points from any number of sources. Assigns a unique `id_segment` to each
+sub-segment.
 
 ## Usage
 
@@ -80,6 +81,11 @@ frs_network_segment(
 `conn` invisibly, for pipe chaining.
 
 ## Details
+
+Enrichment adds `channel_width` / `channel_width_source` (from
+`fwa_stream_networks_channel_width`) and `mad_m3s` (from
+`fwa_stream_networks_discharge`). Either may be `NULL` on segments the
+source table doesn't cover.
 
 This function is domain-agnostic — it segments a network at points
 without knowing what those points represent. Use

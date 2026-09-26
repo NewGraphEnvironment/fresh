@@ -89,7 +89,10 @@ CSV thresholds (gradient + channel_width) are passed as the
 inheritance fallback for rules that omit explicit thresholds.</p></li>
 <li><p><strong>CSV-ranges path</strong> — pre-rules behaviour. Builds the SQL
 directly from <code>sp_params$ranges</code> + <code>sp_params$&lt;spawn|rear&gt;_edge_types</code>.</p></li>
-</ol><p>Lake / wetland rearing predicates are gated on the presence of a
+</ol><p>CSV MAD ranges (<code>ranges$&lt;spawn|rear&gt;$mad_m3s</code>, parsed by
+<code><a href="frs_params.html">frs_params()</a></code>) are not applied on either path. MAD filtering happens
+only through an explicit <code>mad: [min, max]</code> rule in the rules YAML.</p>
+<p>Lake / wetland rearing predicates are gated on the presence of a
 <code>waterbody_type: L</code> / <code>waterbody_type: W</code> rule in <code>rear:</code>. Without
 the rule, the predicate is <code>"FALSE"</code> — the species is not lake or
 wetland-rearing. With the rule, an optional <code>lake_ha_min</code> /
