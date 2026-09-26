@@ -100,14 +100,31 @@ test_that(".frs_load_rules errors on missing file", {
                "rules_yaml file not found")
 })
 
-test_that(".frs_load_rules errors on mad predicate (Phase 2)", {
+test_that(".frs_load_rules accepts mad predicate (fresh#114)", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))
   writeLines(c(
-    "BT:",
+    "CO:",
     "  spawn:",
-    "    - mad: [0.5, 9999]"), tmp)
-  expect_error(.frs_load_rules(tmp), "fresh#114")
+    "    - edge_types: [stream, canal]",
+    "      mad: [0.164, 9999]"), tmp)
+  rules <- .frs_load_rules(tmp)
+  expect_equal(rules$CO$spawn[[1]]$mad, c(0.164, 9999))
+})
+
+test_that(".frs_load_rules errors on malformed mad predicate (fresh#114)", {
+  write_mad <- function(val) {
+    tmp <- tempfile(fileext = ".yaml")
+    writeLines(c("CO:", "  spawn:", paste0("    - mad: ", val)), tmp)
+    tmp
+  }
+  bad <- c("[a, b]", "[0.5]", "[0.5, 1, 2]", "0.5", "[10, 1]")
+  for (val in bad) {
+    tmp <- write_mad(val)
+    expect_error(.frs_load_rules(tmp), "CO/spawn rule 1 mad must be",
+                 info = val)
+    unlink(tmp)
+  }
 })
 
 test_that(".frs_load_rules errors on unknown predicate", {
@@ -617,6 +634,35 @@ test_that(".frs_rule_to_sql skips CSV thresholds when thresholds=FALSE", {
   expect_false(grepl("channel_width", sql))
   # But the explicit edge_type predicate should be there
   expect_match(sql, "s\\.edge_type IN \\(1050, 1150\\)")
+})
+
+test_that(".frs_rule_to_sql mad translates to mad_m3s BETWEEN (fresh#114)", {
+  sql <- .frs_rule_to_sql(list(mad = c(0.164, 9999)))
+  expect_equal(sql, "(s.mad_m3s BETWEEN 0.164 AND 9999)")
+})
+
+test_that(".frs_rule_to_sql mad composes with edge_types and CSV thresholds", {
+  rule <- list(edge_types_explicit = c(1000L), mad = c(0.03, 40))
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(1.5, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  expect_match(sql, "s\\.edge_type IN \\(1000\\)")
+  expect_match(sql, "s\\.gradient BETWEEN 0 AND 0\\.0549")
+  expect_match(sql, "s\\.channel_width BETWEEN 1\\.5 AND 9999")
+  expect_match(sql, "s\\.mad_m3s BETWEEN 0\\.03 AND 40")
+})
+
+test_that(".frs_rule_to_sql does not inherit CSV mad_m3s (fresh#114)", {
+  # cw vs mad is a per-WSG model choice; MAD only applies when a rule
+  # asks for it explicitly.
+  rule <- list(edge_types_explicit = c(1000L))
+  csv_thresholds <- list(
+    gradient = c(0, 0.0549),
+    channel_width = c(2, 9999),
+    mad_m3s = c(0.164, 9999))
+  sql <- .frs_rule_to_sql(rule, csv_thresholds)
+  expect_false(grepl("mad_m3s", sql))
 })
 
 test_that(".frs_rule_to_sql empty rule returns (TRUE)", {

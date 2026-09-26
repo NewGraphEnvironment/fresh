@@ -13,10 +13,10 @@ Rules YAML (#113 Phase 1) can't express MAD (mean annual discharge) predicates. 
 **Decision (user): rules-explicit only (issue Option B).** MAD applies only when a rule says `mad: [min, max]`. CSV MAD ranges stay parsed but are **not** inherited or applied, so existing outputs don't change. A per-WSG cw/mad model switch will be filed as a follow-up issue.
 
 ## Phase 1: Tests first
-- [ ] `test-frs_params.R`: replace ".frs_load_rules errors on mad predicate" with (a) `mad: [0.164, 9999]` validates OK and (b) malformed `mad` errors: non-numeric, length ≠ 2, min > max
-- [ ] `test-utils.R`: `.frs_rule_to_sql(list(mad = c(0.164, 9999)))` gives `s.mad_m3s BETWEEN 0.164 AND 9999`; `mad` composes with `edge_types` and inherited gradient/cw; a rule without `mad` does **not** inherit CSV MAD even when `csv_thresholds$mad_m3s` is present
-- [ ] `test-frs_habitat_predicates.R`: CO CSV-only path (no rules) has no `mad_m3s` in any predicate (regression guard for Option B); a rules path with a `mad:` rule has `s.mad_m3s` in the spawn/rear predicate
-- [ ] DB integration (skip if no DB): `frs_network_segment()` output has a numeric `mad_m3s` column, populated for a small ADMS AOI
+- [x] `test-frs_params.R`: replace ".frs_load_rules errors on mad predicate" with (a) `mad: [0.164, 9999]` validates OK and (b) malformed `mad` errors: non-numeric, length ≠ 2, min > max
+- [x] `test-utils.R`: `.frs_rule_to_sql(list(mad = c(0.164, 9999)))` gives `s.mad_m3s BETWEEN 0.164 AND 9999`; `mad` composes with `edge_types` and inherited gradient/cw; a rule without `mad` does **not** inherit CSV MAD even when `csv_thresholds$mad_m3s` is present
+- [x] `test-frs_habitat_predicates.R`: CO CSV-only path (no rules) has no `mad_m3s` in any predicate (regression guard for Option B); a rules path with a `mad:` rule has `s.mad_m3s` in the spawn/rear predicate
+- [x] DB integration (skip if no DB): `frs_network_segment()` output has a numeric `mad_m3s` column, populated for a small ADMS AOI
 
 ## Phase 2: Enrich segmented streams with mad_m3s
 - [ ] `R/frs_network_segment.R:147`: add a parallel `frs_col_join(conn, to, from = "fwa_stream_networks_discharge", cols = "mad_m3s", by = "linear_feature_id")` next to the channel_width join
@@ -43,3 +43,4 @@ Rules YAML (#113 Phase 1) can't express MAD (mean annual discharge) predicates. 
 - [ ] `/planning-archive` on completion
 
 ## Critical files
+`R/frs_network_segment.R`, `R/frs_habitat.R`, `R/frs_params.R`, `R/utils.R`, `R/frs_habitat_predicates.R`, `tests/testthat/test-{frs_params,frs_habitat_predicates,frs_habitat}.R`
