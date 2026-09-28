@@ -1,3 +1,9 @@
+# fresh 0.36.2
+
+Closes [#229](https://github.com/NewGraphEnvironment/fresh/issues/229).
+
+* Live integration tests now skip when the database can't be reached, instead of erroring. A new test helper, `skip_if_no_conn()` in `tests/testthat/helper-db.R`, attempts a real connection and skips with the error text on failure. `test-frs_network_features-live.R` uses it in place of checking that a credential env var is set. Test-only change.
+
 # fresh 0.36.1
 
 Closes [#223](https://github.com/NewGraphEnvironment/fresh/issues/223).
