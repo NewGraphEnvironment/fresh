@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.36.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.36.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.36.2" id="fresh-0362">fresh 0.36.2<a class="anchor" aria-label="anchor" href="#fresh-0362"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/229" class="external-link">#229</a>.</p>
+<ul><li>Live integration tests now skip when the database can’t be reached, instead of erroring. A new test helper, <code>skip_if_no_conn()</code> in <code>tests/testthat/helper-db.R</code>, attempts a real connection and skips with the error text on failure. <code>test-frs_network_features-live.R</code> uses it in place of checking that a credential env var is set. Test-only change.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.36.1" id="fresh-0361">fresh 0.36.1<a class="anchor" aria-label="anchor" href="#fresh-0361"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/223" class="external-link">#223</a>.</p>
