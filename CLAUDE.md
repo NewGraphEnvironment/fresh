@@ -146,7 +146,10 @@ devtools::test()
 (`frs_params(conn)` → `bcfishpass.parameters_habitat_thresholds`) call
 `skip_if_no_schema("bcfishpass")` (`tests/testthat/helper-db.R`) and
 skip off-tunnel. `test-frs_network_features-live.R` builds its own
-tunnel connection and is gated on `PG_PASS_SHARE`.
+tunnel connection and gates on `skip_if_no_conn(bcfp_conn)` (same
+helper file). It skips whenever that connection can't be made, so a set
+`PG_PASS_SHARE` with the tunnel down skips instead of erroring. Any new
+live test against a non-default DB should gate the same way.
 
 Cross-host run pattern (m4 → m1 over Tailscale, e.g. when m4 is busy):
 

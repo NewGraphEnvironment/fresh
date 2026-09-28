@@ -1,15 +1,14 @@
 # Live integration test for frs_network_features against the
-# bcfishpass tunnel DB. Skipped when PG_PASS_SHARE is unset (CI,
-# unconfigured dev hosts). Validates that frs_network_features
-# produces byte-identical (mod array element sort) output to bcfp's
-# pre-computed streams_dnstr_* tables.
+# bcfishpass tunnel DB. Skipped on CI and whenever a connection can't
+# be made (tunnel down, unconfigured dev host, bad credentials).
+# Validates that frs_network_features produces byte-identical (mod
+# array element sort) output to bcfp's pre-computed streams_dnstr_*
+# tables.
 #
 # Reference: bcfishpass tunnel at localhost:63333 (db_newgraph,
 # rebuilt Tuesdays from bcfishpass repo). Test uses ADMS as the
 # reference WSG since it has a clean PSCIS-barriers slice for diff.
 
-skip_if(Sys.getenv("PG_PASS_SHARE") == "",
-        "PG_PASS_SHARE not set — skipping bcfp tunnel parity tests")
 skip_on_cran()
 skip_on_ci()
 
@@ -21,6 +20,8 @@ bcfp_conn <- function() {
     password = Sys.getenv("PG_PASS_SHARE")
   )
 }
+
+skip_if_no_conn(bcfp_conn)
 
 test_that("downstream PSCIS barriers byte-identical to bcfp on ADMS", {
   conn <- bcfp_conn()
