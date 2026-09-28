@@ -27,4 +27,4 @@ Design: `skip_if_no_conn(connect = frs_db_conn)` in `tests/testthat/helper-db.R`
 - [x] Tests pass
 - [x] `/code-check` clean on each commit
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
