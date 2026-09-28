@@ -14,17 +14,17 @@ Design: `skip_if_no_conn(connect = frs_db_conn)` in `tests/testthat/helper-db.R`
 - [x] Phase 1 tests pass
 
 ## Phase 3: Gate the live file on reachability
-- [ ] `test-frs_network_features-live.R`: replace the `PG_PASS_SHARE` `skip_if()` with `skip_if_no_conn(bcfp_conn)` after `bcfp_conn` is defined (keep `skip_on_cran()` / `skip_on_ci()` first so CI never attempts the connect)
-- [ ] Update the file header comment (skip condition now "tunnel unreachable", not "PG_PASS_SHARE unset")
-- [ ] Verify: run the file with the tunnel down → reports skip, 0 errors; with tunnel up (if available) → 3 tests run
+- [x] `test-frs_network_features-live.R`: replace the `PG_PASS_SHARE` `skip_if()` with `skip_if_no_conn(bcfp_conn)` after `bcfp_conn` is defined (keep `skip_on_cran()` / `skip_on_ci()` first so CI never attempts the connect)
+- [x] Update the file header comment (skip condition now "tunnel unreachable", not "PG_PASS_SHARE unset")
+- [x] Verify: run the file with the tunnel down → reports skip, 0 errors (main: FAIL 3; branch: SKIP 1, reason carries "Connection refused"). Tunnel-up path not runnable here (tunnel down on this host)
 
 ## Phase 4: Docs
-- [ ] CLAUDE.md "Testing on alternate hosts" note: live file gated on a reachable tunnel connection, not `PG_PASS_SHARE`; mention `skip_if_no_conn()` alongside `skip_if_no_schema()`
-- [ ] NEWS.md entry (internal/test-only change)
+- [x] CLAUDE.md "Testing on alternate hosts" note: live file gated on a reachable tunnel connection, not `PG_PASS_SHARE`; mention `skip_if_no_conn()` alongside `skip_if_no_schema()`
+- [x] ~~NEWS.md entry~~ — deferred to `/gh-pr-merge`, which writes NEWS + version bump as the release commit (as for v0.36.1)
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
