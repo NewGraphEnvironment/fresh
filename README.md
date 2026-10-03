@@ -103,10 +103,11 @@ Fresh still runs standalone on any break sources you construct yourself — link
 | [link](https://github.com/NewGraphEnvironment/link) | Feature-to-network interpretation — load + validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing pipelines |
 | [flooded](https://github.com/NewGraphEnvironment/flooded) | Delineate floodplain extents from DEMs and stream networks |
 | [drift](https://github.com/NewGraphEnvironment/drift) | Track land cover change within floodplains over time |
+| [wet](https://github.com/NewGraphEnvironment/wet) | Stream discharge per segment and per station — an open source of the mean annual discharge the `mad` habitat rules read as `mad_m3s` |
 
 **Pipelines:**
 
-- Fish habitat: **link &rarr; fresh**
+- Fish habitat: **link &rarr; fresh**, with discharge from wet
 - Land cover change: fresh (network) &rarr; flooded (floodplains) &rarr; drift (land cover change)
 
 ## Roadmap
