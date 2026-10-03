@@ -1,5 +1,11 @@
 # Changelog
 
+## fresh 0.36.3
+
+- README: [wet](https://github.com/NewGraphEnvironment/wet) joins the
+  ecosystem table as an open source of the mean annual discharge the
+  `mad` habitat rules read. Documentation only.
+
 ## fresh 0.36.2
 
 Closes [\#229](https://github.com/NewGraphEnvironment/fresh/issues/229).
