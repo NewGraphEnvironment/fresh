@@ -176,12 +176,16 @@
 <td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
 <td>Track land cover change within floodplains over time</td>
 </tr>
+<tr>
+<td><a href="https://github.com/NewGraphEnvironment/wet" class="external-link">wet</a></td>
+<td>Stream discharge per segment and per station — an open source of the mean annual discharge the <code>mad</code> habitat rules read as <code>mad_m3s</code>
+</td>
+</tr>
 </tbody>
 </table>
 <p><strong>Pipelines:</strong></p>
 <ul>
-<li>Fish habitat: <strong>link → fresh</strong>
-</li>
+<li>Fish habitat: <strong>link → fresh</strong>, with discharge from wet</li>
 <li>Land cover change: fresh (network) → flooded (floodplains) → drift (land cover change)</li>
 </ul>
 </div>
