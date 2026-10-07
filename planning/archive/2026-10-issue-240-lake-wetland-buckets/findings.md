@@ -73,3 +73,17 @@ Relates to #220, #237.
 
 | Error | Resolution |
 |-------|------------|
+| `round(double precision, integer) does not exist` in the live-check SQL | Cast to `numeric` before `round(x, 1)` |
+| First "no UPDATE" mutation stayed green | The mutation (`)); if (FALSE)`) swallowed the next line, not the UPDATE: the probe was broken, not the guard. Redone as `SET col = TRUE`, which went red |
+| First "no distance cap" mutation went red for the wrong reason | Scaling `distance_max` also scaled the ST_DWithin prefilter. Round 1 of P3's review found the cap itself unpinned; fixed with a folded-geometry fixture |
+| Live check ~50-70 s per species on NATR | Temp tables are never auto-analyzed, and working tables have no GiST on geom. Both are needed; with them, 2.5 s |
+| Branch R CMD check ran against link | `cd` sat inside a backgrounded `( … ) &` list, so the second subshell ran in the session cwd. Re-run from fresh |
+| `ls` output carried ANSI colour codes into a path | `ls` is aliased with `--color`; use `find` |
+
+## Plan review (Plan agent, 2026-10-06) — what was taken
+
+- Habitat joins must match `watershed_group_code`: `frs_habitat(to_habitat =)` writes every WSG job into one table and split-segment ids collide (on NATR the next 5,000 ids hold 1,451 MIDR/TAKL segments). Done, with a test.
+- One outlet per `(waterbody_key, blue_line_key)`: done, with a test.
+- `requires_connected` on a second L rule silently unread: now a load error.
+- Pre-existing, not fixed here: `frs_cluster()`, `.frs_distance_filter()` and `.frs_connected_waterbody()` join a shared habitat table on `id_segment` alone (the last one's subtractive UPDATE has no group scope at all). link is unaffected (per-WSG schema). Drafted as a separate issue, awaiting approval.
+- Cross-repo: link's `lnk_rules_build()` `add_rc()` stamps `rear_requires_connected` on every rear rule, which fresh now rejects; inert today (all NA); recorded in link#310.

@@ -30,12 +30,12 @@
 
 ## Phase 4: Live check, docs, release prep
 - [x] Live check on local fwapg, NATR and PARS BT (link's persisted `fresh_default` + link `default` rules; connectivity at 0.5 / 1 / 3 / 10 km): `data-raw/bucket_connected_check.R`, evidence in `data-raw/logs/bucket_connected_240/`
-- [ ] NEWS.md entry (behaviour change for every bundle; connectivity opt-in keys); no version bump until merge
-- [ ] `devtools::test()`, `devtools::check()`, `lintr::lint_package()` clean
+- [x] NEWS entry drafted in the PR body (behaviour change for every bundle; connectivity opt-in keys). fresh writes NEWS.md in the release commit (`/gh-pr-merge`), so NEWS.md is untouched here; no version bump
+- [x] `devtools::test()` FAIL 0 / PASS 1201 (3 warnings, all pre-existing in `test-frs_network_features-live.R`). `devtools::check()` result identical to `main`'s: the same 12 `test-frs_network_features.R` failures (no `tibble` in the check library), and the same 5 warnings and 3 notes; the branch passes 49 more tests. lintr: on changed lines, only `indentation_linter` on the codebase's `sprintf("SQL")` layout (about 175 of the same in `main`'s `frs_habitat.R`)
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] Tests pass (see the sweep above)
+- [x] `/code-check` on each code commit: P1 3 rounds, P2 3 rounds, P3 2 rounds + an 11-mutation enumeration (`review-p*-round*.md`)
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
