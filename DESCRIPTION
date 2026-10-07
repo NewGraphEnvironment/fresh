@@ -27,6 +27,7 @@ Imports:
     sf,
     yaml
 Suggests:
+    bit64,
     bookdown,
     gq,
     mirai,

@@ -36,13 +36,13 @@ frs_channel_width(conn, table,
 - [x] Commit `Fixes #28`
 
 ## Phase 3: Gap follow-up + bookkeeping
-- [ ] Write up the placeholder/unmapped input gap in findings.md (counts by edge type, why fwapg's lut excludes them, candidate derivations: spatial-midpoint → fundamental watershed for unmapped; inherit from the paralleled mainstem for side channels; none for placeholders). File an issue if it looks half reachable (public tone: package logic only)
-- [ ] CLAUDE.md architecture line for `R/frs_channel_width.R` (no `_pkgdown.yml` reference index exists; NEWS + version bump land in the release commit via `/gh-pr-merge`)
-- [ ] Full `devtools::test()` + `devtools::check()` clean
+- [x] Write up the placeholder/unmapped input gap in findings.md (counts by edge type, why fwapg's lut excludes them, candidate derivations: spatial-midpoint → fundamental watershed for unmapped; inherit from the paralleled mainstem for side channels; none for placeholders). File an issue if it looks half reachable (public tone: package logic only) → #246
+- [x] CLAUDE.md architecture line for `R/frs_channel_width.R` (no `_pkgdown.yml` reference index exists; NEWS + version bump land in the release commit via `/gh-pr-merge`)
+- [x] Full `devtools::test()` (1,355 pass, 0 fail) + `devtools::check()`: new code clean; `bit64` added to Suggests for the integer64 test. Remaining check items predate this branch (tibble undeclared → tests ERROR in check, non-ASCII in frs_wsg_drainage.R, undocumented args in frs_break / frs_habitat, .frs_rules_to_sql link)
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

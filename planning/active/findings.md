@@ -123,3 +123,12 @@ Discovered while building flooded test data with all co orders (not just 4+). Or
 - Default call fills all 4 NULL rows; the 11 pre-existing rows are identical before and after.
 - Found in passing: `frs_col_join()` appends its own `_src` alias, so a subquery `from` must not carry an alias. `frs_col_join()`'s own roxygen example (`... ) sub"`) fails as written. Out of scope here; surfaced to the user.
 - Subquery joins create `text` columns (`frs_col_join()` defaults types to text for subqueries). `frs_channel_width()` casts inputs to double precision, so text inputs work.
+
+## Input gap: placeholder and unmapped segments (Phase 3)
+- Province: 366,377 of 4,907,441 FWA segments (7.5%) are placeholder (`999`) or unmapped (NULL localcode). None have upstream area. Code-check measured BULK + MORR: 2,784 placeholder and 2,296 unmapped segments, none with area or precipitation. Of 52,291 normal segments, 36 also lack area.
+- BULK breakdown (n / km): placeholder 1400 in waterbody 1,511 / 149; unmapped 1450 in waterbody 486 / 17; unmapped 1100 secondary flow outside waterbodies 219 / 75; 1350 in waterbody 177 / 29; other 33 / 9.
+- fwapg's lut build excludes these on purpose (`fwa_watershed_code NOT LIKE '999%'`, `local_watershed_code IS NOT NULL`). Its spatial-midpoint fallback runs only for real-network segments.
+- A midpoint → fundamental watershed join is technically reachable: every BULK midpoint intersects a poly.
+  - It is semantically weak: for side channels it returns the mainstem's area, which overstates width.
+  - Construction lines inside waterbodies don't need a width.
+- Verdict: half reachable. Filed #246, with options: leave as is (`value`), an opt-in midpoint fallback for side channels with a secondary-flow fraction, or inherit from the paralleled mainstem.
