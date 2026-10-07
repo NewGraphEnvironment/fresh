@@ -18,8 +18,8 @@
 - [x] Update `frs_habitat_predicates()` roxygen + `devtools::document()`
 
 ## Phase 2: Rule validation for rear-bucket connectivity
-- [ ] Tests first (`test-frs_params.R`): rear L/W rule with `requires_connected: spawning` + `connected_distance_max` loads; rear rule without `waterbody_type` L/W errors; rear `requires_connected: rearing` errors; missing `connected_distance_max` errors; spawn-block behaviour unchanged
-- [ ] Extend `.frs_validate_rule()` (`R/frs_params.R:313-335`) with the rear-only checks
+- [x] Tests first (`test-frs_params.R`): rear L/W rule with `requires_connected: spawning` + `connected_distance_max` loads; rear rule without `waterbody_type` L/W errors; rear `requires_connected: rearing` errors; missing `connected_distance_max` errors; spawn-block behaviour unchanged
+- [x] Extend `.frs_validate_rule()` (`R/frs_params.R:313-335`) with the rear-only checks
 
 ## Phase 3: Bucket connectivity filter
 - [ ] Let `.frs_trace_downstream()` optionally carry `origin_id` into the target and take `gradient_max = NULL` (no stop); existing SK caller byte-identical (SQL-capture test)
