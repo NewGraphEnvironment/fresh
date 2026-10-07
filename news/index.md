@@ -1,5 +1,38 @@
 # Changelog
 
+## fresh 0.38.0
+
+Closes [\#237](https://github.com/NewGraphEnvironment/fresh/issues/237).
+
+**A wetland rule’s `wetland_ha_min` now gates `rearing`, not only
+`wetland_rearing`.** - The compiler for the main `spawn` / `rear`
+predicates read only `lake_ha_min`, so a `waterbody_type: W` rule
+admitted wetlands of every size. The floor now comes from the key of the
+rule’s type (`lake_ha_min` on `L`, `wetland_ha_min` on `W`) through one
+internal reader. The lake / wetland bucket predicates and the
+waterbody-connected spawning pass use the same reader. - **Rearing moves
+for every bundle with a wetland floor:** fresh’s bundled rules and
+link’s `default*` (BT, CH, CO, RB, ST, WCT). The `bcfishpass` bundle has
+no `W` rules and is unchanged. On link’s `fresh_default`, persisted
+rearing loses at least 40 segments (2.1 km) for NATR BT, 60 (3.1 km) for
+PARS BT and 2 for BULK CO. It is “at least” because `cluster_rearing`
+reruns on the narrower set. The change is small because the stream rule
+already admits most stream edges in wetlands
+(`data-raw/logs/rear_wetland_floor_237/`). - The floor holds per rule,
+not per predicate. Other rear rules still admit segments in smaller
+wetlands, chiefly the
+`edge_types_explicit: [1050, 1150], thresholds: false` wetland-flow
+rule. For NATR BT, about 307 segments (26.4 km) of rearing sit on
+wetland-flow lines in wetlands under 1 ha. That is an upper bound until
+`cluster_rearing` reruns. See
+[link#311](https://github.com/NewGraphEnvironment/link/issues/311). -
+The rules loader now rejects an empty, null, `NA` or `NaN` `lake_ha_min`
+or `wetland_ha_min`. Before, an empty value meant no floor and `NA`
+compiled to invalid SQL. - For waterbody-connected spawning on a species
+whose first lake / wetland rear rule is `W`, the floor is now its
+`wetland_ha_min` rather than the 200 ha default. No bundled species
+takes that path.
+
 ## fresh 0.37.0
 
 Closes [\#240](https://github.com/NewGraphEnvironment/fresh/issues/240).
