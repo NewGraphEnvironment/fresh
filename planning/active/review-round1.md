@@ -1,0 +1,22 @@
+# Code review, round 1: frs_channel_width (#234, phase 1)
+
+Reviewed `R/frs_channel_width.R` and `tests/testthat/test-frs_channel_width.R` against the R section and the general mechanisms section of the checklist. The test file was run against local fwapg: all tests pass, including both live tests.
+
+## Findings
+
+- **[severity: fragile]** R/frs_channel_width.R:313-324 (`.frs_channel_width_col_types`), used at lines 143-154. The column check queries `information_schema.columns` using the literal text the caller passed. This is the exact trap in the checklist entry "An `information_schema` lookup by the literal table name misses what Postgres resolves" (first caught in fresh#220). `.frs_validate_identifier()` accepts upper case, but Postgres folds unquoted identifiers to lower case. So `table = "working.Streams_X"` returns zero rows and the function stops with "Table ... not found", even though the `ALTER`/`UPDATE` would have worked. The same happens with a mixed-case `col_area` or `col_precip`: Postgres folds `Upstream_Area_Ha`, but `%in% names(col_types)` does not, so you get a false "Column ... not found". For an unqualified `table`, the helper assumes `public`, while the `ALTER`/`UPDATE` resolve through `search_path`. An unqualified table in another schema on the path, or a temp table (`pg_temp_N`), therefore gets a false "not found". In the other direction, an unqualified name that exists in `public` and also earlier on the path returns the types of the wrong table. Fix: resolve through `to_regclass(<table>)`, i.e. `SELECT attname, format_type(atttypid, atttypmod) FROM pg_attribute WHERE attrelid = to_regclass('<table>') AND attnum > 0 AND NOT attisdropped`, or read `SELECT * FROM <table> LIMIT 0`, and `tolower()` the column names before comparing. The unit tests mock `dbGetQuery`, so they cannot reach this failure.
+
+- **[severity: fragile]** R/frs_channel_width.R:182-188. With `overwrite = TRUE` there are two separate autocommitted statements: an `UPDATE ... SET to = NULL[, col_source = NULL]` on every row, then the regression `UPDATE`. If the second statement fails, the first has already committed. Ways it can fail include: a text input column with a non-numeric value that `::double precision` rejects (columns that `frs_col_join()` adds from a subquery are `text`); a statement timeout or cancel on a large table; or `^` overflow from a custom model. The table is then left with every existing width and label wiped and nothing written, instead of the original values. Fix: use one statement, which is atomic, e.g. `UPDATE t SET to = CASE WHEN <guard> THEN <expr> END, col_source = CASE WHEN <guard> THEN '<label>' END`. Alternatively, wrap both statements in `DBI::dbWithTransaction()`.
+
+- **[severity: fragile]** R/frs_channel_width.R:54-55 (roxygen for `hall2007`: "Its widths run well below poisson2021") and tests/testthat/test-frs_channel_width.R:267 (`expect_true(all(res$cw_hall[both] < res$cw_poisson[both]))`). This claim is false for small catchments, and those are the first-order streams the function exists to fill. Measured on local fwapg: across all 20,058 BULK wscode/localcode pairs (max upstream area, `map_upstream`), hall2007 is greater than poisson2021 on **3,978** (20%), every one with area at most 27.4 ha. A worked example at 10 ha and 1000 mm: poisson gives 0.49 m, hall gives 0.53 m. The live test passes only because the Byman-Ailport AOI has no catchment below the crossover. Moving the AOI, or joining per-segment area instead of the group max, would make it fail. Users reading the docs would also get the wrong idea. Fix: reword the doc to say hall2007 runs lower above about 30 ha and higher below it. Either drop the strict test inequality, or restrict it to rows with area above the crossover.
+
+No other issues found. Checked and clean:
+- Identifier validation covers every interpolated name.
+- Numeric literals go through `.frs_sql_num()`, and custom coefficients are checked as finite.
+- `$` partial matching is not triggered, because every key read exists exactly.
+- `digits = NULL` survives `list()` and `out["digits"] <- list(NULL)`.
+- The guard prevents a negative base to a fractional power.
+- The poisson2021 expression matches fwapg `channel_width_modelled.sql`, and hall2007 matches flooded `fl_flood_surface()`.
+- The output-column collision checks are correct.
+
+/Users/airvine/Projects/repo/fresh/planning/active/review-round1.md

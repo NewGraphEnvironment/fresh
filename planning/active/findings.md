@@ -109,9 +109,17 @@ Discovered while building flooded test data with all co orders (not just 4+). Or
 ### fwapg parity of poisson2021 (BULK, MODELLED rows, n = 11,334)
 - Per-segment upstream area (each segment's own watershed poly): 141 exact (±0.01), 1,164 within 5%. Poor.
 - Group max area per wscode/localcode pair (+1), as `channel_width_modelled.sql` does: 3,445 exact, 10,640 (94%) within 5%, median est/fwapg ratio 0.993.
-- So fwapg's MODELLED is constant per code pair, set by the most downstream poly. The formula matches; the area aggregation drives parity. The function takes whatever area column the caller joined. Docs give the group-max `frs_col_join()` subquery for parity. The residual is likely snapshot differences in area/precip inputs.
+- So fwapg's MODELLED is constant per code pair, set by the most downstream poly. The formula matches; the area aggregation drives parity. The function takes whatever area column the caller joined. Docs give the group-max `frs_col_join()` subquery for parity. Code-check round 3 measured fresh's SQL against fwapg's own formula on all 11,337 BULK MODELLED rows, with fwapg's inputs: exact on every row. So the residual vs the stored MODELLED values is drift in fwapg's inputs between the snapshot that built the table and the current one, not the formula.
 
 ## Plan-agent review (2026-10-07)
 - Blocker fixed: the fill-NULL guard moved into Phase 1. Otherwise the `Fixes #29` commit's default call would overwrite measured/mapped widths.
 - Adopted: `exp(0.30713)` emitted in SQL (avoids rounding-boundary flips from R-side k); `digits` per preset; separate `a_off` / `p_off`; type checks on existing `to` / `col_source`; collision errors; `overwrite = TRUE` clears to NULL then refills (consistent with `value`); Byman-Ailport AOI + `skip_if_no_conn()`; assert n compared > 0.
 - Dropped: `_pkgdown.yml` item (no reference index). NEWS/version handled by `/gh-pr-merge` release commit (repo history: every "Release vX" commit carries NEWS + DESCRIPTION).
+
+## Phase 1 live result (Byman-Ailport, 2026-10-07)
+- 15 segments: 2 FIELD_MEASURMENT, 9 MODELLED, 4 NULL (all order 1).
+- poisson2021 with group-max area vs fwapg MODELLED: max |diff| 0.03 m over 9 rows. Test tolerance 0.05 m.
+- hall2007 / poisson2021 ratio 0.53–0.87.
+- Default call fills all 4 NULL rows; the 11 pre-existing rows are identical before and after.
+- Found in passing: `frs_col_join()` appends its own `_src` alias, so a subquery `from` must not carry an alias. `frs_col_join()`'s own roxygen example (`... ) sub"`) fails as written. Out of scope here; surfaced to the user.
+- Subquery joins create `text` columns (`frs_col_join()` defaults types to text for subqueries). `frs_channel_width()` casts inputs to double precision, so text inputs work.

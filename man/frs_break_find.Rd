@@ -108,6 +108,7 @@ Other habitat:
 \code{\link{frs_break_apply}()},
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
+\code{\link{frs_channel_width}()},
 \code{\link{frs_classify}()},
 \code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},

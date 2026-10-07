@@ -21,12 +21,12 @@ frs_channel_width(conn, table,
 ```
 
 ## Phase 1: Bankfull regression estimate (#29)
-- [ ] Failing unit tests (mocked SQL): poisson2021 and hall2007 expressions, custom coef list, default writes only `WHERE <to> IS NULL` and labels only those rows, `overwrite = TRUE` clears then writes every row, inputs guarded `(A + a_off) > 0 AND (P + p_off) > 0`, validation errors (unknown model, incomplete/non-finite coef list, bad identifiers, missing `col_area` / `col_precip` → error names the `frs_col_join()` recipe, `to`/`col_source` colliding with inputs or each other, existing `to` not numeric / `col_source` not text)
-- [ ] Internal `.frs_channel_width_models()` presets + `.frs_channel_width_sql()` expression builder. Poisson k emitted as `exp(0.30713)` in SQL; rounding is a preset attribute (`digits = 2` poisson, none hall)
-- [ ] `frs_channel_width()`: add target (double precision) + source (text) columns, fill-NULL regression write, `to` / `col_area` / `col_precip` / `overwrite` / `col_source` args; regression labels `MODELLED_POISSON2021` / `MODELLED_HALL2007` / `MODELLED_CUSTOM`
-- [ ] Live test (Byman-Ailport `test_streamline.rds`, `skip_if_no_conn()`): extract, `frs_col_join()` area (group-max per wscode/localcode, fwapg's convention) and precip, run poisson2021 into a comparison column, compare to fwapg `MODELLED` (n compared > 0; tolerance ≥ 0.01, set from measurement). hall2007 gives positive widths, below poisson2021. Default call leaves pre-existing widths byte-identical
-- [ ] Roxygen (formulas, units, Poisson 2021b / Hall 2007 refs, `@family habitat`) + `@examples` in the `frs_col_join()` style; `devtools::document()`, lintr clean
-- [ ] Commit `Fixes #29`
+- [x] Failing unit tests (mocked SQL): poisson2021 and hall2007 expressions, custom coef list, default writes only `WHERE <to> IS NULL` and labels only those rows, `overwrite = TRUE` clears then writes every row, inputs guarded `(A + a_off) > 0 AND (P + p_off) > 0`, validation errors (unknown model, incomplete/non-finite coef list, bad identifiers, missing `col_area` / `col_precip` → error names the `frs_col_join()` recipe, `to`/`col_source` colliding with inputs or each other, existing `to` not numeric / `col_source` not text)
+- [x] Internal `.frs_channel_width_models()` presets + `.frs_channel_width_sql()` expression builder. Poisson k emitted as `exp(0.30713)` in SQL; rounding is a preset attribute (`digits = 2` poisson, none hall)
+- [x] `frs_channel_width()`: add target (double precision) + source (text) columns, fill-NULL regression write, `to` / `col_area` / `col_precip` / `overwrite` / `col_source` args; regression labels `MODELLED_POISSON2021` / `MODELLED_HALL2007` / `MODELLED_CUSTOM`
+- [x] Live test (Byman-Ailport `test_streamline.rds`, `skip_if_no_conn()`): extract, `frs_col_join()` area (group-max per wscode/localcode, fwapg's convention) and precip, run poisson2021 into a comparison column, compare to fwapg `MODELLED` (n compared > 0; tolerance ≥ 0.01, set from measurement). hall2007 gives positive widths, below poisson2021. Default call leaves pre-existing widths byte-identical
+- [x] Roxygen (formulas, units, Poisson 2021b / Hall 2007 refs, `@family habitat`) + `@examples` in the `frs_col_join()` style; `devtools::document()`, lintr clean
+- [x] Commit `Fixes #29`
 
 ## Phase 2: Fill NA channel width (#28)
 - [ ] Failing unit tests: `value` pass runs after the regression with the `ASSIGNED` label, `value` validation (positive finite numeric scalar), verbose counts (modelled / assigned from rows affected, still-NULL from one count query)
