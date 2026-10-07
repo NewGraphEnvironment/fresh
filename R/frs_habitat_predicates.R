@@ -1,7 +1,7 @@
 #' Build SQL predicates for one species' habitat classification
 #'
-#' Pure-R helper: takes one species' rules + ranges from
-#' [frs_habitat_species()] and returns a named list of SQL boolean
+#' Pure-R helper: takes one species' rules + ranges from [frs_params()]
+#' and returns a named list of SQL boolean
 #' expressions ("predicates") — the raw yes/no questions that
 #' [frs_habitat_classify()] embeds in `CASE WHEN <pred> THEN TRUE ...`
 #' to produce the per-species habitat columns.
@@ -14,12 +14,14 @@
 #' Two paths are supported, selected per habitat type by what's
 #' present in `sp_params`:
 #'
-#' 1. **Rules path** — when `sp_params$rules$<spawn|rear>` is non-NULL,
-#'    the rules YAML is compiled to SQL via [.frs_rules_to_sql()].
+#' 1. **Rules path** — when `sp_params$params_sp$rules$<spawn|rear>` is
+#'    non-NULL,
+#'    the rules YAML is compiled to SQL via `.frs_rules_to_sql()`.
 #'    CSV thresholds (gradient + the `model`'s size dimension) are passed
 #'    as the inheritance fallback for rules that omit explicit thresholds.
 #' 2. **CSV-ranges path** — pre-rules behaviour. Builds the SQL
-#'    directly from `sp_params$ranges` + `sp_params$<spawn|rear>_edge_types`.
+#'    directly from `sp_params$params_sp$ranges` +
+#'    `sp_params$params_sp$<spawn|rear>_edge_types`.
 #'
 #' `model` picks the size dimension, mirroring bcfishpass
 #' `parameters_habitat_method.csv`. `"cw"` (default) uses the CSV
@@ -43,10 +45,11 @@
 #' polygon. Connection to spawning is applied after classification, for
 #' rules that carry `requires_connected: spawning` (see [frs_habitat()]).
 #'
-#' @param sp_params A single-species params list as produced by one
-#'   element of [frs_habitat_species()]. Must contain `species_code`,
-#'   `spawn_gradient_min`, `spawn_gradient_max`, `ranges`, optionally
-#'   `rules`, optionally `spawn_edge_types` / `rear_edge_types`.
+#' @param sp_params A single-species list with `species_code`,
+#'   `spawn_gradient_min`, `spawn_gradient_max`, and `params_sp`: that
+#'   species' element of [frs_params()] (its `ranges`, optional `rules`,
+#'   optional `spawn_edge_types` / `rear_edge_types`). This is the shape
+#'   [frs_habitat_classify()] builds per species.
 #' @param model Character. Habitat size model: `"cw"` (channel width,
 #'   default) or `"mad"` (mean annual discharge, `mad_m3s`).
 #' @return A named list with four character scalars: `spawn`, `rear`,
@@ -59,21 +62,19 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' params <- frs_params()
-#' params_fresh <- read.csv(system.file("extdata",
-#'   "parameters_fresh.csv", package = "fresh"))
-#' species_params <- frs_habitat_species("CO", params, params_fresh)
+#' params <- frs_params(csv = system.file("extdata",
+#'   "parameters_habitat_thresholds.csv", package = "fresh"))
+#' sp_params <- list(species_code = "CO",
+#'   spawn_gradient_min = 0,
+#'   spawn_gradient_max = params$CO$spawn_gradient_max,
+#'   params_sp = params$CO)
 #'
-#' preds <- frs_habitat_predicates(species_params[[1]])
+#' preds <- frs_habitat_predicates(sp_params)
 #' preds$spawn
-#' #> "s.gradient >= 0 AND s.gradient <= 0.0549 AND ..."
 #' preds$lake_rear
-#' #> "FALSE"  (CO has no waterbody_type: L rule under bcfishpass)
 #'
 #' # Discharge-based model, as for a `mad` watershed group
-#' frs_habitat_predicates(species_params[[1]], model = "mad")$spawn
-#' }
+#' frs_habitat_predicates(sp_params, model = "mad")$spawn
 frs_habitat_predicates <- function(sp_params, model = "cw") {
   stopifnot(is.list(sp_params),
             !is.null(sp_params[["species_code"]]))

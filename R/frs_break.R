@@ -518,6 +518,9 @@ frs_break_validate <- function(conn, breaks, evidence_table,
 #' @param segment_id Character. Column name used as the segment identifier
 #'   in `table`. Default `"linear_feature_id"` (FWA base table). Use
 #'   `"segmented_stream_id"` for bcfishpass tables.
+#' @param measure_precision Integer. Decimal places break measures are
+#'   rounded to before splitting; breaks that round to the same position
+#'   collapse into one. Default `0` (whole metres, matching bcfishpass).
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -721,15 +724,14 @@ frs_break_apply <- function(conn, table, breaks,
 }
 
 
-#' Break Stream Network at Threshold or Point Locations
+#' Break Stream Network at an Attribute Threshold
 #'
 #' Convenience wrapper that calls [frs_break_find()], optionally
-#' [frs_break_validate()], then [frs_break_apply()] in sequence.
+#' [frs_break_validate()], then [frs_break_apply()] in sequence. To break at
+#' point features instead, locate them with [frs_feature_find()] and pass
+#' that table to [frs_break_apply()].
 #'
 #' @inheritParams frs_break_find
-#' @param points_where Character or `NULL`. SQL predicate to filter rows from
-#'   `points_table` (e.g. `"barrier_ind = TRUE"`). Passed to
-#'   [frs_break_find()] as `where`.
 #' @param evidence_table Character or `NULL`. If provided, validate breaks
 #'   against upstream evidence before applying. Passed to
 #'   [frs_break_validate()].
@@ -806,9 +808,7 @@ frs_break_apply <- function(conn, table, breaks,
 frs_break <- function(conn, table, to = "working.breaks",
                       attribute = NULL, threshold = NULL,
                       interval = 100L, distance = 100L,
-                      points_table = NULL, points = NULL,
-                      points_where = NULL,
-                      aoi = NULL, overwrite = TRUE,
+                      overwrite = TRUE,
                       evidence_table = NULL, where = NULL,
                       count_threshold = 1L,
                       segment_id = "linear_feature_id") {
@@ -816,9 +816,7 @@ frs_break <- function(conn, table, to = "working.breaks",
   frs_break_find(conn, table, to = to,
                  attribute = attribute, threshold = threshold,
                  interval = interval, distance = distance,
-                 points_table = points_table, points = points,
-                 where = points_where,
-                 aoi = aoi, overwrite = overwrite)
+                 overwrite = overwrite)
 
   # Step 2: Validate (optional)
   if (!is.null(evidence_table)) {

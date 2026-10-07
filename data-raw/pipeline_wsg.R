@@ -81,15 +81,11 @@ run_species <- function(conn, wsg, species_code, base_tbl, params_sp,
   t0 <- proc.time()
   access_gradient <- fresh_sp$access_gradient_max
 
-  frs_break_find(conn, tbl,
-    attribute = "gradient", threshold = access_gradient,
-    to = breaks_tbl)
-
-  # Barrier falls
-  frs_break_find(conn, tbl,
-    points_table = "bcfishpass.falls_vw",
-    where = "barrier_ind = TRUE", aoi = wsg,
-    to = breaks_tbl, append = TRUE)
+  # Gradient barriers + barrier falls
+  frs_habitat_access(conn, tbl, threshold = access_gradient,
+    to = breaks_tbl,
+    break_sources = list(
+      list(table = "bcfishpass.falls_vw", where = "barrier_ind = TRUE")))
 
   frs_break_apply(conn, tbl, breaks = breaks_tbl)
   frs_classify(conn, tbl, label = "accessible", breaks = breaks_tbl)

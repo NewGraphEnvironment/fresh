@@ -7,10 +7,11 @@
 frs_habitat_predicates(sp_params, model = "cw")
 }
 \arguments{
-\item{sp_params}{A single-species params list as produced by one
-element of \code{\link[=frs_habitat_species]{frs_habitat_species()}}. Must contain \code{species_code},
-\code{spawn_gradient_min}, \code{spawn_gradient_max}, \code{ranges}, optionally
-\code{rules}, optionally \code{spawn_edge_types} / \code{rear_edge_types}.}
+\item{sp_params}{A single-species list with \code{species_code},
+\code{spawn_gradient_min}, \code{spawn_gradient_max}, and \code{params_sp}: that
+species' element of \code{\link[=frs_params]{frs_params()}} (its \code{ranges}, optional \code{rules},
+optional \code{spawn_edge_types} / \code{rear_edge_types}). This is the shape
+\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} builds per species.}
 
 \item{model}{Character. Habitat size model: \code{"cw"} (channel width,
 default) or \code{"mad"} (mean annual discharge, \code{mad_m3s}).}
@@ -21,8 +22,8 @@ A named list with four character scalars: \code{spawn}, \code{rear},
 suitable for embedding in \verb{CASE WHEN ... THEN TRUE ELSE FALSE END}. Predicates reference the segmented streams alias \code{s.}.
 }
 \description{
-Pure-R helper: takes one species' rules + ranges from
-\code{\link[=frs_habitat_species]{frs_habitat_species()}} and returns a named list of SQL boolean
+Pure-R helper: takes one species' rules + ranges from \code{\link[=frs_params]{frs_params()}}
+and returns a named list of SQL boolean
 expressions ("predicates") — the raw yes/no questions that
 \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} embeds in \verb{CASE WHEN <pred> THEN TRUE ...}
 to produce the per-species habitat columns.
@@ -36,12 +37,14 @@ embedding them in a complete query.
 Two paths are supported, selected per habitat type by what's
 present in \code{sp_params}:
 \enumerate{
-\item \strong{Rules path} — when \verb{sp_params$rules$<spawn|rear>} is non-NULL,
-the rules YAML is compiled to SQL via \code{\link[=.frs_rules_to_sql]{.frs_rules_to_sql()}}.
+\item \strong{Rules path} — when \verb{sp_params$params_sp$rules$<spawn|rear>} is
+non-NULL,
+the rules YAML is compiled to SQL via \code{.frs_rules_to_sql()}.
 CSV thresholds (gradient + the \code{model}'s size dimension) are passed
 as the inheritance fallback for rules that omit explicit thresholds.
 \item \strong{CSV-ranges path} — pre-rules behaviour. Builds the SQL
-directly from \code{sp_params$ranges} + \verb{sp_params$<spawn|rear>_edge_types}.
+directly from \code{sp_params$params_sp$ranges} +
+\verb{sp_params$params_sp$<spawn|rear>_edge_types}.
 }
 
 \code{model} picks the size dimension, mirroring bcfishpass
@@ -67,21 +70,19 @@ polygon. Connection to spawning is applied after classification, for
 rules that carry \code{requires_connected: spawning} (see \code{\link[=frs_habitat]{frs_habitat()}}).
 }
 \examples{
-\dontrun{
-params <- frs_params()
-params_fresh <- read.csv(system.file("extdata",
-  "parameters_fresh.csv", package = "fresh"))
-species_params <- frs_habitat_species("CO", params, params_fresh)
+params <- frs_params(csv = system.file("extdata",
+  "parameters_habitat_thresholds.csv", package = "fresh"))
+sp_params <- list(species_code = "CO",
+  spawn_gradient_min = 0,
+  spawn_gradient_max = params$CO$spawn_gradient_max,
+  params_sp = params$CO)
 
-preds <- frs_habitat_predicates(species_params[[1]])
+preds <- frs_habitat_predicates(sp_params)
 preds$spawn
-#> "s.gradient >= 0 AND s.gradient <= 0.0549 AND ..."
 preds$lake_rear
-#> "FALSE"  (CO has no waterbody_type: L rule under bcfishpass)
 
 # Discharge-based model, as for a `mad` watershed group
-frs_habitat_predicates(species_params[[1]], model = "mad")$spawn
-}
+frs_habitat_predicates(sp_params, model = "mad")$spawn
 }
 \seealso{
 Other habitat: 
@@ -91,6 +92,7 @@ Other habitat:
 \code{\link{frs_break_find}()},
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
+\code{\link{frs_channel_width}()},
 \code{\link{frs_classify}()},
 \code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},

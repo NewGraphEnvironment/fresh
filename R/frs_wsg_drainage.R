@@ -88,7 +88,7 @@ frs_wsg_drainage <- function(
     focal <- setdiff(focal, known)
   }
   if (length(focal) == 0L) {
-    stop("No drainage closure found — none of the focal WSG codes are ",
+    stop("No drainage closure found: none of the focal WSG codes are ",
          "present in the outlet table.", call. = FALSE)
   }
 

@@ -76,6 +76,18 @@ Auto-derived breaks give cluster analysis (\code{\link[=frs_cluster]{frs_cluster
 gradient resolution to detect within-segment steep sections that
 would otherwise be hidden by averaging.}
 
+\item{gate}{Logical. If \code{TRUE} (default), breaks restrict
+classification — segments upstream of a blocking break are marked
+inaccessible. If \code{FALSE}, all segments are classified regardless of
+breaks (raw habitat potential).}
+
+\item{label_block}{Character vector. Labels that always block
+access. Default \code{"blocked"}. Gradient labels (\code{gradient_NNNN},
+the canonical 4-digit basis-point format like \code{gradient_1500} for
+15\%, or the legacy \code{gradient_N} like \code{gradient_15}) are always
+threshold-aware regardless of this parameter. Set to
+\code{c("blocked", "potential")} for conservative analysis.}
+
 \item{rules}{Character path to a habitat rules YAML, \code{FALSE}, or
 \code{NULL}. Default \code{NULL} uses the bundled
 \code{inst/extdata/parameters_habitat_rules.yaml}. Pass a path string
@@ -93,6 +105,11 @@ See \code{\link[=frs_params]{frs_params()}} for the rules format.}
 gradient from DEM vertices after splitting segments. If \code{FALSE},
 child segments inherit the parent gradient. See
 \code{\link[=frs_network_segment]{frs_network_segment()}} for details.}
+
+\item{measure_precision}{Integer. Number of decimal places to round
+break point measures before splitting. Default \code{0} (integer
+rounding, matching bcfishpass v0.5.0). Also rounds the breaks
+table and deduplicates collapsed measures.}
 
 \item{barrier_overrides}{Character or \code{NULL}. Schema-qualified table
 of barrier overrides prepared by link via
@@ -277,6 +294,7 @@ Other habitat:
 \code{\link{frs_break_find}()},
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
+\code{\link{frs_channel_width}()},
 \code{\link{frs_classify}()},
 \code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},

@@ -50,7 +50,7 @@ Discharge coverage is incomplete: segments with NULL \code{mad_m3s} fail
 size thresholds in a \code{mad} group.}
 
 \item{gate}{Logical. If \code{TRUE} (default), breaks restrict
-classification — segments downstream of blocking breaks are marked
+classification — segments upstream of a blocking break are marked
 inaccessible. If \code{FALSE}, all segments are classified regardless of
 breaks (raw habitat potential).}
 
@@ -146,6 +146,7 @@ Other habitat:
 \code{\link{frs_break_find}()},
 \code{\link{frs_break_validate}()},
 \code{\link{frs_categorize}()},
+\code{\link{frs_channel_width}()},
 \code{\link{frs_classify}()},
 \code{\link{frs_cluster}()},
 \code{\link{frs_col_generate}()},

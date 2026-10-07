@@ -104,25 +104,23 @@ before <- frs_db_query(conn,
 # ==========================================================================
 # Two sources of access barriers for coho:
 #
-# 1. Gradient barriers — 100m segments where gradient >= 15%.
-#    frs_break_find() with attribute mode samples slope at each vertex
+# 1. Gradient barriers — 100m segments where gradient >= 15%, sampled
 #    over 100m intervals using fwa_slopealonginterval().
 #
-# 2. Barrier falls — from bcfishpass falls table where barrier_ind = TRUE.
-#    frs_break_find() with table mode pulls from an existing point table.
-#    append = TRUE adds falls to the same breaks table as gradient barriers.
-#    aoi scopes the query to our study area (not all of BC).
+# 2. Barrier falls — from bcfishpass falls table where barrier_ind = TRUE,
+#    located on the streams in the working table (scoped to its
+#    blue_line_keys).
+#
+# frs_habitat_access() writes both to one breaks table and adds the
+# watershed codes frs_classify() needs.
 message("Finding access barriers (gradient >= ",
         access_gradient_max * 100, "% + barrier falls)...")
 
-frs_break_find(conn, "working.byman_habitat",
-  attribute = "gradient", threshold = access_gradient_max,
-  to = "working.breaks_access")
-
-frs_break_find(conn, "working.byman_habitat",
-  points_table = "bcfishpass.falls_vw",
-  where = "barrier_ind = TRUE", aoi = aoi,
-  to = "working.breaks_access", append = TRUE)
+frs_habitat_access(conn, "working.byman_habitat",
+  threshold = access_gradient_max,
+  to = "working.breaks_access",
+  break_sources = list(
+    list(table = "bcfishpass.falls_vw", where = "barrier_ind = TRUE")))
 
 # Split stream geometry at all access barrier locations
 frs_break_apply(conn, "working.byman_habitat",

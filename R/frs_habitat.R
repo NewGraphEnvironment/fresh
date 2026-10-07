@@ -113,6 +113,8 @@
 #' @param password Character. Database password for parallel workers.
 #' @param cleanup Logical. Drop working tables when done. Default `TRUE`.
 #' @param verbose Logical. Print progress. Default `TRUE`.
+#' @inheritParams frs_habitat_classify
+#' @inheritParams frs_network_segment
 #'
 #' @return A data frame with columns `label`, `n_segments`, `n_species`,
 #'   `elapsed_s`.
@@ -1000,7 +1002,7 @@ frs_habitat_access <- function(conn, table, threshold,
   if (!is.null(break_sources)) {
     for (src in break_sources) {
       .frs_validate_identifier(src$table, "break source table")
-      frs_break_find(conn, table,
+      frs_feature_find(conn, table,
         points_table = src$table,
         where = src$where,
         label = src$label,

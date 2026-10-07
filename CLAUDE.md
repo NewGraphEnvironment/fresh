@@ -52,6 +52,8 @@ R/
   frs_aggregate.R            — upstream/downstream feature aggregation [link]
   frs_col_join.R             — join attributes (channel width, discharge) [link]
   frs_col_generate.R         — recompute gradient from geometry [link]
+  frs_channel_width.R        — channel width from a bankfull regression;
+                               fills NULL widths (first-order streams)
   frs_network.R              — unified multi-table network traversal
   frs_network_upstream.R     — upstream network query (ltree)
   frs_network_downstream.R   — downstream network query (ltree)

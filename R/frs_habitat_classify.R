@@ -40,7 +40,7 @@
 #'   Discharge coverage is incomplete: segments with NULL `mad_m3s` fail
 #'   size thresholds in a `mad` group.
 #' @param gate Logical. If `TRUE` (default), breaks restrict
-#'   classification — segments downstream of blocking breaks are marked
+#'   classification — segments upstream of a blocking break are marked
 #'   inaccessible. If `FALSE`, all segments are classified regardless of
 #'   breaks (raw habitat potential).
 #' @param label_block Character vector. Labels that always block
