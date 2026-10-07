@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.38.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.39.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,14 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.39.0" id="fresh-0390">fresh 0.39.0<a class="anchor" aria-label="anchor" href="#fresh-0390"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/234" class="external-link">#234</a>, <a href="https://github.com/NewGraphEnvironment/fresh/issues/29" class="external-link">#29</a>, <a href="https://github.com/NewGraphEnvironment/fresh/issues/28" class="external-link">#28</a>.</p>
+<p><strong>New <code><a href="../reference/frs_channel_width.html">frs_channel_width()</a></code> gives every segment a channel width, first-order streams included.</strong> - It writes a width predicted from upstream area and mean annual precipitation, which are joined first with <code><a href="../reference/frs_col_join.html">frs_col_join()</a></code>. - Models: <code>"poisson2021"</code> (the model behind fwapg’s <code>MODELLED</code> widths), <code>"hall2007"</code> (the VCA bankfull regression flooded uses), or a custom power law. - By default it fills only NULL widths. Point <code>to</code> at a new column for an independent estimate instead. - <code>value</code> assigns a constant, labelled <code>ASSIGNED</code>, to rows with no inputs. - It is not wired into <code><a href="../reference/frs_network_segment.html">frs_network_segment()</a></code> / <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code>, so bcfishpass parity is unchanged. - Why first-order streams had no width: fwapg’s regression covers them, and one <code>stream_order &gt; 1</code> filter drops them. Matching fwapg’s stored <code>MODELLED</code> values depends on taking the largest upstream area per watershed-code pair; the docs give the join. See <code>research/fwapg_channel_width.md</code>. Placeholder and unmapped segments have no inputs (<a href="https://github.com/NewGraphEnvironment/fresh/issues/246" class="external-link">#246</a>).</p>
+<p><strong><code><a href="../reference/frs_break.html">frs_break()</a></code> works again.</strong> - It errored on every call: it passed point-break arguments that <code><a href="../reference/frs_break_find.html">frs_break_find()</a></code> dropped when point breaks moved to <code><a href="../reference/frs_feature_find.html">frs_feature_find()</a></code>. <code><a href="../reference/frs_break.html">frs_break()</a></code> now does attribute breaks only. - <code><a href="../reference/frs_habitat_access.html">frs_habitat_access()</a></code> failed whenever <code>break_sources</code> was given. It now locates them with <code><a href="../reference/frs_feature_find.html">frs_feature_find()</a></code>.</p>
+<p><strong>Habitat-pipeline vignette now includes gradient barriers.</strong> - Its example code, and the scripts that build its data, had the same stale call and skipped the watershed codes <code>frs_classify(breaks =)</code> needs. They now go through <code><a href="../reference/frs_habitat_access.html">frs_habitat_access()</a></code>. - The cached data had falls-only access. Regenerated: access barriers 4 to 278, accessible 638.0 to 499.0 km of 964.7 km.</p>
+<p><strong>Documentation.</strong> - The <code>gate</code> direction is corrected: segments upstream of a blocking break are inaccessible. - <code><a href="../reference/frs_habitat_predicates.html">frs_habitat_predicates()</a></code> docs now match its input, and its example runs without a database. - Previously undocumented arguments are documented. <code>R CMD check</code> is clean.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.38.0" id="fresh-0380">fresh 0.38.0<a class="anchor" aria-label="anchor" href="#fresh-0380"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/237" class="external-link">#237</a>.</p>
