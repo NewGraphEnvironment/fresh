@@ -29,7 +29,7 @@
 - [x] Restore-the-bug check: disable the UPDATE / the distance cap and confirm the disconnected / beyond-D tests go red
 
 ## Phase 4: Live check, docs, release prep
-- [ ] One real WSG on local fwapg (NATR, BT, a temp rules file opting L/W in at a stated D): bucket km before/after for area-only and for connectivity; timing of the traces; evidence under `data-raw/logs/` (or the archive README)
+- [x] Live check on local fwapg, NATR and PARS BT (link's persisted `fresh_default` + link `default` rules; connectivity at 0.5 / 1 / 3 / 10 km): `data-raw/bucket_connected_check.R`, evidence in `data-raw/logs/bucket_connected_240/`
 - [ ] NEWS.md entry (behaviour change for every bundle; connectivity opt-in keys); no version bump until merge
 - [ ] `devtools::test()`, `devtools::check()`, `lintr::lint_package()` clean
 
