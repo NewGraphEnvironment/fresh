@@ -232,6 +232,11 @@ Small durable technical reference for internal behavior worth remembering.
 - The loader rejects an empty / null / NA / NaN floor (key-presence check), because the reader treats NULL as "no floor".
 - A wetland `waterbody_key` can span many polygons; a floor admits the key when any polygon meets it (`research/fwa_waterbody_key_polygons.md`).
 
+### `frs_col_join()` subquery sources
+
+- A subquery `from` must **not** carry its own alias: the function appends `_src`, so `(...) sub` becomes `(...) sub _src`, which is a syntax error.
+- Columns joined from a subquery are created as `text` (types are discovered only for real tables). Cast downstream; `frs_channel_width()` already casts its inputs.
+
 ### Watershed family
 
 - `frs_watershed_at_measure()` and `frs_watershed_split()` share `@family watershed`
