@@ -169,12 +169,26 @@ test_that("waterbody_type: W with wetland_ha_min adds area_ha threshold", {
   expect_match(preds$wetland_rear, "fwa_wetlands_poly WHERE area_ha >= 1\\.5")
 })
 
-test_that("waterbody_type: L without rear channel_width -> FALSE (cw window required)", {
+test_that("lake / wetland buckets are sized by polygon area only under cw (#240)", {
+  # The line through a polygon measures its inflow, not the polygon, so
+  # the bucket carries no channel-width test even with a rear window.
+  sp <- sp_with_rules(rules = list(
+    rear = list(list(waterbody_type = "L", lake_ha_min = 200),
+                list(waterbody_type = "W", wetland_ha_min = 1.5))))
+  preds <- frs_habitat_predicates(sp)
+  expect_equal(preds$lake_rear, "s.waterbody_key IN (
+         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly WHERE area_ha >= 200)")
+  expect_false(grepl("channel_width|mad_m3s", preds$wetland_rear))
+  expect_match(preds$wetland_rear, "fwa_wetlands_poly WHERE area_ha >= 1\\.5")
+})
+
+test_that("L rule without a rear channel_width window keeps the area bucket under cw (#240)", {
   sp <- sp_with_rules(rules = list(
     rear = list(list(waterbody_type = "L", lake_ha_min = 200))))
   sp$params_sp$ranges$rear$channel_width <- NULL
   preds <- frs_habitat_predicates(sp)
-  expect_equal(preds$lake_rear, "FALSE")
+  expect_match(preds$lake_rear, "fwa_lakes_poly WHERE area_ha >= 200")
+  expect_false(grepl("channel_width", preds$lake_rear))
 })
 
 test_that("rear rules with both L and stream rules emit lake_rear from L rule only", {
@@ -359,23 +373,25 @@ test_that("mad model: species without MAD thresholds get no size habitat", {
   expect_match(preds_r$rear, "s\\.edge_type IN \\(1050, 1150\\)")
 })
 
-test_that("mad model: lake / wetland rearing use the rear MAD window", {
+test_that("mad model: lake / wetland buckets ignore the rear MAD window (#240)", {
   sp <- sp_with_mad(rules = list(
     rear = list(list(waterbody_type = "L", lake_ha_min = 10),
                 list(waterbody_type = "W"))))
   preds <- frs_habitat_predicates(sp, model = "mad")
-  expect_match(preds$lake_rear, "s\\.mad_m3s >= 0\\.03 AND s\\.mad_m3s <= 40")
-  expect_match(preds$wetland_rear, "s\\.mad_m3s >= 0\\.03")
-  expect_false(grepl("channel_width", preds$lake_rear))
+  expect_match(preds$lake_rear, "fwa_lakes_poly WHERE area_ha >= 10")
+  expect_match(preds$wetland_rear, "fwa_wetlands_poly\\)")
+  expect_false(grepl("mad_m3s|channel_width", preds$lake_rear))
+  expect_false(grepl("mad_m3s|channel_width", preds$wetland_rear))
 
-  # No rear MAD window (SK, KO): lake rearing is polygon-based only
+  # With or without a rear size window, under either model, the bucket
+  # is the same polygon test.
   sp_na <- sp_with_mad(rear_mad = NULL, rules = sp$params_sp$rules)
-  lr <- frs_habitat_predicates(sp_na, model = "mad")$lake_rear
-  expect_match(lr, "fwa_lakes_poly WHERE area_ha >= 10")
-  expect_false(grepl("mad_m3s|channel_width", lr))
-  # cw model without a rear cw window is unchanged: FALSE
   sp_cw_na <- sp_with_rules(rear_cw = NULL, rules = sp$params_sp$rules)
-  expect_equal(frs_habitat_predicates(sp_cw_na)$lake_rear, "FALSE")
+  expect_identical(frs_habitat_predicates(sp_na, model = "mad")$lake_rear,
+                   preds$lake_rear)
+  expect_identical(frs_habitat_predicates(sp_cw_na)$lake_rear,
+                   preds$lake_rear)
+  expect_identical(frs_habitat_predicates(sp)$lake_rear, preds$lake_rear)
 })
 
 test_that("mad model: rule-level channel_width is ignored, MAD inherited", {

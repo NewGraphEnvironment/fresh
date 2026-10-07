@@ -1,0 +1,7 @@
+"wsg","species","state","distance_m","seconds","lake_km","lake_n","wetland_km","wetland_n"
+"PARS","BT","persisted",,,54.9,31,190.2,306
+"PARS","BT","area_only",,,101.5,41,437.4,766
+"PARS","BT","connected",500,1.8,81.4,23,325.3,441
+"PARS","BT","connected",1000,1.7,85.5,26,362.9,540
+"PARS","BT","connected",3000,2,96.3,36,421.7,718
+"PARS","BT","connected",10000,3.6,101.5,41,437.4,766

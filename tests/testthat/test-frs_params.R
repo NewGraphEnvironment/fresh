@@ -944,6 +944,96 @@ test_that(".frs_validate_rule errors on bad gradient format", {
 })
 
 
+# -- Rear-bucket connectivity keys (fresh#240) --------------------------------
+
+.write_rear_rule <- function(lines) {
+  tmp <- tempfile(fileext = ".yaml")
+  writeLines(c("BT:", "  rear:", lines), tmp)
+  tmp
+}
+
+test_that(".frs_load_rules accepts requires_connected: spawning on rear L / W rules", {
+  tmp <- .write_rear_rule(c(
+    "    - waterbody_type: L",
+    "      lake_ha_min: 10",
+    "      requires_connected: spawning",
+    "      connected_distance_max: 3000",
+    "    - waterbody_type: W",
+    "      requires_connected: spawning",
+    "      connected_distance_max: 500"))
+  on.exit(unlink(tmp))
+  rules <- .frs_load_rules(tmp)
+  expect_equal(rules$BT$rear[[1]][["connected_distance_max"]], 3000)
+  expect_equal(rules$BT$rear[[2]][["requires_connected"]], "spawning")
+})
+
+test_that(".frs_load_rules errors on rear requires_connected without waterbody_type L|W", {
+  # Nothing reads requires_connected on a stream or river rear rule, so
+  # carrying one is a config error rather than a silent no-op.
+  for (wb in list("    - edge_types_explicit: [1000]",
+                  "    - waterbody_type: R")) {
+    tmp <- .write_rear_rule(c(wb,
+      "      requires_connected: spawning",
+      "      connected_distance_max: 3000"))
+    expect_error(.frs_load_rules(tmp),
+      "requires_connected.*waterbody_type: L or W", info = wb)
+    unlink(tmp)
+  }
+})
+
+test_that(".frs_load_rules errors on rear requires_connected: rearing", {
+  tmp <- .write_rear_rule(c(
+    "    - waterbody_type: L",
+    "      requires_connected: rearing",
+    "      connected_distance_max: 3000"))
+  on.exit(unlink(tmp))
+  expect_error(.frs_load_rules(tmp), "rear.*requires_connected must be 'spawning'")
+})
+
+test_that(".frs_load_rules errors on rear requires_connected without a finite positive distance", {
+  for (d in list(NULL, "0", "-5", ".inf")) {
+    lines <- c("    - waterbody_type: W",
+               "      requires_connected: spawning")
+    if (!is.null(d)) lines <- c(lines, paste0("      connected_distance_max: ", d))
+    tmp <- .write_rear_rule(lines)
+    expect_error(.frs_load_rules(tmp),
+      "connected_distance_max must be a finite number > 0",
+      info = if (is.null(d)) "absent" else d)
+    unlink(tmp)
+  }
+})
+
+test_that(".frs_load_rules errors on requires_connected on a second L rule", {
+  # The bucket reads the first L rule only, so a later one is unread.
+  tmp <- .write_rear_rule(c(
+    "    - waterbody_type: L",
+    "      lake_ha_min: 10",
+    "    - waterbody_type: L",
+    "      requires_connected: spawning",
+    "      connected_distance_max: 3000"))
+  on.exit(unlink(tmp))
+  expect_error(.frs_load_rules(tmp),
+    "rule 2: requires_connected must be on the first waterbody_type: L rule \\(rule 1\\)")
+})
+
+test_that(".frs_load_rules spawn requires_connected rules are unchanged by the rear checks", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "SK:",
+    "  spawn:",
+    "    - edge_types: [stream, canal]",
+    "      requires_connected: rearing",
+    "    - edge_types: [stream, canal]",
+    "      requires_connected: rearing",
+    "      connected_distance_max: 3000",
+    "  rear:",
+    "    - waterbody_type: L",
+    "      lake_ha_min: 200"), tmp)
+  expect_no_error(.frs_load_rules(tmp))
+})
+
+
 # Integration tests — require DB connection
 
 test_that("frs_params reads bcfishpass parameter table", {

@@ -167,10 +167,40 @@ frs_params <- function(conn = NULL,
           raw[[sp]][[habitat]][[i]][["mad"]] <- as.numeric(unlist(rule[["mad"]]))
         }
       }
+      if (habitat == "rear") .frs_validate_rear_connected(rule_list, sp)
     }
   }
 
   raw
+}
+
+
+#' Validate requires_connected placement across a species' rear rules
+#'
+#' The lake / wetland bucket predicate and its connectivity filter both
+#' read the FIRST rear rule of each waterbody type
+#' (`.frs_find_waterbody_rule()`). `requires_connected` on a later rule of
+#' the same type would be read by nothing, so it errors (fresh#240).
+#'
+#' @noRd
+.frs_validate_rear_connected <- function(rule_list, sp) {
+  for (wt in c("L", "W")) {
+    idx <- which(vapply(rule_list,
+      function(r) identical(r[["waterbody_type"]], wt), logical(1)))
+    later <- idx[-1]
+    for (i in later) {
+      if (!is.null(rule_list[[i]][["requires_connected"]])) {
+        stop(sprintf(
+          paste0("rules YAML %s/rear rule %d: requires_connected must be on ",
+                 "the first waterbody_type: %s rule (rule %d), which is the ",
+                 "one the %s bucket reads"),
+          sp, i, wt, idx[1],
+          if (wt == "L") "lake_rearing" else "wetland_rearing"),
+          call. = FALSE)
+      }
+    }
+  }
+  invisible(NULL)
 }
 
 
@@ -332,6 +362,32 @@ frs_params <- function(conn = NULL,
       stop(sprintf(
         paste0("rules YAML %s/%s rule %d has connected_distance_max without ",
                "requires_connected"),
+        sp, habitat, idx), call. = FALSE)
+    }
+  }
+
+  # On a rear rule, requires_connected keeps a lake / wetland bucket only
+  # where it connects to same-species spawning (fresh#240). Nothing reads
+  # it on any other rear rule, and an uncapped search is unstated biology,
+  # so the distance is required.
+  if (habitat == "rear" && !is.null(rule[["requires_connected"]])) {
+    wt <- rule[["waterbody_type"]]
+    if (is.null(wt) || !wt %in% c("L", "W")) {
+      stop(sprintf(
+        paste0("rules YAML %s/%s rule %d uses requires_connected without ",
+               "waterbody_type: L or W"),
+        sp, habitat, idx), call. = FALSE)
+    }
+    if (!identical(rule[["requires_connected"]], "spawning")) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d: on a rear rule requires_connected must be 'spawning'",
+        sp, habitat, idx), call. = FALSE)
+    }
+    cdm <- rule[["connected_distance_max"]]
+    if (is.null(cdm) || !is.finite(cdm) || cdm <= 0) {
+      stop(sprintf(
+        paste0("rules YAML %s/%s rule %d: on a rear rule ",
+               "connected_distance_max must be a finite number > 0"),
         sp, habitat, idx), call. = FALSE)
     }
   }

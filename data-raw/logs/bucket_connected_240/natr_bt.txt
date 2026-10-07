@@ -1,0 +1,7 @@
+date: 2026-10-06 21:33 PDT
+fresh: 0.36.3 @ v0.24.1-76-gb38c40a
+link rules: ~/Projects/repo/link/inst/extdata/configs/default/rules.yaml @ v0.17.0-452-g20c5a52
+db: fwapg:5432
+source: fresh_default.streams_habitat_bt + fresh_default.streams, 35038 rows
+predicates: lake_rear = s.waterbody_key IN ( SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly WHERE area_ha >= 10)
+            wetland_rear = s.waterbody_key IN ( SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly WHERE area_ha >= 1)

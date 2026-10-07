@@ -149,6 +149,32 @@ species. For sub-basins, territories, or cross-WSG study areas.
 table naming, custom AOI for spatial extent.
 }
 }
+\section{Lake and wetland rearing}{
+
+\code{lake_rearing} / \code{wetland_rearing} come from a species' first rear rule
+with \code{waterbody_type: L} / \code{W}: an accessible segment inside a lake or
+wetland polygon of at least the rule's \code{lake_ha_min} / \code{wetland_ha_min}
+hectares. No channel-width or discharge test applies, under either
+habitat model. That rule may also carry
+
+\if{html}{\out{<div class="sourceCode yaml">}}\preformatted{- waterbody_type: L
+  lake_ha_min: 10
+  requires_connected: spawning
+  connected_distance_max: 3000
+}\if{html}{\out{</div>}}
+
+After classification, a polygon then keeps the flag only if same-species
+spawning lies on one of its lines, or within \code{connected_distance_max}
+metres downstream of it, or upstream of it within that distance (traced
+down mainstem lines to the polygon). The polygon is the unit: one
+connected line keeps all of it. Spawning on a sibling tributary or in
+another watershed group does not connect, and the trace has no gradient
+stop. Only the bucket flag is filtered: if the L / W rule also feeds
+the main \code{rearing} predicate (no \code{area_only: true}), \code{rearing} is
+unchanged. A rule without \code{requires_connected} keeps every polygon that
+passes the area test.
+}
+
 \examples{
 \dontrun{
 conn <- frs_db_conn()

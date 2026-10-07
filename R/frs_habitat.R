@@ -12,6 +12,29 @@
 #' - **WSG + custom AOI** (`wsg` + `aoi`): WSG for species lookup and
 #'   table naming, custom AOI for spatial extent.
 #'
+#' @section Lake and wetland rearing:
+#' `lake_rearing` / `wetland_rearing` come from a species' first rear rule
+#' with `waterbody_type: L` / `W`: an accessible segment inside a lake or
+#' wetland polygon of at least the rule's `lake_ha_min` / `wetland_ha_min`
+#' hectares. No channel-width or discharge test applies, under either
+#' habitat model. That rule may also carry
+#' ```yaml
+#' - waterbody_type: L
+#'   lake_ha_min: 10
+#'   requires_connected: spawning
+#'   connected_distance_max: 3000
+#' ```
+#' After classification, a polygon then keeps the flag only if same-species
+#' spawning lies on one of its lines, or within `connected_distance_max`
+#' metres downstream of it, or upstream of it within that distance (traced
+#' down mainstem lines to the polygon). The polygon is the unit: one
+#' connected line keeps all of it. Spawning on a sibling tributary or in
+#' another watershed group does not connect, and the trace has no gradient
+#' stop. Only the bucket flag is filtered: if the L / W rule also feeds
+#' the main `rearing` predicate (no `area_only: true`), `rearing` is
+#' unchanged. A rule without `requires_connected` keeps every polygon that
+#' passes the area test.
+#'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param wsg Character or `NULL`. One or more watershed group codes.
 #'   When provided, species are auto-detected via [frs_wsg_species()].
@@ -1266,6 +1289,194 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       }
     }
   }
+
+  # Lake / wetland buckets connected to spawning (fresh#240). A second
+  # pass so every spawning filter above has run: the test reads final
+  # spawning. Same rule lookup as the bucket predicate.
+  for (sp in species) {
+    rear_rules <- params[[sp]][["rules"]][["rear"]]
+    buckets <- list(c(type = "L", column = "lake_rearing"),
+                    c(type = "W", column = "wetland_rearing"))
+    for (b in buckets) {
+      rule <- .frs_find_waterbody_rule(rear_rules, b[["type"]])
+      if (identical(rule[["requires_connected"]], "spawning")) {
+        .frs_bucket_connected(conn, table, habitat, species = sp,
+          column = b[["column"]],
+          distance_max = rule[["connected_distance_max"]],
+          verbose = verbose)
+      }
+    }
+  }
+}
+
+
+#' Keep lake / wetland buckets only where connected to spawning
+#'
+#' After classification, a lake or wetland polygon keeps its bucket flag
+#' (`lake_rearing` / `wetland_rearing`) for `species` only if it is
+#' connected to same-species spawning within `distance_max` metres along
+#' the network (fresh#240). The polygon (`waterbody_key`) is the unit: one
+#' connected line keeps every bucket line of the polygon. A polygon is
+#' connected when any of these holds:
+#'
+#' 1. spawning lies on one of the polygon's own lines;
+#' 2. a downstream trace from the polygon's outlet reaches spawning
+#'    within `distance_max` (spawning below the polygon);
+#' 3. a downstream trace from the lowest point of a spawning cluster
+#'    reaches a line of the polygon within `distance_max` (spawning above
+#'    the polygon).
+#'
+#' Traces use [.frs_trace_downstream()] (mainstem lines, distance only,
+#' no gradient stop). An outlet is traced per `(waterbody_key,
+#' blue_line_key)`, so a polygon with two outflows is traced from both.
+#' Spawning on a sibling tributary (neither upstream nor downstream of the
+#' polygon) does not connect, and neither does spawning outside `table`
+#' (e.g. in the next watershed group). Subtractive: only clears flags,
+#' never sets them. `habitat` may hold other watershed groups' rows (a
+#' shared `to_habitat`): every join matches `watershed_group_code` too, so
+#' they are never read or cleared.
+#'
+#' @param column Character. `"lake_rearing"` or `"wetland_rearing"`.
+#' @param distance_max Numeric. Network distance cap in metres.
+#' @noRd
+.frs_bucket_connected <- function(conn, table, habitat, species, column,
+                                  distance_max, verbose = TRUE) {
+  .frs_validate_identifier(table, "streams table")
+  .frs_validate_identifier(habitat, "habitat table")
+  stopifnot(column %in% c("lake_rearing", "wetland_rearing"))
+  stopifnot(is.numeric(distance_max), length(distance_max) == 1,
+            is.finite(distance_max), distance_max > 0)
+  sp_quoted <- .frs_quote_string(species)
+  sfx <- paste0(tolower(species), "_", column)
+  keys_tbl  <- paste0("pg_temp.frs_bkt_keys_", sfx)
+  poly_tbl  <- paste0("pg_temp.frs_bkt_poly_", sfx)
+  spawn_tbl <- paste0("pg_temp.frs_bkt_spawn_", sfx)
+  drop_temp <- function() {
+    for (t in c(keys_tbl, poly_tbl, spawn_tbl)) {
+      .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+  }
+
+  count_bucket <- function() {
+    DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
+       WHERE species_code = %s", column, habitat, sp_quoted))$n
+  }
+  n_before <- if (verbose) count_bucket() else 0L
+
+  # The traces' straight-line prefilter prunes the join only with a GiST
+  # on geom (.frs_index_working() adds none), and the plan needs current
+  # statistics on both tables. Measured on NATR BT: ~48 s per species
+  # without them, ~2.5 s with them.
+  tbl_name <- utils::tail(strsplit(table, ".", fixed = TRUE)[[1]], 1)
+  .frs_db_execute(conn, sprintf(
+    "CREATE INDEX IF NOT EXISTS %s_geom_gist_idx ON %s USING gist (geom)",
+    tbl_name, table))
+  .frs_db_execute(conn, sprintf("ANALYZE %s", table))
+  .frs_db_execute(conn, sprintf("ANALYZE %s", habitat))
+
+  drop_temp()
+  .frs_db_execute(conn, sprintf(
+    "CREATE TEMP TABLE %s (waterbody_key bigint)", keys_tbl))
+  .frs_db_execute(conn, sprintf(
+    "CREATE TEMP TABLE %s (origin_id bigint, id_segment bigint)", poly_tbl))
+  # id_segment is unique within `table` (one watershed group's working
+  # streams) but not across groups, so every habitat join also matches
+  # watershed_group_code.
+  .frs_db_execute(conn, sprintf(
+    "CREATE TEMP TABLE %s (id_segment bigint)", spawn_tbl))
+
+  # Segments of this species carrying the bucket / spawning flag
+  hab_join <- sprintf(
+    "INNER JOIN %s h ON h.id_segment = s.id_segment
+       AND h.watershed_group_code = s.watershed_group_code", habitat)
+  bucket_segs <- sprintf(
+    "SELECT s.* FROM %s s
+     %s
+     WHERE h.species_code = %s AND h.%s IS TRUE",
+    table, hab_join, sp_quoted, column)
+  spawn_segs <- sprintf(
+    "SELECT s.* FROM %s s
+     %s
+     WHERE h.species_code = %s AND h.spawning IS TRUE",
+    table, hab_join, sp_quoted)
+
+  # 1. Spawning on the polygon's own lines (FWA_Downstream excludes the
+  #    origin, so the traces below cannot see distance zero).
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (waterbody_key)
+     SELECT DISTINCT sp.waterbody_key FROM (%s) sp
+     WHERE sp.waterbody_key IN (SELECT b.waterbody_key FROM (%s) b)",
+    keys_tbl, spawn_segs, bucket_segs))
+
+  # 2. Spawning below the polygon: trace down from the lowest bucket line
+  #    on each of the polygon's blue lines (a polygon can have two
+  #    outflows). origin_id is that line's id_segment, unique per origin
+  #    as the trace's distance window requires; it maps back to the key.
+  .frs_trace_downstream(conn, table,
+    origins_sql = sprintf(
+      "SELECT DISTINCT ON (b.waterbody_key, b.blue_line_key)
+         b.id_segment AS origin_id,
+         b.blue_line_key, b.downstream_route_measure,
+         b.wscode_ltree, b.localcode_ltree, b.geom
+       FROM (%s) b
+       ORDER BY b.waterbody_key, b.blue_line_key, b.wscode_ltree,
+                b.localcode_ltree, b.downstream_route_measure", bucket_segs),
+    target = poly_tbl, distance_max = distance_max, gradient_max = NULL,
+    id_col = "id_segment", with_origin = TRUE, prefilter = TRUE)
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (waterbody_key)
+     SELECT DISTINCT o.waterbody_key FROM %s p
+     INNER JOIN %s o ON o.id_segment = p.origin_id
+     INNER JOIN %s s ON s.id_segment = p.id_segment
+     %s
+     WHERE h.species_code = %s AND h.spawning IS TRUE",
+    keys_tbl, poly_tbl, table, table, hab_join, sp_quoted))
+
+  # 3. Spawning above the polygon: trace down from each spawning
+  #    cluster's lowest point
+  .frs_trace_downstream(conn, table,
+    origins_sql = sprintf(
+      "WITH clustered AS (
+         SELECT sp.*, ST_ClusterDBSCAN(sp.geom, 1, 1) OVER () AS cluster_id
+         FROM (%s) sp
+       )
+       SELECT DISTINCT ON (c.cluster_id)
+         c.cluster_id AS origin_id,
+         c.blue_line_key, c.downstream_route_measure,
+         c.wscode_ltree, c.localcode_ltree, c.geom
+       FROM clustered c
+       ORDER BY c.cluster_id, c.wscode_ltree, c.localcode_ltree,
+                c.downstream_route_measure", spawn_segs),
+    target = spawn_tbl, distance_max = distance_max, gradient_max = NULL,
+    id_col = "id_segment", prefilter = TRUE)
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (waterbody_key)
+     SELECT DISTINCT s.waterbody_key FROM %s t
+     INNER JOIN %s s ON s.id_segment = t.id_segment
+     WHERE s.waterbody_key IS NOT NULL",
+    keys_tbl, spawn_tbl, table))
+
+  # Subtractive: clear the bucket on polygons with no connection
+  .frs_db_execute(conn, sprintf(
+    "UPDATE %s h SET %s = FALSE
+     FROM %s s
+     WHERE h.id_segment = s.id_segment
+       AND h.watershed_group_code = s.watershed_group_code
+       AND h.species_code = %s
+       AND h.%s IS TRUE
+       AND NOT EXISTS (
+         SELECT 1 FROM %s k WHERE k.waterbody_key = s.waterbody_key)",
+    habitat, column, table, sp_quoted, column, keys_tbl))
+
+  drop_temp()
+
+  if (verbose) {
+    cat("  ", species, ": ", column, " connected to spawning within ",
+        distance_max, " m: ", n_before, " -> ", count_bucket(), "\n",
+        sep = "")
+  }
+  invisible(conn)
 }
 
 
@@ -1403,22 +1614,64 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #'   `wscode_ltree`, `localcode_ltree`. (`wscode_ltree`/`localcode_ltree`
 #'   are new requirements compared to the previous interface — callers
 #'   must SELECT them.)
-#' @param target Character. Table to INSERT `linear_feature_id` results into.
+#' @param target Character. Table to INSERT results into: column `id_col`,
+#'   preceded by `origin_id` when `with_origin = TRUE`.
 #' @param distance_max Numeric. Maximum cumulative trace distance (metres).
-#' @param gradient_max Numeric. Gradient threshold — trace stops at the
-#'   first segment exceeding this value.
+#' @param gradient_max Numeric or `NULL`. Gradient threshold — trace stops
+#'   at the first segment exceeding this value. `NULL` traces on distance
+#'   alone.
+#' @param id_col Character. Column of `table` to return per traced
+#'   segment. Default `"linear_feature_id"`; `"id_segment"` returns the
+#'   broken segment itself.
+#' @param with_origin Logical. Also return the `origin_id` each segment
+#'   was reached from. Default `FALSE`.
+#' @param prefilter Logical. When `TRUE`, `origins_sql` must also yield a
+#'   `geom`, and only segments within `distance_max` (straight line) of it
+#'   are joined. A segment within `distance_max` along the network starts
+#'   within that straight-line distance, so the capped result is the same;
+#'   the prefilter only bounds the join. Default `FALSE`.
 #' @noRd
 .frs_trace_downstream <- function(conn, table, origins_sql, target,
-                                  distance_max, gradient_max) {
+                                  distance_max, gradient_max,
+                                  id_col = "linear_feature_id",
+                                  with_origin = FALSE,
+                                  prefilter = FALSE) {
+  .frs_validate_identifier(id_col, "id_col")
   dm <- .frs_sql_num(distance_max)
-  gm <- .frs_sql_num(gradient_max)
+  cols_out <- if (with_origin) paste0("origin_id, ", id_col) else id_col
+  prefilter_sql <- if (prefilter) {
+    sprintf("\n         AND ST_DWithin(t.geom, o.geom, %s)", dm)
+  } else {
+    ""
+  }
+  # Without a gradient stop every capped segment is valid.
+  barrier_sql <- if (is.null(gradient_max)) {
+    sprintf(
+      "valid_downstream AS (
+       SELECT %s FROM downstream_capped
+     )", cols_out)
+  } else {
+    sprintf(
+      "nearest_barrier AS (
+       SELECT DISTINCT ON (origin_id) *
+       FROM downstream_capped WHERE gradient > %s
+       ORDER BY origin_id, wscode_ltree DESC, downstream_route_measure DESC
+     ),
+     valid_downstream AS (
+       SELECT %s FROM downstream_capped d
+       LEFT JOIN nearest_barrier nb ON d.origin_id = nb.origin_id
+       WHERE nb.rn IS NULL OR d.rn < nb.rn
+     )", .frs_sql_num(gradient_max),
+      paste0("d.", strsplit(cols_out, ", ", fixed = TRUE)[[1]],
+             collapse = ", "))
+  }
 
   .frs_db_execute(conn, sprintf(
-    "INSERT INTO %s (linear_feature_id)
+    "INSERT INTO %s (%s)
      WITH origins AS (%s),
      downstream AS (
        SELECT o.origin_id,
-         t.linear_feature_id, t.gradient, t.wscode_ltree,
+         t.%s, t.gradient, t.wscode_ltree,
          t.downstream_route_measure,
          -t.length_metre + SUM(t.length_metre) OVER (
            PARTITION BY o.origin_id
@@ -1430,7 +1683,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
          o.wscode_ltree, o.localcode_ltree,
          t.blue_line_key, t.downstream_route_measure,
          t.wscode_ltree, t.localcode_ltree)
-       WHERE t.blue_line_key = t.watershed_key
+       WHERE t.blue_line_key = t.watershed_key%s
      ),
      downstream_capped AS (
        SELECT row_number() OVER (
@@ -1439,18 +1692,10 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        ) AS rn, *
        FROM downstream WHERE dist_to_origin < %s
      ),
-     nearest_barrier AS (
-       SELECT DISTINCT ON (origin_id) *
-       FROM downstream_capped WHERE gradient > %s
-       ORDER BY origin_id, wscode_ltree DESC, downstream_route_measure DESC
-     ),
-     valid_downstream AS (
-       SELECT d.linear_feature_id FROM downstream_capped d
-       LEFT JOIN nearest_barrier nb ON d.origin_id = nb.origin_id
-       WHERE nb.rn IS NULL OR d.rn < nb.rn
-     )
-     SELECT DISTINCT linear_feature_id FROM valid_downstream",
-    target, origins_sql, table, dm, gm))
+     %s
+     SELECT DISTINCT %s FROM valid_downstream",
+    target, cols_out, origins_sql, id_col, table, prefilter_sql, dm,
+    barrier_sql, cols_out))
 }
 
 

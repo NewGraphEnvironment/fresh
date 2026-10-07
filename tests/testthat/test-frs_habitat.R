@@ -509,3 +509,68 @@ test_that(".frs_connected_waterbody defaults to lake_adjacent=TRUE when arg omit
   expect_match(joined, "ST_ClusterDBSCAN")
   expect_match(joined, "ST_DWithin")
 })
+
+# .frs_trace_downstream gained id_col / with_origin / prefilter and an
+# optional gradient stop (fresh#240). Its default call — the SK
+# connected-waterbody trace — must emit the SQL it emitted before.
+.capture_trace_sql <- function(...) {
+  sql <- NULL
+  testthat::with_mocked_bindings(
+    .frs_trace_downstream(conn = NULL, table = "w.streams",
+      origins_sql = "SELECT 1 AS origin_id", target = "pg_temp.t",
+      distance_max = 3000, ...),
+    .frs_db_execute = function(conn, s) {
+      sql <<- s
+      0L
+    })
+  sql
+}
+
+test_that(".frs_trace_downstream default SQL is unchanged (fresh#240)", {
+  gold <- paste(readLines(test_path("fixtures", "trace_downstream_sk.sql")),
+                collapse = "\n")
+  expect_identical(.capture_trace_sql(gradient_max = 0.05), gold)
+})
+
+test_that(".frs_trace_downstream options: id_segment, origin, no gradient, prefilter", {
+  sql <- .capture_trace_sql(gradient_max = NULL, id_col = "id_segment",
+                            with_origin = TRUE, prefilter = TRUE)
+  expect_match(sql, "INSERT INTO pg_temp.t (origin_id, id_segment)", fixed = TRUE)
+  expect_match(sql, "SELECT DISTINCT origin_id, id_segment FROM valid_downstream",
+               fixed = TRUE)
+  expect_match(sql, "AND ST_DWithin(t.geom, o.geom, 3000)", fixed = TRUE)
+  expect_no_match(sql, "nearest_barrier")
+  expect_error(.capture_trace_sql(gradient_max = NULL, id_col = "x; DROP"),
+               "id_col")
+})
+
+# The bucket pass runs per L / W rule carrying requires_connected, whatever
+# the cluster flags, spawn rules or params_fresh rows say (fresh#240).
+test_that(".frs_run_connectivity calls the bucket filter only for opted-in rules", {
+  calls <- list()
+  testthat::local_mocked_bindings(
+    .frs_bucket_connected = function(conn, table, habitat, species, column,
+                                     distance_max, verbose) {
+      calls[[length(calls) + 1]] <<- list(species = species, column = column,
+                                          distance_max = distance_max)
+      invisible(conn)
+    },
+    frs_cluster = function(...) stop("frs_cluster should not run")
+  )
+  params <- list(
+    BT = list(rules = list(rear = list(
+      list(edge_types = c("stream", "canal")),
+      list(waterbody_type = "L", requires_connected = "spawning",
+           connected_distance_max = 3000),
+      list(waterbody_type = "W", requires_connected = "spawning",
+           connected_distance_max = 500)))),
+    CO = list(rules = list(rear = list(list(waterbody_type = "W")))))
+  # No params_fresh row for either species: the spawning passes are skipped
+  pf <- data.frame(species_code = character(0), cluster_rearing = logical(0),
+                   cluster_spawning = logical(0))
+  .frs_run_connectivity("mock", "w.s", "w.h", species = c("BT", "CO", "SK"),
+    params = params, params_fresh = pf, verbose = FALSE)
+  expect_equal(calls, list(
+    list(species = "BT", column = "lake_rearing", distance_max = 3000),
+    list(species = "BT", column = "wetland_rearing", distance_max = 500)))
+})
