@@ -2,7 +2,7 @@
 % Please edit documentation in R/frs_break.R
 \name{frs_break}
 \alias{frs_break}
-\title{Break Stream Network at Threshold or Point Locations}
+\title{Break Stream Network at an Attribute Threshold}
 \usage{
 frs_break(
   conn,
@@ -12,10 +12,6 @@ frs_break(
   threshold = NULL,
   interval = 100L,
   distance = 100L,
-  points_table = NULL,
-  points = NULL,
-  points_where = NULL,
-  aoi = NULL,
   overwrite = TRUE,
   evidence_table = NULL,
   where = NULL,
@@ -43,10 +39,6 @@ gradient exceeds this produce a break point at the entry.}
 \item{distance}{Integer. Upstream window in metres for gradient
 computation at each vertex. Default \code{100}.}
 
-\item{points_where}{Character or \code{NULL}. SQL predicate to filter rows from
-\code{points_table} (e.g. \code{"barrier_ind = TRUE"}). Passed to
-\code{\link[=frs_break_find]{frs_break_find()}} as \code{where}.}
-
 \item{overwrite}{Logical. If \code{TRUE}, drop \code{to} before creating.
 Default \code{TRUE}.}
 
@@ -69,7 +61,9 @@ Passed to \code{\link[=frs_break_apply]{frs_break_apply()}}. Default \code{"line
 }
 \description{
 Convenience wrapper that calls \code{\link[=frs_break_find]{frs_break_find()}}, optionally
-\code{\link[=frs_break_validate]{frs_break_validate()}}, then \code{\link[=frs_break_apply]{frs_break_apply()}} in sequence.
+\code{\link[=frs_break_validate]{frs_break_validate()}}, then \code{\link[=frs_break_apply]{frs_break_apply()}} in sequence. To break at
+point features instead, locate them with \code{\link[=frs_feature_find]{frs_feature_find()}} and pass
+that table to \code{\link[=frs_break_apply]{frs_break_apply()}}.
 }
 \examples{
 # --- Concept: what frs_break does (bundled data) ---

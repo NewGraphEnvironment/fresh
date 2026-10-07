@@ -25,6 +25,10 @@ frs_break_apply(
 \item{segment_id}{Character. Column name used as the segment identifier
 in \code{table}. Default \code{"linear_feature_id"} (FWA base table). Use
 \code{"segmented_stream_id"} for bcfishpass tables.}
+
+\item{measure_precision}{Integer. Decimal places break measures are
+rounded to before splitting; breaks that round to the same position
+collapse into one. Default \code{0} (whole metres, matching bcfishpass).}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.

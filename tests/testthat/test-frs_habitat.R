@@ -609,3 +609,34 @@ test_that(".frs_run_connectivity calls the bucket filter only for opted-in rules
     list(species = "BT", column = "lake_rearing", distance_max = 3000),
     list(species = "BT", column = "wetland_rearing", distance_max = 500)))
 })
+
+
+test_that("frs_habitat_access forwards only arguments its finders accept", {
+  calls <- list()
+  capture <- function(fn) {
+    function(...) {
+      calls[[length(calls) + 1L]] <<- list(fn = fn, args = names(list(...)))
+      invisible("mock")
+    }
+  }
+  mockery::stub(frs_habitat_access, "frs_break_find", capture("frs_break_find"))
+  mockery::stub(frs_habitat_access, "frs_feature_find",
+                capture("frs_feature_find"))
+  mockery::stub(frs_habitat_access, ".frs_enrich_breaks", function(...) NULL)
+  mockery::stub(frs_habitat_access, ".frs_index_working", function(...) NULL)
+
+  frs_habitat_access("mock", "working.streams", threshold = 0.15,
+    to = "working.breaks_access",
+    break_sources = list(
+      list(table = "working.falls", label = "blocked"),
+      list(table = "working.crossings", label_col = "barrier_status",
+           col_blk = "blk", col_measure = "drm")))
+
+  expect_equal(vapply(calls, `[[`, "", "fn"),
+               c("frs_break_find", "frs_feature_find", "frs_feature_find"))
+  for (cl in calls) {
+    accepted <- names(formals(get(cl$fn, envir = asNamespace("fresh"))))
+    expect_true(all(cl$args[nzchar(cl$args)] %in% accepted),
+                info = cl$fn)
+  }
+})

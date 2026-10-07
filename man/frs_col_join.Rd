@@ -66,7 +66,7 @@ conn |>
     from = "(SELECT l.linear_feature_id, ua.upstream_area_ha
              FROM fwa_streams_watersheds_lut l
              JOIN fwa_watersheds_upstream_area ua
-               ON l.watershed_feature_id = ua.watershed_feature_id) sub",
+               ON l.watershed_feature_id = ua.watershed_feature_id)",
     cols = "upstream_area_ha",
     by = "linear_feature_id")
 

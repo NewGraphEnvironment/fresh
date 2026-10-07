@@ -33,6 +33,7 @@ Suggests:
     mirai,
     knitr,
     rmarkdown,
+    tibble,
     mockery,
     testthat (>= 3.0.0),
     tmap (>= 4.0),

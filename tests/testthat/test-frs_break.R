@@ -305,6 +305,28 @@ test_that("frs_break skips validate when no evidence_table", {
   expect_equal(call_log, c("find", "apply"))
 })
 
+test_that("frs_break forwards only arguments its helpers accept", {
+  # The find stub swallows `...`, so an argument frs_break_find() dropped
+  # would pass silently; compare names against the real formals instead.
+  args_find <- NULL
+  args_apply <- NULL
+  mockery::stub(frs_break, "frs_break_find", function(...) {
+    args_find <<- names(list(...))
+    invisible("mock")
+  })
+  mockery::stub(frs_break, "frs_break_apply", function(...) {
+    args_apply <<- names(list(...))
+    invisible("mock")
+  })
+
+  frs_break("mock", "working.streams",
+            attribute = "gradient", threshold = 0.05)
+
+  named <- function(x) x[nzchar(x)]
+  expect_true(all(named(args_find) %in% names(formals(frs_break_find))))
+  expect_true(all(named(args_apply) %in% names(formals(frs_break_apply))))
+})
+
 
 # --- Integration tests (live DB, Byman-Ailport AOI) ---
 
