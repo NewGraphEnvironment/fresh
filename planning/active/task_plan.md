@@ -35,11 +35,11 @@
 
 ## Phase 4: Release notes and handoff
 - [x] NEWS.md entry: what changed, that bundled and link `default*` rearing moves, and the measured delta. The version bump is left to `/gh-pr-merge`. Drafted in findings.md ("NEWS draft") for `/gh-pr-merge`'s release commit, as earlier branches did, rather than edited on the branch
-- [ ] Tell link its `default*` bundle outputs move (comms thread or link issue). Confirm wording and channel with the user before posting
+- [x] Tell link its `default*` bundle outputs move (comms thread or link issue). Confirm wording and channel with the user before posting. Filed NewGraphEnvironment/link#311 (user chose a link issue)
 
 ## Validation
 
 - [x] Tests pass
 - [x] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

@@ -22,3 +22,4 @@
   - Round 2: the "persisted rearing" column still held the dropped segments, a defect inside round 1's fix. Added `small_wetland_kept_*` and `kept_*` columns and relabelled.
   - Enumeration: 44 / 44 figures in findings.md and the NEWS draft match the CSV column they name.
 - Phase 4: NEWS text drafted in findings.md for the release commit. Link handoff drafted and held for the user's OK on wording and channel
+- Filed NewGraphEnvironment/link#311: default* rearing moves, plus the 1050 / 1150 carve-out floor question. Verified the suggested W-rule form loads and compiles with the floor
