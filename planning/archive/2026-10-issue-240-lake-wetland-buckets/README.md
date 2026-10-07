@@ -25,7 +25,7 @@ BT bucket km (polygons) on link's persisted `fresh_default` with link's `default
 | PARS lake | 54.9 (31) | 101.5 (41) | 81.4 (23) | 96.3 (36) | 101.5 (41) |
 | PARS wetland | 190.2 (306) | 437.4 (766) | 325.3 (441) | 421.7 (718) | 437.4 (766) |
 
-- **Area only reproduces link#307's `cw` figures** (521 / 1,287 km). That confirms the size test is what #307 measured shrinking under `mad`.
+- **Area only reproduces link#307's `cw` figures** (521 / 1,287 km). That confirms the size test is what link#307 measured shrinking under `mad`.
 - **Disconnected wetlands are the larger effect.** At 500 m, NATR loses 1,210 of 2,148 wetland polygons.
 - **Speed: ~48 s → 2.5 s per species per WSG.** The first live runs took ~50–70 s per species per WSG. The wrong turn was blaming the trace. Profiling showed it needs a GiST on `geom` (working tables have none) *and* current statistics; neither alone was enough (57 s with the index, 50 s with ANALYZE). With both it runs in 2–5 s, identical output. The pass now creates the index if missing and ANALYZEs.
 - **Test and check sweep.** `devtools::test()` FAIL 0 / PASS 1201. `devtools::check()` is identical to `main`: the same 12 pre-existing `test-frs_network_features.R` failures (no `tibble` in the check library), the same warnings and notes.
