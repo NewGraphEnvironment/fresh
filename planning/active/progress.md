@@ -21,3 +21,4 @@
   - Round 1: the sub-floor test was "any polygon < floor", not the complement of the W rule. The edge split wasn't scripted. NEWS led with the predicate delta. All three fixed.
   - Round 2: the "persisted rearing" column still held the dropped segments, a defect inside round 1's fix. Added `small_wetland_kept_*` and `kept_*` columns and relabelled.
   - Enumeration: 44 / 44 figures in findings.md and the NEWS draft match the CSV column they name.
+- Phase 4: NEWS text drafted in findings.md for the release commit. Link handoff drafted and held for the user's OK on wording and channel
