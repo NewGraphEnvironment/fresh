@@ -16,3 +16,8 @@
   - Round 3: an empty floor still went silent, a gap inside the round-2 fix, so only an enumeration could end the loop. Fixed with a key-presence check
   - Enumeration: all 128 cases rejected or correctly floored
 - Full suite FAIL 0 / PASS 1254 (3 warnings from the existing live network-features tests)
+- Phase 3: `data-raw/rear_wetland_floor_check.R` and logs for NATR BT, PARS BT and BULK CO. Numbers are in findings.md.
+- `/code-check` on Phase 3, two rounds plus an enumeration:
+  - Round 1: the sub-floor test was "any polygon < floor", not the complement of the W rule. The edge split wasn't scripted. NEWS led with the predicate delta. All three fixed.
+  - Round 2: the "persisted rearing" column still held the dropped segments, a defect inside round 1's fix. Added `small_wetland_kept_*` and `kept_*` columns and relabelled.
+  - Enumeration: 44 / 44 figures in findings.md and the NEWS draft match the CSV column they name.

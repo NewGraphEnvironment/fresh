@@ -26,12 +26,12 @@
 - [x] (code-check round 3) loader checks floor key presence, so an empty / `~` / `null` floor errors too; 128-case enumeration (key × type × value) shows every input is rejected or compiles to exactly its declared floor
 
 ## Phase 3: Live measurement
-- [ ] `data-raw/rear_wetland_floor_check.R`: on link's persisted `fresh_default` for NATR and PARS (BT), plus a Pacific WSG for CO at 0.5 ha (CO isn't in NATR / PARS), evaluate the full compiled `rear` predicate old vs new on accessible segments. Report segments / km that leave `rearing`. This is net of the stream-edge rule, which can still admit a segment in a small wetland. Write logs to `data-raw/logs/rear_wetland_floor_237/`
+- [x] `data-raw/rear_wetland_floor_check.R`: on link's persisted `fresh_default` for NATR and PARS (BT), plus a Pacific WSG for CO at 0.5 ha (CO isn't in NATR / PARS), evaluate the full compiled `rear` predicate old vs new on accessible segments. Report segments / km that leave `rearing`. This is net of the stream-edge rule, which can still admit a segment in a small wetland. Write logs to `data-raw/logs/rear_wetland_floor_237/`
   - (review) Build real `sp_params` from link's `rules.yaml` + `parameters_habitat_thresholds.csv` via `frs_params()`, in `frs_habitat_classify()`'s shape. `ranges = list()` would drop the inherited thresholds on the stream rule
   - (review) "Old" = the same rules with `wetland_ha_min` removed from the W rule. Count `accessible AND old AND NOT new`, on one branch
   - (review) Read the model per WSG from link's `parameters_habitat_method.csv` and pass `model =`
   - (review) Report agreement of the reconstructed old predicate with persisted `rearing`, and the delta both on the predicate alone and intersected with persisted `rearing`
-- [ ] Record the numbers in `findings.md`
+- [x] Record the numbers in `findings.md`
 
 ## Phase 4: Release notes and handoff
 - [ ] NEWS.md entry: what changed, that bundled and link `default*` rearing moves, and the measured delta. The version bump is left to `/gh-pr-merge`

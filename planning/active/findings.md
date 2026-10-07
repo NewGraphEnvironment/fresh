@@ -48,3 +48,49 @@ No blockers. Folded into `task_plan.md` as `(review)` items: an NA-floor guard i
 Two points to carry into NEWS:
 - **"If done" holds per rule, not per predicate.** Bundled and link rear rules include `edge_types_explicit: [1050, 1150], thresholds: false`, which admits wetland-flow lines in wetlands of any size. The `W` rule with its floor only adds stream edges (1000 / 1100) that the stream rule rejects: cw < 1.5, NULL cw, or steeper than the inherited gradient. So the delta is smaller than the issue's 76 km of BT-accessible segments in small wetlands. Whether the 1050 / 1150 carve-out should also take a floor is a separate question for the user.
 - **The `bcfishpass` bundle has no `W` rules** and does not move.
+
+## Live measurement (2026-10-07)
+
+`data-raw/rear_wetland_floor_check.R` on link's persisted `fresh_default`, local fwapg, link `default` config. All three groups are `cw`. Logs are in `data-raw/logs/rear_wetland_floor_237/`: `<wsg>_<sp>.csv`, `_edge.csv` and the `.txt` stamp. Every cell below is **segments (km)** and is copied from those CSVs, with the column named.
+
+"Sub-floor wetland" means a wetland `waterbody_key` with no polygon of `area_ha >= floor`. That is the complement of the W rule's own test, since a key can have several polygons. A first pass used "any polygon < floor" and overcounted; code-check p3 round 1 caught it.
+
+**What the fix removes**
+
+| WSG / sp | floor (ha) | rear predicate, old → new segments | dropped by predicate (`dropped_*`) | dropped from persisted rearing (`dropped_persisted_*`) | wetland keys touched |
+|---|---|---|---|---|---|
+| NATR BT | 1 | 12,222 → 12,160 | 62 (3.0) | 40 (2.1) | 49 |
+| PARS BT | 1 | 11,859 → 11,782 | 77 (3.8) | 60 (3.1) | 64 |
+| BULK CO | 0.5 | 8,017 → 8,012 | 5 (0.1) | 2 (0.0) | 5 |
+
+- **Persisted rearing ⊆ old predicate in all three groups** (`persisted_only_n = 0`). The old-only segments are consistent with link's `cluster_rearing` removing them afterwards, but that direction wasn't checked.
+- **Nothing gains** (`gained_n = 0`).
+- **The persisted loss is a lower bound.** link reruns `cluster_rearing` (TRUE for BT and CO in `default`) on the narrower set, and that can drop more.
+- **The delta is small** because the W rule only contributes stream edges (1000 / 1100) that the stream rule rejects. Every dropped segment is on 1000 / 1100 in a sub-floor wetland (code-check p3 round 2).
+
+**What stays in sub-floor wetlands**, admitted by other rules
+
+| WSG / sp | admitted by new predicate (`small_wetland_new_*`) | persisted rearing the new predicate keeps (`small_wetland_kept_*`) | of which edge 1050 / 1150 (`_edge.csv` `kept_*`) |
+|---|---|---|---|
+| NATR BT | 596 (49.5) | 315 (27.0) | 307 (26.4) |
+| PARS BT | 381 (28.9) | 247 (19.3) | 244 (19.1) |
+| BULK CO | 35 (2.6) | 18 (1.3) | 18 (1.3) |
+
+- **Edge 1050 / 1150** lines are wetland-flow, admitted by the `edge_types_explicit: [1050, 1150], thresholds: false` carve-out, which has no area floor. Kept is computed before link reruns `cluster_rearing`, so it is an upper bound.
+- **The other kept segments are 1000-edge lines admitted by the stream rule:** NATR 8 (0.5 km), PARS 3 (0.2 km).
+- **The carve-out floor is out of scope.** Whether the carve-out should take the wetland floor is a bundle design question for link, not part of #237.
+
+## NEWS draft (for `/gh-pr-merge`'s release commit)
+
+Prior branches (#240, #229, #223) left NEWS to the `Release vX.Y.Z` commit, so the entry is drafted here rather than committed to `NEWS.md` on the branch. Outputs move for most bundles, so a minor bump fits the #240 precedent.
+
+```markdown
+Closes [#237](https://github.com/NewGraphEnvironment/fresh/issues/237).
+
+**A wetland rule's `wetland_ha_min` now gates `rearing`, not only `wetland_rearing`.**
+- The compiler for the main `spawn` / `rear` predicates read only `lake_ha_min`, so a `waterbody_type: W` rule admitted wetlands of every size. The floor now comes from the key of the rule's type (`lake_ha_min` on `L`, `wetland_ha_min` on `W`) through one internal reader. The lake / wetland bucket predicates and the waterbody-connected spawning pass use the same reader.
+- **Rearing moves for every bundle with a wetland floor:** fresh's bundled rules and link's `default*` (BT, CH, CO, RB, ST, WCT). The `bcfishpass` bundle has no `W` rules and is unchanged. On link's `fresh_default`, persisted rearing loses at least 40 segments (2.1 km) for NATR BT, 60 (3.1 km) for PARS BT and 2 for BULK CO. It is "at least" because `cluster_rearing` reruns on the narrower set. The change is small because the stream rule already admits most stream edges in wetlands (`data-raw/logs/rear_wetland_floor_237/`).
+- The floor holds per rule, not per predicate. Other rear rules still admit segments in smaller wetlands, chiefly the `edge_types_explicit: [1050, 1150], thresholds: false` wetland-flow rule. For NATR BT, about 307 segments (26.4 km) of rearing sit on wetland-flow lines in wetlands under 1 ha. That is an upper bound until `cluster_rearing` reruns.
+- The rules loader now rejects an `NA` / `NaN` `lake_ha_min` or `wetland_ha_min`. Before, it compiled to invalid SQL.
+- For waterbody-connected spawning on a species whose first lake / wetland rear rule is `W`, the floor is now its `wetland_ha_min` rather than the 200 ha default. No bundled species takes that path.
+```
