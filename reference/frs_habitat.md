@@ -204,6 +204,30 @@ Supports three modes:
 - **WSG + custom AOI** (`wsg` + `aoi`): WSG for species lookup and table
   naming, custom AOI for spatial extent.
 
+## Lake and wetland rearing
+
+`lake_rearing` / `wetland_rearing` come from a species' first rear rule
+with `waterbody_type: L` / `W`: an accessible segment inside a lake or
+wetland polygon of at least the rule's `lake_ha_min` / `wetland_ha_min`
+hectares. No channel-width or discharge test applies, under either
+habitat model. That rule may also carry
+
+    - waterbody_type: L
+      lake_ha_min: 10
+      requires_connected: spawning
+      connected_distance_max: 3000
+
+After classification, a polygon then keeps the flag only if same-species
+spawning lies on one of its lines, or within `connected_distance_max`
+metres downstream of it, or upstream of it within that distance (traced
+down mainstem lines to the polygon). The polygon is the unit: one
+connected line keeps all of it. Spawning on a sibling tributary or in
+another watershed group does not connect, and the trace has no gradient
+stop. Only the bucket flag is filtered: if the L / W rule also feeds the
+main `rearing` predicate (no `area_only: true`), `rearing` is unchanged.
+A rule without `requires_connected` keeps every polygon that passes the
+area test.
+
 ## See also
 
 Other habitat:

@@ -229,6 +229,30 @@ species. For sub-basins, territories, or cross-WSG study areas.</p></li>
 table naming, custom AOI for spatial extent.</p></li>
 </ul></div>
     <div class="section level2">
+    <h2 id="lake-and-wetland-rearing">Lake and wetland rearing<a class="anchor" aria-label="anchor" href="#lake-and-wetland-rearing"></a></h2>
+
+
+<p><code>lake_rearing</code> / <code>wetland_rearing</code> come from a species' first rear rule
+with <code>waterbody_type: L</code> / <code>W</code>: an accessible segment inside a lake or
+wetland polygon of at least the rule's <code>lake_ha_min</code> / <code>wetland_ha_min</code>
+hectares. No channel-width or discharge test applies, under either
+habitat model. That rule may also carry</p>
+<p></p><div class="sourceCode yaml"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">waterbody_type</span><span class="kw">:</span><span class="at"> L</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="at">  </span><span class="fu">lake_ha_min</span><span class="kw">:</span><span class="at"> </span><span class="dv">10</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="at">  </span><span class="fu">requires_connected</span><span class="kw">:</span><span class="at"> spawning</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="at">  </span><span class="fu">connected_distance_max</span><span class="kw">:</span><span class="at"> </span><span class="dv">3000</span></span></code></pre><p></p></div>
+<p>After classification, a polygon then keeps the flag only if same-species
+spawning lies on one of its lines, or within <code>connected_distance_max</code>
+metres downstream of it, or upstream of it within that distance (traced
+down mainstem lines to the polygon). The polygon is the unit: one
+connected line keeps all of it. Spawning on a sibling tributary or in
+another watershed group does not connect, and the trace has no gradient
+stop. Only the bucket flag is filtered: if the L / W rule also feeds
+the main <code>rearing</code> predicate (no <code>area_only: true</code>), <code>rearing</code> is
+unchanged. A rule without <code>requires_connected</code> keeps every polygon that
+passes the area test.</p>
+    </div>
+    <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Other habitat:
 <code><a href="frs_aggregate.html">frs_aggregate()</a></code>,

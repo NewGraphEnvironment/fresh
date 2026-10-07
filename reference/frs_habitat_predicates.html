@@ -98,22 +98,22 @@ directly from <code>sp_params$ranges</code> + <code>sp_params$&lt;spawn|rear&gt;
 <code>parameters_habitat_method.csv</code>. <code>"cw"</code> (default) uses the CSV
 channel-width ranges (<code>ranges$&lt;spawn|rear&gt;$channel_width</code>). <code>"mad"</code>
 uses the CSV mean annual discharge ranges (<code>ranges$&lt;spawn|rear&gt;$mad_m3s</code>)
-against <code>s.mad_m3s</code> instead, on both paths and for lake / wetland
-rearing. Under <code>"mad"</code>, matching bcfishpass: a species with no MAD
-thresholds (e.g. BT) gets no stream spawning / rearing from inheriting
-rules; segments with NULL <code>mad_m3s</code> fail; rule-level <code>channel_width:</code>
-(the cw-model river-polygon bypass) is ignored; and lake / wetland
-rearing for a species with no rear MAD window is polygon-based only.
-An explicit <code>mad: [min, max]</code> rule applies under either model.
-<code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code> resolves the model per watershed group.</p>
-<p>Lake / wetland rearing predicates are gated on the presence of a
-<code>waterbody_type: L</code> / <code>waterbody_type: W</code> rule in <code>rear:</code>. Without
-the rule, the predicate is <code>"FALSE"</code> — the species is not lake or
-wetland-rearing. With the rule, an optional <code>lake_ha_min</code> /
-<code>wetland_ha_min</code> filters the polygon join.</p>
-<p>Segments must still fall within the species' rear channel-width
-window (or rear MAD window under <code>model = "mad"</code>) for lake / wetland
-rearing.</p>
+against <code>s.mad_m3s</code> instead, on both paths. Under <code>"mad"</code>, matching
+bcfishpass: a species with no MAD thresholds (e.g. BT) gets no stream
+spawning / rearing from inheriting rules; segments with NULL <code>mad_m3s</code>
+fail; and rule-level <code>channel_width:</code> (the cw-model river-polygon
+bypass) is ignored. An explicit <code>mad: [min, max]</code> rule applies under
+either model. <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code> resolves the model per
+watershed group.</p>
+<p>Lake / wetland rearing predicates (<code>lake_rear</code>, <code>wetland_rear</code>) are
+gated on the presence of a <code>waterbody_type: L</code> / <code>waterbody_type: W</code>
+rule in <code>rear:</code>. Without the rule, the predicate is <code>"FALSE"</code> — the
+species is not lake or wetland-rearing. With the rule, the predicate
+is polygon membership, filtered by the rule's optional <code>lake_ha_min</code> /
+<code>wetland_ha_min</code>. It carries no channel-width or discharge test under
+either model: the line through a polygon measures its inflow, not the
+polygon. Connection to spawning is applied after classification, for
+rules that carry <code>requires_connected: spawning</code> (see <code><a href="frs_habitat.html">frs_habitat()</a></code>).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
