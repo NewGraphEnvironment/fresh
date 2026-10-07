@@ -6,7 +6,7 @@ Freshwater Referenced Spatial Hydrology. A composable stream network modelling e
 
 **Repository:** NewGraphEnvironment/fresh
 **Primary Language:** R (package)
-**Version:** 0.37.0
+**Version:** 0.38.0
 **License:** MIT
 
 ## Ecosystem
