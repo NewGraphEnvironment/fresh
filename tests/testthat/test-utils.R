@@ -98,6 +98,23 @@ test_that(".frs_find_waterbody_rule returns NULL when no matching rule", {
   expect_null(.frs_find_waterbody_rule(rules, "W"))
 })
 
+test_that(".frs_rule_ha_min reads the floor key of the rule's type (#237)", {
+  expect_equal(.frs_rule_ha_min(list(waterbody_type = "L", lake_ha_min = 10)),
+               10)
+  expect_equal(.frs_rule_ha_min(list(waterbody_type = "W",
+                                     wetland_ha_min = 0.5)), 0.5)
+  expect_null(.frs_rule_ha_min(list(waterbody_type = "W", lake_ha_min = 10)))
+  expect_null(.frs_rule_ha_min(list(waterbody_type = "L",
+                                    wetland_ha_min = 1)))
+  expect_null(.frs_rule_ha_min(list(waterbody_type = "R",
+                                    lake_ha_min = 10)))
+  expect_null(.frs_rule_ha_min(list(lake_ha_min = 10)))
+  expect_null(.frs_rule_ha_min(list(waterbody_type = "L")))
+  expect_null(.frs_rule_ha_min(list(waterbody_type = "W",
+                                    wetland_ha_min = NA_real_)))
+  expect_null(.frs_rule_ha_min(NULL))
+})
+
 test_that(".frs_find_waterbody_rule handles NULL / empty rules", {
   expect_null(.frs_find_waterbody_rule(NULL, "L"))
   expect_null(.frs_find_waterbody_rule(list(), "L"))

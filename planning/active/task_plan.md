@@ -3,15 +3,15 @@
 `frs_params.R` validates `wetland_ha_min` on a W rule (fresh#168 added it to the allowlist), and `build_wb_pred()` (`R/frs_habitat_predicates.R`) applies it to `wetland_rear_pred`. `.frs_rule_to_sql()` (`R/utils.R`), which compiles the main rear predicate, reads only `lake_ha_min`, so a `W` rule with `wetland_ha_min: 1.0` compiles with no area clause and `rearing` admits wetlands of any size.
 
 ## Phase 1: Failing tests
-- [ ] `test-frs_params.R`: `.frs_rule_to_sql(list(waterbody_type = "W", wetland_ha_min = 1))` → `fwa_wetlands_poly WHERE area_ha >= 1`
-- [ ] `test-frs_params.R`: a `W` rule with no floor keeps an unfiltered `SELECT waterbody_key FROM ...fwa_wetlands_poly` (pins current behaviour)
-- [ ] `test-frs_params.R`: a floor key on the wrong type is not applied (a `W` rule carrying `lake_ha_min` → no area clause). Same contract as the loader and `build_wb_pred()`
-- [ ] `test-frs_habitat_predicates.R`: `rear` predicate from a `W` rule with `wetland_ha_min = 1.5` carries `area_ha >= 1.5` (the issue's "if done" line). Also check `rear` and `wetland_rear` use the same floor
-- [ ] `test-utils.R`: new helper `.frs_rule_ha_min()` returns the `L` floor, the `W` floor, and `NULL` for `R` / no type / a mismatched key
-- [ ] Confirm the new tests fail on `main` behaviour
-- [ ] (review) `test-utils.R`: `.frs_rule_ha_min()` returns `NULL` for an `NA` floor (keeps `build_wb_pred()`'s `!is.na` guard; `.frs_sql_num(NA)` would emit invalid SQL)
-- [ ] (review) `test-frs_habitat_predicates.R`: a spawn `W` rule with `wetland_ha_min` gets the floor too (`.frs_rules_to_sql()` compiles spawn rules)
-- [ ] (review) `test-frs_habitat.R`: `.frs_run_connectivity()` passes a `W`-first rear rule's `wetland_ha_min` to `.frs_connected_waterbody()` as `waterbody_ha_min` (mock pattern at `test-frs_habitat.R:549`)
+- [x] `test-frs_params.R`: `.frs_rule_to_sql(list(waterbody_type = "W", wetland_ha_min = 1))` → `fwa_wetlands_poly WHERE area_ha >= 1`
+- [x] `test-frs_params.R`: a `W` rule with no floor keeps an unfiltered `SELECT waterbody_key FROM ...fwa_wetlands_poly` (pins current behaviour)
+- [x] `test-frs_params.R`: a floor key on the wrong type is not applied (a `W` rule carrying `lake_ha_min` → no area clause). Same contract as the loader and `build_wb_pred()`
+- [x] `test-frs_habitat_predicates.R`: `rear` predicate from a `W` rule with `wetland_ha_min = 1.5` carries `area_ha >= 1.5` (the issue's "if done" line). Also check `rear` and `wetland_rear` use the same floor
+- [x] `test-utils.R`: new helper `.frs_rule_ha_min()` returns the `L` floor, the `W` floor, and `NULL` for `R` / no type / a mismatched key
+- [x] Confirm the new tests fail on `main` behaviour
+- [x] (review) `test-utils.R`: `.frs_rule_ha_min()` returns `NULL` for an `NA` floor (keeps `build_wb_pred()`'s `!is.na` guard; `.frs_sql_num(NA)` would emit invalid SQL)
+- [x] (review) `test-frs_habitat_predicates.R`: a spawn `W` rule with `wetland_ha_min` gets the floor too (`.frs_rules_to_sql()` compiles spawn rules)
+- [x] (review) `test-frs_habitat.R`: `.frs_run_connectivity()` passes a `W`-first rear rule's `wetland_ha_min` to `.frs_connected_waterbody()` as `waterbody_ha_min` (mock pattern at `test-frs_habitat.R:549`)
 
 ## Phase 2: Fix — one place that reads the floor
 - [ ] Add `.frs_rule_ha_min(rule)` to `R/utils.R`, next to `.frs_find_waterbody_rule()`: `lake_ha_min` for `L`, `wetland_ha_min` for `W`, otherwise `NULL`
