@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.36.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.37.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.37.0" id="fresh-0370">fresh 0.37.0<a class="anchor" aria-label="anchor" href="#fresh-0370"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/240" class="external-link">#240</a>.</p>
+<p><strong>Lake and wetland rearing buckets are sized by polygon area, and can require connected spawning.</strong> - <code>lake_rearing</code> / <code>wetland_rearing</code> test polygon membership and the rule’s <code>lake_ha_min</code> / <code>wetland_ha_min</code> only, under both <code>cw</code> and <code>mad</code>. There is no channel-width or discharge test on the line through the polygon, which sized the inflow rather than the polygon, and no <code>cw</code> fallback to <code>FALSE</code> for a species with no rear width range. <strong>Every bundle’s buckets change on upgrade.</strong> On NATR, BT lake bucket km go from 310 to 521 and wetland km from 684 to 1,287 (<code>data-raw/logs/bucket_connected_240/</code>). - A species’ first rear <code>waterbody_type: L</code> / <code>W</code> rule may carry <code>requires_connected: spawning</code> and <code>connected_distance_max</code> (m). After classification, a polygon then keeps the flag only where same-species spawning is on one of its lines, downstream of an outlet, or upstream of it within that distance. The polygon is the unit, and <code>rearing</code> is unaffected. See <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code>, “Lake and wetland rearing”. - On a rear rule, <code>requires_connected</code> now errors at rules load unless it is on the first L / W rule, set to <code>spawning</code>, with a finite distance &gt; 0. Before, it was accepted and read by nothing. - The connectivity pass creates a GiST index on the working table’s <code>geom</code> if one is missing and ANALYZEs, which keeps it to a few seconds per species per watershed group.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.36.3" id="fresh-0363">fresh 0.36.3<a class="anchor" aria-label="anchor" href="#fresh-0363"></a></h2>
 <ul><li>README: <a href="https://github.com/NewGraphEnvironment/wet" class="external-link">wet</a> joins the ecosystem table as an open source of the mean annual discharge the <code>mad</code> habitat rules read. Documentation only.</li>

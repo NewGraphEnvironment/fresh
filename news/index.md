@@ -1,5 +1,31 @@
 # Changelog
 
+## fresh 0.37.0
+
+Closes [\#240](https://github.com/NewGraphEnvironment/fresh/issues/240).
+
+**Lake and wetland rearing buckets are sized by polygon area, and can
+require connected spawning.** - `lake_rearing` / `wetland_rearing` test
+polygon membership and the rule’s `lake_ha_min` / `wetland_ha_min` only,
+under both `cw` and `mad`. There is no channel-width or discharge test
+on the line through the polygon, which sized the inflow rather than the
+polygon, and no `cw` fallback to `FALSE` for a species with no rear
+width range. **Every bundle’s buckets change on upgrade.** On NATR, BT
+lake bucket km go from 310 to 521 and wetland km from 684 to 1,287
+(`data-raw/logs/bucket_connected_240/`). - A species’ first rear
+`waterbody_type: L` / `W` rule may carry `requires_connected: spawning`
+and `connected_distance_max` (m). After classification, a polygon then
+keeps the flag only where same-species spawning is on one of its lines,
+downstream of an outlet, or upstream of it within that distance. The
+polygon is the unit, and `rearing` is unaffected. See
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md),
+“Lake and wetland rearing”. - On a rear rule, `requires_connected` now
+errors at rules load unless it is on the first L / W rule, set to
+`spawning`, with a finite distance \> 0. Before, it was accepted and
+read by nothing. - The connectivity pass creates a GiST index on the
+working table’s `geom` if one is missing and ANALYZEs, which keeps it to
+a few seconds per species per watershed group.
+
 ## fresh 0.36.3
 
 - README: [wet](https://github.com/NewGraphEnvironment/wet) joins the
