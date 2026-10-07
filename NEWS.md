@@ -1,3 +1,28 @@
+# fresh 0.39.0
+
+Closes [#234](https://github.com/NewGraphEnvironment/fresh/issues/234), [#29](https://github.com/NewGraphEnvironment/fresh/issues/29), [#28](https://github.com/NewGraphEnvironment/fresh/issues/28).
+
+**New `frs_channel_width()` gives every segment a channel width, first-order streams included.**
+- It writes a width predicted from upstream area and mean annual precipitation, which are joined first with `frs_col_join()`.
+  - Models: `"poisson2021"` (the model behind fwapg's `MODELLED` widths), `"hall2007"` (the VCA bankfull regression flooded uses), or a custom power law.
+  - By default it fills only NULL widths. Point `to` at a new column for an independent estimate instead.
+  - `value` assigns a constant, labelled `ASSIGNED`, to rows with no inputs.
+  - It is not wired into `frs_network_segment()` / `frs_habitat()`, so bcfishpass parity is unchanged.
+- Why first-order streams had no width: fwapg's regression covers them, and one `stream_order > 1` filter drops them. Matching fwapg's stored `MODELLED` values depends on taking the largest upstream area per watershed-code pair; the docs give the join. See `research/fwapg_channel_width.md`. Placeholder and unmapped segments have no inputs ([#246](https://github.com/NewGraphEnvironment/fresh/issues/246)).
+
+**`frs_break()` works again.**
+- It errored on every call: it passed point-break arguments that `frs_break_find()` dropped when point breaks moved to `frs_feature_find()`. `frs_break()` now does attribute breaks only.
+- `frs_habitat_access()` failed whenever `break_sources` was given. It now locates them with `frs_feature_find()`.
+
+**Habitat-pipeline vignette now includes gradient barriers.**
+- Its example code, and the scripts that build its data, had the same stale call and skipped the watershed codes `frs_classify(breaks =)` needs. They now go through `frs_habitat_access()`.
+- The cached data had falls-only access. Regenerated: access barriers 4 to 278, accessible 638.0 to 499.0 km of 964.7 km.
+
+**Documentation.**
+- The `gate` direction is corrected: segments upstream of a blocking break are inaccessible.
+- `frs_habitat_predicates()` docs now match its input, and its example runs without a database.
+- Previously undocumented arguments are documented. `R CMD check` is clean.
+
 # fresh 0.38.0
 
 Closes [#237](https://github.com/NewGraphEnvironment/fresh/issues/237).
