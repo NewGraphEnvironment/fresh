@@ -197,7 +197,12 @@
 #'
 #' @param rule Named list with optional fields: `edge_types`,
 #'   `edge_types_explicit`, `waterbody_type`, `lake_ha_min`,
-#'   `in_waterbody`, `thresholds`, `gradient`, `channel_width`, `mad`.
+#'   `wetland_ha_min`, `in_waterbody`, `thresholds`, `gradient`,
+#'   `channel_width`, `mad`.
+#'
+#'   A `waterbody_type` rule's polygon area floor comes from the key of
+#'   its type (see `.frs_rule_ha_min()`): `lake_ha_min` on `L`,
+#'   `wetland_ha_min` on `W` (fresh#237).
 #'
 #'   `mad` is a `c(min, max)` mean annual discharge range (m3/s) that
 #'   adds `s.mad_m3s BETWEEN min AND max`. It overrides an inherited
@@ -238,7 +243,8 @@
   # Auto-skip gradient/cw inheritance for lake/wetland rules.
   # Lake and wetland flow lines are routing lines through waterbodies —
   # gradient and channel_width are meaningless on them. The relevant
-  # threshold is lake_ha_min, not stream channel dimensions.
+  # threshold is the polygon area floor (lake_ha_min / wetland_ha_min),
+  # not stream channel dimensions.
   # Rule-level explicit overrides (rule[["gradient"]], rule[["channel_width"]])
   # still apply if someone sets them deliberately.
   wb_type <- rule[["waterbody_type"]]
@@ -278,18 +284,13 @@
 
   if (!is.null(rule[["waterbody_type"]])) {
     wb_tables <- .frs_waterbody_tables(rule[["waterbody_type"]])
-    if (!is.null(rule[["lake_ha_min"]])) {
-      ha_sql <- .frs_sql_num(rule[["lake_ha_min"]])
-      wb_sql <- paste(vapply(wb_tables, function(wt) {
-        sprintf("SELECT waterbody_key FROM %s WHERE area_ha >= %s", wt, ha_sql)
-      }, character(1)), collapse = " UNION ALL ")
-      parts <- c(parts, sprintf("s.waterbody_key IN (%s)", wb_sql))
-    } else {
-      wb_sql <- paste(vapply(wb_tables, function(wt) {
-        sprintf("SELECT waterbody_key FROM %s", wt)
-      }, character(1)), collapse = " UNION ALL ")
-      parts <- c(parts, sprintf("s.waterbody_key IN (%s)", wb_sql))
-    }
+    ha_min <- .frs_rule_ha_min(rule)
+    area_clause <- if (is.null(ha_min)) "" else
+      sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
+    wb_sql <- paste(vapply(wb_tables, function(wt) {
+      sprintf("SELECT waterbody_key FROM %s%s", wt, area_clause)
+    }, character(1)), collapse = " UNION ALL ")
+    parts <- c(parts, sprintf("s.waterbody_key IN (%s)", wb_sql))
   }
 
   # Gradient: rule-level override wins, then CSV inheritance fills gap.
@@ -360,6 +361,31 @@
   rule_sqls <- vapply(rules, .frs_rule_to_sql, character(1),
                       csv_thresholds = csv_thresholds)
   paste0("(", paste(rule_sqls, collapse = " OR "), ")")
+}
+
+
+#' Polygon area floor of a waterbody-type rule
+#'
+#' Returns the area floor (ha) a `waterbody_type` rule declares, read
+#' from the key of its type: `lake_ha_min` for `L`, `wetland_ha_min` for
+#' `W`. The rules loader allows each key only on its type, so this is
+#' the one place that pairs them (fresh#237). Every reader of the floor
+#' (the main rule compiler, the lake / wetland bucket predicates, the
+#' waterbody-connected spawning pass) goes through it.
+#'
+#' @param rule A single rule (named list), or `NULL`.
+#' @return Numeric scalar, or `NULL` when the rule has no type with a
+#'   floor (`R`, none), no floor under its type's key, or an `NA` floor.
+#' @noRd
+.frs_rule_ha_min <- function(rule) {
+  keys <- c(L = "lake_ha_min", W = "wetland_ha_min")
+  wt <- rule[["waterbody_type"]]
+  if (!is.character(wt) || length(wt) != 1L || !wt %in% names(keys)) {
+    return(NULL)
+  }
+  ha_min <- rule[[keys[[wt]]]]
+  if (is.null(ha_min) || is.na(ha_min)) return(NULL)
+  ha_min
 }
 
 

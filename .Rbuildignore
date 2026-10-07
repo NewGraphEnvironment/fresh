@@ -16,3 +16,4 @@
 ^docker/postgres-data$
 ^scripts$
 ^comms$
+^research$

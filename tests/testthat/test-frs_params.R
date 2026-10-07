@@ -232,6 +232,26 @@ test_that(".frs_load_rules errors on lake_ha_min without waterbody_type L", {
   expect_error(.frs_load_rules(tmp), "lake_ha_min without waterbody_type")
 })
 
+test_that(".frs_load_rules errors on an empty, null, NA or NaN area floor (#237)", {
+  # A missing floor would compile to "no floor" (every polygon), so the
+  # loader rejects it instead. An empty value parses to NULL with the key
+  # present.
+  values <- c(".nan", ".na.real", "", "~", "null")
+  cases <- c(lapply(values, function(v) c("L", "lake_ha_min", v)),
+             lapply(values, function(v) c("W", "wetland_ha_min", v)))
+  for (cs in cases) {
+    tmp <- tempfile(fileext = ".yaml")
+    writeLines(c(
+      "BT:",
+      "  rear:",
+      paste0("    - waterbody_type: ", cs[1]),
+      paste0("      ", cs[2], ": ", cs[3])), tmp)
+    expect_error(.frs_load_rules(tmp),
+      paste(cs[2], "must be a non-missing numeric scalar"), info = cs[3])
+    unlink(tmp)
+  }
+})
+
 test_that(".frs_load_rules errors on bad waterbody_type", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))
@@ -623,6 +643,32 @@ test_that(".frs_rule_to_sql waterbody_type W uses fwa_wetlands_poly", {
   rule <- list(waterbody_type = "W")
   sql <- .frs_rule_to_sql(rule)
   expect_match(sql, "fwa_wetlands_poly")
+})
+
+test_that(".frs_rule_to_sql wetland_ha_min adds area_ha filter (#237)", {
+  rule <- list(waterbody_type = "W", edge_types_explicit = c(1000L, 1100L),
+               wetland_ha_min = 1)
+  sql <- .frs_rule_to_sql(rule)
+  expect_equal(sql, paste0(
+    "(s.edge_type IN (1000, 1100) AND s.waterbody_key IN ",
+    "(SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly ",
+    "WHERE area_ha >= 1))"))
+})
+
+test_that(".frs_rule_to_sql W without wetland_ha_min has no area filter", {
+  sql <- .frs_rule_to_sql(list(waterbody_type = "W"))
+  expect_equal(sql, paste0(
+    "(s.waterbody_key IN ",
+    "(SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly))"))
+})
+
+test_that(".frs_rule_to_sql reads only the floor key of the rule's type (#237)", {
+  # Same contract as the loader: lake_ha_min is an L key, wetland_ha_min
+  # a W key. A floor under the other type's key is not applied.
+  sql_w <- .frs_rule_to_sql(list(waterbody_type = "W", lake_ha_min = 5))
+  expect_false(grepl("area_ha", sql_w))
+  sql_l <- .frs_rule_to_sql(list(waterbody_type = "L", wetland_ha_min = 5))
+  expect_false(grepl("area_ha", sql_l))
 })
 
 test_that(".frs_rule_to_sql lake_ha_min adds area_ha filter", {

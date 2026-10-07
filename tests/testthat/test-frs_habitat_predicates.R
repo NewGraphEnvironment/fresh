@@ -182,6 +182,49 @@ test_that("lake / wetland buckets are sized by polygon area only under cw (#240)
   expect_match(preds$wetland_rear, "fwa_wetlands_poly WHERE area_ha >= 1\\.5")
 })
 
+test_that("rear predicate applies the W rule's wetland_ha_min (#237)", {
+  # The floor gates `rearing` as well as `wetland_rearing`, under both
+  # models, from the one rule.
+  sp <- sp_with_rules(rules = list(
+    rear = list(list(edge_types = c("stream", "canal")),
+                list(waterbody_type = "W",
+                     edge_types_explicit = c(1000L, 1100L),
+                     wetland_ha_min = 1.5))))
+  floor <- "fwa_wetlands_poly WHERE area_ha >= 1\\.5"
+  for (m in c("cw", "mad")) {
+    preds <- frs_habitat_predicates(sp, model = m)
+    expect_match(preds$rear, floor)
+    expect_match(preds$wetland_rear, floor)
+    expect_false(grepl("fwa_wetlands_poly\\)", preds$rear))
+  }
+})
+
+test_that("spawn predicate applies a W rule's wetland_ha_min (#237)", {
+  sp <- sp_with_rules(rules = list(
+    spawn = list(list(waterbody_type = "W", wetland_ha_min = 2))))
+  expect_match(frs_habitat_predicates(sp)$spawn,
+               "fwa_wetlands_poly WHERE area_ha >= 2")
+})
+
+test_that("bundled rules: every W rear rule's floor reaches the rear predicate (#237)", {
+  rules <- .frs_load_rules(system.file("extdata",
+    "parameters_habitat_rules.yaml", package = "fresh"))
+  n_checked <- 0L
+  for (sp_code in names(rules)) {
+    w <- .frs_find_waterbody_rule(rules[[sp_code]][["rear"]], "W")
+    if (is.null(w) || is.null(w[["wetland_ha_min"]])) next
+    sp <- sp_with_rules(species = sp_code, rules = rules[[sp_code]])
+    preds <- frs_habitat_predicates(sp)
+    floor <- sprintf("fwa_wetlands_poly WHERE area_ha >= %s",
+                     .frs_sql_num(w[["wetland_ha_min"]]))
+    expect_true(grepl(floor, preds$rear, fixed = TRUE), info = sp_code)
+    expect_true(grepl(floor, preds$wetland_rear, fixed = TRUE),
+                info = sp_code)
+    n_checked <- n_checked + 1L
+  }
+  expect_gt(n_checked, 0L)
+})
+
 test_that("L rule without a rear channel_width window keeps the area bucket under cw (#240)", {
   sp <- sp_with_rules(rules = list(
     rear = list(list(waterbody_type = "L", lake_ha_min = 200))))

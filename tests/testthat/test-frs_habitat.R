@@ -544,6 +544,41 @@ test_that(".frs_trace_downstream options: id_segment, origin, no gradient, prefi
                "id_col")
 })
 
+# Waterbody-connected spawning takes the first L / W rear rule's floor from
+# the key of its type (fresh#237). It read only lake_ha_min, so a W-first
+# species got the 200 ha default whatever its wetland_ha_min said.
+test_that(".frs_run_connectivity passes a W rule's wetland_ha_min as the waterbody floor", {
+  calls <- list()
+  testthat::local_mocked_bindings(
+    .frs_connected_waterbody = function(conn, table, habitat, species,
+                                        waterbody_poly, waterbody_ha_min,
+                                        ...) {
+      calls[[length(calls) + 1]] <<- list(species = species,
+        waterbody_poly = waterbody_poly, waterbody_ha_min = waterbody_ha_min)
+      invisible(conn)
+    },
+    frs_cluster = function(...) stop("frs_cluster should not run")
+  )
+  spawn <- list(list(edge_types = "stream", requires_connected = "rearing"))
+  params <- list(
+    XW = list(rules = list(spawn = spawn, rear = list(
+      list(waterbody_type = "W", wetland_ha_min = 1.5),
+      list(waterbody_type = "L", lake_ha_min = 50)))),
+    XL = list(rules = list(spawn = spawn, rear = list(
+      list(waterbody_type = "L", lake_ha_min = 50)))),
+    XN = list(rules = list(spawn = spawn, rear = list(
+      list(waterbody_type = "W")))))
+  pf <- data.frame(species_code = c("XW", "XL", "XN"),
+                   cluster_rearing = FALSE, cluster_spawning = TRUE,
+                   cluster_spawn_bridge_gradient = NA_real_,
+                   cluster_spawn_bridge_distance = NA_real_)
+  .frs_run_connectivity("mock", "w.s", "w.h", species = c("XW", "XL", "XN"),
+    params = params, params_fresh = pf, verbose = FALSE)
+  expect_equal(vapply(calls, `[[`, numeric(1), "waterbody_ha_min"),
+               c(1.5, 50, 200))
+  expect_match(calls[[1]]$waterbody_poly, "fwa_wetlands_poly")
+})
+
 # The bucket pass runs per L / W rule carrying requires_connected, whatever
 # the cluster flags, spawn rules or params_fresh rows say (fresh#240).
 test_that(".frs_run_connectivity calls the bucket filter only for opted-in rules", {

@@ -1243,7 +1243,10 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
           if (is.na(fp$cluster_spawn_bridge_distance)) 3000 else
             fp$cluster_spawn_bridge_distance
 
-        # Detect waterbody-connected rearing: use two-phase approach
+        # Detect waterbody-connected rearing: use two-phase approach.
+        # The floor is read from the key of the rule's type (a W rule's
+        # wetland_ha_min, not lake_ha_min; fresh#237); 200 ha when the
+        # rule declares none.
         rear_rules <- ps[["rules"]][["rear"]]
         wb_type <- NULL
         wb_ha_min <- 200
@@ -1251,7 +1254,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
           wt <- rr[["waterbody_type"]]
           if (!is.null(wt) && wt %in% c("L", "W")) {
             wb_type <- wt
-            if (!is.null(rr[["lake_ha_min"]])) wb_ha_min <- rr[["lake_ha_min"]]
+            ha_min <- .frs_rule_ha_min(rr)
+            if (!is.null(ha_min)) wb_ha_min <- ha_min
             break
           }
         }
