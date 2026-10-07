@@ -12,7 +12,9 @@ frs_channel_width(
   col_area = "upstream_area_ha",
   col_precip = "map_upstream",
   col_source = paste0(to, "_source"),
-  overwrite = FALSE
+  overwrite = FALSE,
+  value = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -38,8 +40,16 @@ comparison column (\code{to = "channel_width_hall"}) never relabels
 \code{channel_width_source}. \code{NULL} writes no label.}
 
 \item{overwrite}{Logical. \code{FALSE} (default) writes only rows where \code{to} is
-\code{NULL}. \code{TRUE} clears \code{to} (and \code{col_source}) on every row first, then
-writes the regression wherever its inputs allow.}
+\code{NULL}. \code{TRUE} rewrites every row: the regression where its inputs
+allow, \code{NULL} elsewhere.}
+
+\item{value}{Numeric or \code{NULL}. A width (m) for rows still \code{NULL} after
+the regression, labelled \code{ASSIGNED}: typically segments with no
+upstream area, such as FWA placeholder and unmapped lines. Default
+\code{NULL} leaves them \code{NULL}.}
+
+\item{verbose}{Logical. Report how many rows were modelled, assigned
+and left \code{NULL}. Default \code{TRUE}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -51,7 +61,7 @@ it fills only rows where the target column is \code{NULL}. That gives every
 segment with both inputs a width, including the first-order streams that
 \code{fwa_stream_networks_channel_width} leaves \code{NULL}, while leaving measured
 and mapped widths alone. FWA placeholder (\code{999}) and unmapped segments
-have no upstream area, so they stay \code{NULL}. Point \code{to} at a new column instead to get an
+have no upstream area, so they stay \code{NULL} unless \code{value} is given. Point \code{to} at a new column instead to get an
 independent estimate to compare against existing widths.
 }
 \details{
@@ -115,6 +125,10 @@ conn |>
     from = "fwa_stream_networks_mean_annual_precip",
     cols = "map_upstream",
     by = c("wscode_ltree", "localcode_ltree"))
+
+# Fill NULL widths (first-order streams), 0.5 m where inputs are missing
+conn |>
+  frs_channel_width("working.streams", value = 0.5)
 
 # Independent estimates alongside the existing widths
 conn |>

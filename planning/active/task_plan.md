@@ -29,11 +29,11 @@ frs_channel_width(conn, table,
 - [x] Commit `Fixes #29`
 
 ## Phase 2: Fill NA channel width (#28)
-- [ ] Failing unit tests: `value` pass runs after the regression with the `ASSIGNED` label, `value` validation (positive finite numeric scalar), verbose counts (modelled / assigned from rows affected, still-NULL from one count query)
-- [ ] Implement `value` + count reporting
-- [ ] Live test, Byman-Ailport: order-1 NULLs drop to 0 with the regression; pre-existing FIELD_MEASURMENT / FWA_RIVERS_POLY / MODELLED rows byte-identical before and after; `value` fills a synthetic NULL-input row (AOI has no placeholder/unmapped segments)
-- [ ] Docs: the fill example in roxygen; `frs_col_join()` `@seealso` → `frs_channel_width()`
-- [ ] Commit `Fixes #28`
+- [x] Failing unit tests: `value` pass runs after the regression with the `ASSIGNED` label, `value` validation (positive finite numeric scalar), verbose counts (modelled / assigned from rows affected, still-NULL from one count query)
+- [x] Implement `value` + count reporting
+- [x] Live test, Byman-Ailport: order-1 NULLs drop to 0 with the regression; pre-existing FIELD_MEASURMENT / FWA_RIVERS_POLY / MODELLED rows byte-identical before and after; `value` fills a synthetic NULL-input row (AOI has no placeholder/unmapped segments)
+- [x] Docs: the fill example in roxygen; `frs_col_join()` intro links `frs_channel_width()` (`@family habitat` already cross-lists both)
+- [x] Commit `Fixes #28`
 
 ## Phase 3: Gap follow-up + bookkeeping
 - [ ] Write up the placeholder/unmapped input gap in findings.md (counts by edge type, why fwapg's lut excludes them, candidate derivations: spatial-midpoint → fundamental watershed for unmapped; inherit from the paralleled mainstem for side channels; none for placeholders). File an issue if it looks half reachable (public tone: package logic only)

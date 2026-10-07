@@ -10,22 +10,33 @@
 
 # Run frs_channel_width() against a mocked connection. Returns the SQL it
 # executed. `cols` is the mocked table schema (named: column -> type).
-.run_cw <- function(..., cols = .cw_cols_default) {
+# Each UPDATE reports `n_rows` rows affected in turn; the still-NULL count
+# query returns `n_null`.
+.run_cw <- function(..., cols = .cw_cols_default, n_rows = c(0L, 0L),
+                    n_null = 0L, verbose = FALSE) {
   sql_log <- character(0)
+  i_upd <- 0L
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
       sql_log <<- c(sql_log, sql)
-      0L
+      if (!grepl("^UPDATE", sql)) return(0L)
+      i_upd <<- i_upd + 1L
+      n_rows[[i_upd]]
     }
   )
   local_mocked_bindings(
     dbGetQuery = function(conn, sql) {
-      data.frame(column_name = names(cols), data_type = unname(cols),
-                 stringsAsFactors = FALSE)
+      sql_log <<- c(sql_log, sql)
+      if (grepl("pg_attribute", sql)) {
+        data.frame(column_name = names(cols), data_type = unname(cols),
+                   stringsAsFactors = FALSE)
+      } else {
+        data.frame(n_null = n_null)
+      }
     },
     .package = "DBI"
   )
-  frs_channel_width("mock", "working.streams", ...)
+  frs_channel_width("mock", "working.streams", ..., verbose = verbose)
   sql_log
 }
 
@@ -207,8 +218,63 @@ test_that("returns conn invisibly", {
     },
     .package = "DBI"
   )
-  expect_invisible(out <- frs_channel_width("mock", "working.streams"))
+  expect_invisible(out <- frs_channel_width("mock", "working.streams",
+                                            verbose = FALSE))
   expect_identical(out, "mock")
+})
+
+test_that("value fills what the regression leaves NULL, labelled ASSIGNED", {
+  log <- .run_cw(value = 1.5)
+  upd <- grep("^UPDATE", log, value = TRUE)
+  expect_length(upd, 2)
+  expect_match(upd[1], "SET channel_width = round\\(")
+  expect_equal(upd[2], paste(
+    "UPDATE working.streams SET channel_width = 1.5,",
+    "channel_width_source = 'ASSIGNED' WHERE channel_width IS NULL"))
+})
+
+test_that("value runs after an overwrite too, without a label if asked", {
+  log <- .run_cw(value = 2, overwrite = TRUE, col_source = NULL)
+  upd <- grep("^UPDATE", log, value = TRUE)
+  expect_length(upd, 2)
+  expect_match(upd[1], "CASE WHEN")
+  expect_equal(upd[2], paste(
+    "UPDATE working.streams SET channel_width = 2",
+    "WHERE channel_width IS NULL"))
+})
+
+test_that("value must be a positive finite number", {
+  for (bad in list(0, -1, NA_real_, Inf, "1", c(1, 2), TRUE)) {
+    expect_error(frs_channel_width("mock", "working.s", value = bad),
+                 "`value` must be")
+  }
+})
+
+test_that("integer64 value and coefficients render as numbers", {
+  skip_if_not_installed("bit64")
+  log <- .run_cw(value = bit64::as.integer64(2))
+  expect_true(any(grepl("SET channel_width = 2,", log)))
+  m <- list(k = bit64::as.integer64(2), a = 0.5, b = 0.3, a_div = 100,
+            p_div = 10, a_off = 0, p_off = 0)
+  expect_match(.cw_sql(m), "^2 \\* ")
+})
+
+test_that("verbose reports modelled, assigned and still-NULL counts", {
+  expect_message(
+    .run_cw(value = 1, n_rows = c(5L, 2L), n_null = 2L, verbose = TRUE),
+    "channel_width: 5 modelled \\(MODELLED_POISSON2021\\), 2 assigned, 0 still NULL")
+  expect_message(
+    .run_cw(n_rows = 5L, n_null = 3L, verbose = TRUE),
+    "5 modelled .*, 0 assigned, 3 still NULL")
+  # overwrite touches every row; modelled = rows written minus rows left NULL
+  expect_message(
+    .run_cw(overwrite = TRUE, n_rows = 15L, n_null = 4L, verbose = TRUE),
+    "11 modelled .*, 0 assigned, 4 still NULL")
+})
+
+test_that("verbose = FALSE runs no count query and says nothing", {
+  expect_silent(log <- .run_cw(value = 1))
+  expect_false(any(grepl("count\\(", log)))
 })
 
 
@@ -265,8 +331,9 @@ test_that("SQL matches the presets and poisson2021 reproduces fwapg MODELLED", {
         WHERE channel_width_source IS DISTINCT FROM 'MODELLED')", tbl, tbl))
 
   conn |>
-    frs_channel_width(tbl, to = "cw_poisson") |>
-    frs_channel_width(tbl, model = "hall2007", to = "cw_hall")
+    frs_channel_width(tbl, to = "cw_poisson", verbose = FALSE) |>
+    frs_channel_width(tbl, model = "hall2007", to = "cw_hall",
+                      verbose = FALSE)
 
   res <- DBI::dbGetQuery(conn, sprintf(
     "SELECT upstream_area_ha::double precision AS area_ha,
@@ -303,7 +370,8 @@ test_that("SQL matches the presets and poisson2021 reproduces fwapg MODELLED", {
                     "MODELLED_HALL2007"))
 
   # overwrite rewrites in place: same values, mixed-case names resolve
-  frs_channel_width(conn, toupper(tbl), to = "CW_Poisson", overwrite = TRUE)
+  frs_channel_width(conn, toupper(tbl), to = "CW_Poisson", overwrite = TRUE,
+                    verbose = FALSE)
   again <- DBI::dbGetQuery(conn, sprintf(
     "SELECT cw_poisson, cw_poisson_source FROM %s", tbl))
   expect_equal(sort(again$cw_poisson), sort(res$cw_poisson))
@@ -328,9 +396,20 @@ test_that("default call fills NULL widths and leaves existing ones alone", {
   n_null <- DBI::dbGetQuery(conn, sprintf(
     "SELECT count(*)::int AS n FROM %s WHERE channel_width IS NULL", tbl))$n
   expect_gt(nrow(before), 0)
-  expect_gt(n_null, 0)
+  expect_gt(n_null, 1)
+  # Stand-in for a placeholder / unmapped segment: NULL width, no inputs
+  id_no_input <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT min(linear_feature_id) AS id FROM %s
+     WHERE channel_width IS NULL", tbl))$id
+  DBI::dbExecute(conn, sprintf(
+    "UPDATE %s SET upstream_area_ha = NULL, map_upstream = NULL
+     WHERE linear_feature_id = %s", tbl, id_no_input))
 
-  frs_channel_width(conn, tbl)
+  expect_message(
+    frs_channel_width(conn, tbl, value = 0.5),
+    sprintf(
+      "^channel_width: %d modelled \\(MODELLED_POISSON2021\\), 1 assigned, 0 still NULL",
+      n_null - 1L))
 
   after <- DBI::dbGetQuery(conn, sprintf(
     "SELECT linear_feature_id, channel_width, channel_width_source
@@ -341,7 +420,16 @@ test_that("default call fills NULL widths and leaves existing ones alone", {
   filled <- DBI::dbGetQuery(conn, sprintf(
     "SELECT stream_order, channel_width FROM %s
      WHERE channel_width_source = 'MODELLED_POISSON2021'", tbl))
-  expect_equal(nrow(filled), n_null)
+  expect_equal(nrow(filled), n_null - 1L)
   expect_true(all(filled$channel_width > 0))
   expect_true(all(filled$stream_order == 1L))
+
+  assigned <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT linear_feature_id, channel_width FROM %s
+     WHERE channel_width_source = 'ASSIGNED'", tbl))
+  expect_equal(assigned$linear_feature_id, id_no_input)
+  expect_equal(assigned$channel_width, 0.5)
+  expect_equal(DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s WHERE channel_width IS NULL",
+    tbl))$n, 0L)
 })

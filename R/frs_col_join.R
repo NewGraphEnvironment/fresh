@@ -3,7 +3,8 @@
 #' Add columns from any lookup table to a working table via SQL `UPDATE ... SET
 #' ... FROM`. This is the generic enrichment step in the habitat pipeline —
 #' join channel width for intrinsic potential, upstream area and precipitation
-#' for flooded's bankfull regression, or any custom model output.
+#' for a bankfull width regression ([frs_channel_width()]), or any custom
+#' model output.
 #'
 #' Pipeable between [frs_extract()] and [frs_col_generate()]:
 #'

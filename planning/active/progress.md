@@ -10,3 +10,5 @@
 - Plan-agent review: 1 blocker (fill-NULL guard moved into Phase 1) + gaps folded in
 - Phase 1 (#29): `frs_channel_width()` with poisson2021 / hall2007 / custom presets, fill-NULL default, single-statement overwrite, `to_regclass` column lookup. 77 tests pass (unit + live Byman-Ailport)
 - /code-check: 3 rounds. R1 3 fixed (lookup, two-statement overwrite, hall<poisson claim); R2 1 inside R1's fix (crossover depends on precipitation); R3 enumerated 29 claims, 5 scoping fixes
+- Phase 2 (#28): `value` fallback (ASSIGNED) + verbose counts. 101 tests pass
+- /code-check Phase 2: 3 rounds. R1 clean; R2 1 (unanchored live message regex) + doc scope; R3 1 (integer64 `value`/coefs render raw bits via sprintf). Fixed. My coefficient fix initially missed `k_sql` (caught by the new test). Enumerated all 9 `.frs_sql_num()` call sites: all take coerced doubles or preset literals

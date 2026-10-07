@@ -6,7 +6,7 @@
 #' segment with both inputs a width, including the first-order streams that
 #' `fwa_stream_networks_channel_width` leaves `NULL`, while leaving measured
 #' and mapped widths alone. FWA placeholder (`999`) and unmapped segments
-#' have no upstream area, so they stay `NULL`. Point `to` at a new column instead to get an
+#' have no upstream area, so they stay `NULL` unless `value` is given. Point `to` at a new column instead to get an
 #' independent estimate to compare against existing widths.
 #'
 #' The function reads columns that must already be on `table`. It does no
@@ -28,8 +28,14 @@
 #'   comparison column (`to = "channel_width_hall"`) never relabels
 #'   `channel_width_source`. `NULL` writes no label.
 #' @param overwrite Logical. `FALSE` (default) writes only rows where `to` is
-#'   `NULL`. `TRUE` clears `to` (and `col_source`) on every row first, then
-#'   writes the regression wherever its inputs allow.
+#'   `NULL`. `TRUE` rewrites every row: the regression where its inputs
+#'   allow, `NULL` elsewhere.
+#' @param value Numeric or `NULL`. A width (m) for rows still `NULL` after
+#'   the regression, labelled `ASSIGNED`: typically segments with no
+#'   upstream area, such as FWA placeholder and unmapped lines. Default
+#'   `NULL` leaves them `NULL`.
+#' @param verbose Logical. Report how many rows were modelled, assigned
+#'   and left `NULL`. Default `TRUE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -96,6 +102,10 @@
 #'     cols = "map_upstream",
 #'     by = c("wscode_ltree", "localcode_ltree"))
 #'
+#' # Fill NULL widths (first-order streams), 0.5 m where inputs are missing
+#' conn |>
+#'   frs_channel_width("working.streams", value = 0.5)
+#'
 #' # Independent estimates alongside the existing widths
 #' conn |>
 #'   frs_channel_width("working.streams", to = "channel_width_poisson") |>
@@ -126,7 +136,9 @@ frs_channel_width <- function(conn, table,
                               col_area = "upstream_area_ha",
                               col_precip = "map_upstream",
                               col_source = paste0(to, "_source"),
-                              overwrite = FALSE) {
+                              overwrite = FALSE,
+                              value = NULL,
+                              verbose = TRUE) {
   m <- .frs_channel_width_models(model)
   .frs_validate_identifier(table, "table")
   .frs_validate_identifier(to, "to")
@@ -134,6 +146,13 @@ frs_channel_width <- function(conn, table,
   .frs_validate_identifier(col_precip, "col_precip")
   if (!is.null(col_source)) .frs_validate_identifier(col_source, "col_source")
   stopifnot(is.logical(overwrite), length(overwrite) == 1L, !is.na(overwrite))
+  stopifnot(is.logical(verbose), length(verbose) == 1L, !is.na(verbose))
+  if (!is.null(value) && (!is.numeric(value) || length(value) != 1L ||
+                          !is.finite(value) || value <= 0)) {
+    stop("`value` must be a positive finite number or NULL", call. = FALSE)
+  }
+  # integer64 passes is.numeric() but sprintf() formats its raw bits
+  if (!is.null(value)) value <- as.double(value)
   # Unquoted identifiers fold to lower case in Postgres; compare as it does
   to <- tolower(to)
   col_area <- tolower(col_area)
@@ -195,12 +214,38 @@ frs_channel_width <- function(conn, table,
       set <- paste0(set, sprintf(", %s = CASE WHEN %s THEN %s END",
                                  col_source, guard, label))
     }
-    .frs_db_execute(conn, sprintf("UPDATE %s SET %s", table, set))
+    n_written <- .frs_db_execute(conn, sprintf("UPDATE %s SET %s", table, set))
   } else {
     set <- paste0(to, " = ", expr)
     if (!is.null(col_source)) set <- paste0(set, ", ", col_source, " = ", label)
-    .frs_db_execute(conn, sprintf(
+    n_written <- .frs_db_execute(conn, sprintf(
       "UPDATE %s SET %s WHERE %s IS NULL AND %s", table, set, to, guard))
+  }
+
+  # Counted before the value pass: overwrite writes every row, so modelled
+  # rows are those written minus those left NULL
+  n_null <- 0L
+  if (verbose) {
+    n_null <- DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*)::int AS n_null FROM %s WHERE %s IS NULL",
+      table, to))$n_null
+  }
+  n_model <- if (overwrite) n_written - n_null else n_written
+
+  n_assigned <- 0L
+  if (!is.null(value)) {
+    set <- paste0(to, " = ", .frs_sql_num(value))
+    if (!is.null(col_source)) {
+      set <- paste0(set, ", ", col_source, " = 'ASSIGNED'")
+    }
+    n_assigned <- .frs_db_execute(conn, sprintf(
+      "UPDATE %s SET %s WHERE %s IS NULL", table, set, to))
+  }
+
+  if (verbose) {
+    message(sprintf("%s: %d modelled (%s), %d assigned, %d still NULL",
+                    to, as.integer(n_model), m$label, as.integer(n_assigned),
+                    as.integer(n_null - n_assigned)))
   }
 
   invisible(conn)
@@ -273,8 +318,9 @@ frs_channel_width <- function(conn, table,
     stop("`model$digits` must be a non-negative whole number", call. = FALSE)
   }
 
-  out <- model[req]
-  out$k_sql <- .frs_sql_num(model$k)
+  # as.double: integer64 passes is.numeric() but sprintf() formats raw bits
+  out <- lapply(model[req], as.double)
+  out$k_sql <- .frs_sql_num(out$k)
   out["digits"] <- list(digits)
   out$label <- "MODELLED_CUSTOM"
   out
