@@ -224,6 +224,12 @@ Small durable technical reference for internal behavior worth remembering.
 - `frs_point_snap(exclude_edge_types = ...)` exposes this as a parameter (default 1425, NULL = snap to everything)
 - Placeholder / unmapped segments are never returned by `fwa_upstream` / `fwa_downstream` anyway (ltree traversal excludes them)
 
+### Waterbody area floors (`.frs_rule_ha_min()`)
+
+- A `waterbody_type` rule's area floor is read **only** through `.frs_rule_ha_min()` (`lake_ha_min` on L, `wetland_ha_min` on W). The rule compiler, the lake / wetland bucket predicates and the waterbody-connected spawning floor all call it. Two readers drifting is what #237 was.
+- The loader rejects an empty / null / NA / NaN floor (key-presence check), because the reader treats NULL as "no floor".
+- A wetland `waterbody_key` can span many polygons; a floor admits the key when any polygon meets it (`research/fwa_waterbody_key_polygons.md`).
+
 ### Watershed family
 
 - `frs_watershed_at_measure()` and `frs_watershed_split()` share `@family watershed`
