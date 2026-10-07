@@ -130,12 +130,11 @@ centrelines through lakes and double-line rivers. Single-line streams
 ## Access barriers
 
 Two sources: gradient barriers and falls.
-[`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.html)
-with the attribute mode samples slope at 100m intervals and identifies
-locations where gradient exceeds the species threshold (15% for coho).
-[`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
-with the table mode pulls barrier falls from the database. Both write to
-the same breaks table.
+[`frs_habitat_access()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_access.html)
+samples slope at 100m intervals for locations where gradient exceeds the
+species threshold (15% for coho), adds the barrier falls from
+`break_sources` to the same breaks table, and tags each break with its
+watershed codes for classification.
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.html)
 splits the stream geometry at those locations and
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.html)
@@ -143,14 +142,11 @@ labels everything upstream of a barrier as inaccessible.
 
 ``` r
 
-frs_break_find(conn, "working.byman_habitat",
-  attribute = "gradient", threshold = co_fresh$access_gradient_max,
-  to = "working.breaks_access")
-
-frs_break_find(conn, "working.byman_habitat",
-  points_table = "bcfishpass.falls_vw",
-  where = "barrier_ind = TRUE", aoi = aoi,
-  to = "working.breaks_access", append = TRUE)
+frs_habitat_access(conn, "working.byman_habitat",
+  threshold = co_fresh$access_gradient_max,
+  to = "working.breaks_access",
+  break_sources = list(
+    list(table = "bcfishpass.falls_vw", where = "barrier_ind = TRUE")))
 
 frs_break_apply(conn, "working.byman_habitat",
   breaks = "working.breaks_access")
@@ -234,7 +230,7 @@ knitr::kable(totals[, c("total_km", "accessible_km", "spawning_km",
 
 | total_km | accessible_km | spawning_km | rearing_km | lake_rearing_km |
 |---------:|--------------:|------------:|-----------:|----------------:|
-|    964.7 |           638 |       142.8 |      180.8 |            13.9 |
+|    964.7 |           499 |       139.9 |      173.8 |            13.3 |
 
 Subbasin habitat totals (km). Spawning uses bcfishpass baseline
 (gradient 0-5.49%). {.table}
@@ -319,7 +315,7 @@ knitr::kable(lake_gap, caption = "Lake rearing: bcfishpass scores 0 km, fresh re
 | Source     | Lake rearing (km) |
 |:-----------|------------------:|
 | bcfishpass |               0.0 |
-| fresh      |              13.9 |
+| fresh      |              13.3 |
 
 Lake rearing: bcfishpass scores 0 km, fresh recovers habitat via channel
 width thresholds. {.table}
@@ -383,11 +379,11 @@ if (nrow(agg_crossings) > 0) {
 
 | Crossing ID | Total | Accessible | Spawning | Rearing | Lake rearing |
 |:------------|------:|-----------:|---------:|--------:|-------------:|
-| 1024704487  | 477.2 |      417.3 |     87.5 |   113.4 |         13.4 |
-| 1024704554  | 953.5 |      626.8 |    141.0 |   178.7 |         13.9 |
-| 1024704556  | 840.3 |      513.7 |    112.0 |   144.1 |         13.9 |
-| 1024704562  | 175.7 |      175.7 |     31.8 |    43.3 |         11.3 |
-| 1024704564  | 359.8 |      299.9 |     68.7 |    88.9 |         12.7 |
+| 1024704487  | 477.2 |      307.9 |     84.3 |   106.3 |         12.7 |
+| 1024704554  | 953.5 |      489.7 |    138.1 |   171.7 |         13.3 |
+| 1024704556  | 840.3 |      387.4 |    108.7 |   136.1 |         13.2 |
+| 1024704562  | 175.7 |      156.2 |     31.9 |    42.9 |         11.3 |
+| 1024704564  | 359.8 |      255.7 |     68.1 |    87.4 |         12.7 |
 
 Habitat upstream of crossings (km). Spawning uses bcfishpass baseline
 (gradient 0-5.49%). {.table}

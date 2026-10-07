@@ -1,4 +1,4 @@
-# Break Stream Network at Threshold or Point Locations
+# Break Stream Network at an Attribute Threshold
 
 Convenience wrapper that calls
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
@@ -6,7 +6,10 @@ optionally
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 then
 [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md)
-in sequence.
+in sequence. To break at point features instead, locate them with
+[`frs_feature_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_find.md)
+and pass that table to
+[`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md).
 
 ## Usage
 
@@ -19,10 +22,6 @@ frs_break(
   threshold = NULL,
   interval = 100L,
   distance = 100L,
-  points_table = NULL,
-  points = NULL,
-  points_where = NULL,
-  aoi = NULL,
   overwrite = TRUE,
   evidence_table = NULL,
   where = NULL,
@@ -69,13 +68,6 @@ frs_break(
   Integer. Upstream window in metres for gradient computation at each
   vertex. Default `100`.
 
-- points_where:
-
-  Character or `NULL`. SQL predicate to filter rows from `points_table`
-  (e.g. `"barrier_ind = TRUE"`). Passed to
-  [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
-  as `where`.
-
 - overwrite:
 
   Logical. If `TRUE`, drop `to` before creating. Default `TRUE`.
@@ -115,6 +107,7 @@ Other habitat:
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
+[`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),

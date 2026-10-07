@@ -43,6 +43,12 @@ frs_break_apply(
   Default `"linear_feature_id"` (FWA base table). Use
   `"segmented_stream_id"` for bcfishpass tables.
 
+- measure_precision:
+
+  Integer. Decimal places break measures are rounded to before
+  splitting; breaks that round to the same position collapse into one.
+  Default `0` (whole metres, matching bcfishpass).
+
 ## Value
 
 `conn` invisibly, for pipe chaining.
@@ -59,6 +65,7 @@ Other habitat:
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
+[`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),

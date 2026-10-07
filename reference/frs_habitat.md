@@ -108,6 +108,22 @@ frs_habitat(
   the gradient resolution to detect within-segment steep sections that
   would otherwise be hidden by averaging.
 
+- gate:
+
+  Logical. If `TRUE` (default), breaks restrict classification —
+  segments upstream of a blocking break are marked inaccessible. If
+  `FALSE`, all segments are classified regardless of breaks (raw habitat
+  potential).
+
+- label_block:
+
+  Character vector. Labels that always block access. Default
+  `"blocked"`. Gradient labels (`gradient_NNNN`, the canonical 4-digit
+  basis-point format like `gradient_1500` for 15%, or the legacy
+  `gradient_N` like `gradient_15`) are always threshold-aware regardless
+  of this parameter. Set to `c("blocked", "potential")` for conservative
+  analysis.
+
 - rules:
 
   Character path to a habitat rules YAML, `FALSE`, or `NULL`. Default
@@ -132,6 +148,12 @@ frs_habitat(
   parent gradient. See
   [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
   for details.
+
+- measure_precision:
+
+  Integer. Number of decimal places to round break point measures before
+  splitting. Default `0` (integer rounding, matching bcfishpass v0.5.0).
+  Also rounds the breaks table and deduplicates collapsed measures.
 
 - barrier_overrides:
 
@@ -237,6 +259,7 @@ Other habitat:
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
+[`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),

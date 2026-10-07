@@ -141,6 +141,22 @@ gradient resolution to detect within-segment steep sections that
 would otherwise be hidden by averaging.</p></dd>
 
 
+<dt id="arg-gate">gate<a class="anchor" aria-label="anchor" href="#arg-gate"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (default), breaks restrict
+classification — segments upstream of a blocking break are marked
+inaccessible. If <code>FALSE</code>, all segments are classified regardless of
+breaks (raw habitat potential).</p></dd>
+
+
+<dt id="arg-label-block">label_block<a class="anchor" aria-label="anchor" href="#arg-label-block"></a></dt>
+<dd><p>Character vector. Labels that always block
+access. Default <code>"blocked"</code>. Gradient labels (<code>gradient_NNNN</code>,
+the canonical 4-digit basis-point format like <code>gradient_1500</code> for
+15%, or the legacy <code>gradient_N</code> like <code>gradient_15</code>) are always
+threshold-aware regardless of this parameter. Set to
+<code>c("blocked", "potential")</code> for conservative analysis.</p></dd>
+
+
 <dt id="arg-rules">rules<a class="anchor" aria-label="anchor" href="#arg-rules"></a></dt>
 <dd><p>Character path to a habitat rules YAML, <code>FALSE</code>, or
 <code>NULL</code>. Default <code>NULL</code> uses the bundled
@@ -159,6 +175,13 @@ object and <code>rules</code> here is ignored.</p>
 gradient from DEM vertices after splitting segments. If <code>FALSE</code>,
 child segments inherit the parent gradient. See
 <code><a href="frs_network_segment.html">frs_network_segment()</a></code> for details.</p></dd>
+
+
+<dt id="arg-measure-precision">measure_precision<a class="anchor" aria-label="anchor" href="#arg-measure-precision"></a></dt>
+<dd><p>Integer. Number of decimal places to round
+break point measures before splitting. Default <code>0</code> (integer
+rounding, matching bcfishpass v0.5.0). Also rounds the breaks
+table and deduplicates collapsed measures.</p></dd>
 
 
 <dt id="arg-barrier-overrides">barrier_overrides<a class="anchor" aria-label="anchor" href="#arg-barrier-overrides"></a></dt>
@@ -261,6 +284,7 @@ passes the area test.</p>
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_categorize.html">frs_categorize()</a></code>,
+<code><a href="frs_channel_width.html">frs_channel_width()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
 <code><a href="frs_cluster.html">frs_cluster()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,

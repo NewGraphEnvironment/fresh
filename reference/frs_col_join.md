@@ -3,8 +3,9 @@
 Add columns from any lookup table to a working table via SQL
 `UPDATE ... SET ... FROM`. This is the generic enrichment step in the
 habitat pipeline — join channel width for intrinsic potential, upstream
-area and precipitation for flooded's bankfull regression, or any custom
-model output.
+area and precipitation for a bankfull width regression
+([`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md)),
+or any custom model output.
 
 ## Usage
 
@@ -69,6 +70,7 @@ Other habitat:
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
+[`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
@@ -110,7 +112,7 @@ conn |>
     from = "(SELECT l.linear_feature_id, ua.upstream_area_ha
              FROM fwa_streams_watersheds_lut l
              JOIN fwa_watersheds_upstream_area ua
-               ON l.watershed_feature_id = ua.watershed_feature_id) sub",
+               ON l.watershed_feature_id = ua.watershed_feature_id)",
     cols = "upstream_area_ha",
     by = "linear_feature_id")
 

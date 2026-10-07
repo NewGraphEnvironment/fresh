@@ -77,7 +77,7 @@ frs_habitat_classify(
 - gate:
 
   Logical. If `TRUE` (default), breaks restrict classification —
-  segments downstream of blocking breaks are marked inaccessible. If
+  segments upstream of a blocking break are marked inaccessible. If
   `FALSE`, all segments are classified regardless of breaks (raw habitat
   potential).
 
@@ -140,6 +140,7 @@ Other habitat:
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
+[`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),

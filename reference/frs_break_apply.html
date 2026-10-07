@@ -86,6 +86,12 @@ new segments at the break measures.</p>
 in <code>table</code>. Default <code>"linear_feature_id"</code> (FWA base table). Use
 <code>"segmented_stream_id"</code> for bcfishpass tables.</p></dd>
 
+
+<dt id="arg-measure-precision">measure_precision<a class="anchor" aria-label="anchor" href="#arg-measure-precision"></a></dt>
+<dd><p>Integer. Decimal places break measures are
+rounded to before splitting; breaks that round to the same position
+collapse into one. Default <code>0</code> (whole metres, matching bcfishpass).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -103,6 +109,7 @@ in <code>table</code>. Default <code>"linear_feature_id"</code> (FWA base table)
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_categorize.html">frs_categorize()</a></code>,
+<code><a href="frs_channel_width.html">frs_channel_width()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
 <code><a href="frs_cluster.html">frs_cluster()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,

@@ -121,7 +121,7 @@ size thresholds in a <code>mad</code> group.</p></dd>
 
 <dt id="arg-gate">gate<a class="anchor" aria-label="anchor" href="#arg-gate"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (default), breaks restrict
-classification — segments downstream of blocking breaks are marked
+classification — segments upstream of a blocking break are marked
 inaccessible. If <code>FALSE</code>, all segments are classified regardless of
 breaks (raw habitat potential).</p></dd>
 
@@ -181,6 +181,7 @@ a breaks table (<code>{streams_table}_breaks</code>) for accessibility checks.</
 <code><a href="frs_break_find.html">frs_break_find()</a></code>,
 <code><a href="frs_break_validate.html">frs_break_validate()</a></code>,
 <code><a href="frs_categorize.html">frs_categorize()</a></code>,
+<code><a href="frs_channel_width.html">frs_channel_width()</a></code>,
 <code><a href="frs_classify.html">frs_classify()</a></code>,
 <code><a href="frs_cluster.html">frs_cluster()</a></code>,
 <code><a href="frs_col_generate.html">frs_col_generate()</a></code>,

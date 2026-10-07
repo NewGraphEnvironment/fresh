@@ -7,7 +7,7 @@
 - [`frs_barriers_minimal()`](https://newgraphenvironment.github.io/fresh/reference/frs_barriers_minimal.md)
   : Reduce Barriers to Downstream-Most Per Flow Path
 - [`frs_break()`](https://newgraphenvironment.github.io/fresh/reference/frs_break.md)
-  : Break Stream Network at Threshold or Point Locations
+  : Break Stream Network at an Attribute Threshold
 - [`frs_break_apply()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_apply.md)
   : Apply Break Points to Split Stream Geometry
 - [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md)
@@ -18,6 +18,8 @@
   : Score, Filter, and Dedup Candidates per Key
 - [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md)
   : Categorize Features by Priority-Ordered Boolean Columns
+- [`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md)
+  : Estimate Channel Width from a Bankfull Regression
 - [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md)
   : Classify Features by Attribute Ranges, Breaks, or Overrides
 - [`frs_clip()`](https://newgraphenvironment.github.io/fresh/reference/frs_clip.md)

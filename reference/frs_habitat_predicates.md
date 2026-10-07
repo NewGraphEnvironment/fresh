@@ -1,7 +1,7 @@
 # Build SQL predicates for one species' habitat classification
 
 Pure-R helper: takes one species' rules + ranges from
-[`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md)
+[`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
 and returns a named list of SQL boolean expressions ("predicates") — the
 raw yes/no questions that
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
@@ -18,11 +18,13 @@ frs_habitat_predicates(sp_params, model = "cw")
 
 - sp_params:
 
-  A single-species params list as produced by one element of
-  [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md).
-  Must contain `species_code`, `spawn_gradient_min`,
-  `spawn_gradient_max`, `ranges`, optionally `rules`, optionally
-  `spawn_edge_types` / `rear_edge_types`.
+  A single-species list with `species_code`, `spawn_gradient_min`,
+  `spawn_gradient_max`, and `params_sp`: that species' element of
+  [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
+  (its `ranges`, optional `rules`, optional `spawn_edge_types` /
+  `rear_edge_types`). This is the shape
+  [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  builds per species.
 
 - model:
 
@@ -46,13 +48,15 @@ them in a complete query.
 Two paths are supported, selected per habitat type by what's present in
 `sp_params`:
 
-1.  **Rules path** — when `sp_params$rules$<spawn|rear>` is non-NULL,
-    the rules YAML is compiled to SQL via `.frs_rules_to_sql()`. CSV
-    thresholds (gradient + the `model`'s size dimension) are passed as
-    the inheritance fallback for rules that omit explicit thresholds.
+1.  **Rules path** — when `sp_params$params_sp$rules$<spawn|rear>` is
+    non-NULL, the rules YAML is compiled to SQL via
+    `.frs_rules_to_sql()`. CSV thresholds (gradient + the `model`'s size
+    dimension) are passed as the inheritance fallback for rules that
+    omit explicit thresholds.
 
 2.  **CSV-ranges path** — pre-rules behaviour. Builds the SQL directly
-    from `sp_params$ranges` + `sp_params$<spawn|rear>_edge_types`.
+    from `sp_params$params_sp$ranges` +
+    `sp_params$params_sp$<spawn|rear>_edge_types`.
 
 `model` picks the size dimension, mirroring bcfishpass
 `parameters_habitat_method.csv`. `"cw"` (default) uses the CSV
@@ -87,6 +91,7 @@ Other habitat:
 [`frs_break_find()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_find.md),
 [`frs_break_validate()`](https://newgraphenvironment.github.io/fresh/reference/frs_break_validate.md),
 [`frs_categorize()`](https://newgraphenvironment.github.io/fresh/reference/frs_categorize.md),
+[`frs_channel_width()`](https://newgraphenvironment.github.io/fresh/reference/frs_channel_width.md),
 [`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
 [`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md),
 [`frs_col_generate()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_generate.md),
@@ -105,19 +110,20 @@ Other habitat:
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-params <- frs_params()
-params_fresh <- read.csv(system.file("extdata",
-  "parameters_fresh.csv", package = "fresh"))
-species_params <- frs_habitat_species("CO", params, params_fresh)
+params <- frs_params(csv = system.file("extdata",
+  "parameters_habitat_thresholds.csv", package = "fresh"))
+sp_params <- list(species_code = "CO",
+  spawn_gradient_min = 0,
+  spawn_gradient_max = params$CO$spawn_gradient_max,
+  params_sp = params$CO)
 
-preds <- frs_habitat_predicates(species_params[[1]])
+preds <- frs_habitat_predicates(sp_params)
 preds$spawn
-#> "s.gradient >= 0 AND s.gradient <= 0.0549 AND ..."
+#> [1] "((s.edge_type IN (1000, 1100, 2000, 2300) AND s.waterbody_key IS NULL AND s.gradient BETWEEN 0 AND 0.0549 AND s.channel_width BETWEEN 2 AND 9999) OR (s.waterbody_key IN (SELECT waterbody_key FROM whse_basemapping.fwa_rivers_poly) AND s.gradient BETWEEN 0 AND 0.0549 AND s.channel_width BETWEEN 0 AND 9999))"
 preds$lake_rear
-#> "FALSE"  (CO has no waterbody_type: L rule under bcfishpass)
+#> [1] "s.waterbody_key IN (\n         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly WHERE area_ha >= 2)"
 
 # Discharge-based model, as for a `mad` watershed group
-frs_habitat_predicates(species_params[[1]], model = "mad")$spawn
-} # }
+frs_habitat_predicates(sp_params, model = "mad")$spawn
+#> [1] "((s.edge_type IN (1000, 1100, 2000, 2300) AND s.waterbody_key IS NULL AND s.gradient BETWEEN 0 AND 0.0549 AND s.mad_m3s BETWEEN 0.164 AND 9999) OR (s.waterbody_key IN (SELECT waterbody_key FROM whse_basemapping.fwa_rivers_poly) AND s.gradient BETWEEN 0 AND 0.0549 AND s.mad_m3s BETWEEN 0.164 AND 9999))"
 ```
