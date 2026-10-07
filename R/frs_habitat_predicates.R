@@ -190,14 +190,13 @@ frs_habitat_predicates <- function(sp_params, model = "cw") {
   # With it, polygon membership and area only, under either model: a
   # stream-size test on the line through the polygon sizes its inflow,
   # not the polygon (fresh#240; bcfishpass sizes lakes by area alone).
-  build_wb_pred <- function(rule, ha_key, poly_table) {
+  # The floor comes from .frs_rule_ha_min(), the same reader the main
+  # `rear` predicate uses, so the two can't disagree (fresh#237).
+  build_wb_pred <- function(rule, poly_table) {
     if (is.null(rule)) return("FALSE")
-    ha_min <- rule[[ha_key]]
-    area_clause <- if (!is.null(ha_min) && !is.na(ha_min)) {
+    ha_min <- .frs_rule_ha_min(rule)
+    area_clause <- if (is.null(ha_min)) "" else
       sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
-    } else {
-      ""
-    }
     sprintf("s.waterbody_key IN (
          SELECT waterbody_key FROM %s%s)", poly_table, area_clause)
   }
@@ -205,9 +204,9 @@ frs_habitat_predicates <- function(sp_params, model = "cw") {
   lake_rule    <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "L")
   wetland_rule <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "W")
 
-  lake_rear_pred    <- build_wb_pred(lake_rule, "lake_ha_min",
+  lake_rear_pred    <- build_wb_pred(lake_rule,
                                      "whse_basemapping.fwa_lakes_poly")
-  wetland_rear_pred <- build_wb_pred(wetland_rule, "wetland_ha_min",
+  wetland_rear_pred <- build_wb_pred(wetland_rule,
                                      "whse_basemapping.fwa_wetlands_poly")
 
   list(

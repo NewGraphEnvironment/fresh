@@ -14,14 +14,16 @@
 - [x] (review) `test-frs_habitat.R`: `.frs_run_connectivity()` passes a `W`-first rear rule's `wetland_ha_min` to `.frs_connected_waterbody()` as `waterbody_ha_min` (mock pattern at `test-frs_habitat.R:549`)
 
 ## Phase 2: Fix — one place that reads the floor
-- [ ] Add `.frs_rule_ha_min(rule)` to `R/utils.R`, next to `.frs_find_waterbody_rule()`: `lake_ha_min` for `L`, `wetland_ha_min` for `W`, otherwise `NULL`
-- [ ] `.frs_rule_to_sql()`: use the helper in place of `rule[["lake_ha_min"]]`. Collapse the duplicated if/else into one `vapply` with an optional `WHERE`. Update the `@param rule` doc to list `wetland_ha_min` and fix the comment at `utils.R:241`
-- [ ] (review) `.frs_validate_rule` roxygen (`frs_params.R:208`) names `wetland_ha_min` alongside `lake_ha_min`
-- [ ] `build_wb_pred()` (`frs_habitat_predicates.R:193`): drop the `ha_key` argument and use the helper, so `rear` and the bucket can't drift apart again
-- [ ] `frs_habitat.R:1254`: read the floor through the helper, keeping the 200 ha default when absent. Comment why
-- [ ] Grep for any other `lake_ha_min` reader that should be type-aware. `frs_params.R:562` `rear_lake_ha_min` → `ranges$lake_ha` is CSV-side with no consumer; leave it and note it in findings
-- [ ] Confirm the vignette cached data doesn't depend on rules YAML (`example_byman_ailport.R`)
-- [ ] `devtools::test()` green, `lintr` clean, `devtools::document()`
+- [x] Add `.frs_rule_ha_min(rule)` to `R/utils.R`, next to `.frs_find_waterbody_rule()`: `lake_ha_min` for `L`, `wetland_ha_min` for `W`, otherwise `NULL`
+- [x] `.frs_rule_to_sql()`: use the helper in place of `rule[["lake_ha_min"]]`. Collapse the duplicated if/else into one `vapply` with an optional `WHERE`. Update the `@param rule` doc to list `wetland_ha_min` and fix the comment at `utils.R:241`
+- [x] (review) `.frs_validate_rule` roxygen (`frs_params.R:208`) names `wetland_ha_min` alongside `lake_ha_min`
+- [x] `build_wb_pred()` (`frs_habitat_predicates.R:193`): drop the `ha_key` argument and use the helper, so `rear` and the bucket can't drift apart again
+- [x] `frs_habitat.R:1254`: read the floor through the helper, keeping the 200 ha default when absent. Comment why
+- [x] Grep for any other `lake_ha_min` reader that should be type-aware. `frs_params.R:562` `rear_lake_ha_min` → `ranges$lake_ha` is CSV-side with no consumer; leave it and note it in findings
+- [x] Confirm the vignette cached data doesn't depend on rules YAML (`example_byman_ailport.R`)
+- [x] `devtools::test()` green, `lintr` clean, `devtools::document()`
+- [x] (code-check round 2) loader rejects an NA / NaN floor
+- [x] (code-check round 3) loader checks floor key presence, so an empty / `~` / `null` floor errors too; 128-case enumeration (key × type × value) shows every input is rejected or compiles to exactly its declared floor
 
 ## Phase 3: Live measurement
 - [ ] `data-raw/rear_wetland_floor_check.R`: on link's persisted `fresh_default` for NATR and PARS (BT), plus a Pacific WSG for CO at 0.5 ha (CO isn't in NATR / PARS), evaluate the full compiled `rear` predicate old vs new on accessible segments. Report segments / km that leave `rearing`. This is net of the stream-edge rule, which can still admit a segment in a small wetland. Write logs to `data-raw/logs/rear_wetland_floor_237/`

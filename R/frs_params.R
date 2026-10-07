@@ -208,7 +208,8 @@ frs_params <- function(conn = NULL,
 #'
 #' Errors on unknown predicate keys, on a `mad` range that is not a
 #' numeric `[min, max]` pair with `min <= max`, on `lake_ha_min`
-#' without `waterbody_type: L`, on bad `waterbody_type`, or on a
+#' without `waterbody_type: L` or `wetland_ha_min` without
+#' `waterbody_type: W`, on bad `waterbody_type`, or on a
 #' non-logical `thresholds` field.
 #'
 #' @noRd
@@ -253,7 +254,7 @@ frs_params <- function(conn = NULL,
     }
   }
 
-  if (!is.null(rule[["lake_ha_min"]])) {
+  if ("lake_ha_min" %in% keys) {
     if (is.null(rule[["waterbody_type"]]) ||
         rule[["waterbody_type"]] != "L") {
       stop(sprintf(
@@ -261,15 +262,18 @@ frs_params <- function(conn = NULL,
                "waterbody_type: L"),
         sp, habitat, idx), call. = FALSE)
     }
+    # Key presence above, and NA / NaN here: an empty, null or missing
+    # floor would mean "no floor" downstream (.frs_rule_ha_min), so reject
+    # it rather than silently widen the polygon set (fresh#237).
     if (!is.numeric(rule[["lake_ha_min"]]) ||
-        length(rule[["lake_ha_min"]]) != 1) {
+        length(rule[["lake_ha_min"]]) != 1 || is.na(rule[["lake_ha_min"]])) {
       stop(sprintf(
-        "rules YAML %s/%s rule %d lake_ha_min must be a numeric scalar",
+        "rules YAML %s/%s rule %d lake_ha_min must be a non-missing numeric scalar",
         sp, habitat, idx), call. = FALSE)
     }
   }
 
-  if (!is.null(rule[["wetland_ha_min"]])) {
+  if ("wetland_ha_min" %in% keys) {
     if (is.null(rule[["waterbody_type"]]) ||
         rule[["waterbody_type"]] != "W") {
       stop(sprintf(
@@ -277,10 +281,13 @@ frs_params <- function(conn = NULL,
                "waterbody_type: W"),
         sp, habitat, idx), call. = FALSE)
     }
+    # Key presence above, and NA / NaN here: an empty, null or missing
+    # floor would mean "no floor" downstream (.frs_rule_ha_min), so reject
+    # it rather than silently widen the polygon set (fresh#237).
     if (!is.numeric(rule[["wetland_ha_min"]]) ||
-        length(rule[["wetland_ha_min"]]) != 1) {
+        length(rule[["wetland_ha_min"]]) != 1 || is.na(rule[["wetland_ha_min"]])) {
       stop(sprintf(
-        "rules YAML %s/%s rule %d wetland_ha_min must be a numeric scalar",
+        "rules YAML %s/%s rule %d wetland_ha_min must be a non-missing numeric scalar",
         sp, habitat, idx), call. = FALSE)
     }
   }

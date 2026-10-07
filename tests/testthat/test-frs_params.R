@@ -232,6 +232,26 @@ test_that(".frs_load_rules errors on lake_ha_min without waterbody_type L", {
   expect_error(.frs_load_rules(tmp), "lake_ha_min without waterbody_type")
 })
 
+test_that(".frs_load_rules errors on an empty, null, NA or NaN area floor (#237)", {
+  # A missing floor would compile to "no floor" (every polygon), so the
+  # loader rejects it instead. An empty value parses to NULL with the key
+  # present.
+  values <- c(".nan", ".na.real", "", "~", "null")
+  cases <- c(lapply(values, function(v) c("L", "lake_ha_min", v)),
+             lapply(values, function(v) c("W", "wetland_ha_min", v)))
+  for (cs in cases) {
+    tmp <- tempfile(fileext = ".yaml")
+    writeLines(c(
+      "BT:",
+      "  rear:",
+      paste0("    - waterbody_type: ", cs[1]),
+      paste0("      ", cs[2], ": ", cs[3])), tmp)
+    expect_error(.frs_load_rules(tmp),
+      paste(cs[2], "must be a non-missing numeric scalar"), info = cs[3])
+    unlink(tmp)
+  }
+})
+
 test_that(".frs_load_rules errors on bad waterbody_type", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))
