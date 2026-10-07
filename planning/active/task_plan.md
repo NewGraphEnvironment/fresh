@@ -22,11 +22,11 @@
 - [x] Extend `.frs_validate_rule()` (`R/frs_params.R:313-335`) with the rear-only checks
 
 ## Phase 3: Bucket connectivity filter
-- [ ] Let `.frs_trace_downstream()` optionally carry `origin_id` into the target and take `gradient_max = NULL` (no stop); existing SK caller byte-identical (SQL-capture test)
-- [ ] New `.frs_bucket_connected(conn, table, habitat, species, column, distance_max)`: polygon unit via `s.waterbody_key`; connected set = own-line spawning ∪ outlet trace ∪ spawning-cluster trace; `UPDATE ... SET <column> = FALSE` for the species' bucket rows whose `waterbody_key` is not in it; verbose before/after counts
-- [ ] Wire into `.frs_run_connectivity()` after the spawning block, once per L / W rule carrying `requires_connected: spawning`
-- [ ] DB tests on a synthetic network (pg_temp streams + habitat with fabricated ltrees, `skip_if_no_conn()`): lake on a sub-threshold inflow keeps its bucket; disconnected lake loses it; lake beyond D loses it; one connected line keeps the whole polygon; rule without `requires_connected` unchanged
-- [ ] Restore-the-bug check: disable the UPDATE / the distance cap and confirm the disconnected / beyond-D tests go red
+- [x] Let `.frs_trace_downstream()` optionally carry `origin_id` into the target and take `gradient_max = NULL` (no stop); existing SK caller byte-identical (SQL-capture test)
+- [x] New `.frs_bucket_connected(conn, table, habitat, species, column, distance_max)`: polygon unit via `s.waterbody_key`; connected set = own-line spawning ∪ outlet trace ∪ spawning-cluster trace; `UPDATE ... SET <column> = FALSE` for the species' bucket rows whose `waterbody_key` is not in it; verbose before/after counts
+- [x] Wire into `.frs_run_connectivity()` after the spawning block, once per L / W rule carrying `requires_connected: spawning`
+- [x] DB tests on a synthetic network (pg_temp streams + habitat with fabricated ltrees, `skip_if_no_conn()`): lake on a sub-threshold inflow keeps its bucket; disconnected lake loses it; lake beyond D loses it; one connected line keeps the whole polygon; rule without `requires_connected` unchanged
+- [x] Restore-the-bug check: disable the UPDATE / the distance cap and confirm the disconnected / beyond-D tests go red
 
 ## Phase 4: Live check, docs, release prep
 - [ ] One real WSG on local fwapg (NATR, BT, a temp rules file opting L/W in at a stated D): bucket km before/after for area-only and for connectivity; timing of the traces; evidence under `data-raw/logs/` (or the archive README)
