@@ -25,24 +25,23 @@
 #' `parameters_habitat_method.csv`. `"cw"` (default) uses the CSV
 #' channel-width ranges (`ranges$<spawn|rear>$channel_width`). `"mad"`
 #' uses the CSV mean annual discharge ranges (`ranges$<spawn|rear>$mad_m3s`)
-#' against `s.mad_m3s` instead, on both paths and for lake / wetland
-#' rearing. Under `"mad"`, matching bcfishpass: a species with no MAD
-#' thresholds (e.g. BT) gets no stream spawning / rearing from inheriting
-#' rules; segments with NULL `mad_m3s` fail; rule-level `channel_width:`
-#' (the cw-model river-polygon bypass) is ignored; and lake / wetland
-#' rearing for a species with no rear MAD window is polygon-based only.
-#' An explicit `mad: [min, max]` rule applies under either model.
-#' [frs_habitat_classify()] resolves the model per watershed group.
+#' against `s.mad_m3s` instead, on both paths. Under `"mad"`, matching
+#' bcfishpass: a species with no MAD thresholds (e.g. BT) gets no stream
+#' spawning / rearing from inheriting rules; segments with NULL `mad_m3s`
+#' fail; and rule-level `channel_width:` (the cw-model river-polygon
+#' bypass) is ignored. An explicit `mad: [min, max]` rule applies under
+#' either model. [frs_habitat_classify()] resolves the model per
+#' watershed group.
 #'
-#' Lake / wetland rearing predicates are gated on the presence of a
-#' `waterbody_type: L` / `waterbody_type: W` rule in `rear:`. Without
-#' the rule, the predicate is `"FALSE"` — the species is not lake or
-#' wetland-rearing. With the rule, an optional `lake_ha_min` /
-#' `wetland_ha_min` filters the polygon join.
-#'
-#' Segments must still fall within the species' rear channel-width
-#' window (or rear MAD window under `model = "mad"`) for lake / wetland
-#' rearing.
+#' Lake / wetland rearing predicates (`lake_rear`, `wetland_rear`) are
+#' gated on the presence of a `waterbody_type: L` / `waterbody_type: W`
+#' rule in `rear:`. Without the rule, the predicate is `"FALSE"` — the
+#' species is not lake or wetland-rearing. With the rule, the predicate
+#' is polygon membership, filtered by the rule's optional `lake_ha_min` /
+#' `wetland_ha_min`. It carries no channel-width or discharge test under
+#' either model: the line through a polygon measures its inflow, not the
+#' polygon. Connection to spawning is applied after classification, for
+#' rules that carry `requires_connected: spawning` (see [frs_habitat()]).
 #'
 #' @param sp_params A single-species params list as produced by one
 #'   element of [frs_habitat_species()]. Must contain `species_code`,
@@ -188,24 +187,19 @@ frs_habitat_predicates <- function(sp_params, model = "cw") {
   # --- lake_rear / wetland_rear predicates ---
   # Gated on presence of waterbody_type: L / W rule in rear rules.
   # Without the rule, predicate is FALSE — species not lake/wetland rearing.
-  # Under mad, a species with no rear MAD window (SK, KO) keeps lake /
-  # wetland rearing on polygon membership alone — bcfishpass lake rearing
-  # is area-based regardless of model.
+  # With it, polygon membership and area only, under either model: a
+  # stream-size test on the line through the polygon sizes its inflow,
+  # not the polygon (fresh#240; bcfishpass sizes lakes by area alone).
   build_wb_pred <- function(rule, ha_key, poly_table) {
-    if (is.null(rule) || (is.null(size_rear) && model == "cw")) {
-      return("FALSE")
-    }
+    if (is.null(rule)) return("FALSE")
     ha_min <- rule[[ha_key]]
     area_clause <- if (!is.null(ha_min) && !is.na(ha_min)) {
       sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
     } else {
       ""
     }
-    wb_sql <- sprintf("s.waterbody_key IN (
+    sprintf("s.waterbody_key IN (
          SELECT waterbody_key FROM %s%s)", poly_table, area_clause)
-    if (is.null(size_rear)) return(wb_sql)
-    sprintf("%s
-       AND %s", size_sql(size_rear), wb_sql)
   }
 
   lake_rule    <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "L")

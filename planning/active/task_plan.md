@@ -13,9 +13,9 @@
 5. **Out of scope, noted only:** the legacy non-rules path at `R/frs_habitat.R:1133`, and the bucket using `fwa_lakes_poly` without reservoirs.
 
 ## Phase 1: Area-only bucket predicates
-- [ ] Tests first: L/W bucket has no `channel_width` / `mad_m3s` under `cw` and `mad`; a species with an L rule and no rear size range gets the area predicate (not `FALSE`) under both models; replace the tests at `test-frs_habitat_predicates.R:172` and `:362-378`
-- [ ] `build_wb_pred()`: drop the size clause and the `cw` "no width range → FALSE" branch; keep rule-presence gating and `*_ha_min`
-- [ ] Update `frs_habitat_predicates()` roxygen + `devtools::document()`
+- [x] Tests first: L/W bucket has no `channel_width` / `mad_m3s` under `cw` and `mad`; a species with an L rule and no rear size range gets the area predicate (not `FALSE`) under both models; replace the tests at `test-frs_habitat_predicates.R:172` and `:362-378`
+- [x] `build_wb_pred()`: drop the size clause and the `cw` "no width range → FALSE" branch; keep rule-presence gating and `*_ha_min`
+- [x] Update `frs_habitat_predicates()` roxygen + `devtools::document()`
 
 ## Phase 2: Rule validation for rear-bucket connectivity
 - [ ] Tests first (`test-frs_params.R`): rear L/W rule with `requires_connected: spawning` + `connected_distance_max` loads; rear rule without `waterbody_type` L/W errors; rear `requires_connected: rearing` errors; missing `connected_distance_max` errors; spawn-block behaviour unchanged

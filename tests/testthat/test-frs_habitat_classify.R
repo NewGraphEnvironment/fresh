@@ -270,9 +270,9 @@ test_that("integration: lake_rearing column preserved with rules", {
   counts <- .rules_test_run(conn, "rt_lr", rules = NULL)
   bt <- counts[counts$species_code == "BT", ]
 
-  # lake_rearing column logic is independent of rules YAML.
-  # BT has CSV rear_channel_width which populates lake_rearing.
-  # Should be >= 0 (not NULL or error). Smoke test verified 4.
+  # The lake_rearing column is always written. Its value comes from the
+  # bundled BT rear `waterbody_type: L` rule (polygon area only,
+  # fresh#240). Should be >= 0 (not NULL or error).
   expect_true(!is.na(bt$lake_rr))
 })
 
