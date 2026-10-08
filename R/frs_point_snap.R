@@ -183,3 +183,105 @@ frs_point_snap_knn <- function(
   )
   frs_db_query(conn, sql)
 }
+
+
+#' Build the bulk snap query
+#'
+#' One lateral KNN per point against the network table: candidates within
+#' `tolerance`, nearest first, ties broken by segment id. The measure is
+#' clamped to the segment's own range (bcfishpass `04_pscis.sql` pattern).
+#' `candidate_rank` is numbered outside the lateral so the index-ordered
+#' nearest-neighbour scan stays intact.
+#'
+#' @param pts_sql Character. A `SELECT` yielding `id`, `geom` (Point,
+#'   EPSG:3005) and, when `has_hint`, `hint` (blue_line_key or NULL).
+#' @param col_id Character. Output name of the id column.
+#' @param has_hint Logical. Constrain each point to its `hint` stream
+#'   (a NULL hint leaves that point unconstrained).
+#' @inheritParams frs_point_snap
+#' @return Character SQL.
+#' @noRd
+.frs_point_snap_sql <- function(pts_sql, col_id, has_hint = FALSE,
+                                tolerance = 100, num_features = 1L,
+                                stream_order_min = NULL,
+                                exclude_edge_types = 1425L) {
+  col_blk <- .frs_opt("blk_col")
+  col_seg <- .frs_opt("segment_id_col")
+  col_ds <- .frs_opt("measure_ds_col")
+  col_us <- .frs_opt("measure_us_col")
+
+  where_parts <- c(
+    sprintf("ST_DWithin(s.geom, p.geom, %s)", .frs_sql_num(tolerance)),
+    .frs_snap_guards("s", wscode_col = .frs_opt("wscode_col"),
+                     localcode_col = .frs_opt("localcode_col"),
+                     exclude_edge_types = exclude_edge_types)
+  )
+  if (has_hint) {
+    where_parts <- c(where_parts, sprintf(
+      "(p.hint IS NULL OR s.%s = p.hint)", col_blk))
+  }
+  if (!is.null(stream_order_min)) {
+    where_parts <- c(where_parts, sprintf(
+      "s.stream_order >= %d", as.integer(stream_order_min)))
+  }
+
+  rank_sql <- if (num_features > 1) {
+    paste0(
+      "  row_number() OVER (PARTITION BY c.id ",
+      "ORDER BY c.distance_to_stream, c.linear_feature_id) AS candidate_rank,\n")
+  } else {
+    ""
+  }
+
+  sprintf(
+    paste0(
+      "WITH p AS (\n%s\n),\n",
+      "c AS (\n",
+      "  SELECT p.id, s.*\n",
+      "  FROM p\n",
+      "  CROSS JOIN LATERAL (\n",
+      "    SELECT\n",
+      "      s.%s AS linear_feature_id,\n",
+      "      s.%s AS blue_line_key,\n",
+      "      CEIL(GREATEST(s.%s, FLOOR(LEAST(s.%s,\n",
+      "        (ST_LineLocatePoint(s.geom, ST_ClosestPoint(s.geom, p.geom))\n",
+      "          * s.length_metre) + s.%s\n",
+      "      )))) AS downstream_route_measure,\n",
+      "      s.watershed_group_code,\n",
+      "      s.%s AS wscode_ltree,\n",
+      "      s.%s AS localcode_ltree,\n",
+      "      s.gnis_name,\n",
+      "      ST_Distance(s.geom, p.geom) AS distance_to_stream,\n",
+      "      ST_ClosestPoint(s.geom, p.geom) AS geom\n",
+      "    FROM %s s\n",
+      "    WHERE %s\n",
+      "    ORDER BY s.geom <-> p.geom, s.%s\n",
+      "    LIMIT %d\n",
+      "  ) s\n",
+      ")\n",
+      "SELECT\n",
+      "  c.id AS \"%s\",\n",
+      "  c.linear_feature_id,\n",
+      "  c.blue_line_key,\n",
+      "  c.downstream_route_measure,\n",
+      "  c.watershed_group_code,\n",
+      "  c.wscode_ltree,\n",
+      "  c.localcode_ltree,\n",
+      "  c.gnis_name,\n",
+      "  c.distance_to_stream,\n",
+      "%s",
+      "  c.geom\n",
+      "FROM c\n",
+      "ORDER BY c.id, c.distance_to_stream, c.linear_feature_id"
+    ),
+    pts_sql,
+    col_seg, col_blk, col_ds, col_us, col_ds,
+    .frs_opt("wscode_col"), .frs_opt("localcode_col"),
+    .frs_opt("tbl_network"),
+    paste(where_parts, collapse = "\n      AND "),
+    col_seg,
+    as.integer(num_features),
+    col_id,
+    rank_sql
+  )
+}

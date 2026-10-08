@@ -23,8 +23,8 @@ Two snappers exist, and neither is the primitive callers need:
 Prior work: #2 introduced `frs_point_snap()`; #7, #16, #17 and #18 added candidates, the `blue_line_key` hint and `stream_order_min`; #207 added `frs_candidates_pick()` for scoring and deduplicating candidates. What is missing is the bulk shape and a complete output.
 
 ## Phase 1: Snap helpers (test-first)
-- [ ] Unit tests for `.frs_point_snap_sql()` shape: one lateral query, `ST_DWithin`, guards, NULL-tolerant hint, `stream_order_min`, `LIMIT`, `watershed_group_code`, tie-break, `candidate_rank` only when `num_features > 1`, rank outside the lateral, no `fwa_indexpoint`
-- [ ] Implement `.frs_db_write_temp()` and `.frs_point_snap_sql()` in `R/utils.R` / `R/frs_point_snap.R`; tests pass
+- [x] Unit tests for `.frs_point_snap_sql()` shape: one lateral query, `ST_DWithin`, guards, NULL-tolerant hint, `stream_order_min`, `LIMIT`, `watershed_group_code`, tie-break, `candidate_rank` only when `num_features > 1`, rank outside the lateral, no `fwa_indexpoint`
+- [x] Implement `.frs_db_write_temp()` and `.frs_point_snap_sql()` in `R/utils.R` / `R/frs_point_snap.R`; tests pass
 
 ## Phase 2: Swap `frs_point_snap()` and its callers (one green commit)
 - [ ] Rewrite `test-frs_point_snap.R` unit tests: input dispatch (df / sf / table), srid rules, scalar validation, `col_id` NA / duplicate / collision rejection, numeric `points` or `x =`/`y =` gives the migration error, one query per call, NA coords drop silently
