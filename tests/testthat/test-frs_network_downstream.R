@@ -34,7 +34,8 @@ test_that("frs_network_downstream returns sf of downstream segments", {
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
+  snapped <- frs_point_snap(conn, data.frame(x = -126.5, y = 54.5),
+    tolerance = 500)
 
   downstream <- frs_network_downstream(conn,
     blue_line_key = snapped$blue_line_key,

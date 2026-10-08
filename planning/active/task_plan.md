@@ -27,12 +27,12 @@ Prior work: #2 introduced `frs_point_snap()`; #7, #16, #17 and #18 added candida
 - [x] Implement `.frs_db_write_temp()` and `.frs_point_snap_sql()` in `R/utils.R` / `R/frs_point_snap.R`; tests pass
 
 ## Phase 2: Swap `frs_point_snap()` and its callers (one green commit)
-- [ ] Rewrite `test-frs_point_snap.R` unit tests: input dispatch (df / sf / table), srid rules, scalar validation, `col_id` NA / duplicate / collision rejection, numeric `points` or `x =`/`y =` gives the migration error, one query per call, NA coords drop silently
-- [ ] Live tests, input shapes: N points in one call return ≤N rows with `watershed_group_code`; `sf` input; per-row hint column incl. NULL hints
-- [ ] Live tests, behaviour: far point dropped at 100 m and kept at 5000 m; all-far input gives a 0-row result; `num_features = 3` ranked candidates; table input with `to =` writes the table
-- [ ] Implement the new `frs_point_snap()`; remove `frs_point_snap_knn()` and the `fwa_indexpoint` path
-- [ ] `frs_watershed_split()`: one bulk call (`col_x = "lon"`, `col_y = "lat"`, its 5000 m default passed through), "failed to snap — skipping" message via anti-join on `id_point`; update `test-frs_watershed_split.R` stubs
-- [ ] Update x/y callers in `test-frs_network_upstream.R`, `-downstream`, `-prune`, `-point_locate` to `points = data.frame(x = -126.5, y = 54.5), tolerance = 500`; full suite green
+- [x] Rewrite `test-frs_point_snap.R` unit tests: input dispatch (df / sf / table), srid rules, scalar validation, `col_id` NA / duplicate / collision rejection, numeric `points` or `x =`/`y =` gives the migration error, one query per call, NA coords drop silently
+- [x] Live tests, input shapes: N points in one call return ≤N rows with `watershed_group_code`; `sf` input; per-row hint column incl. NULL hints
+- [x] Live tests, behaviour: far point dropped at 100 m and kept at 5000 m; all-far input gives a 0-row result; `num_features = 3` ranked candidates; table input with `to =` writes the table
+- [x] Implement the new `frs_point_snap()`; remove `frs_point_snap_knn()` and the `fwa_indexpoint` path
+- [x] `frs_watershed_split()`: one bulk call (`col_x = "lon"`, `col_y = "lat"`, its 5000 m default passed through), "failed to snap — skipping" message via anti-join on `id_point`; update `test-frs_watershed_split.R` stubs
+- [x] Update x/y callers in `test-frs_network_upstream.R`, `-downstream`, `-prune`, `-point_locate` to `points = data.frame(x = -126.5, y = 54.5), tolerance = 500`; full suite green
 
 ## Phase 3: `frs_feature_find(points = )`
 - [ ] Live test: `frs_feature_find(points = <sf>)` snaps real points into `to` with `blue_line_key`, measure, `label`, `feature_id`
