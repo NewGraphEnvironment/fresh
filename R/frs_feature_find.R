@@ -34,7 +34,8 @@
 #' @param label Character or `NULL`. Static label for all features.
 #' @param label_col Character or `NULL`. Column name to read labels from.
 #' @param label_map Named character vector or `NULL`. Maps `label_col`
-#'   values to output labels.
+#'   values to output labels. Values are compared as text; for a logical /
+#'   boolean column use keys `"TRUE"` / `"FALSE"` (or `"t"` / `"f"`).
 #' @param overwrite Logical. Drop `to` before creating. Default `TRUE`.
 #' @param append Logical. INSERT INTO existing `to` table. Default
 #'   `FALSE`.

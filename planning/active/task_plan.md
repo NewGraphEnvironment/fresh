@@ -43,16 +43,16 @@ Prior work: #2 introduced `frs_point_snap()`; #7, #16, #17 and #18 added candida
 - [x] Record results in `findings.md`
 
 ## Phase 5: Docs and wrap-up
-- [ ] Roxygen for `frs_point_snap()` (`\dontrun{}` examples — DB required; required network columns for a custom `tbl_network`; output CRS 3005; pgbouncer caveat); refresh cross-refs in `frs_point_match.R:70`, `frs_candidates_pick.R`, `frs_feature_find.R`; `devtools::document()`
-- [ ] `NEWS.md`: breaking signature + migration example, 100 m default, `watershed_group_code`, KNN-only (integer clamped measure, 1425 + `999.*` excluded), `frs_feature_find(points =)` fixed. CLAUDE.md: update the `frs_point_snap` line (~226) + technical note on snap semantics
-- [ ] `lintr::lint_package()` clean; full `devtools::test()`
-- [ ] Draft follow-up issues (confirm with user before filing): link — `lnk_points_snap()` → thin wrapper, 999 guard bug, `frs_point_snap_knn` roxygen ref; breaks / wet / diggs / stewardship_upper_wedzin_kwa — migrate to the new signature
+- [x] Roxygen for `frs_point_snap()` (`\dontrun{}` examples — DB required; required network columns for a custom `tbl_network`; output CRS 3005; pgbouncer caveat); refresh cross-refs in `frs_point_match.R:70`, `frs_candidates_pick.R`, `frs_feature_find.R`; `devtools::document()`
+- [x] `NEWS.md`: breaking signature + migration example, 100 m default, `watershed_group_code`, KNN-only (integer clamped measure, 1425 + `999.*` excluded), `frs_feature_find(points =)` fixed. CLAUDE.md: update the `frs_point_snap` line (~226) + technical note on snap semantics
+- [x] `lintr::lint_package()` clean; full `devtools::test()`
+- [x] Draft follow-up issues (confirm with user before filing): link — `lnk_points_snap()` → thin wrapper, 999 guard bug, `frs_point_snap_knn` roxygen ref; breaks / wet / diggs / stewardship_upper_wedzin_kwa — migrate to the new signature — drafted, awaiting user before filing
 
 Version bump (0.40.0) happens at merge via `/gh-pr-merge`, per convention.
 
 ## Validation
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

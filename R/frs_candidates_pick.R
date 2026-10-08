@@ -23,7 +23,8 @@
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param table_in Character. Schema-qualified candidates table.
 #'   Multiple rows per `col_key` value are expected (the whole point —
-#'   pick one). Typically the output of `frs_point_snap(num_features = N)`
+#'   pick one). Typically the output of
+#'   `frs_point_snap(num_features = N, to = ...)`
 #'   optionally enriched with JOINs to pull in score-bearing columns.
 #' @param table_to Character. Schema-qualified destination. Dropped +
 #'   recreated by this function via DDL.

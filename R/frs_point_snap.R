@@ -5,16 +5,18 @@
 #' `downstream_route_measure`, `watershed_group_code`, `linear_feature_id`,
 #' `wscode_ltree`, `localcode_ltree`. Each point is matched by a lateral
 #' nearest-neighbour search against the network table, so 10,000 points
-#' cost one round trip, not 10,000.
+#' cost one snap query, not 10,000.
 #'
 #' Candidates are network segments within `tolerance` of the point,
 #' nearest first (ties broken by `linear_feature_id`). Placeholder
-#' (`999`) and unmapped (NULL local code) segments are never candidates;
-#' `exclude_edge_types` drops more. The measure is clamped to the
-#' segment's own measure range and rounded to whole metres, following
-#' bcfishpass (`04_pscis.sql`). To score and pick among several
-#' candidates per point, write them to a table (`num_features > 1`,
-#' `to = `) and pass it to [frs_candidates_pick()].
+#' (`999.*`) and unmapped (NULL local code) segments are never candidates;
+#' `exclude_edge_types` drops more. The measure is a whole metre, following
+#' bcfishpass (`04_pscis.sql`): the position rounded down, but never below
+#' the segment's start rounded up, so a point in a segment's first
+#' fractional metre (or on a segment shorter than a metre) gets that
+#' rounded-up start. To score and pick among several candidates per
+#' point, write them to a table (`num_features > 1`, `to = `) and pass it
+#' to [frs_candidates_pick()].
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param points The points to snap. One of:
@@ -374,8 +376,8 @@ frs_point_snap <- function(
 #' Build the bulk snap query
 #'
 #' One lateral KNN per point against the network table: candidates within
-#' `tolerance`, nearest first, ties broken by segment id. The measure is
-#' clamped to the segment's own range (bcfishpass `04_pscis.sql` pattern).
+#' `tolerance`, nearest first, ties broken by segment id. The whole-metre
+#' measure uses the bcfishpass `04_pscis.sql` formula.
 #' `candidate_rank` is numbered outside the lateral so the index-ordered
 #' nearest-neighbour scan stays intact.
 #'

@@ -57,7 +57,8 @@ joining back to source.}
 \item{label_col}{Character or \code{NULL}. Column name to read labels from.}
 
 \item{label_map}{Named character vector or \code{NULL}. Maps \code{label_col}
-values to output labels.}
+values to output labels. Values are compared as text; for a logical /
+boolean column use keys \code{"TRUE"} / \code{"FALSE"} (or \code{"t"} / \code{"f"}).}
 
 \item{overwrite}{Logical. Drop \code{to} before creating. Default \code{TRUE}.}
 

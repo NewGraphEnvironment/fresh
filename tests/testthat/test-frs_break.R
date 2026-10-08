@@ -214,9 +214,23 @@ test_that("frs_feature_find refuses a `to` it would read", {
 test_that("label_map compares and returns label_col as text", {
   expr <- .frs_label_expr(label_col = "barrier_ind",
                           label_map = c("TRUE" = "blocked"))
-  expect_match(expr, "WHEN barrier_ind::text = 'TRUE' THEN 'blocked'",
+  expect_match(expr,
+               "WHEN lower(barrier_ind::text) IN ('true', 'true') THEN 'blocked'",
+               fixed = TRUE)
+  expr <- .frs_label_expr(label_col = "barrier_ind",
+                          label_map = c("t" = "blocked", "F" = "passable"))
+  expect_match(expr,
+               "WHEN lower(barrier_ind::text) IN ('t', 'true') THEN 'blocked'",
+               fixed = TRUE)
+  expect_match(expr,
+               "WHEN lower(barrier_ind::text) IN ('f', 'false') THEN 'passable'",
                fixed = TRUE)
   expect_match(expr, "ELSE barrier_ind::text END AS label", fixed = TRUE)
+  # Other keys stay exact
+  expr <- .frs_label_expr(label_col = "status",
+                          label_map = c("BARRIER" = "blocked"))
+  expect_match(expr, "WHEN status::text = 'BARRIER' THEN 'blocked'",
+               fixed = TRUE)
 })
 
 test_that("frs_feature_find points mode checks label_col", {
@@ -298,6 +312,25 @@ test_that("frs_feature_find snaps real sf points onto the network (live)", {
   expect_equal(out$feature_id,
                c("1234567890123456", "1234567890123457")[keep[1:2]])
   expect_equal(out$label, c("blocked", "2")[keep[1:2]])
+
+  # A logical label_col reaches the DB as boolean ('true' as text); a
+  # "TRUE" key still maps it
+  pts_num$barrier <- c(TRUE, FALSE, TRUE)
+  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
+                   points = pts_num, col_id = "site_num",
+                   label_col = "barrier", label_map = c("TRUE" = "blocked"))
+  out <- DBI::dbGetQuery(conn, paste(
+    "SELECT label FROM working.test_ff_out ORDER BY feature_id"))
+  expect_equal(out$label, c("blocked", "false")[keep[1:2]])
+
+  # psql-style keys
+  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
+                   points = pts_num, col_id = "site_num",
+                   label_col = "barrier",
+                   label_map = c("t" = "blocked", "f" = "passable"))
+  out <- DBI::dbGetQuery(conn, paste(
+    "SELECT label FROM working.test_ff_out ORDER BY feature_id"))
+  expect_equal(out$label, c("blocked", "passable")[keep[1:2]])
 
   # A call that fails after its checks leaves the existing `to` alone
   expect_error(frs_feature_find(conn, "working.test_ff_streams",

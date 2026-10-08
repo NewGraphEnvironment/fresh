@@ -1,3 +1,22 @@
+# fresh 0.40.0
+
+Closes [#247](https://github.com/NewGraphEnvironment/fresh/issues/247).
+
+**`frs_point_snap()` snaps a whole dataset in one query and returns `watershed_group_code`. Breaking change.**
+- It takes `points`: a data frame with coordinate columns (`col_x`, `col_y`, `srid`), an `sf` POINT object, or a schema-qualified table (`col_geom`, with `col_id` required). 1,000 points are one snap query, not 1,000.
+- It returns the input id (`col_id`, or `id_point` for the row number) with `blue_line_key`, `downstream_route_measure`, `watershed_group_code`, `linear_feature_id`, `wscode_ltree`, `localcode_ltree`, `gnis_name` and `distance_to_stream`, plus `candidate_rank` when `num_features > 1`. `to =` writes the result to a table, ready for `frs_candidates_pick()`.
+- `col_blk` names a per-row `blue_line_key` hint column. A point with no hint snaps to any stream.
+- The default `tolerance` is now 100 m (was 5000 m), the distance bcfishobs accepts for A/B matches.
+- Every snap now uses the lateral nearest-neighbour search that `link::lnk_points_snap()` uses, and the `fwa_indexpoint()` path is gone. The measure is a whole metre, as in bcfishpass: rounded down, but never below the segment's start rounded up. Placeholder (`999.*`) and unmapped segments are never candidates, and subsurface-flow (1425) segments are excluded by default (`exclude_edge_types`). Unlike `fwa_indexpoint()`, edge type 6010 (connectors where a stream leaves and re-enters a watershed group) is a candidate.
+- To migrate, `frs_point_snap(conn, x = lon, y = lat)` becomes `frs_point_snap(conn, data.frame(x = lon, y = lat))`; add `tolerance = 5000` to keep the old reach. The old call errors with this hint.
+- Parity with `lnk_points_snap()` on all 19,905 PSCIS crossings at 150 m: 18,180 identical picks, 22 equidistant ties (same stream, at most 1 m apart), 11 where link picked a `999.*` placeholder that fresh excludes, and no other differences (`data-raw/point_snap_parity_check.R`).
+
+**`frs_feature_find(points = <sf>)` works.**
+- It always failed, because it passed the `sf` to the single-point snap. It now snaps through `frs_point_snap()`, and `col_id`, `label`, `label_col`, `label_map`, `append` and the stream scoping to `table` apply as they do for `points_table`.
+- Both paths write `feature_id` as text. A `label_map` now works on an integer or logical `label_col` (map logicals with `"TRUE"` / `"FALSE"` or `"t"` / `"f"` keys). A call that fails its checks or the snap no longer drops an existing `to`.
+
+**`frs_watershed_split()` snaps its points in one query.** Its measures are now whole metres. It no longer snaps to subsurface-flow, placeholder or unmapped segments, and it can now snap to edge-type 6010 connectors.
+
 # fresh 0.39.0
 
 Closes [#234](https://github.com/NewGraphEnvironment/fresh/issues/234), [#29](https://github.com/NewGraphEnvironment/fresh/issues/29), [#28](https://github.com/NewGraphEnvironment/fresh/issues/28).

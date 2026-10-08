@@ -384,11 +384,18 @@ frs_break_find <- function(conn, table, to = "working.breaks",
       # CASE expression mapping values
       whens <- vapply(names(label_map), function(val) {
         # Compared and returned as text: an integer or boolean label_col
-        # would make the CASE that type and reject the mapped labels
-        sprintf("WHEN %s::text = %s THEN %s",
-                label_col,
-                .frs_quote_string(val),
-                .frs_quote_string(label_map[[val]]))
+        # would make the CASE that type and reject the mapped labels.
+        # boolean::text is 'true' / 'false'; R prints TRUE, psql prints t,
+        # so those keys match a boolean in any case
+        canon <- c(t = "true", true = "true", f = "false", false = "false")
+        key <- tolower(val)
+        cond <- if (key %in% names(canon)) {
+          sprintf("lower(%s::text) IN (%s, %s)", label_col,
+                  .frs_quote_string(key), .frs_quote_string(canon[[key]]))
+        } else {
+          sprintf("%s::text = %s", label_col, .frs_quote_string(val))
+        }
+        sprintf("WHEN %s THEN %s", cond, .frs_quote_string(label_map[[val]]))
       }, character(1))
       sprintf("CASE %s ELSE %s::text END AS label",
               paste(whens, collapse = " "),

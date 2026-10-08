@@ -90,17 +90,19 @@ returns each point's network position: \code{blue_line_key},
 \code{downstream_route_measure}, \code{watershed_group_code}, \code{linear_feature_id},
 \code{wscode_ltree}, \code{localcode_ltree}. Each point is matched by a lateral
 nearest-neighbour search against the network table, so 10,000 points
-cost one round trip, not 10,000.
+cost one snap query, not 10,000.
 }
 \details{
 Candidates are network segments within \code{tolerance} of the point,
 nearest first (ties broken by \code{linear_feature_id}). Placeholder
-(\code{999}) and unmapped (NULL local code) segments are never candidates;
-\code{exclude_edge_types} drops more. The measure is clamped to the
-segment's own measure range and rounded to whole metres, following
-bcfishpass (\verb{04_pscis.sql}). To score and pick among several
-candidates per point, write them to a table (\code{num_features > 1},
-\verb{to = }) and pass it to \code{\link[=frs_candidates_pick]{frs_candidates_pick()}}.
+(\verb{999.*}) and unmapped (NULL local code) segments are never candidates;
+\code{exclude_edge_types} drops more. The measure is a whole metre, following
+bcfishpass (\verb{04_pscis.sql}): the position rounded down, but never below
+the segment's start rounded up, so a point in a segment's first
+fractional metre (or on a segment shorter than a metre) gets that
+rounded-up start. To score and pick among several candidates per
+point, write them to a table (\code{num_features > 1}, \verb{to = }) and pass it
+to \code{\link[=frs_candidates_pick]{frs_candidates_pick()}}.
 
 The network table and its column names come from the \verb{fresh.*} options
 (see \code{tbl_network}, \code{blk_col}, \code{segment_id_col}, \code{measure_ds_col},
