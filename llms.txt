@@ -290,7 +290,7 @@ MIT
 - [`frs_point_match()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_match.md)
   : Match Two Point Datasets Along FWA Network Within Instream Distance
 - [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
-  : Snap a Point to the Nearest FWA Stream
+  : Snap Points to the Nearest Stream
 - [`frs_stream_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_stream_fetch.md)
   : Fetch FWA Stream Network Segments
 - [`frs_waterbody_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_waterbody_network.md)

@@ -36,8 +36,8 @@ frs_candidates_pick(
 
   Character. Schema-qualified candidates table. Multiple rows per
   `col_key` value are expected (the whole point — pick one). Typically
-  the output of `frs_point_snap(num_features = N)` optionally enriched
-  with JOINs to pull in score-bearing columns.
+  the output of `frs_point_snap(num_features = N, to = ...)` optionally
+  enriched with JOINs to pull in score-bearing columns.
 
 - table_to:
 

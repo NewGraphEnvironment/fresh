@@ -95,7 +95,11 @@ network-referenced features.</p></dd>
 
 <dt id="arg-points">points<a class="anchor" aria-label="anchor" href="#arg-points"></a></dt>
 <dd><p>An <code>sf</code> object or <code>NULL</code>. User-provided points to snap
-to the network via <code><a href="frs_point_snap.html">frs_point_snap()</a></code>.</p></dd>
+to the network via <code><a href="frs_point_snap.html">frs_point_snap()</a></code> (default 100 m tolerance;
+points farther than that are dropped with a message). <code>col_id</code>,
+<code>label</code>, <code>label_col</code> (a column of <code>points</code>) and <code>label_map</code> apply as
+for <code>points_table</code>. For other snap options, snap first with
+<code><a href="frs_point_snap.html">frs_point_snap()</a></code> and pass the result as <code>points_table</code>.</p></dd>
 
 
 <dt id="arg-where">where<a class="anchor" aria-label="anchor" href="#arg-where"></a></dt>
@@ -115,7 +119,8 @@ to the network via <code><a href="frs_point_snap.html">frs_point_snap()</a></cod
 
 <dt id="arg-col-id">col_id<a class="anchor" aria-label="anchor" href="#arg-col-id"></a></dt>
 <dd><p>Character or <code>NULL</code>. Column name for feature ID.
-When provided, included in output for joining back to source.</p></dd>
+When provided, included in output as text column <code>feature_id</code> for
+joining back to source.</p></dd>
 
 
 <dt id="arg-label">label<a class="anchor" aria-label="anchor" href="#arg-label"></a></dt>
@@ -128,7 +133,8 @@ When provided, included in output for joining back to source.</p></dd>
 
 <dt id="arg-label-map">label_map<a class="anchor" aria-label="anchor" href="#arg-label-map"></a></dt>
 <dd><p>Named character vector or <code>NULL</code>. Maps <code>label_col</code>
-values to output labels.</p></dd>
+values to output labels. Values are compared as text; for a logical /
+boolean column use keys <code>"TRUE"</code> / <code>"FALSE"</code> (or <code>"t"</code> / <code>"f"</code>).</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>

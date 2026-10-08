@@ -81,7 +81,8 @@ then keep one row per key by <code>DISTINCT ON (col_key) ORDER BY ...</code>.</p
 <dt id="arg-table-in">table_in<a class="anchor" aria-label="anchor" href="#arg-table-in"></a></dt>
 <dd><p>Character. Schema-qualified candidates table.
 Multiple rows per <code>col_key</code> value are expected (the whole point —
-pick one). Typically the output of <code>frs_point_snap(num_features = N)</code>
+pick one). Typically the output of
+<code>frs_point_snap(num_features = N, to = ...)</code>
 optionally enriched with JOINs to pull in score-bearing columns.</p></dd>
 
 

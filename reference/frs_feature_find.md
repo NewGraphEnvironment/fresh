@@ -54,7 +54,13 @@ frs_feature_find(
 
   An `sf` object or `NULL`. User-provided points to snap to the network
   via
-  [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md).
+  [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
+  (default 100 m tolerance; points farther than that are dropped with a
+  message). `col_id`, `label`, `label_col` (a column of `points`) and
+  `label_map` apply as for `points_table`. For other snap options, snap
+  first with
+  [`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
+  and pass the result as `points_table`.
 
 - where:
 
@@ -73,7 +79,8 @@ frs_feature_find(
 - col_id:
 
   Character or `NULL`. Column name for feature ID. When provided,
-  included in output for joining back to source.
+  included in output as text column `feature_id` for joining back to
+  source.
 
 - label:
 
@@ -86,7 +93,8 @@ frs_feature_find(
 - label_map:
 
   Named character vector or `NULL`. Maps `label_col` values to output
-  labels.
+  labels. Values are compared as text; for a logical / boolean column
+  use keys `"TRUE"` / `"FALSE"` (or `"t"` / `"f"`).
 
 - overwrite:
 
