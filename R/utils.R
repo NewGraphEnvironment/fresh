@@ -779,6 +779,25 @@
 }
 
 
+#' Write a data frame to a uniquely named temporary table
+#'
+#' Temporary tables live for the session of `conn`, so each mirai worker
+#' gets its own. They do not survive a pooler that hands each statement
+#' a different backend (pgbouncer transaction pooling). The caller drops
+#' the table when done.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param df A plain data frame (no geometry column).
+#' @return Character. The temporary table name.
+#' @noRd
+.frs_db_write_temp <- function(conn, df) {
+  # tempfile() draws its suffix without touching the R RNG
+  name <- gsub("[^a-z0-9_]", "", basename(tempfile("frs_tmp_")))
+  DBI::dbWriteTable(conn, name, df, temporary = TRUE)
+  name
+}
+
+
 #' Get column names for a schema-qualified table
 #'
 #' @param conn A [DBI::DBIConnection-class] object.

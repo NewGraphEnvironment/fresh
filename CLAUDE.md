@@ -61,7 +61,7 @@ R/
   frs_waterbody_network.R    — build the waterbody-only network subset
   frs_watershed_at_measure.R — watershed polygon at a blue-line position
   frs_watershed_split.R      — split a watershed polygon at a position
-  frs_point_snap.R           — snap points to nearest stream
+  frs_point_snap.R           — bulk-snap a dataset of points to the network
   frs_point_locate.R         — locate point on stream network
   frs_stream_fetch.R         — fetch stream segments
   frs_lake_fetch.R           — fetch lakes
@@ -223,8 +223,15 @@ Small durable technical reference for internal behavior worth remembering.
 
 - `.frs_stream_guards()` = placeholder (999 wscode) + unmapped (NULL localcode) only
 - `.frs_snap_guards()` excludes **only** edge type 1425 (subsurface flow). 1410 (network connector) is real wetland connectivity — NOT excluded (#52)
-- `frs_point_snap(exclude_edge_types = ...)` exposes this as a parameter (default 1425, NULL = snap to everything)
+- `frs_point_snap(exclude_edge_types = ...)` exposes this as a parameter (default 1425; NULL = no edge-type exclusion, placeholder and unmapped segments are still never candidates)
 - Placeholder / unmapped segments are never returned by `fwa_upstream` / `fwa_downstream` anyway (ltree traversal excludes them)
+
+### Point snap (`frs_point_snap()`)
+
+- One lateral KNN query per dataset (`.frs_point_snap_sql()`). Data frame / `sf` points reach the DB as a session temp table (`.frs_db_write_temp()`), so a call needs one backend throughout (not pgbouncer transaction pooling).
+- Candidates are per **segment**, not per `blue_line_key` (unlike fwapg's `fwa_indexpoint()`): `num_features = 5` can list two segments of one stream. link's PSCIS scoring relies on that.
+- The placeholder guard is `wscode_ltree <@ '999'` (every `999.*` code). link's `lnk_points_snap()` excludes only `= '999'`, so it can snap to 37,416 placeholder segments fresh cannot (11 of 19,905 PSCIS at 150 m).
+- The measure is `CEIL(GREATEST(ds, FLOOR(LEAST(us, m))))` (bcfishpass): rounded down, but never below the segment's start rounded up. So a point equidistant from two segments at a vertex can land 1 m apart depending on the tie-break (`linear_feature_id`), and on a segment shorter than a metre the measure can sit just past its upstream end.
 
 ### Waterbody area floors (`.frs_rule_ha_min()`)
 

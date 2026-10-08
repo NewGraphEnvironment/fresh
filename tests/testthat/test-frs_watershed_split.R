@@ -17,24 +17,31 @@ test_that("frs_watershed_split validates inputs", {
 })
 
 test_that("frs_watershed_split errors when all snaps fail", {
+  # Nothing within tolerance: the bulk snap returns zero rows
   mockery::stub(frs_watershed_split, "frs_point_snap", function(...) {
-    stop("no stream")
+    sf::st_sf(id_point = integer(0), blue_line_key = integer(0),
+              downstream_route_measure = numeric(0),
+              gnis_name = character(0), geom = sf::st_sfc(crs = 3005))
   })
   pts <- data.frame(lon = c(0, 0), lat = c(0, 0))
-  expect_error(
-    suppressMessages(frs_watershed_split("mock", pts)),
-    "No points could be snapped"
+  msgs <- testthat::capture_messages(
+    expect_error(frs_watershed_split("mock", pts),
+                 "No points could be snapped")
   )
+  expect_length(msgs, 2L)
+  expect_match(msgs, "Point [12] \\(0.0000, 0.0000\\) failed to snap")
 })
 
 test_that("frs_watershed_split errors when all watersheds fail", {
   snap_result <- sf::st_sf(
-    linear_feature_id = 1L,
+    id_point = 1:2,
+    linear_feature_id = 1:2,
     gnis_name = "Test Creek",
     blue_line_key = 123L,
-    downstream_route_measure = 100,
+    downstream_route_measure = c(100, 200),
     distance_to_stream = 10,
-    geom = sf::st_sfc(sf::st_point(c(0, 0)), crs = 3005)
+    geom = sf::st_sfc(sf::st_point(c(0, 0)), sf::st_point(c(0, 1)),
+                      crs = 3005)
   )
   mockery::stub(frs_watershed_split, "frs_point_snap", function(...) snap_result)
   mockery::stub(frs_watershed_split, "frs_watershed_at_measure", function(...) {
@@ -48,25 +55,18 @@ test_that("frs_watershed_split errors when all watersheds fail", {
 })
 
 test_that("frs_watershed_split produces sub-basins from mocked data", {
-  # Mock snap: two points on different parts of the same stream
-  snap_call <- 0L
-  snap_results <- list(
-    sf::st_sf(
-      linear_feature_id = 1L, gnis_name = "Test Creek",
-      blue_line_key = 100L, downstream_route_measure = 500,
-      distance_to_stream = 5,
-      geom = sf::st_sfc(sf::st_point(c(1000, 1000)), crs = 3005)
-    ),
-    sf::st_sf(
-      linear_feature_id = 2L, gnis_name = "Test Creek",
-      blue_line_key = 100L, downstream_route_measure = 1000,
-      distance_to_stream = 8,
-      geom = sf::st_sfc(sf::st_point(c(1000, 2000)), crs = 3005)
-    )
+  # Mock snap: two points on different parts of the same stream, one call
+  snap_calls <- 0L
+  snap_result <- sf::st_sf(
+    id_point = 1:2, linear_feature_id = 1:2, gnis_name = "Test Creek",
+    blue_line_key = 100L, downstream_route_measure = c(500, 1000),
+    distance_to_stream = c(5, 8),
+    geom = sf::st_sfc(sf::st_point(c(1000, 1000)),
+                      sf::st_point(c(1000, 2000)), crs = 3005)
   )
   mockery::stub(frs_watershed_split, "frs_point_snap", function(...) {
-    snap_call <<- snap_call + 1L
-    snap_results[[snap_call]]
+    snap_calls <<- snap_calls + 1L
+    snap_result
   })
 
   # Mock watersheds: big downstream, small upstream (in 4326 coords)
@@ -102,6 +102,7 @@ test_that("frs_watershed_split produces sub-basins from mocked data", {
   # Extra column preserved
   expect_true("site_name" %in% names(result))
   expect_equal(result$site_name, c("Lower", "Upper"))
+  expect_equal(snap_calls, 1L)
 })
 
 test_that("frs_watershed_split drops sf geometry from input", {
@@ -111,7 +112,7 @@ test_that("frs_watershed_split drops sf geometry from input", {
   )
 
   snap_result <- sf::st_sf(
-    linear_feature_id = 1L, gnis_name = "Test Creek",
+    id_point = 1L, linear_feature_id = 1L, gnis_name = "Test Creek",
     blue_line_key = 100L, downstream_route_measure = 500,
     distance_to_stream = 5,
     geom = sf::st_sfc(sf::st_point(c(1000, 1000)), crs = 3005)
@@ -131,7 +132,7 @@ test_that("frs_watershed_split drops sf geometry from input", {
 
 test_that("frs_watershed_split transforms to target crs", {
   snap_result <- sf::st_sf(
-    linear_feature_id = 1L, gnis_name = "Test Creek",
+    id_point = 1L, linear_feature_id = 1L, gnis_name = "Test Creek",
     blue_line_key = 100L, downstream_route_measure = 500,
     distance_to_stream = 5,
     geom = sf::st_sfc(sf::st_point(c(1000, 1000)), crs = 3005)

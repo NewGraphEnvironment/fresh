@@ -2,16 +2,21 @@
 % Please edit documentation in R/frs_point_snap.R
 \name{frs_point_snap}
 \alias{frs_point_snap}
-\title{Snap a Point to the Nearest FWA Stream}
+\title{Snap Points to the Nearest Stream}
 \usage{
 frs_point_snap(
   conn,
-  x,
-  y,
+  points,
+  ...,
+  to = NULL,
+  col_id = NULL,
+  col_x = "x",
+  col_y = "y",
+  col_geom = "geom",
   srid = 4326L,
-  tolerance = 5000,
+  col_blk = NULL,
+  tolerance = 100,
   num_features = 1L,
-  blue_line_key = NULL,
   stream_order_min = NULL,
   exclude_edge_types = 1425L
 )
@@ -19,55 +24,121 @@ frs_point_snap(
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
 
-\item{x}{Numeric. Longitude or easting.}
+\item{points}{The points to snap. One of:
+\itemize{
+\item a data frame with coordinate columns \code{col_x} / \code{col_y} in \code{srid};
+\item an \code{sf} object with POINT geometry (its CRS gives the SRID);
+\item a schema-qualified table name with geometry column \code{col_geom}
+(Point or MultiPoint; the first part of a MultiPoint is used, and
+the geometry's own SRID applies, so \code{srid} is ignored). \code{col_id}
+is required for a table.
+}
 
-\item{y}{Numeric. Latitude or northing.}
+Rows with missing coordinates are dropped, as are points farther
+than \code{tolerance} from any candidate segment. In a geographic CRS
+(e.g. 4326, 4269), coordinates outside lon/lat range are dropped
+with a message.}
 
-\item{srid}{Integer. Spatial reference ID of the input coordinates. Default
+\item{...}{Must be empty. Catches the pre-0.40.0 \verb{x =} / \verb{y =} call.}
+
+\item{to}{Character or \code{NULL}. Schema-qualified destination table. When
+given, the result is written there (dropped and recreated) and \code{conn}
+is returned invisibly. Default \code{NULL} returns an \code{sf} object.}
+
+\item{col_id}{Character or \code{NULL}. Column that identifies each point.
+Values must be unique and non-missing. Carried into the output under
+the same name. \code{NULL} (data frame / \code{sf} only) numbers the rows in a
+column named \code{id_point}.}
+
+\item{col_x, col_y}{Character. Coordinate columns of a data frame.
+Default \code{"x"}, \code{"y"}.}
+
+\item{col_geom}{Character. Geometry column of a table input. Default
+\code{"geom"}.}
+
+\item{srid}{Integer. SRID of \code{col_x} / \code{col_y} for a data frame. Default
 \code{4326} (WGS84 lon/lat).}
 
-\item{tolerance}{Numeric. Maximum search distance in metres. Default \code{5000}.}
+\item{col_blk}{Character or \code{NULL}. Column holding a per-point
+\code{blue_line_key} hint. A point with a hint snaps only to that stream;
+a point whose hint is missing snaps to any stream.}
 
-\item{num_features}{Integer. Number of candidate matches to return. Default \code{1}.}
+\item{tolerance}{Numeric. Maximum snap distance in metres. Default
+\code{100}, the distance bcfishobs accepts for its A/B matches.}
 
-\item{blue_line_key}{Integer. Optional. When provided, snap only to this
-stream. Bypasses \code{fwa_indexpoint()} and uses KNN against
-\code{fwa_stream_networks_sp} with measure derivation and boundary clamping.}
+\item{num_features}{Integer. Candidates kept per point. Default \code{1}.
+When greater than 1 the output gains \code{candidate_rank} (1 = nearest).}
 
-\item{stream_order_min}{Integer. Optional. Minimum stream order for snap
-candidates. Ignored when \code{blue_line_key} is provided. Forces KNN path.}
+\item{stream_order_min}{Integer or \code{NULL}. Minimum stream order of a
+candidate segment.}
 
-\item{exclude_edge_types}{Integer vector or \code{NULL}. Edge types to exclude
-from snap candidates. Default \code{1425L} (subsurface flow — underground
-conduits). Set to \code{NULL} to snap to all edge types. Only applies to KNN
-path (when \code{blue_line_key} or \code{stream_order_min} is provided).
-See \code{\link[=frs_edge_types]{frs_edge_types()}} for the full lookup table.}
+\item{exclude_edge_types}{Integer vector or \code{NULL}. Edge types that are
+never candidates. Default \code{1425L} (subsurface flow). \code{NULL} excludes
+none. See \code{\link[=frs_edge_types]{frs_edge_types()}}.}
 }
 \value{
-An \code{sf} data frame with columns: \code{linear_feature_id}, \code{gnis_name},
-\code{blue_line_key}, \code{downstream_route_measure}, \code{distance_to_stream}, and
-snapped point \code{geom}.
+Without \code{to}, an \code{sf} object (EPSG:3005) with one row per
+point × candidate: the id column, \code{linear_feature_id},
+\code{blue_line_key}, \code{downstream_route_measure}, \code{watershed_group_code},
+\code{wscode_ltree}, \code{localcode_ltree}, \code{gnis_name},
+\code{distance_to_stream}, \code{candidate_rank} (when \code{num_features > 1}) and
+the snapped point \code{geom}. With \code{to}, \code{conn} invisibly.
 }
 \description{
-Snaps x/y coordinates to the nearest stream segment. When no
-\code{blue_line_key} is given, wraps fwapg \code{fwa_indexpoint()}. When
-\code{blue_line_key} is provided, uses KNN against \code{fwa_stream_networks_sp}
-filtered to that stream, with measure derivation and boundary clamping
-(following the bcfishpass pattern).
+Snaps a whole dataset of points to the stream network in one query and
+returns each point's network position: \code{blue_line_key},
+\code{downstream_route_measure}, \code{watershed_group_code}, \code{linear_feature_id},
+\code{wscode_ltree}, \code{localcode_ltree}. Each point is matched by a lateral
+nearest-neighbour search against the network table, so 10,000 points
+cost one snap query, not 10,000.
+}
+\details{
+Candidates are network segments within \code{tolerance} of the point,
+nearest first (ties broken by \code{linear_feature_id}). Placeholder
+(\verb{999.*}) and unmapped (NULL local code) segments are never candidates;
+\code{exclude_edge_types} drops more. The measure is a whole metre, following
+bcfishpass (\verb{04_pscis.sql}): the position rounded down, but never below
+the segment's start rounded up, so a point in a segment's first
+fractional metre (or on a segment shorter than a metre) gets that
+rounded-up start. To score and pick among several candidates per
+point, write them to a table (\code{num_features > 1}, \verb{to = }) and pass it
+to \code{\link[=frs_candidates_pick]{frs_candidates_pick()}}.
+
+The network table and its column names come from the \verb{fresh.*} options
+(see \code{tbl_network}, \code{blk_col}, \code{segment_id_col}, \code{measure_ds_col},
+\code{measure_us_col}, \code{wscode_col}, \code{localcode_col}). A custom network table
+also needs \code{watershed_group_code}, \code{gnis_name}, \code{edge_type},
+\code{stream_order} and \code{length_metre} columns.
+
+Data frame and \code{sf} points travel to the database as a temporary
+table, which needs one session for the whole call. That holds for a
+plain connection and for each mirai worker; it does not hold behind a
+pooler that switches backends per statement (pgbouncer transaction
+pooling).
 }
 \examples{
 \dontrun{
 conn <- frs_db_conn()
 
-# Snap to nearest stream (any)
-snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
+# Three sampling sites, snapped in one query
+sites <- data.frame(
+  site = c("upper", "middle", "lower"),
+  x = c(-126.52, -126.61, -126.70),
+  y = c(54.49, 54.58, 54.41)
+)
+snapped <- frs_point_snap(conn, sites, col_id = "site", tolerance = 500)
+snapped[, c("site", "blue_line_key", "downstream_route_measure",
+            "watershed_group_code", "distance_to_stream")]
 
-# Snap to a specific stream (Bulkley River)
-snapped <- frs_point_snap(conn, x = -126.5, y = 54.5,
-  blue_line_key = 360873822)
+# Up to three candidate streams per site, ranked by distance
+frs_point_snap(conn, sites, col_id = "site", tolerance = 1000,
+  num_features = 3)
 
-# Snap to order 4+ streams only
-snapped <- frs_point_snap(conn, x = -126.5, y = 54.5, stream_order_min = 4)
+# A table of crossings, written to a table for frs_candidates_pick()
+frs_point_snap(conn, "whse_fish.pscis_assessment_svw",
+  col_id = "stream_crossing_id", tolerance = 150, num_features = 5,
+  to = "working.pscis_candidates")
+
 DBI::dbDisconnect(conn)
 }
 }

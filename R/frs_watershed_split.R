@@ -99,39 +99,26 @@ frs_watershed_split <- function(
   snap_cols <- c("lon", "lat")
   extra_cols <- setdiff(names(points), snap_cols)
 
-  # --- 1. Snap each point ---
-  snapped <- list()
-  for (i in seq_len(nrow(points))) {
-    row <- tryCatch(
-      frs_point_snap(conn,
-        x = points$lon[i],
-        y = points$lat[i],
-        tolerance = tolerance
-      ),
-      error = function(e) NULL
-    )
-    if (is.null(row) || nrow(row) == 0L) {
-      message(sprintf("Point %d (%.4f, %.4f) failed to snap - skipping",
-                       i, points$lon[i], points$lat[i]))
-      next
-    }
-    snapped[[length(snapped) + 1L]] <- data.frame(
-      idx = i,
-      blk = as.integer(row$blue_line_key[1]),
-      drm = row$downstream_route_measure[1],
-      gnis_name = if ("gnis_name" %in% names(row)) {
-        nm <- row$gnis_name[1]
-        if (is.null(nm) || is.na(nm)) "" else nm
-      } else "",
-      stringsAsFactors = FALSE
-    )
+  # --- 1. Snap all points in one query ---
+  snap <- sf::st_drop_geometry(frs_point_snap(conn, points,
+    col_x = "lon", col_y = "lat", tolerance = tolerance))
+
+  for (i in setdiff(seq_len(nrow(points)), snap$id_point)) {
+    message(sprintf("Point %d (%.4f, %.4f) failed to snap - skipping",
+                     i, points$lon[i], points$lat[i]))
   }
 
-  if (length(snapped) == 0L) {
+  if (nrow(snap) == 0L) {
     stop("No points could be snapped to streams", call. = FALSE)
   }
 
-  snapped_df <- do.call(rbind, snapped)
+  snapped_df <- data.frame(
+    idx = snap$id_point,
+    blk = as.integer(snap$blue_line_key),
+    drm = snap$downstream_route_measure,
+    gnis_name = ifelse(is.na(snap$gnis_name), "", snap$gnis_name),
+    stringsAsFactors = FALSE
+  )
 
   # --- 2. Delineate watershed at each snap location ---
   watersheds <- vector("list", nrow(snapped_df))

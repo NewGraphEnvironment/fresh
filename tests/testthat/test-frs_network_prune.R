@@ -32,7 +32,8 @@ test_that("frs_network_prune filters upstream by stream order", {
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
+  snapped <- frs_point_snap(conn, data.frame(x = -126.5, y = 54.5),
+    tolerance = 500)
 
   pruned <- frs_network_prune(conn,
     blue_line_key = snapped$blue_line_key,
@@ -50,7 +51,8 @@ test_that("frs_network_prune filters by gradient", {
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
 
-  snapped <- frs_point_snap(conn, x = -126.5, y = 54.5)
+  snapped <- frs_point_snap(conn, data.frame(x = -126.5, y = 54.5),
+    tolerance = 500)
 
   pruned <- frs_network_prune(conn,
     blue_line_key = snapped$blue_line_key,

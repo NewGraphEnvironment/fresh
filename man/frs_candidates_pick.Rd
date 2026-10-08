@@ -19,7 +19,8 @@ frs_candidates_pick(
 
 \item{table_in}{Character. Schema-qualified candidates table.
 Multiple rows per \code{col_key} value are expected (the whole point —
-pick one). Typically the output of \code{frs_point_snap(num_features = N)}
+pick one). Typically the output of
+\code{frs_point_snap(num_features = N, to = ...)}
 optionally enriched with JOINs to pull in score-bearing columns.}
 
 \item{table_to}{Character. Schema-qualified destination. Dropped +
