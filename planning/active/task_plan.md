@@ -35,8 +35,8 @@ Prior work: #2 introduced `frs_point_snap()`; #7, #16, #17 and #18 added candida
 - [x] Update x/y callers in `test-frs_network_upstream.R`, `-downstream`, `-prune`, `-point_locate` to `points = data.frame(x = -126.5, y = 54.5), tolerance = 500`; full suite green
 
 ## Phase 3: `frs_feature_find(points = )`
-- [ ] Live test: `frs_feature_find(points = <sf>)` snaps real points into `to` with `blue_line_key`, measure, `label`, `feature_id`
-- [ ] Rewrite `.frs_feature_find_points()` over `frs_point_snap()`; pass `label` and `append` through (`R/frs_feature_find.R:101` currently drops them); `feature_id` cast to text. BLK scoping to `table` stays table-path only (noted in roxygen)
+- [x] Live test: `frs_feature_find(points = <sf>)` snaps real points into `to` with `blue_line_key`, measure, `label`, `feature_id`
+- [x] Rewrite `.frs_feature_find_points()` over `frs_point_snap()`; pass `label` and `append` through (`R/frs_feature_find.R:101` currently drops them); `feature_id` cast to text. BLK scoping to `table` applied to points too (the `table` param exists for it; revised from "table-path only" at implementation)
 
 ## Phase 4: Parity with `lnk_points_snap()`
 - [ ] `data-raw/` or `scripts/` parity script (not a testthat test — link imports fresh, so `link::` in tests is an undeclared dep): PSCIS in one WSG (intersect `fwa_watershed_groups_poly`) through both snappers at the same tolerance; compare `blue_line_key` (link: `snapped_blue_line_key`) + measure per `stream_crossing_id` at `num_features = 1` and sorted candidate sets at 5; exclude + count rows where link picked a `999.*` stream

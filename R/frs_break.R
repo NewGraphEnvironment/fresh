@@ -383,12 +383,14 @@ frs_break_find <- function(conn, table, to = "working.breaks",
     if (!is.null(label_map)) {
       # CASE expression mapping values
       whens <- vapply(names(label_map), function(val) {
-        sprintf("WHEN %s = %s THEN %s",
+        # Compared and returned as text: an integer or boolean label_col
+        # would make the CASE that type and reject the mapped labels
+        sprintf("WHEN %s::text = %s THEN %s",
                 label_col,
                 .frs_quote_string(val),
                 .frs_quote_string(label_map[[val]]))
       }, character(1))
-      sprintf("CASE %s ELSE %s END AS label",
+      sprintf("CASE %s ELSE %s::text END AS label",
               paste(whens, collapse = " "),
               label_col)
     } else {

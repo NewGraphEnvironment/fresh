@@ -33,7 +33,11 @@ frs_feature_find(
 network-referenced features.}
 
 \item{points}{An \code{sf} object or \code{NULL}. User-provided points to snap
-to the network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
+to the network via \code{\link[=frs_point_snap]{frs_point_snap()}} (default 100 m tolerance;
+points farther than that are dropped with a message). \code{col_id},
+\code{label}, \code{label_col} (a column of \code{points}) and \code{label_map} apply as
+for \code{points_table}. For other snap options, snap first with
+\code{\link[=frs_point_snap]{frs_point_snap()}} and pass the result as \code{points_table}.}
 
 \item{where}{Character or \code{NULL}. SQL predicate to filter
 \code{points_table}.}
@@ -45,7 +49,8 @@ to the network via \code{\link[=frs_point_snap]{frs_point_snap()}}.}
 \code{points_table}. Default \code{"downstream_route_measure"}.}
 
 \item{col_id}{Character or \code{NULL}. Column name for feature ID.
-When provided, included in output for joining back to source.}
+When provided, included in output as text column \code{feature_id} for
+joining back to source.}
 
 \item{label}{Character or \code{NULL}. Static label for all features.}
 
