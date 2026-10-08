@@ -119,3 +119,36 @@ temp-table lifecycle + mockable writer, candidate tie-break + rank outside the
 lateral, `.frs_opt()` columns in guards, `frs_feature_find()` label/append),
 plus missed downstream callers and parity-test placement. All folded into the
 Design section above and the phases in `task_plan.md`.
+
+## Parity with `link::lnk_points_snap()` (Phase 4, 2026-10-07)
+
+`data-raw/point_snap_parity_check.R`, PSCIS (`whse_fish.pscis_assessment_svw`)
+at 150 m, local fwapg, fresh db1e959 vs link 0.50.0. Logs in
+`data-raw/logs/point_snap_parity_247/`.
+
+| | BULK | ALL (province) |
+|---|---|---|
+| PSCIS crossings | 1,780 | 19,905 |
+| nf1 identical blk + measure | 1,710 | 18,180 |
+| nf1 equidistant ties | 1 | 22 |
+| nf1 link picked a `999.*` segment | 0 | 11 |
+| nf1 other differences | **0** | **0** |
+| nf1 neither snapped within 150 m (both agree) | 69 | 1,692 |
+| nf5 identical candidate sets | 1,708 | 18,108 |
+| nf5 sets differing only at the cut-off tie (both sides 5 candidates) | 3 | 86 |
+| nf5 crossings with a link `999.*` candidate | 0 | 19 |
+| nf5 neither snapped | 69 | 1,692 |
+| nf5 other differences | **0** | **0** |
+| nf5 measure mismatches on any shared candidate (incl. 999 crossings) | **0** | **0** |
+| runtime, link vs fresh | under 0.5 s each | about 1 s each (see `*_summary.csv`) |
+
+- All 22 ties land on the same `blue_line_key`, measures at most 1 m apart:
+  the point is equidistant from two segments meeting at a vertex; link has no
+  tie-break, fresh breaks on `linear_feature_id`.
+- Of the 11 `999.*` picks, fresh leaves 8 unsnapped (no real stream within
+  150 m) and snaps 3 to a real stream. This is the intended guard difference
+  (`<@ '999'` vs `= '999'`), worth raising link-side.
+- Every fresh row carries `watershed_group_code` (0 NA).
+- The nf1 rows partition every crossing (BULK 1,710 + 1 + 69 = 1,780; ALL
+  18,180 + 22 + 11 + 1,692 = 19,905); nf5 likewise (ALL 1,692 + 19 + 18,108 +
+  86 = 19,905). The script asserts both sums.

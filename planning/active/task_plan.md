@@ -39,8 +39,8 @@ Prior work: #2 introduced `frs_point_snap()`; #7, #16, #17 and #18 added candida
 - [x] Rewrite `.frs_feature_find_points()` over `frs_point_snap()`; pass `label` and `append` through (`R/frs_feature_find.R:101` currently drops them); `feature_id` cast to text. BLK scoping to `table` applied to points too (the `table` param exists for it; revised from "table-path only" at implementation)
 
 ## Phase 4: Parity with `lnk_points_snap()`
-- [ ] `data-raw/` or `scripts/` parity script (not a testthat test — link imports fresh, so `link::` in tests is an undeclared dep): PSCIS in one WSG (intersect `fwa_watershed_groups_poly`) through both snappers at the same tolerance; compare `blue_line_key` (link: `snapped_blue_line_key`) + measure per `stream_crossing_id` at `num_features = 1` and sorted candidate sets at 5; exclude + count rows where link picked a `999.*` stream
-- [ ] Record results in `findings.md`
+- [x] `data-raw/` or `scripts/` parity script (not a testthat test — link imports fresh, so `link::` in tests is an undeclared dep): PSCIS in one WSG (intersect `fwa_watershed_groups_poly`) through both snappers at the same tolerance; compare `blue_line_key` (link: `snapped_blue_line_key`) + measure per `stream_crossing_id` at `num_features = 1` and sorted candidate sets at 5; exclude + count rows where link picked a `999.*` stream
+- [x] Record results in `findings.md`
 
 ## Phase 5: Docs and wrap-up
 - [ ] Roxygen for `frs_point_snap()` (`\dontrun{}` examples — DB required; required network columns for a custom `tbl_network`; output CRS 3005; pgbouncer caveat); refresh cross-refs in `frs_point_match.R:70`, `frs_candidates_pick.R`, `frs_feature_find.R`; `devtools::document()`
