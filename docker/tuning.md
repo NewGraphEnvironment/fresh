@@ -36,11 +36,14 @@ path in link's pipeline). Out-of-the-box PostgreSQL defaults (4.0 / 1
 / 8MB) are calibrated for spinning rust and are wrong for any modern
 host. Don't lower these without a spinning-disk reason.
 
-**M1/cypher hosts use a docker-compose override file.** Compose merges
-override `command:` lists by **replacing** the base, not by appending —
-so any `-c` flags added here must also be added to the M1/cypher
-override (tracked in the rtj repo). Forgetting this silently leaves
-the 32 GB hosts on PostgreSQL defaults.
+**M1 and cypher hosts use docker-compose override files**, tracked in the
+rtj repo: `scripts/fwapg/compose.override.m1.yml` (M1, sized to its Colima
+VM) and `scripts/fwapg/compose.override.32gb.yml` (cypher's 32 GB preset).
+They were one file until rtj#379, and are separate so resizing one host
+never resizes the other. Compose merges override `command:` lists by
+**replacing** the base, not by appending — so any `-c` flags added here
+must also be added to both overrides. Forgetting this silently leaves
+those hosts on PostgreSQL defaults.
 
 ## Scaling for other machines
 
