@@ -1,1 +1,5 @@
 postgres-data/
+# Per-host overrides are deployed here from rtj (scripts/fwapg/), not
+# authored here: host-specific (M1 names its data volume) and not for
+# other machines, which would auto-merge them.
+docker-compose.override.yml*
