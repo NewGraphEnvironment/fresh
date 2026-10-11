@@ -13,9 +13,9 @@
 - [x] `bash -n docker/load.sh`
 
 ## Phase 2: Verify on a scratch database (operator choice: scratch DB on M1)
-- [ ] Stamp: fwapg commit (branch `newgraph`, plus `origin/main` SHA), fresh SHA, free disk before
-- [ ] `CREATE DATABASE fwapg_253` in fresh-db, then run the loader against it with `DATABASE_URL` overridden. Detached, logged to `data-raw/logs/docker_load_253/`, watched against disk free
-- [ ] Post-conditions in `fwapg_253`: `search_path` set; `fwa_slopealonginterval` / `fwa_segmentalonginterval` resolve unqualified; key `whse_basemapping` row counts against the live `fwapg`; `working.falls` / `working.crossings` loaded
+- [x] Stamp: fwapg commit, fresh SHA, free disk before (`data-raw/logs/docker_load_253/stamp.txt`). Attempt 1 ran on a stale local fwapg (`f9718cb`, 22 behind `origin/newgraph`), passed stage 1 and was stopped; attempt 2 runs on a worktree at `origin/newgraph` `b010209`, which carries the fwapg#9 `load.sh` additions
+- [ ] `CREATE DATABASE fwapg_253` in fresh-db, then run the loader against it with `DATABASE_URL` overridden. Detached, logged to `data-raw/logs/docker_load_253/`, watched against disk free. Deviation from the issue: a template1 database, not an empty volume (the image's initdb extensions are absent; schema.sql uses `CREATE EXTENSION IF NOT EXISTS`, so the empty-volume path only skips those)
+- [ ] Post-conditions in `fwapg_253`: `search_path` set; `whse_basemapping.fwa_watershedatmeasure()` and `fwa_downstreamtrace()` run (their bodies call other fwa functions unqualified); key `whse_basemapping` row counts against the live `fwapg` (drift expected: the live DB was loaded months ago); the fwapg#9 tables exist and are populated; `working.falls` / `working.crossings` loaded
 - [ ] One fresh call against `fwapg_253` that uses an unqualified `fwa_upstream()`, compared with the same call on `fwapg`
 - [ ] `DROP DATABASE fwapg_253`, and confirm the disk is back
 
@@ -25,7 +25,7 @@
 
 ## Validation
 
-- [ ] Tests pass
+- [ ] Tests pass (against the default `fwapg`, so they check nothing broke; the scratch-DB checks are the verification of this change)
 - [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

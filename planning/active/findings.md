@@ -28,3 +28,11 @@ Found while planning NewGraphEnvironment/fwapg#9, which adds two tables to fwapg
 
 | Error | Resolution |
 |-------|------------|
+
+## Plan review (Plan agent, 2026-10-11), verified
+
+- **Parity of objects:** old `create.sh` + `db/sql/*` against `schema.sql`: same functions and aggregates, same tables, 176 indexes on both sides, no views; new adds `fuzzystrmatch`. `FWA_StreamProfile.sql` was an ad hoc SELECT on one blue line key, not a function.
+- **Why search_path, corrected:** fwapg's `load/*.sql` and `fixes.sql` qualify everything (grep found no unqualified `fwa_*(` call). The dependency is fwapg's function bodies: `fwa_downstreamtrace` calls `fwa_downstream(` (schema.sql ~2304), `fwa_watershedatmeasure` calls `FWA_SliceWatershedAtPoint(` (~3882), plus `fwa_slopealonginterval`, `fwa_networktrace`, `fwa_upstreamtrace`. A pg_dump keeps bodies verbatim with `check_function_bodies = false`. fresh also calls `fwa_upstream(` unqualified in more files than first listed (`R/frs_habitat.R`, `R/frs_classify.R` among them). Comment fixed in `92cb8e3`.
+- **Stale checkout (confirmed):** local fwapg `newgraph` was `f9718cb`, 22 commits behind `origin/newgraph` `b010209`, whose `load.sh` adds a PG >= 15 guard and `load/pcic_fwa_crosswalk.sql` / `load/fwa_stream_networks_discharge_monthly.sql` (fwapg#9). Attempt 1 stopped; attempt 2 uses a worktree at `b010209` so the shared checkout another session reads is not moved.
+- **Stage 4 (bcfishobs) is broken on its own:** `docker/load.sh` runs `make all`, and bcfishobs has had no Makefile since `ba52e62` (2024-10-17); confirmed no `Makefile` in the local clone. Out of scope; follow-up issue drafted.
+- **Migrations:** none shipped; comment added for when they are.
