@@ -36,3 +36,15 @@ Found while planning NewGraphEnvironment/fwapg#9, which adds two tables to fwapg
 - **Stale checkout (confirmed):** local fwapg `newgraph` was `f9718cb`, 22 commits behind `origin/newgraph` `b010209`, whose `load.sh` adds a PG >= 15 guard and `load/pcic_fwa_crosswalk.sql` / `load/fwa_stream_networks_discharge_monthly.sql` (fwapg#9). Attempt 1 stopped; attempt 2 uses a worktree at `b010209` so the shared checkout another session reads is not moved.
 - **Stage 4 (bcfishobs) is broken on its own:** `docker/load.sh` runs `make all`, and bcfishobs has had no Makefile since `ba52e62` (2024-10-17); confirmed no `Makefile` in the local clone. Out of scope; follow-up issue drafted.
 - **Migrations:** none shipped; comment added for when they are.
+
+## /code-check branch (2026-10-11)
+
+| Round | Findings | Fixed | Accepted | Inside previous fix? |
+|-------|----------|-------|----------|----------------------|
+| 1 | 0 | 0 | 0 | — |
+| 2 | 0 | 0 | 0 | n |
+| 3 | 0 | 0 | 0 | n |
+
+Ended on a clean round 3 with no inside-a-fix finding. Round 3 enumerated old `db/sql/*` against `schema.sql`: 41 / 41 tables, 44 / 44 functions and aggregates by signature, all 156 old indexes among 176, same six schemas. Round 2: a real first run starts with the image's database path (`"$user", public, topology, tiger`) and the loader replaces it, as `create.sh` did.
+
+Pending, after the run (load.sh is mounted into the running loader and must not be edited mid-run): round 3 notes the migrations comment would mislead. `schema.sql` has no `fwapg.db_version`, so `migrate.sh` on a fresh install starts from 0 and would re-apply migrations the dump already holds. Reword the comment, then review that change.
