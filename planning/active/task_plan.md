@@ -5,12 +5,12 @@
 **Not in the issue:** the old `create.sh` also set the database `search_path` to `public,whse_basemapping,usgs,hydrosheds`. A pg_dump does not carry database settings, so upstream moved it into its db image (`docker/db/search_path.sh`), which fresh does not use. fresh calls `fwa_upstream()` unqualified, so the loader must set it.
 
 ## Phase 1: Stage 1 on fwapg's schema.sql
-- [ ] Validate: require `$FWAPG_DIR/db/schema.sql`, with an error naming the layout (a checkout from before smnorris/fwapg#193 has `db/create.sh` instead; pull it)
-- [ ] Stage 1: replace `cd db && bash create.sh` with `$PSQL -f db/schema.sql`, run from the tempdir copy
-- [ ] Stage 1: set the database `search_path` to `public,whse_basemapping,usgs,hydrosheds` (DB name from `current_database()`), with a comment that upstream does this in `docker/db/search_path.sh` and that `pg_dump` does not carry it
-- [ ] Drop the #68 workaround (the three `sql/FWA_*.sql` loads)
-- [ ] `docker/README.md` "What's loaded" stage 1 row: fwapg `db/schema.sql` + search_path
-- [ ] `bash -n docker/load.sh`
+- [x] Validate: require `$FWAPG_DIR/db/schema.sql`, with an error naming the layout (a checkout from before smnorris/fwapg#193 has `db/create.sh` instead; pull it)
+- [x] Stage 1: replace `cd db && bash create.sh` with `$PSQL -f db/schema.sql`, run from the tempdir copy
+- [x] Stage 1: set the database `search_path` to `public,whse_basemapping,usgs,hydrosheds` (DB name from `current_database()`), with a comment that upstream does this in `docker/db/search_path.sh` and that `pg_dump` does not carry it
+- [x] Drop the #68 workaround (the three `sql/FWA_*.sql` loads)
+- [x] `docker/README.md` "What's loaded" stage 1 row: fwapg `db/schema.sql` + search_path
+- [x] `bash -n docker/load.sh`
 
 ## Phase 2: Verify on a scratch database (operator choice: scratch DB on M1)
 - [ ] Stamp: fwapg commit (branch `newgraph`, plus `origin/main` SHA), fresh SHA, free disk before
