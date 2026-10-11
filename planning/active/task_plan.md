@@ -20,7 +20,7 @@
 - [ ] `DROP DATABASE fwapg_253`, and confirm the disk is back
 
 ## Phase 3: Wrap
-- [ ] NEWS entry (tooling, docker loader; `Fixes #253`, `Fixes #68`)
+- [ ] NEWS entry: left to `/gh-pr-merge` (fresh writes NEWS at release; `docker/` is `.Rbuildignore`d, so no package change). PR body carries `Fixes #253`, `Fixes #68`
 - [ ] Run summary in `findings.md` and the archive README (measurement + evidence prefix)
 
 ## Validation

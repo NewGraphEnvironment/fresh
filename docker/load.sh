@@ -57,8 +57,11 @@ $PSQL -f db/schema.sql
 
 # schema.sql is a pg_dump, which does not carry database settings.
 # fwapg sets search_path in its own db image (docker/db/search_path.sh);
-# this image is not that one, so set it here. fwapg's load/*.sql and
-# fresh's unqualified fwa_upstream() / fwa_downstream() calls need it.
+# this image is not that one, so set it here. fwapg's function bodies
+# call each other unqualified (fwa_downstreamtrace -> fwa_downstream,
+# fwa_watershedatmeasure -> FWA_SliceWatershedAtPoint), and so does
+# fresh (fwa_upstream(), fwa_downstream()).
+# fwapg ships no db/migrations yet; once it does, run db/migrate.sh here.
 DB_NAME=$($PSQL -AtX -c "SELECT current_database()")
 $PSQL -c "ALTER DATABASE \"$DB_NAME\" SET search_path TO public,whse_basemapping,usgs,hydrosheds"
 echo ""
