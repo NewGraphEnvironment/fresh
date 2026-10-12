@@ -18,4 +18,4 @@
 
 `data-raw/logs/docker_load_253/` (attempt 1 under `attempt1_*`)
 
-Closed by: PR (see branch `253-docker-load-sh-calls-fwapg-s-db-create-s`)
+Closed by: PR #254
