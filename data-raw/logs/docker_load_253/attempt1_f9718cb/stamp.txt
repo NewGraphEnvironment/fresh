@@ -1,0 +1,7 @@
+date_utc: 2026-10-11T23:30:44Z
+fresh: e70e0ee (253-docker-load-sh-calls-fwapg-s-db-create-s)
+fwapg: f9718cb (newgraph); origin/main 8b3904e
+fwapg schema.sql sha1: 26b29fd986b8
+db image: imresamu/postgis:17-3.5-bullseye; PostgreSQL 17.5 (Debian 17.5-1.pgdg110+1
+disk_before: /dev/vdb1       295G  211G   70G  76% /var/lib/postgresql/data
+fwapg newgraph vs origin/main: no diff in db/ load.sh load/ fixes/
