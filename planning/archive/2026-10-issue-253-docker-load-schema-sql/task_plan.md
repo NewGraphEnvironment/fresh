@@ -27,5 +27,5 @@
 
 - [x] Tests pass: 1487 pass, 0 fail, 3 skip (against the default `fwapg`, so they check nothing broke; the scratch-DB checks are the verification of this change)
 - [x] `/code-check` clean: `/code-check branch` rounds 1-3 Clean; round 4 on the post-run edits found one fragile `probe()` case, fixed, ended by enumeration (`findings.md`)
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
