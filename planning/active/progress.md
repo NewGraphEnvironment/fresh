@@ -12,3 +12,10 @@
 - Phase 2 attempt 2 (fwapg worktree at `origin/newgraph` `b010209`) launched 2026-10-11T23:35Z into `fwapg_253`; stage 1 passed. Object-store download ~0.38 MB/s measured from the host too, so stage 2 is network-bound (hours)
 - `/code-check branch` round 1 Clean; rounds 2 and 3 spawned 23:40Z (no fixes between rounds, so run side by side)
 - `data-raw/logs/docker_load_253/postconditions.sh` written and dry-run on live `fwapg` (5 s)
+
+## Session 2026-10-12
+
+- Loader exit 0 at 05:27Z (5 h 52 min). Post-conditions run; all pass except `whse_basemapping.fwa_watershedatmeasure()` (upstream `exbc` defect, NewGraphEnvironment/fwapg#1, body corrected to the measured scope)
+- `fwapg_253` dropped (68 GB free); fwapg worktree removed
+- `devtools::test()`: 1487 pass, 0 fail, 3 skip
+- Migrations comment reworded; `/code-check` round 4: one fragile finding inside the probe fix, fixed, loop ended by enumerating `probe()`'s four output paths

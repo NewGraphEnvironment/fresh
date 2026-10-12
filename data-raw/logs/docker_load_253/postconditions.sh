@@ -35,10 +35,25 @@ done
 # Each runs in a new session, so only the database search_path applies.
 blk=360873822
 drm=166030
+# A lake point takes the function's other branch (360457111 is a BULK lake line).
+lake_blk=360457111
+lake_drm=924.5
+# A probe prints its result row, or its first ERROR line, and the run
+# continues. Anything else (no row, a psql or docker failure) prints
+# "NO RESULT:" and the first line of output, so no probe drops out.
+probe() {
+  local out line
+  out=$(q "$1" "$2" 2>&1) || true
+  line=$(printf '%s\n' "$out" | grep -m1 -E '^ERROR|	' || true)
+  [ -n "$line" ] || line="NO RESULT: $(printf '%s\n' "$out" | grep -m1 . || echo 'no output')"
+  printf '%s\n' "$line"
+}
 for db in fwapg fwapg_253; do
   echo
   echo "## functions on $db"
-  q "$db" "select 'fwa_watershedatmeasure', round(area_ha::numeric, 1) from whse_basemapping.fwa_watershedatmeasure($blk, $drm)"
-  q "$db" "select 'fwa_downstreamtrace', count(*), round(sum(length_metre)::numeric) from whse_basemapping.fwa_downstreamtrace($blk, $drm)"
-  q "$db" "select 'fwa_upstream unqualified', count(*) from whse_basemapping.fwa_stream_networks_sp s, (select wscode_ltree, localcode_ltree from whse_basemapping.fwa_stream_networks_sp where blue_line_key = $blk and downstream_route_measure <= $drm order by downstream_route_measure desc limit 1) r where s.watershed_group_code = 'BULK' and fwa_upstream(r.wscode_ltree, r.localcode_ltree, s.wscode_ltree, s.localcode_ltree)"
+  probe "$db" "select 'fwa_watershedatmeasure', round(area_ha::numeric, 1) from whse_basemapping.fwa_watershedatmeasure($blk, $drm)"
+  probe "$db" "select 'postgisftw.fwa_watershedatmeasure', round(area_ha::numeric, 1) from postgisftw.fwa_watershedatmeasure($blk, $drm)"
+  probe "$db" "select 'fwa_watershedatmeasure lake', round(area_ha::numeric, 1) from whse_basemapping.fwa_watershedatmeasure($lake_blk, $lake_drm)"
+  probe "$db" "select 'fwa_downstreamtrace', count(*), round(sum(length_metre)::numeric) from whse_basemapping.fwa_downstreamtrace($blk, $drm)"
+  probe "$db" "select 'fwa_upstream unqualified', count(*) from whse_basemapping.fwa_stream_networks_sp s, (select wscode_ltree, localcode_ltree from whse_basemapping.fwa_stream_networks_sp where blue_line_key = $blk and downstream_route_measure <= $drm order by downstream_route_measure desc limit 1) r where s.watershed_group_code = 'BULK' and fwa_upstream(r.wscode_ltree, r.localcode_ltree, s.wscode_ltree, s.localcode_ltree)"
 done

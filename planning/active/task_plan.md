@@ -14,18 +14,18 @@
 
 ## Phase 2: Verify on a scratch database (operator choice: scratch DB on M1)
 - [x] Stamp: fwapg commit, fresh SHA, free disk before (`data-raw/logs/docker_load_253/stamp.txt`). Attempt 1 ran on a stale local fwapg (`f9718cb`, 22 behind `origin/newgraph`), passed stage 1 and was stopped; attempt 2 runs on a worktree at `origin/newgraph` `b010209`, which carries the fwapg#9 `load.sh` additions
-- [ ] `CREATE DATABASE fwapg_253` in fresh-db, then run the loader against it with `DATABASE_URL` overridden. Detached, logged to `data-raw/logs/docker_load_253/`, watched against disk free. Deviation from the issue: a template1 database, not an empty volume (the image's initdb extensions are absent; schema.sql uses `CREATE EXTENSION IF NOT EXISTS`, so the empty-volume path only skips those)
-- [ ] Post-conditions in `fwapg_253`: `search_path` set; `whse_basemapping.fwa_watershedatmeasure()` and `fwa_downstreamtrace()` run (their bodies call other fwa functions unqualified); key `whse_basemapping` row counts against the live `fwapg` (drift expected: the live DB was loaded months ago); the fwapg#9 tables exist and are populated; `working.falls` / `working.crossings` loaded
-- [ ] One fresh call against `fwapg_253` that uses an unqualified `fwa_upstream()`, compared with the same call on `fwapg`
-- [ ] `DROP DATABASE fwapg_253`, and confirm the disk is back
+- [x] `CREATE DATABASE fwapg_253` in fresh-db, then run the loader against it with `DATABASE_URL` overridden. Detached, logged to `data-raw/logs/docker_load_253/`, watched against disk free. Deviation from the issue: a template1 database, not an empty volume (the image's initdb extensions are absent; schema.sql uses `CREATE EXTENSION IF NOT EXISTS`, so the empty-volume path only skips those)
+- [x] Post-conditions in `fwapg_253` ran (`postconditions.txt`): `search_path` set; 14 key tables match the live `fwapg` row for row, except channel width +12 rows and order parent -1; the fwapg#9 tables are populated (48,716 and 40,524,444 rows); `working.falls` 3,294 and `working.crossings` 533,291; `fwa_downstreamtrace()` matches (1,567 rows, 590,498 m). **`whse_basemapping.fwa_watershedatmeasure()` fails on its non-lake path** (`relation "exbc" does not exist`): an upstream defect in fwapg's source since smnorris/fwapg `3c43bdd`, not this change, tracked in NewGraphEnvironment/fwapg#1. Its `postgisftw` copy and its lake path return the live values
+- [x] fresh's unqualified `fwa_upstream()` form, as SQL in `postconditions.sh` (the form `R/frs_classify.R` writes), on `fwapg_253` and `fwapg`: 8876 on both. Not an R call
+- [x] `DROP DATABASE fwapg_253`, and confirm the disk is back (68 GB free; fwapg worktree removed)
 
 ## Phase 3: Wrap
 - [ ] NEWS entry: left to `/gh-pr-merge` (fresh writes NEWS at release; `docker/` is `.Rbuildignore`d, so no package change). PR body carries `Fixes #253`, `Fixes #68`
-- [ ] Run summary in `findings.md` and the archive README (measurement + evidence prefix)
+- [x] Run summary in `findings.md` (archive README with measurement + evidence prefix at `/planning-archive`)
 
 ## Validation
 
-- [ ] Tests pass (against the default `fwapg`, so they check nothing broke; the scratch-DB checks are the verification of this change)
-- [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
+- [x] Tests pass: 1487 pass, 0 fail, 3 skip (against the default `fwapg`, so they check nothing broke; the scratch-DB checks are the verification of this change)
+- [x] `/code-check` clean: `/code-check branch` rounds 1-3 Clean; round 4 on the post-run edits found one fragile `probe()` case, fixed, ended by enumeration (`findings.md`)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
