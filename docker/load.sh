@@ -61,7 +61,10 @@ $PSQL -f db/schema.sql
 # call each other unqualified (fwa_downstreamtrace -> fwa_downstream,
 # fwa_watershedatmeasure -> FWA_SliceWatershedAtPoint), and so does
 # fresh (fwa_upstream(), fwa_downstream()).
-# fwapg ships no db/migrations yet; once it does, run db/migrate.sh here.
+# fwapg ships no db/migrations yet. When it does, check how it expects them
+# applied on a fresh install before running db/migrate.sh here: migrate.sh
+# counts from fwapg.db_version, which schema.sql does not create, so it would
+# re-apply what the dump already holds.
 DB_NAME=$($PSQL -AtX -c "SELECT current_database()")
 $PSQL -c "ALTER DATABASE \"$DB_NAME\" SET search_path TO public,whse_basemapping,usgs,hydrosheds"
 echo ""
