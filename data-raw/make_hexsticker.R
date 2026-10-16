@@ -25,6 +25,11 @@ if (!file.exists(logo_file)) {
 
 dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
 
+# hexSticker draws text through showtext, at showtext's own dpi rather than the device's:
+# pin the value these PNGs were rendered with, or a session that set it first (the usual
+# advice for showtext with ggsave(dpi =)) renders text that overruns the hexagon.
+showtext::showtext_opts(dpi = 96)
+
 # Scale font size by name length — short names (gq, ngr) get bigger text
 p_size <- if (nchar(package_name) <= 3) 24 else if (nchar(package_name) <= 6) 18 else 16
 
@@ -46,14 +51,16 @@ sticker(
 
 message(package_name, " hex sticker -> ", output_file)
 
-# Smaller version for README
+# Smaller version. The text is sized at showtext's fixed dpi (above), not the device's, so
+# at half the device dpi the same p_size is twice as large against the hexagon and runs
+# into the icon. Halve it with the dpi, and keep the large layout.
 sticker(
   subplot = logo_file,
   package = package_name,
-  s_x = 1, s_y = 1.05,
+  s_x = 1, s_y = 1.15,
   s_width = 0.45, s_height = 0.45,
-  p_size = p_size,
-  p_x = 1, p_y = 0.58,
+  p_size = p_size * 150 / 300,
+  p_x = 1, p_y = 0.50,
   p_color = "white",
   p_family = "Helvetica",
   h_fill = "black",
