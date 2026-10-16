@@ -1,0 +1,10 @@
+bibentry(
+  bibtype = "Manual",
+  title = paste0(meta$Package, ": ", meta$Title),
+  author = Filter(function(p) "aut" %in% p$role, eval(parse(text = meta$`Authors@R`))),
+  organization = "New Graph Environment Ltd.",
+  year = if (is.null(meta$Date)) format(Sys.Date(), "%Y") else substr(meta$Date, 1, 4),
+  version = meta$Version,
+  note = paste("R package version", meta$Version),
+  url = if (is.null(meta$URL)) NULL else strsplit(meta$URL, ",\\s*")[[1]][1]
+)

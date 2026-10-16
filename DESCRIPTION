@@ -4,8 +4,9 @@ Version: 0.40.0
 Date: 2026-10-07
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0002-3495-2128")),
-    person("New Graph Environment", role = "cph")
+           comment = c(ORCID = "0000-0002-3495-2128",
+                       affiliation = "New Graph Environment Ltd.")),
+    person("New Graph Environment Ltd.", role = c("cph", "fnd"))
     )
 Description: Stream network-aware spatial operations via direct SQL against
     fwapg. Segment networks at break points, classify habitat by species,
