@@ -1,0 +1,52 @@
+name: Update CITATION.cff
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'DESCRIPTION'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-citation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: cffr
+
+      # Same recipe as /citation-cff step 2a: no CRAN-namesake DOI or page,
+      # and the firm as publisher in preferred-citation.
+      - name: Update CITATION.cff
+        run: |
+          Rscript -e '
+            x <- cffr::cff_create()
+            x$references <- NULL; x$doi <- NULL; x$repository <- NULL
+            x$identifiers <- Filter(function(i) !grepl("CRAN.package", i$value, fixed = TRUE), unclass(x$identifiers))
+            if (!length(x$identifiers)) x$identifiers <- NULL
+            pc <- x[intersect(c("title", "authors", "version", "date-released", "url",
+                                "repository-code", "license"), names(x))]
+            pc$type <- "software"
+            pc$publisher <- list(name = "New Graph Environment Ltd.")
+            x$`preferred-citation` <- pc
+            cffr::cff_write(x = x)
+          '
+
+      - name: Commit if changed
+        run: |
+          if ! git diff --quiet CITATION.cff; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add CITATION.cff
+            git commit -m "Auto-update CITATION.cff from DESCRIPTION"
+            git push
+          fi
