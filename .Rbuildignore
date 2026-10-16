@@ -19,3 +19,4 @@
 ^research$
 ^\.lintr$
 ^docker$
+^\.git$
