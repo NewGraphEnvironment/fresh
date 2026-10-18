@@ -26,6 +26,12 @@ if [ ! -d "$FWAPG_DIR/db" ]; then
   echo "Set FWAPG_DIR env var in docker-compose.yml"
   exit 1
 fi
+if [ ! -f "$FWAPG_DIR/db/schema.sql" ]; then
+  echo "ERROR: $FWAPG_DIR/db/schema.sql not found"
+  echo "This loader needs fwapg's db/schema.sql layout (smnorris/fwapg#193)."
+  echo "A checkout with db/create.sh predates it: pull fwapg and re-run."
+  exit 1
+fi
 
 echo "=== fresh local DB loader ==="
 echo "  fwapg:    $FWAPG_DIR"
@@ -37,8 +43,8 @@ echo ""
 # ---------------------
 echo "--- Stage 1: fwapg schema + functions ---"
 
-# fwapg's create.sh uses relative paths, so we need to cd
-# but it's read-only, so copy the db scripts to a writable temp dir
+# fwapg's load.sh uses relative paths, so we need to cd
+# but it's read-only, so copy the scripts to a writable temp dir
 WORK_DIR=$(mktemp -d)
 cp -r "$FWAPG_DIR/db" "$WORK_DIR/db"
 cp -r "$FWAPG_DIR/load.sh" "$WORK_DIR/load.sh"
@@ -46,13 +52,21 @@ cp -r "$FWAPG_DIR/load" "$WORK_DIR/load"
 [ -d "$FWAPG_DIR/fixes" ] && cp -r "$FWAPG_DIR/fixes" "$WORK_DIR/fixes"
 [ -f "$FWAPG_DIR/.env.docker" ] && cp "$FWAPG_DIR/.env.docker" "$WORK_DIR/.env.docker"
 
-cd "$WORK_DIR/db"
-bash create.sh
+cd "$WORK_DIR"
+$PSQL -f db/schema.sql
 
-# Functions missing from create.sh that fresh needs
-$PSQL -f sql/FWA_SlopeAlongInterval.sql
-$PSQL -f sql/FWA_SegmentAlongInterval.sql
-$PSQL -f sql/FWA_StreamProfile.sql
+# schema.sql is a pg_dump, which does not carry database settings.
+# fwapg sets search_path in its own db image (docker/db/search_path.sh);
+# this image is not that one, so set it here. fwapg's function bodies
+# call each other unqualified (fwa_downstreamtrace -> fwa_downstream,
+# fwa_watershedatmeasure -> FWA_SliceWatershedAtPoint), and so does
+# fresh (fwa_upstream(), fwa_downstream()).
+# fwapg ships no db/migrations yet. When it does, check how it expects them
+# applied on a fresh install before running db/migrate.sh here: migrate.sh
+# counts from fwapg.db_version, which schema.sql does not create, so it would
+# re-apply what the dump already holds.
+DB_NAME=$($PSQL -AtX -c "SELECT current_database()")
+$PSQL -c "ALTER DATABASE \"$DB_NAME\" SET search_path TO public,whse_basemapping,usgs,hydrosheds"
 echo ""
 
 # ---------------------
