@@ -99,8 +99,8 @@ vignettes/                   — .Rmd.orig source, .Rmd pre-knitted output
 
 - **Runtime:** DBI, RPostgres, sf
 - **Suggests:** mirai, tmap (>= 4.0), gq, bookdown, knitr, rmarkdown
-- **Database:** PostgreSQL with fwapg (local Docker or remote tunnel)
-- **Connection:** `frs_db_conn()` reads standard `PGHOST`/`PGPORT`/`PGDATABASE`/`PGUSER`/`PGPASSWORD` (local Docker on 5432); legacy `PG_*_SHARE` (SSH tunnel on 63333) only when no `PG*` var is set. See db-newgraph skill
+- **Database:** PostgreSQL with fwapg (the local Docker setup in `docker/`, or any reachable instance)
+- **Connection:** `frs_db_conn()` reads standard `PGHOST`/`PGPORT`/`PGDATABASE`/`PGUSER`/`PGPASSWORD`; legacy `PG_*_SHARE` only when no `PG*` var is set
 - **R version:** targets R >= 4.1. Do NOT use `%||%` (R 4.4+ only) without importing from `rlang`; current `Imports:` doesn't include `rlang`. Use `if (is.null(x)) default else x` instead.
 - **FWA User Guide ragnar store:** `data/rag/fwa_user_guide.duckdb` (gitignored, built locally). 171 chunks of GeoBC (2010) Freshwater Atlas User Guide — edge types, feature codes, watershed codes, stream network structure. Query:
 
@@ -120,17 +120,17 @@ standard libpq env vars (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`,
 standard var is set; deprecation message once per session) → libpq
 defaults. The two groups are never mixed (#213).
 
-On dev machines `~/.Renviron` typically sets `PG*` to the local Docker
-fwapg (`localhost:5432`, db `fwapg`), so a plain `devtools::test()` runs
-against local fwapg. R's user `~/.Renviron` overrides shell env, so a
+When a user `.Renviron` sets `PG*` (for example to the local Docker
+fwapg from `docker/`, db `fwapg`), a plain `devtools::test()` runs
+against it. R's user `.Renviron` overrides shell env, so a
 shell-level `export PGPORT=...` does NOT change what R sees — use
 `Sys.setenv()` inside R, or `Rscript --no-environ`.
 
-To run against the bcfishpass tunnel (`localhost:63333`) instead:
+To run against a different database (for example a bcfishpass instance) instead:
 
 ```r
 # Inside R, before any frs_db_conn() call:
-Sys.setenv(PGHOST = "localhost", PGPORT = "63333",
+Sys.setenv(PGHOST = "<host>", PGPORT = "<port>",
            PGDATABASE = "bcfishpass",
            PGUSER = Sys.getenv("PG_USER_SHARE"),
            PGPASSWORD = Sys.getenv("PG_PASS_SHARE"))
@@ -147,32 +147,11 @@ devtools::test()
 `bcfishpass` schema. Tests that read `bcfishpass.*`
 (`frs_params(conn)` → `bcfishpass.parameters_habitat_thresholds`) call
 `skip_if_no_schema("bcfishpass")` (`tests/testthat/helper-db.R`) and
-skip off-tunnel. `test-frs_network_features-live.R` builds its own
-tunnel connection and gates on `skip_if_no_conn(bcfp_conn)` (same
+skip without one. `test-frs_network_features-live.R` builds its own
+bcfishpass connection and gates on `skip_if_no_conn(bcfp_conn)` (same
 helper file). It skips whenever that connection can't be made, so a set
-`PG_PASS_SHARE` with the tunnel down skips instead of erroring. Any new
+`PG_PASS_SHARE` with the server unreachable skips instead of erroring. Any new
 live test against a non-default DB should gate the same way.
-
-Cross-host run pattern (m4 → m1 over Tailscale, e.g. when m4 is busy):
-
-```bash
-# 1. Push the branch from m4 (the dev box)
-git push -u origin <branch>
-
-# 2. On m1: fetch + checkout + reinstall
-ssh m1 'cd /Users/airvine/Projects/repo/fresh && \
-        git fetch origin && git checkout <branch> && \
-        Rscript -e "pak::pak(\"NewGraphEnvironment/fresh@<branch>\", upgrade = FALSE, ask = FALSE)"'
-
-# 3. On m1: run tests against local fwapg
-ssh m1 'cd /Users/airvine/Projects/repo/fresh && Rscript -e "
-  Sys.setenv(PGHOST = \"localhost\", PGPORT = \"5432\",
-             PGDATABASE = \"fwapg\", PGUSER = \"postgres\",
-             PGPASSWORD = \"postgres\")
-  devtools::load_all(); DBI::dbDisconnect(frs_db_conn())
-  testthat::set_max_fails(Inf); devtools::test()
-" > /tmp/m1_fresh_test.log 2>&1 &'
-```
 
 ## Naming Conventions
 
