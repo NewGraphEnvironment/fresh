@@ -7,5 +7,6 @@ bibentry(
   year = if (is.null(meta$Date)) format(Sys.Date(), "%Y") else substr(meta$Date, 1, 4),
   version = meta$Version,
   note = paste("Version", meta$Version),
-  url = if (is.null(meta$URL)) NULL else strsplit(meta$URL, ",\\s*")[[1]][1]
+  url = if (is.null(meta$URL)) NULL else strsplit(meta$URL, ",\\s*")[[1]][1],
+  doi = meta$`Config/DOI`
 )

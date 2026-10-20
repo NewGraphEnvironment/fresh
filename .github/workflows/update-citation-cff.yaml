@@ -24,8 +24,8 @@ jobs:
         with:
           packages: cffr
 
-      # Same recipe as /citation-cff step 2a: no CRAN-namesake DOI or page,
-      # and the firm as publisher in preferred-citation.
+      # Same recipe as /citation-cff step 2a: no CRAN-namesake DOI or page, the
+      # concept DOI from DESCRIPTION's Config/DOI, and the firm as publisher.
       - name: Update CITATION.cff
         run: |
           Rscript -e '
@@ -33,8 +33,13 @@ jobs:
             x$references <- NULL; x$doi <- NULL; x$repository <- NULL
             x$identifiers <- Filter(function(i) !grepl("CRAN.package", i$value, fixed = TRUE), unclass(x$identifiers))
             if (!length(x$identifiers)) x$identifiers <- NULL
+            d <- read.dcf("DESCRIPTION", fields = c("Package", "Config/DOI"))
+            if (!is.na(d[1, 2])) {
+              x$doi <- d[1, 2]
+              x$message <- paste0("If you use ", d[1, 1], ", please cite it by its DOI, ", x$doi, ".")
+            }
             pc <- x[intersect(c("title", "authors", "version", "date-released", "url",
-                                "repository-code", "license"), names(x))]
+                                "repository-code", "license", "doi"), names(x))]
             pc$type <- "software"
             pc$publisher <- list(name = "New Graph Environment Ltd.")
             x$`preferred-citation` <- pc
