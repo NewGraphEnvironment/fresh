@@ -20,3 +20,4 @@
 ^\.lintr$
 ^docker$
 ^\.git$
+^CITATION\.cff$
