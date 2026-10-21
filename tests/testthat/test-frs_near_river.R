@@ -110,10 +110,31 @@ test_that("a jump across a side-line connector into the polygon is the bank", {
   skip_if_no_conn()
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
+  local_mocked_bindings(.frs_near_river_polygons = function() "pg_temp.nr_polys")
   .nr_fixture(conn, .nr_sideline())
+  # Polygon 7's bank runs along y = 100, where the tributary ends.
+  .nr_polys(conn, list(list(wbk = 7, x0 = -10, y0 = -100, x1 = 2100, y1 = 100)))
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn, d = 5000)
-  expect_identical(.nr_dist(conn), c(`41` = 0, `42` = 400))
+  expect_equal(.nr_dist(conn), c(`41` = 0, `42` = 400), tolerance = 1e-9)
+})
+
+test_that("only the part of a jump inside the polygon is left out", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  local_mocked_bindings(.frs_near_river_polygons = function() "pg_temp.nr_polys")
+  .nr_fixture(conn, .nr_sideline())
+  # The bank is at y = 50: the tributary ends 50 m outside polygon 7 (on
+  # a side channel the walk drops), so 50 m of the 100 m jump counts.
+  .nr_polys(conn, list(list(wbk = 7, x0 = -10, y0 = -50, x1 = 2100, y1 = 50)))
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, d = 5000)
+  expect_equal(.nr_dist(conn), c(`41` = 50, `42` = 450), tolerance = 1e-9)
+  # With no polygon for 7, the whole jump counts.
+  DBI::dbExecute(conn, "DELETE FROM pg_temp.nr_polys")
+  nr_run(conn, d = 5000)
+  expect_equal(.nr_dist(conn), c(`41` = 100, `42` = 500), tolerance = 1e-9)
 })
 
 test_that("a tributary meeting its parent mid-row walks only the part below", {
@@ -123,9 +144,11 @@ test_that("a tributary meeting its parent mid-row walks only the part below", {
   # Row 2 now carries 2 m3/s (not a target at 3). The tributary's mouth
   # sits 100 m off row 2's midpoint, so the walk jumps 100 m (polygon 7's
   # entry, left out) and walks 500 m of row 2 down to row 1.
+  local_mocked_bindings(.frs_near_river_polygons = function() "pg_temp.nr_polys")
   segs <- .nr_sideline()
   segs$mad[segs$id == 2] <- 2
   .nr_fixture(conn, segs)
+  .nr_polys(conn, list(list(wbk = 7, x0 = -10, y0 = -100, x1 = 2100, y1 = 100)))
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn, d = 5000)
   # Row 2 itself is now measured: row 1 lies right below it.

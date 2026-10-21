@@ -250,10 +250,13 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #'
 #' `connector_m` is what the bank rule subtracts for a row in a polygon:
 #' the connector rows (1400, 1450) on the path inside the row's own
-#' polygon, plus the jumps that land on a row of that polygon and are no
-#' longer than `entry_max`, the longest side-line connector run on the
-#' table. A longer jump into the polygon (the river re-entering the
-#' table) is not subtracted. Bank distance `path_m - connector_m` is
+#' polygon, plus, for each jump that lands on a row of that polygon, the
+#' part of the jump line inside the polygon (where it crosses the bank),
+#' at most `entry_max`, the longest side-line connector run on the table.
+#' A jump from a side-line connector's top lies wholly inside; one from a
+#' tributary that ends on a side channel crosses dry land first, and
+#' that part stays in the distance. Polygons come from
+#' `.frs_near_river_polygons()`. Bank distance `path_m - connector_m` is
 #' clamped at zero against floating-point residue.
 #'
 #' With `bank = FALSE` nothing is subtracted (centreline distance), and
@@ -280,9 +283,23 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
     sprintf(paste0(
       "CASE WHEN waterbody_key IS NULL THEN 0 ELSE SUM(",
       "CASE WHEN edge_type IN (1400, 1450) THEN below_m ELSE 0 END",
-      " + CASE WHEN jump_m <= %s THEN jump_m ELSE 0 END) OVER (",
+      " + entry_in_m) OVER (",
       "PARTITION BY origin_id, waterbody_key ORDER BY %s%s) END"),
-      .frs_sql_num(entry_max), ord_bare, frame)
+      ord_bare, frame)
+  } else {
+    "0"
+  }
+  # The part of a jump inside the landing row's polygon: the walk reaches
+  # the bank where the jump line crosses into it. Capped at entry_max so
+  # the cap and prefilter (max(distance_max) + conn_max) stay sufficient.
+  entry_sql <- if (bank) {
+    sprintf(paste0(
+      "CASE WHEN ST_Distance(prev_pt, geom) > 0.001 AND waterbody_key IS NOT NULL THEN ",
+      "least(%s, coalesce((SELECT sum(ST_Length(ST_Intersection(",
+      "ST_MakeLine(ST_Force2D(downstream.prev_pt), ST_Force2D(ST_ClosestPoint(",
+      "downstream.geom, downstream.prev_pt))), ",
+      "p.geom))) FROM %s p WHERE p.waterbody_key = downstream.waterbody_key), 0)) ",
+      "ELSE 0 END"), .frs_sql_num(entry_max), .frs_near_river_polygons())
   } else {
     "0"
   }
@@ -323,7 +340,8 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
          downstream_route_measure,
          ST_Distance(prev_pt, geom) AS jump_m,
          length_metre * ST_LineLocatePoint(ST_Force2D(geom),
-           ST_Force2D(prev_pt)) AS below_m
+           ST_Force2D(prev_pt)) AS below_m,
+         %s AS entry_in_m
        FROM downstream
      ),
      walked AS (
@@ -351,6 +369,22 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
        max(path_m + below_m)
      FROM capped GROUP BY origin_id, watershed_group_code",
     walk_tbl, table, .frs_sql_num(max(discharge_min)), ord, table, cap,
-    if (jumps) "jump_m" else "0", conn_sql, ord_bare, frame, cap,
+    entry_sql, if (jumps) "jump_m" else "0", conn_sql, ord_bare, frame, cap,
     .frs_near_river_values(discharge_min, distance_max))
+}
+
+
+#' Waterbody polygons the bank rule measures against
+#'
+#' A SQL subquery of `waterbody_key, geom` over FWA's river, lake,
+#' reservoir and wetland polygons. A function so tests can point the walk
+#' at a fixture.
+#'
+#' @noRd
+.frs_near_river_polygons <- function() {
+  paste0("(",
+    paste(sprintf("SELECT waterbody_key, geom FROM whse_basemapping.%s",
+                  c("fwa_rivers_poly", "fwa_lakes_poly",
+                    "fwa_manmade_waterbodies_poly", "fwa_wetlands_poly")),
+          collapse = " UNION ALL "), ")")
 }

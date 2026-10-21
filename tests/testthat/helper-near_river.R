@@ -107,3 +107,18 @@
     .nr_seg(51, 2, "100.500", drm = 0, len = 500, mad = 0.2, x0 = 3000),
     .nr_seg(52, 2, "100.500", drm = 500, len = 500, mad = 0.2, x0 = 3500))
 }
+
+# Polygons for the bank rule, in place of FWA's: one box per waterbody_key.
+# Point the walk at them with
+# local_mocked_bindings(.frs_near_river_polygons = function() "pg_temp.nr_polys").
+.nr_polys <- function(conn, boxes) {
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_polys")
+  DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_polys (
+    waterbody_key integer, geom geometry(Polygon, 3005))")
+  for (b in boxes) {
+    DBI::dbExecute(conn, sprintf(
+      "INSERT INTO pg_temp.nr_polys VALUES (%d, ST_MakeEnvelope(%s, %s, %s, %s, 3005))",
+      b$wbk, b$x0, b$y0, b$x1, b$y1))
+  }
+  invisible("pg_temp.nr_polys")
+}
