@@ -4,11 +4,12 @@
 # ------------------------------------------------
  
 cff-version: 1.2.0
-message: 'To cite package "fresh" in publications use:'
+message: If you use fresh, please cite it by its DOI, 10.5281/zenodo.23524744.
 type: software
 license: MIT
 title: 'fresh: Freshwater Referenced Spatial Hydrology'
 version: 0.40.1
+doi: 10.5281/zenodo.23524744
 abstract: Stream network-aware spatial operations via direct SQL against fwapg. Segment
   networks at break points, classify habitat by species, aggregate upstream features,
   and query network-referenced lakes, wetlands, and streams from the BC Freshwater
@@ -32,6 +33,7 @@ preferred-citation:
   url: https://newgraphenvironment.github.io/fresh/
   repository-code: https://github.com/NewGraphEnvironment/fresh
   license: MIT
+  doi: 10.5281/zenodo.23524744
   type: software
   publisher:
     name: New Graph Environment Ltd.
