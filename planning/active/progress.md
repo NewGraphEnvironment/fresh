@@ -12,3 +12,8 @@
 ```bash
 cd ~/Projects/repo/fresh && git fetch -q origin && git checkout 259-rule-condition-a-river-of-at-least-q-m-s && git pull --ff-only && git merge origin/main
 ```
+
+## Session 2026-10-20 (resume)
+
+- Open items answered with the recommended options: (a) decision 7, (b) document and pin.
+- Phase 1: grammar, compiler, predicates threading, spec collector. `test-near_river_rules.R` 63 pass; `test-frs_params.R` 178, `test-frs_habitat_predicates.R` 111, `test-utils.R` 59 unchanged. Mutants: allowlist removal 4 failures, OR grouping removed 7.

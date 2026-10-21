@@ -136,7 +136,7 @@ frs_params <- function(conn = NULL,
                         "waterbody_type", "lake_ha_min", "wetland_ha_min",
                         "in_waterbody", "area_only",
                         "thresholds", "gradient", "channel_width", "mad",
-                        "channel_width_min_bypass",
+                        "channel_width_min_bypass", "near_river",
                         "requires_connected", "connected_distance_max")
 
   for (sp in names(raw)) {
@@ -165,6 +165,11 @@ frs_params <- function(conn = NULL,
         # list; store mad as a plain numeric vector for downstream use.
         if (!is.null(rule[["mad"]])) {
           raw[[sp]][[habitat]][[i]][["mad"]] <- as.numeric(unlist(rule[["mad"]]))
+        }
+        if (!is.null(rule[["near_river"]])) {
+          raw[[sp]][[habitat]][[i]][["near_river"]] <- lapply(
+            rule[["near_river"]][c("discharge_min", "distance_max")],
+            as.numeric)
         }
       }
       if (habitat == "rear") .frs_validate_rear_connected(rule_list, sp)
@@ -452,6 +457,57 @@ frs_params <- function(conn = NULL,
       }
     }
   }
+
+  # near_river: admit a segment that fails its size test when a river of
+  # at least discharge_min lies within distance_max downstream (#259).
+  # Key presence, not !is.null(): an empty `near_river:` must error.
+  if ("near_river" %in% keys) {
+    .frs_validate_near_river(rule, sp, habitat, idx)
+  }
+}
+
+
+#' Validate a rule's near_river mapping
+#'
+#' Requires a named mapping with exactly `discharge_min` (m3/s) and
+#' `distance_max` (m), each a finite numeric scalar above zero, and
+#' refuses the key on a lake or wetland rule, whose lines route through
+#' a polygon and carry no size test to relax.
+#'
+#' @noRd
+.frs_validate_near_river <- function(rule, sp, habitat, idx) {
+  nr <- rule[["near_river"]]
+  where <- sprintf("rules YAML %s/%s rule %d near_river", sp, habitat, idx)
+  if (!is.list(nr) || is.null(names(nr)) || any(!nzchar(names(nr)))) {
+    stop(sprintf("%s must be a named mapping with discharge_min and distance_max",
+                 where), call. = FALSE)
+  }
+  nr_keys <- c("discharge_min", "distance_max")
+  unknown <- setdiff(names(nr), nr_keys)
+  if (length(unknown) > 0) {
+    stop(sprintf("%s has unknown keys: %s. Valid: %s", where,
+                 paste(unknown, collapse = ", "),
+                 paste(nr_keys, collapse = ", ")), call. = FALSE)
+  }
+  missing <- setdiff(nr_keys, names(nr))
+  if (length(missing) > 0) {
+    stop(sprintf("%s is missing: %s", where,
+                 paste(missing, collapse = ", ")), call. = FALSE)
+  }
+  for (k in nr_keys) {
+    v <- nr[[k]]
+    if (!is.numeric(v) || length(v) != 1L || !is.finite(v) || v <= 0) {
+      stop(sprintf("%s$%s must be a finite number above zero", where, k),
+           call. = FALSE)
+    }
+  }
+  wt <- rule[["waterbody_type"]]
+  if (!is.null(wt) && wt %in% c("L", "W")) {
+    stop(sprintf(paste0(
+      "%s is not allowed on a waterbody_type: %s rule, which has no ",
+      "size test to relax"), where, wt), call. = FALSE)
+  }
+  invisible(NULL)
 }
 
 

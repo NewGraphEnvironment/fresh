@@ -52,6 +52,10 @@
 #'   [frs_habitat_classify()] builds per species.
 #' @param model Character. Habitat size model: `"cw"` (channel width,
 #'   default) or `"mad"` (mean annual discharge, `mad_m3s`).
+#' @param near_river_table Character or `NULL`. Schema-qualified table of
+#'   distances to the nearest river downstream, as written by
+#'   [frs_near_river()]. Required when a spawn or rear rule carries
+#'   `near_river`; [frs_habitat_classify()] builds it and passes it.
 #' @return A named list with four character scalars: `spawn`, `rear`,
 #'   `lake_rear`, `wetland_rear`. Each is an SQL boolean expression
 #'   suitable for embedding in `CASE WHEN ... THEN TRUE ELSE FALSE
@@ -75,7 +79,8 @@
 #'
 #' # Discharge-based model, as for a `mad` watershed group
 #' frs_habitat_predicates(sp_params, model = "mad")$spawn
-frs_habitat_predicates <- function(sp_params, model = "cw") {
+frs_habitat_predicates <- function(sp_params, model = "cw",
+                                   near_river_table = NULL) {
   stopifnot(is.list(sp_params),
             !is.null(sp_params[["species_code"]]))
   if (!is.character(model) || length(model) != 1L ||
@@ -138,7 +143,8 @@ frs_habitat_predicates <- function(sp_params, model = "cw") {
                    sp_params$spawn_gradient_max))
     csv_thresholds_spawn[[size_col]] <- size_inherit(size_spawn)
     spawn_pred <- .frs_rules_to_sql(
-      model_rules(params_sp[["rules"]][["spawn"]]), csv_thresholds_spawn)
+      model_rules(params_sp[["rules"]][["spawn"]]), csv_thresholds_spawn,
+      near_river_table = near_river_table)
   } else {
     spawn_pred <- sprintf("s.gradient >= %s AND s.gradient <= %s",
       .frs_sql_num(sp_params$spawn_gradient_min),
@@ -168,7 +174,8 @@ frs_habitat_predicates <- function(sp_params, model = "cw") {
       function(r) !isTRUE(r[["area_only"]]),
       params_sp[["rules"]][["rear"]])
     rear_pred <- .frs_rules_to_sql(model_rules(rear_rules_for_main),
-                                   csv_thresholds_rear)
+                                   csv_thresholds_rear,
+                                   near_river_table = near_river_table)
   } else {
     rear_pred <- "FALSE"
     if (!is.null(params_sp$ranges$rear)) {
@@ -216,4 +223,39 @@ frs_habitat_predicates <- function(sp_params, model = "cw") {
     lake_rear    = lake_rear_pred,
     wetland_rear = wetland_rear_pred
   )
+}
+
+
+#' Distinct near_river discharges a set of species' rules ask for
+#'
+#' Scans every spawn and rear rule of `species` in `params` for a
+#' `near_river` mapping and returns one row per distinct `discharge_min`,
+#' with the largest `distance_max` asked for at it. [frs_near_river()]
+#' walks once per row; each rule's own distance is applied in its
+#' predicate.
+#'
+#' @param params Named list from [frs_params()].
+#' @param species Character vector of species codes.
+#' @return A data frame with numeric `discharge_min` and `distance_max`,
+#'   ordered by `discharge_min`; zero rows when no rule asks.
+#' @noRd
+.frs_near_river_specs <- function(params, species) {
+  nrs <- list()
+  for (sp in species) {
+    rules <- params[[sp]][["rules"]]
+    for (habitat in c("spawn", "rear")) {
+      for (r in rules[[habitat]]) {
+        nr <- r[["near_river"]]
+        if (!is.null(nr)) nrs[[length(nrs) + 1L]] <- nr
+      }
+    }
+  }
+  if (length(nrs) == 0) {
+    return(data.frame(discharge_min = numeric(0), distance_max = numeric(0)))
+  }
+  q <- vapply(nrs, function(x) as.numeric(x[["discharge_min"]]), numeric(1))
+  d <- vapply(nrs, function(x) as.numeric(x[["distance_max"]]), numeric(1))
+  qs <- sort(unique(q))
+  data.frame(discharge_min = qs,
+             distance_max = vapply(qs, function(x) max(d[q == x]), numeric(1)))
 }
