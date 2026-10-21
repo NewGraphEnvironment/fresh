@@ -1,5 +1,19 @@
 # Changelog
 
+## fresh 0.40.1
+
+No change to the package’s functions. This release exists so the package
+has a citable, archived version.
+
+- **Citation.** The maintainer is the author, and New Graph Environment
+  Ltd. the copyright holder and funder (`cph`, `fnd` in `Authors@R`) and
+  the publisher in `CITATION.cff`. `citation("fresh")` and
+  [`knitr::write_bib()`](https://rdrr.io/pkg/knitr/man/write_bib.html)
+  give the entry the stable key `fresh`.
+- `CITATION.cff` is regenerated from DESCRIPTION by the
+  `update-citation-cff` workflow and is kept out of the build tarball.
+- The build excludes a git worktree’s `.git` file.
+
 ## fresh 0.40.0
 
 Closes [\#247](https://github.com/NewGraphEnvironment/fresh/issues/247).
