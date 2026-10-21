@@ -292,7 +292,12 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
        SELECT id_segment, watershed_group_code, mad_m3s, blue_line_key,
          downstream_route_measure, wscode_ltree, localcode_ltree, geom
        FROM %s
-       WHERE mad_m3s IS NULL OR mad_m3s < %s
+       WHERE (mad_m3s IS NULL OR mad_m3s < %s)
+         -- FWA_Downstream() would still join a row with no local code to
+         -- the bottom row of every ancestor line (its wscode = localcode
+         -- branch never reads the origin's local code), skipping the
+         -- network between; such a row has no place to start from.
+         AND localcode_ltree IS NOT NULL
      ),
      downstream AS (
        SELECT o.id_segment AS origin_id, o.watershed_group_code,

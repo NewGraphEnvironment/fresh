@@ -219,6 +219,13 @@ test_that("frs_near_river reports walks that ended within reach", {
     "pg_temp.nr_near", discharge_min = 3, distance_max = 1000))
   expect_match(out_nc[1], "3 segments within 1000 m; 0 walks ended.*; 1 with no")
   expect_false("13" %in% names(.nr_dist(conn)))
+  # Row 1 is the river's bottom row (local code = watershed code), which
+  # FWA_Downstream() calls downstream of any deeper code whatever the
+  # origin's local code: a row with no local code must still not walk.
+  DBI::dbExecute(conn, "UPDATE pg_temp.nr_streams SET localcode_ltree = '100'
+                        WHERE id_segment = 1")
+  nr_run(conn, d = 5000)
+  expect_false("13" %in% names(.nr_dist(conn)))
 })
 
 test_that("frs_near_river validates its inputs", {
