@@ -11,6 +11,14 @@ Closes [#259](https://github.com/NewGraphEnvironment/fresh/issues/259).
 - Two consequences to know. A `thresholds: false` rule with `near_river` has no gradient test unless it carries `gradient:`. Under `mad`, a species with no MAD range now qualifies through `near_river` where a river is near.
 - Limits: the walk sees only the table, one watershed group, so a river beyond the group's outlet is not found. A segment with no local watershed code never walks. That covers most side channels: 238 of 358 edge-1100 rows in BULK, and 50,280 of 83,642 province-wide.
 - Checked on BULK at 3 m³/s against an independent route-measure walk on raw FWA (`data-raw/near_river_check.R`). Of 2,462 sampled segments, every residual falls in a named class: the bank rule, past the 20 km reach, where the two walks enter a parent line, and a main-stem row whose local code nests under a tributary's. None is unexplained. The walk takes 16 s at 1 km and 73 s at 20 km on BULK's 32,472 segments.
+# fresh 0.40.1
+
+No change to the package's functions. This release exists so the package has a citable, archived version.
+
+- **Citation.** The maintainer is the author, and New Graph Environment Ltd. the copyright holder and funder (`cph`, `fnd` in `Authors@R`) and the publisher in `CITATION.cff`. `citation("fresh")` and `knitr::write_bib()` give the entry the stable key `fresh`.
+- `CITATION.cff` is regenerated from DESCRIPTION by the `update-citation-cff` workflow and is kept out of the build tarball.
+- The build excludes a git worktree's `.git` file.
+
 
 # fresh 0.40.0
 

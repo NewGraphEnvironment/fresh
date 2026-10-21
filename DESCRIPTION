@@ -1,7 +1,7 @@
 Package: fresh
 Title: Freshwater Referenced Spatial Hydrology
-Version: 0.40.0
-Date: 2026-10-07
+Version: 0.40.1
+Date: 2026-10-21
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3495-2128",
@@ -39,6 +39,7 @@ Suggests:
     testthat (>= 3.0.0),
     tmap (>= 4.0),
     withr
+Config/DOI: 10.5281/zenodo.23524744
 Config/testthat/edition: 3
 Remotes:
     NewGraphEnvironment/gq
