@@ -479,4 +479,27 @@ test_that("a 0.41.0 near-river table stops classify before any write (round 1)",
     verbose = FALSE), "distance_max must be finite")
   expect_identical(DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
+  # Round 3: a size column typed text (as frs_col_join() types it) is caught
+  # up front; and anything Postgres refuses inside the walk itself happens
+  # before `to` is touched, because the walk runs first.
+  params$CH$rules$rear[[1]]$near_river <- list(discharge_min = 3,
+                                               distance_max = 1000)
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams
+                          ALTER COLUMN mad_m3s TYPE text")
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.nr_hab", species = "CH", params = params, gate = FALSE,
+    verbose = FALSE), "mad_m3s must be numeric")
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams
+                          ALTER COLUMN mad_m3s TYPE double precision
+                          USING mad_m3s::double precision")
+  local_mocked_bindings(.frs_near_river_walk_sql = function(...) {
+    "SELECT no_such_column FROM pg_temp.nr_streams"
+  })
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.nr_hab", species = "CH", params = params, gate = FALSE,
+    verbose = FALSE))
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
 })

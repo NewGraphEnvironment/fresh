@@ -213,6 +213,18 @@ frs_habitat_classify <- function(conn, table, to,
   .frs_index_working(conn, table)
   if (gate) .frs_index_working(conn, breaks_tbl)
 
+  # -- Distances down to the nearest river, for near_river rules -------------
+  # Walked before `to` is touched: the walk reads only `table`, and a
+  # failure inside it (anything Postgres refuses at run time, which no
+  # check up front can list) then leaves the group's habitat rows as they
+  # were rather than deleted (fresh#263 review).
+  if (!is.null(near_tbl)) {
+    frs_near_river(conn, table, near_tbl,
+      threshold = near_specs$threshold,
+      distance_max = near_specs$distance_max,
+      measure = near_specs$measure, verbose = verbose)
+  }
+
   # Create output table if not exists
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s (
@@ -314,14 +326,6 @@ frs_habitat_classify <- function(conn, table, to,
     }
   }
   }  # end gate if/else
-
-  # -- Distances down to the nearest river, for near_river rules -------------
-  if (!is.null(near_tbl)) {
-    frs_near_river(conn, table, near_tbl,
-      threshold = near_specs$threshold,
-      distance_max = near_specs$distance_max,
-      measure = near_specs$measure, verbose = verbose)
-  }
 
   # -- Classify each species using pre-computed accessibility -----------------
   for (sp_params in species_params) {

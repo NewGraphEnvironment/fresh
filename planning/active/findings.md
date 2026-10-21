@@ -109,3 +109,11 @@ Mechanism found in rounds 1 and 2: classify writes (`CREATE TABLE <to>`, the per
 - `frs_near_river()`'s body now holds no check of its own: its only call before its first write is `.frs_near_river_check()`, which carries all 8 checks (two identifiers, threshold, distance_max, measure, distinct pairs, columns, table shape). Classify runs the same helper with the same arguments before its first write.
 - `frs_habitat_predicates()` can stop on a near-river pair only when `near_river_table` is NULL, which needs a predicate to read a pair the specs did not collect. The specs and the predicates use the same params, the same species filter (`sp_classify` / `species_params`), the same models (`pred_models`) and the same resolver, so that cannot happen.
 - The remaining post-write stops (`.frs_access_label_filter()`, `.frs_access_with_overrides()`, rule-shape stops validated at load) predate this branch and do not touch near_river.
+
+## Code-check round 3 and the terminal fix (2026-10-21)
+
+Round 3 named the mechanism: each guard was a hand-written copy of what the walk accepts, run before classify's DELETE and INSERTs, which no transaction holds. The walk's SQL enforces more than any copy can list (column types, `FWA_Downstream()`, the polygon tables), so a list-based enumeration of R `stop()` calls could not close it. Round 3's instance was a `text` size column, as `frs_col_join()` types one.
+- **Fix that closes the class:** classify now runs `frs_near_river()` before it creates or deletes from `to`. The walk reads only `table` and writes only `<to>_near_river`, so any failure inside it, at R or SQL level, leaves the group's habitat rows in place. A test mocks the walk's SQL into an error and asserts the habitat row survives. With the old ordering restored in a scratch copy, that test fails.
+- **Enumeration after the first write to `to`:** the only near-river code left is `frs_habitat_predicates()`, which is pure R. Its one near-river stop (`near_river_table` NULL) needs a predicate reading a pair the specs did not collect, and the shared resolver, params, species filter and models rule that out.
+- Kept as well: `.frs_near_river_check()` now also refuses a non-numeric size column, so the error names the cast.
+
