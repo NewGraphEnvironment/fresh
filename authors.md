@@ -16,15 +16,15 @@ Source:
 Irvine A (2026). *fresh: Freshwater Referenced Spatial Hydrology*. New
 Graph Environment Ltd.
 [doi:10.5281/zenodo.23524744](https://doi.org/10.5281/zenodo.23524744).
-Version 0.40.1, <https://github.com/NewGraphEnvironment/fresh>.
+Version 0.41.0, <https://github.com/NewGraphEnvironment/fresh>.
 
     @Manual{fresh,
       title = {fresh: Freshwater Referenced Spatial Hydrology},
       author = {Allan Irvine},
       organization = {New Graph Environment Ltd.},
       year = {2026},
-      version = {0.40.1},
-      note = {Version 0.40.1},
+      version = {0.41.0},
+      note = {Version 0.41.0},
       url = {https://github.com/NewGraphEnvironment/fresh},
       doi = {10.5281/zenodo.23524744},
     }

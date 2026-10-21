@@ -15,7 +15,7 @@ to produce the per-species habitat columns."><meta property="og:image" content="
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.40.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.41.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,7 +56,7 @@ to produce the per-species habitat columns.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_habitat_predicates</span><span class="op">(</span><span class="va">sp_params</span>, model <span class="op">=</span> <span class="st">"cw"</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">frs_habitat_predicates</span><span class="op">(</span><span class="va">sp_params</span>, model <span class="op">=</span> <span class="st">"cw"</span>, near_river_table <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -74,6 +74,15 @@ optional <code>spawn_edge_types</code> / <code>rear_edge_types</code>). This is 
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>Character. Habitat size model: <code>"cw"</code> (channel width,
 default) or <code>"mad"</code> (mean annual discharge, <code>mad_m3s</code>).</p></dd>
+
+
+<dt id="arg-near-river-table">near_river_table<a class="anchor" aria-label="anchor" href="#arg-near-river-table"></a></dt>
+<dd><p>Character or <code>NULL</code>. Schema-qualified table of
+distances to the nearest river downstream, as written by
+<code><a href="frs_near_river.html">frs_near_river()</a></code>. Required when a spawn or rear rule carries
+<code>near_river</code>; <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code> builds it and passes it. A
+rule matches only rows walked at exactly its own <code>discharge_min</code> and
+<code>distance_max</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -108,6 +117,33 @@ fail; and rule-level <code>channel_width:</code> (the cw-model river-polygon
 bypass) is ignored. An explicit <code>mad: [min, max]</code> rule applies under
 either model. <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code> resolves the model per
 watershed group.</p>
+<p><strong>A river nearby (<code>near_river</code>).</strong> A spawn or rear rule can carry</p>
+<p></p><div class="sourceCode yaml"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">near_river</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="at">  </span><span class="fu">discharge_min</span><span class="kw">:</span><span class="at"> </span><span class="dv">3</span><span class="co">     # m3/s</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="at">  </span><span class="fu">distance_max</span><span class="kw">:</span><span class="at"> </span><span class="dv">1000</span><span class="co">   # m, along the network, downstream</span></span></code></pre><p></p></div>
+<p>The segment then passes the rule's size test (channel width under
+<code>cw</code>, <code>mad_m3s</code> under <code>mad</code>, inherited or explicit) <strong>or</strong> a segment
+carrying at least <code>discharge_min</code> lies within <code>distance_max</code>
+downstream. Everything else in the rule (edge types, gradient,
+waterbody tests) still applies. The distance is measured by
+<code><a href="frs_near_river.html">frs_near_river()</a></code>, which <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code> runs and passes as
+<code>near_river_table</code>:</p><ul><li><p>from the segment's downstream end, so a long segment whose lower end
+is within reach passes whole;</p></li>
+<li><p>to the river's bank: a tributary's connector line across the river's
+polygon is left out, and never counts as the river;</p></li>
+<li><p>only for segments whose own <code>mad_m3s</code> is NULL or below
+<code>discharge_min</code>: a river that large passes or fails on its own size
+test;</p></li>
+<li><p>within one watershed group's table, and never from a segment with no
+local watershed code (most side channels); see <code><a href="frs_near_river.html">frs_near_river()</a></code>.</p></li>
+</ul><p>Two consequences to know. A rule with no size test of its own (a
+<code>thresholds: false</code> rule without <code>channel_width</code> or <code>mad</code>) makes
+<code>near_river</code> its only size test, and such a rule inherits <strong>no
+gradient</strong>, so it tests slope only if it carries <code>gradient:</code>. Under
+<code>mad</code>, a species with no MAD range, which otherwise gets no stream
+habitat from inheriting rules, qualifies through <code>near_river</code> where a
+river is near. <code>near_river</code> is not allowed on <code>waterbody_type: L</code> or
+<code>W</code> rules.</p>
 <p>Lake / wetland rearing predicates (<code>lake_rear</code>, <code>wetland_rear</code>) are
 gated on the presence of a <code>waterbody_type: L</code> / <code>waterbody_type: W</code>
 rule in <code>rear:</code>. Without the rule, the predicate is <code>"FALSE"</code> — the
@@ -141,6 +177,7 @@ rules that carry <code>requires_connected: spawning</code> (see <code><a href="f
 <code><a href="frs_habitat_overlay.html">frs_habitat_overlay()</a></code>,
 <code><a href="frs_habitat_partition.html">frs_habitat_partition()</a></code>,
 <code><a href="frs_habitat_species.html">frs_habitat_species()</a></code>,
+<code><a href="frs_near_river.html">frs_near_river()</a></code>,
 <code><a href="frs_network_segment.html">frs_network_segment()</a></code></p></div>
     </div>
 
@@ -162,6 +199,14 @@ rules that carry <code>requires_connected: spawning</code> (see <code><a href="f
 <span class="r-in"><span><span class="co"># Discharge-based model, as for a `mad` watershed group</span></span></span>
 <span class="r-in"><span><span class="fu">frs_habitat_predicates</span><span class="op">(</span><span class="va">sp_params</span>, model <span class="op">=</span> <span class="st">"mad"</span><span class="op">)</span><span class="op">$</span><span class="va">spawn</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "((s.edge_type IN (1000, 1100, 2000, 2300) AND s.waterbody_key IS NULL AND s.gradient BETWEEN 0 AND 0.0549 AND s.mad_m3s BETWEEN 0.164 AND 9999) OR (s.waterbody_key IN (SELECT waterbody_key FROM whse_basemapping.fwa_rivers_poly) AND s.gradient BETWEEN 0 AND 0.0549 AND s.mad_m3s BETWEEN 0.164 AND 9999))"</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># A small stream passes when a 3 m3/s river is within 1 km downstream</span></span></span>
+<span class="r-in"><span><span class="va">sp_params</span><span class="op">$</span><span class="va">params_sp</span><span class="op">$</span><span class="va">rules</span><span class="op">$</span><span class="va">rear</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  edge_types_explicit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1000</span>, <span class="fl">1100</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  near_river <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>discharge_min <span class="op">=</span> <span class="fl">3</span>, distance_max <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat_predicates</span><span class="op">(</span><span class="va">sp_params</span>,</span></span>
+<span class="r-in"><span>  near_river_table <span class="op">=</span> <span class="st">"working.streams_habitat_near_river"</span><span class="op">)</span><span class="op">$</span><span class="va">rear</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.discharge_min = 3 AND n.distance_max = 1000 AND n.dist_m &lt;= 1000))))"</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

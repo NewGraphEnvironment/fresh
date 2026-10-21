@@ -58,6 +58,8 @@
   : Classify Habitat for One Species
 - [`frs_lake_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_lake_fetch.md)
   : Fetch FWA Lakes
+- [`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md)
+  : Distance from Each Segment Down to the Nearest River
 - [`frs_network()`](https://newgraphenvironment.github.io/fresh/reference/frs_network.md)
   : Query Multiple Tables Upstream or Downstream of a Network Position
 - [`frs_network_downstream()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_downstream.md)

@@ -139,7 +139,10 @@ frs_habitat(
 
   See
   [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
-  for the rules format.
+  for the rules format. A rule's `near_river` condition (see
+  [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md))
+  makes classify write `<to_habitat>_near_river` (or
+  `<streams>_habitat_near_river`), which is kept.
 
 - gradient_recompute:
 
@@ -273,6 +276,7 @@ Other habitat:
 [`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md),
 [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md),
 [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md),
+[`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md),
 [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
 
 ## Examples

@@ -11,7 +11,7 @@ habitat columns.
 ## Usage
 
 ``` r
-frs_habitat_predicates(sp_params, model = "cw")
+frs_habitat_predicates(sp_params, model = "cw", near_river_table = NULL)
 ```
 
 ## Arguments
@@ -30,6 +30,16 @@ frs_habitat_predicates(sp_params, model = "cw")
 
   Character. Habitat size model: `"cw"` (channel width, default) or
   `"mad"` (mean annual discharge, `mad_m3s`).
+
+- near_river_table:
+
+  Character or `NULL`. Schema-qualified table of distances to the
+  nearest river downstream, as written by
+  [`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md).
+  Required when a spawn or rear rule carries `near_river`;
+  [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  builds it and passes it. A rule matches only rows walked at exactly
+  its own `discharge_min` and `distance_max`.
 
 ## Value
 
@@ -71,6 +81,45 @@ either model.
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
 resolves the model per watershed group.
 
+**A river nearby (`near_river`).** A spawn or rear rule can carry
+
+    near_river:
+      discharge_min: 3     # m3/s
+      distance_max: 1000   # m, along the network, downstream
+
+The segment then passes the rule's size test (channel width under `cw`,
+`mad_m3s` under `mad`, inherited or explicit) **or** a segment carrying
+at least `discharge_min` lies within `distance_max` downstream.
+Everything else in the rule (edge types, gradient, waterbody tests)
+still applies. The distance is measured by
+[`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md),
+which
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+runs and passes as `near_river_table`:
+
+- from the segment's downstream end, so a long segment whose lower end
+  is within reach passes whole;
+
+- to the river's bank: a tributary's connector line across the river's
+  polygon is left out, and never counts as the river;
+
+- only for segments whose own `mad_m3s` is NULL or below
+  `discharge_min`: a river that large passes or fails on its own size
+  test;
+
+- within one watershed group's table, and never from a segment with no
+  local watershed code (most side channels); see
+  [`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md).
+
+Two consequences to know. A rule with no size test of its own (a
+`thresholds: false` rule without `channel_width` or `mad`) makes
+`near_river` its only size test, and such a rule inherits **no
+gradient**, so it tests slope only if it carries `gradient:`. Under
+`mad`, a species with no MAD range, which otherwise gets no stream
+habitat from inheriting rules, qualifies through `near_river` where a
+river is near. `near_river` is not allowed on `waterbody_type: L` or `W`
+rules.
+
 Lake / wetland rearing predicates (`lake_rear`, `wetland_rear`) are
 gated on the presence of a `waterbody_type: L` / `waterbody_type: W`
 rule in `rear:`. Without the rule, the predicate is `"FALSE"` — the
@@ -105,6 +154,7 @@ Other habitat:
 [`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md),
 [`frs_habitat_partition()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_partition.md),
 [`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md),
+[`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md),
 [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)
 
 ## Examples
@@ -126,4 +176,12 @@ preds$lake_rear
 # Discharge-based model, as for a `mad` watershed group
 frs_habitat_predicates(sp_params, model = "mad")$spawn
 #> [1] "((s.edge_type IN (1000, 1100, 2000, 2300) AND s.waterbody_key IS NULL AND s.gradient BETWEEN 0 AND 0.0549 AND s.mad_m3s BETWEEN 0.164 AND 9999) OR (s.waterbody_key IN (SELECT waterbody_key FROM whse_basemapping.fwa_rivers_poly) AND s.gradient BETWEEN 0 AND 0.0549 AND s.mad_m3s BETWEEN 0.164 AND 9999))"
+
+# A small stream passes when a 3 m3/s river is within 1 km downstream
+sp_params$params_sp$rules$rear <- list(list(
+  edge_types_explicit = c(1000, 1100),
+  near_river = list(discharge_min = 3, distance_max = 1000)))
+frs_habitat_predicates(sp_params,
+  near_river_table = "working.streams_habitat_near_river")$rear
+#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.discharge_min = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
 ```

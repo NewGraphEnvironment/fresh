@@ -51,7 +51,9 @@ frs_params(
   listed in the file gets `$rules$spawn`, `$rules$rear`, and optionally
   `$rules$spawn_connected` attached to its params entry. Species not
   listed in the file fall through to the CSV ranges path. See the
-  `parameters_habitat_rules.yaml` header for the rule format.
+  `parameters_habitat_rules.yaml` header for the rule format, and
+  [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)
+  for a rule's `near_river` condition.
 
 ## Value
 

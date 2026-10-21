@@ -11,7 +11,7 @@ habitat via frs_habitat_classify(), and persist results."><meta property="og:ima
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.40.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.41.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -167,7 +167,10 @@ the CSV ranges path (the pre-0.12.0 behavior).</p>
 <p>Only consulted when <code>params = NULL</code>. If you pass your own
 <code>params</code> from <code><a href="frs_params.html">frs_params()</a></code>, the rules are baked into that
 object and <code>rules</code> here is ignored.</p>
-<p>See <code><a href="frs_params.html">frs_params()</a></code> for the rules format.</p></dd>
+<p>See <code><a href="frs_params.html">frs_params()</a></code> for the rules format. A rule's <code>near_river</code>
+condition (see <code><a href="frs_habitat_predicates.html">frs_habitat_predicates()</a></code>) makes classify write
+<code>&lt;to_habitat&gt;_near_river</code> (or <code>&lt;streams&gt;_habitat_near_river</code>),
+which is kept.</p></dd>
 
 
 <dt id="arg-gradient-recompute">gradient_recompute<a class="anchor" aria-label="anchor" href="#arg-gradient-recompute"></a></dt>
@@ -298,6 +301,7 @@ passes the area test.</p>
 <code><a href="frs_habitat_partition.html">frs_habitat_partition()</a></code>,
 <code><a href="frs_habitat_predicates.html">frs_habitat_predicates()</a></code>,
 <code><a href="frs_habitat_species.html">frs_habitat_species()</a></code>,
+<code><a href="frs_near_river.html">frs_near_river()</a></code>,
 <code><a href="frs_network_segment.html">frs_network_segment()</a></code></p></div>
     </div>
 
