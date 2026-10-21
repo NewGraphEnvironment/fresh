@@ -48,6 +48,10 @@ main-stem row whose local code nests under a tributary’s. None is
 unexplained. The walk takes 16 s at 1 km and 73 s at 20 km on BULK’s
 32,472 segments.
 
+**`citation("fresh")` cites the Zenodo concept DOI.** `Config/DOI` in
+DESCRIPTION holds it, and it resolves to every archived release;
+`CITATION.cff` carries it too.
+
 ## fresh 0.40.1
 
 No change to the package’s functions. This release exists so the package
