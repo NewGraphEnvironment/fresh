@@ -102,3 +102,10 @@ Not a test: `channel_width_min_bypass` is a loader passthrough (`R/frs_params.R:
 | Error | Resolution |
 |-------|------------|
 | Equivalence walk on a `CREATE TABLE AS` copy ran >10 min | Copy with `LIKE ... INCLUDING ALL` so the network indexes exist |
+
+## Code-check enumeration (round 2, 2026-10-21)
+
+Mechanism found in rounds 1 and 2: classify writes (`CREATE TABLE <to>`, the per-group DELETE, the access tables) before it calls `frs_near_river()`, so any stop inside the walk's checks ran after habitat rows were deleted. Candidate set, enumerated from `R/frs_habitat_classify.R` (`data-raw`-free script over the function body, first write at the `CREATE TABLE IF NOT EXISTS %s (` line): after the first write the near-river path reaches only `frs_near_river()` and `frs_habitat_predicates()`.
+- `frs_near_river()`'s body now holds no check of its own: its only call before its first write is `.frs_near_river_check()`, which carries all 8 checks (two identifiers, threshold, distance_max, measure, distinct pairs, columns, table shape). Classify runs the same helper with the same arguments before its first write.
+- `frs_habitat_predicates()` can stop on a near-river pair only when `near_river_table` is NULL, which needs a predicate to read a pair the specs did not collect. The specs and the predicates use the same params, the same species filter (`sp_classify` / `species_params`), the same models (`pred_models`) and the same resolver, so that cannot happen.
+- The remaining post-write stops (`.frs_access_label_filter()`, `.frs_access_with_overrides()`, rule-shape stops validated at load) predate this branch and do not touch near_river.

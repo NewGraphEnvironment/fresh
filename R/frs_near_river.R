@@ -123,51 +123,8 @@
 #' }
 frs_near_river <- function(conn, table, to, threshold, distance_max,
                            measure = "discharge", verbose = TRUE) {
-  .frs_validate_identifier(table, "streams table")
-  .frs_validate_identifier(to, "output table")
-  ok_num <- function(x) {
-    is.numeric(x) && length(x) > 0 && all(is.finite(x)) && all(x > 0)
-  }
-  if (!ok_num(threshold)) {
-    stop("threshold must be finite numbers above zero", call. = FALSE)
-  }
-  if (!ok_num(distance_max) || length(distance_max) != length(threshold)) {
-    stop(paste0("distance_max must be finite numbers above zero, one per ",
-                "threshold"), call. = FALSE)
-  }
-  if (!is.character(measure) || anyNA(measure) ||
-      !length(measure) %in% c(1L, length(threshold)) ||
-      !all(measure %in% names(.frs_near_river_cols()))) {
-    stop(sprintf(paste0("measure must be one of %s, length 1 or one per ",
-                        "threshold"),
-                 paste0('"', names(.frs_near_river_cols()), '"',
-                        collapse = ", ")), call. = FALSE)
-  }
-  measure <- rep_len(measure, length(threshold))
-  if (anyDuplicated(data.frame(measure, threshold, distance_max))) {
-    stop("each (measure, threshold, distance_max) pair must be distinct",
-         call. = FALSE)
-  }
-  size_cols <- unname(.frs_near_river_cols()[unique(measure)])
-  cols_need <- c("id_segment", "watershed_group_code", "blue_line_key",
-                 "watershed_key", "downstream_route_measure", "wscode_ltree",
-                 "localcode_ltree", "edge_type", "waterbody_key",
-                 "length_metre", size_cols, "geom")
-  cols_have <- names(DBI::dbGetQuery(conn,
-    sprintf("SELECT * FROM %s LIMIT 0", table)))
-  missing <- setdiff(cols_need, cols_have)
-  if (length(missing) > 0) {
-    stop(sprintf("%s has no %s column%s (frs_near_river() needs %s)",
-                 table, paste(missing, collapse = ", "),
-                 if (length(missing) > 1) "s" else "",
-                 if (any(missing %in% size_cols))
-                   paste0("the column of each measure; mad_m3s is joined ",
-                          "by frs_network_segment() or frs_col_join()")
-                 else "the columns frs_network_segment() writes"),
-         call. = FALSE)
-  }
-
-  .frs_near_river_check_shape(conn, to)
+  measure <- .frs_near_river_check(conn, table, to, threshold, distance_max,
+                                   measure)
 
   t0 <- proc.time()
   walk_tbl <- "pg_temp.frs_near_river_walk"
@@ -233,6 +190,66 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   }
 
   invisible(conn)
+}
+
+
+#' Every check frs_near_river() makes before it writes, writing nothing
+#'
+#' Identifiers, the numbers, the measure, distinct pairs, the columns each
+#' measure and the walk read, and the output table's shape. A function of
+#' its own so [frs_habitat_classify()] runs the same checks before its
+#' first write: a stop inside the walk would come after classify had
+#' deleted the group's habitat rows (fresh#263 review).
+#'
+#' @return `measure`, recycled to one per `threshold`.
+#' @noRd
+.frs_near_river_check <- function(conn, table, to, threshold, distance_max,
+                                  measure = "discharge") {
+  .frs_validate_identifier(table, "streams table")
+  .frs_validate_identifier(to, "output table")
+  ok_num <- function(x) {
+    is.numeric(x) && length(x) > 0 && all(is.finite(x)) && all(x > 0)
+  }
+  if (!ok_num(threshold)) {
+    stop("threshold must be finite numbers above zero", call. = FALSE)
+  }
+  if (!ok_num(distance_max) || length(distance_max) != length(threshold)) {
+    stop(paste0("distance_max must be finite numbers above zero, one per ",
+                "threshold"), call. = FALSE)
+  }
+  if (!is.character(measure) || anyNA(measure) ||
+      !length(measure) %in% c(1L, length(threshold)) ||
+      !all(measure %in% names(.frs_near_river_cols()))) {
+    stop(sprintf(paste0("measure must be one of %s, length 1 or one per ",
+                        "threshold"),
+                 paste0('"', names(.frs_near_river_cols()), '"',
+                        collapse = ", ")), call. = FALSE)
+  }
+  measure <- rep_len(measure, length(threshold))
+  if (anyDuplicated(data.frame(measure, threshold, distance_max))) {
+    stop("each (measure, threshold, distance_max) pair must be distinct",
+         call. = FALSE)
+  }
+  size_cols <- unname(.frs_near_river_cols()[unique(measure)])
+  cols_need <- c("id_segment", "watershed_group_code", "blue_line_key",
+                 "watershed_key", "downstream_route_measure", "wscode_ltree",
+                 "localcode_ltree", "edge_type", "waterbody_key",
+                 "length_metre", size_cols, "geom")
+  cols_have <- names(DBI::dbGetQuery(conn,
+    sprintf("SELECT * FROM %s LIMIT 0", table)))
+  missing <- setdiff(cols_need, cols_have)
+  if (length(missing) > 0) {
+    stop(sprintf("%s has no %s column%s (frs_near_river() needs %s)",
+                 table, paste(missing, collapse = ", "),
+                 if (length(missing) > 1) "s" else "",
+                 if (any(missing %in% size_cols))
+                   paste0("the column of each measure; mad_m3s is joined ",
+                          "by frs_network_segment() or frs_col_join()")
+                 else "the columns frs_network_segment() writes"),
+         call. = FALSE)
+  }
+  .frs_near_river_check_shape(conn, to)
+  measure
 }
 
 

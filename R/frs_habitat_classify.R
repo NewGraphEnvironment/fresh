@@ -200,19 +200,12 @@ frs_habitat_classify <- function(conn, table, to,
   near_specs <- .frs_near_river_specs(params, sp_classify, pred_models)
   near_tbl <- if (nrow(near_specs) > 0) paste0(to, "_near_river")
   if (!is.null(near_tbl)) {
-    near_cols <- unname(.frs_near_river_cols()[unique(near_specs$measure)])
-    near_miss <- setdiff(near_cols, names(DBI::dbGetQuery(conn,
-      sprintf("SELECT * FROM %s LIMIT 0", table))))
-    if (length(near_miss) > 0) {
-      stop(sprintf(paste0(
-        "a near_river rule reads %s but %s has no such column%s ",
-        "(mad_m3s is joined by frs_col_join() or frs_network_segment())"),
-        paste(near_miss, collapse = ", "), table,
-        if (length(near_miss) > 1) "s" else ""), call. = FALSE)
-    }
-    # A near-river table in 0.41.0's shape would stop the walk after the
-    # habitat rows were deleted; refuse it here instead.
-    .frs_near_river_check_shape(conn, near_tbl)
+    # Every check the walk makes before it writes, here, before classify
+    # writes: a stop inside frs_near_river() would come after the group's
+    # habitat rows were deleted.
+    .frs_near_river_check(conn, table, near_tbl,
+      threshold = near_specs$threshold,
+      distance_max = near_specs$distance_max, measure = near_specs$measure)
   }
 
   # Ensure input tables are indexed — critical when called directly

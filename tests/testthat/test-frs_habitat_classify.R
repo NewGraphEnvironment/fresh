@@ -429,7 +429,7 @@ test_that("integration: a near_river rule admits small streams near a river (#25
   params$CH$rules$rear[[1]]$near_river <-
     list(discharge_min = 3, distance_max = 1000)
   DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams DROP COLUMN mad_m3s")
-  expect_error(run("cw"), "near_river rule reads mad_m3s")
+  expect_error(run("cw"), "has no mad_m3s column.*frs_col_join")
 })
 
 test_that("a 0.41.0 near-river table stops classify before any write (round 1)", {
@@ -460,4 +460,23 @@ test_that("a 0.41.0 near-river table stops classify before any write (round 1)",
     "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
   expect_true(is.na(DBI::dbGetQuery(conn,
     "SELECT to_regclass('pg_temp.nr_streams_acc_all')::text AS r")$r))
+  # Round 2: every other check the walk makes runs before the write too, so
+  # a streams table without a column the walk reads leaves the rows alone.
+  DBI::dbExecute(conn, "DROP TABLE pg_temp.nr_hab_near_river")
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams DROP COLUMN watershed_key")
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.nr_hab", species = "CH", params = params, gate = FALSE,
+    verbose = FALSE), "has no watershed_key column")
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
+  # and a pair built in R, past the loader's validator, with a bad number
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams ADD COLUMN watershed_key integer")
+  DBI::dbExecute(conn, "UPDATE pg_temp.nr_streams SET watershed_key = blue_line_key")
+  params$CH$rules$rear[[1]]$near_river <- list(discharge_min = 3,
+                                               distance_max = Inf)
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.nr_hab", species = "CH", params = params, gate = FALSE,
+    verbose = FALSE), "distance_max must be finite")
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
 })
