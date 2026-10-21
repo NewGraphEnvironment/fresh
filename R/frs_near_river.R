@@ -89,8 +89,9 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
                            verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
   .frs_validate_identifier(to, "output table")
-  ok_num <- function(x) is.numeric(x) && length(x) > 0 && all(is.finite(x)) &&
-    all(x > 0)
+  ok_num <- function(x) {
+    is.numeric(x) && length(x) > 0 && all(is.finite(x)) && all(x > 0)
+  }
   if (!ok_num(discharge_min) || anyDuplicated(discharge_min)) {
     stop("discharge_min must be distinct finite numbers above zero",
          call. = FALSE)
