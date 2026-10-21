@@ -176,15 +176,25 @@ frs_habitat_classify <- function(conn, table, to,
   }
 
   # near_river rules (#259) read a table of distances down to the nearest
-  # river, built from mad_m3s under either model, so check for it here too.
-  near_specs <- .frs_near_river_specs(params, species)
+  # river, measured on the column each pair names (#262). Pairs come only
+  # from species that classify (a params_fresh row), so no walk is wasted,
+  # and the columns are checked here, before any write.
+  sp_classify <- species[vapply(species, function(sp) {
+    !is.null(params[[sp]]) && any(params_fresh$species_code == sp)
+  }, logical(1))]
+  near_specs <- .frs_near_river_specs(params, sp_classify)
   near_tbl <- if (nrow(near_specs) > 0) paste0(to, "_near_river")
-  if (!is.null(near_tbl) && !"mad_m3s" %in% names(DBI::dbGetQuery(conn,
-      sprintf("SELECT * FROM %s LIMIT 0", table)))) {
-    stop(sprintf(paste0(
-      "a near_river rule reads mad_m3s but %s has no mad_m3s column ",
-      "(join it with frs_col_join() or frs_network_segment())"),
-      table), call. = FALSE)
+  if (!is.null(near_tbl)) {
+    near_cols <- unname(.frs_near_river_cols()[unique(near_specs$measure)])
+    near_miss <- setdiff(near_cols, names(DBI::dbGetQuery(conn,
+      sprintf("SELECT * FROM %s LIMIT 0", table))))
+    if (length(near_miss) > 0) {
+      stop(sprintf(paste0(
+        "a near_river rule reads %s but %s has no such column%s ",
+        "(mad_m3s is joined by frs_col_join() or frs_network_segment())"),
+        paste(near_miss, collapse = ", "), table,
+        if (length(near_miss) > 1) "s" else ""), call. = FALSE)
+    }
   }
 
   # Ensure input tables are indexed — critical when called directly
@@ -297,8 +307,9 @@ frs_habitat_classify <- function(conn, table, to,
   # -- Distances down to the nearest river, for near_river rules -------------
   if (!is.null(near_tbl)) {
     frs_near_river(conn, table, near_tbl,
-      discharge_min = near_specs$discharge_min,
-      distance_max = near_specs$distance_max, verbose = verbose)
+      threshold = near_specs$threshold,
+      distance_max = near_specs$distance_max,
+      measure = near_specs$measure, verbose = verbose)
   }
 
   # -- Classify each species using pre-computed accessibility -----------------

@@ -4,7 +4,15 @@
 \alias{frs_near_river}
 \title{Distance from Each Segment Down to the Nearest River}
 \usage{
-frs_near_river(conn, table, to, discharge_min, distance_max, verbose = TRUE)
+frs_near_river(
+  conn,
+  table,
+  to,
+  threshold,
+  distance_max,
+  measure = "discharge",
+  verbose = TRUE
+)
 }
 \arguments{
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
@@ -13,23 +21,31 @@ frs_near_river(conn, table, to, discharge_min, distance_max, verbose = TRUE)
 \code{id_segment}, \code{watershed_group_code}, \code{blue_line_key},
 \code{watershed_key}, \code{downstream_route_measure}, \code{wscode_ltree},
 \code{localcode_ltree}, \code{edge_type}, \code{waterbody_key}, \code{length_metre},
-\code{mad_m3s} and \code{geom}.}
+\code{geom}, and the column of each measure asked for: \code{mad_m3s},
+\code{channel_width} or \code{stream_order}.}
 
 \item{to}{Character. Schema-qualified output table, created if it does
 not exist, with columns \code{id_segment}, \code{watershed_group_code},
-\code{discharge_min}, \code{distance_max} and \code{dist_m}. A \code{near_river} rule
-reads only rows of its own exact pair, so build the table with the
-pairs the rules carry (\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} does): a walk at a
-longer distance does not serve a rule with a shorter one. Rows for the watershed groups in
-\code{table} are replaced on every call; other groups' rows are kept.}
+\code{measure}, \code{threshold}, \code{distance_max} and \code{dist_m}. A \code{near_river}
+rule reads only rows of its own exact measure, threshold and
+distance, so build the table with the pairs the rules carry
+(\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} does): a walk at a longer distance does
+not serve a rule with a shorter one. Rows for the watershed groups
+in \code{table} are replaced on every call; other groups' rows are kept.
+A table written by fresh 0.41.0 (with a \code{discharge_min} column and
+no \code{measure}) stops the call; drop it and re-run.}
 
-\item{discharge_min}{Numeric vector. River discharges to find (m3/s),
-each finite and above zero.}
+\item{threshold}{Numeric vector. River sizes to find, each finite and
+above zero, in the measure's unit: m3/s for \code{"discharge"}, m for
+\code{"channel_width"}, an order for \code{"stream_order"}.}
 
-\item{distance_max}{Numeric vector, one per \code{discharge_min}. Farthest
+\item{distance_max}{Numeric vector, one per \code{threshold}. Farthest
 distance (m) to record for that pair. Each pair is walked on its own,
 so a pair's distances never depend on the other pairs in the call;
 pairs must be distinct.}
+
+\item{measure}{Character, length 1 or one per \code{threshold}:
+\code{"discharge"} (default), \code{"channel_width"} or \code{"stream_order"}.}
 
 \item{verbose}{Logical. Print rows written, segments with no local
 code, and timing. Default \code{TRUE}.}
@@ -38,14 +54,15 @@ code, and timing. Default \code{TRUE}.}
 \code{conn} invisibly, for pipe chaining.
 }
 \description{
-For every segment of a segmented streams table whose own discharge is
-below a threshold, walks the network downstream and records the
-distance to the nearest segment carrying at least that discharge. A
-habitat rule's \code{near_river} condition reads the result, so a small
-stream close to a large river can pass a rule whose size test it
-fails (see \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}). \code{\link[=frs_habitat_classify]{frs_habitat_classify()}}
-calls this itself when a rule asks; call it directly to inspect the
-distances.
+For every segment of a segmented streams table that is smaller than a
+threshold, walks the network downstream and records the distance to
+the nearest segment at least that size. Size is one of three measures:
+mean annual discharge (\code{mad_m3s}), modelled channel width
+(\code{channel_width}) or stream order (\code{stream_order}). A habitat rule's
+\code{near_river} condition reads the result, so a small stream close to a
+large river can pass a rule whose size test it fails (see
+\code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}). \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} calls this
+itself when a rule asks; call it directly to inspect the distances.
 }
 \details{
 The walk follows main flow (\code{blue_line_key = watershed_key}), as the
@@ -59,9 +76,9 @@ whose lower end is within the distance passes whole.
 \item It ends at the bank of the river, not at its centreline. Where a
 tributary meets a river drawn as a polygon, its line crosses the
 polygon as a connector (FWA edge types 1400 and 1450) to the
-centreline. A connector carries the tributary's own small flow, so
-it is never a target, and the connector inside the target's polygon
-(same \code{waterbody_key}) is left out of the distance. FWA draws about a
+centreline. A connector belongs to the tributary, so it is never a
+target, and the connector inside the target's polygon (same
+\code{waterbody_key}) is left out of the distance. FWA draws about a
 third of connectors as side lines, which the walk does not follow;
 the walk then jumps from the tributary's mouth to the centreline, and
 that jump is left out too. A connector inside a polygon the walk only
@@ -77,10 +94,19 @@ walk that enters at the nearest point, either way: longer by a
 counted jump, or shorter by the stretch between the two points.
 }
 
-\strong{Which segments are measured.} Only segments whose own \code{mad_m3s} is
-NULL or below \code{discharge_min} get a row: a river large enough to be a
-target passes or fails on its own size test, never on its distance to
-itself. A segment with NULL \code{mad_m3s} is never a target.
+\strong{Which segments are measured.} Only segments whose own value of the
+measure is NULL or below \code{threshold} get a row: a river large enough
+to be a target passes or fails on its own size test, never on its
+distance to itself. A segment with a NULL value is never a target.
+
+\strong{The three measures differ in what they see.} fwapg's discharge is
+missing on some main stems (none of BULK's 1,118 river-polygon rows
+carries one), while channel width is modelled on every river-polygon
+row and missing mostly on first-order streams, which are origins, not
+targets. Most lake flow lines carry no width but do carry an order, so
+under width a lake's line is rarely a river and under order it is.
+Stream order is topological: an order-5 stream in a dry basin can
+carry less water than an order-4 one in a wet basin.
 
 \strong{Limits.}
 \itemize{
@@ -107,11 +133,15 @@ conn <- frs_db_conn()
 
 # Segments within 1 km of a river carrying 3 m3/s, BULK working table
 frs_near_river(conn, "working_bulk.streams", "working_bulk.near_river",
-  discharge_min = 3, distance_max = 1000)
+  threshold = 3, distance_max = 1000)
+
+# The same, finding the river by a modelled channel width of 20 m
+frs_near_river(conn, "working_bulk.streams", "working_bulk.near_river",
+  threshold = 20, distance_max = 1000, measure = "channel_width")
 
 DBI::dbGetQuery(conn, "
-  SELECT count(*) AS n, round(avg(dist_m)) AS mean_m
-  FROM working_bulk.near_river WHERE discharge_min = 3")
+  SELECT measure, threshold, count(*) AS n, round(avg(dist_m)) AS mean_m
+  FROM working_bulk.near_river GROUP BY 1, 2")
 
 DBI::dbDisconnect(conn)
 }

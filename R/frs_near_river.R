@@ -1,13 +1,14 @@
 #' Distance from Each Segment Down to the Nearest River
 #'
-#' For every segment of a segmented streams table whose own discharge is
-#' below a threshold, walks the network downstream and records the
-#' distance to the nearest segment carrying at least that discharge. A
-#' habitat rule's `near_river` condition reads the result, so a small
-#' stream close to a large river can pass a rule whose size test it
-#' fails (see [frs_habitat_predicates()]). [frs_habitat_classify()]
-#' calls this itself when a rule asks; call it directly to inspect the
-#' distances.
+#' For every segment of a segmented streams table that is smaller than a
+#' threshold, walks the network downstream and records the distance to
+#' the nearest segment at least that size. Size is one of three measures:
+#' mean annual discharge (`mad_m3s`), modelled channel width
+#' (`channel_width`) or stream order (`stream_order`). A habitat rule's
+#' `near_river` condition reads the result, so a small stream close to a
+#' large river can pass a rule whose size test it fails (see
+#' [frs_habitat_predicates()]). [frs_habitat_classify()] calls this
+#' itself when a rule asks; call it directly to inspect the distances.
 #'
 #' The walk follows main flow (`blue_line_key = watershed_key`), as the
 #' other downstream traces in fresh do, so a side channel starts on the
@@ -19,9 +20,9 @@
 #' - It ends at the bank of the river, not at its centreline. Where a
 #'   tributary meets a river drawn as a polygon, its line crosses the
 #'   polygon as a connector (FWA edge types 1400 and 1450) to the
-#'   centreline. A connector carries the tributary's own small flow, so
-#'   it is never a target, and the connector inside the target's polygon
-#'   (same `waterbody_key`) is left out of the distance. FWA draws about a
+#'   centreline. A connector belongs to the tributary, so it is never a
+#'   target, and the connector inside the target's polygon (same
+#'   `waterbody_key`) is left out of the distance. FWA draws about a
 #'   third of connectors as side lines, which the walk does not follow;
 #'   the walk then jumps from the tributary's mouth to the centreline, and
 #'   that jump is left out too. A connector inside a polygon the walk only
@@ -36,10 +37,19 @@
 #'   walk that enters at the nearest point, either way: longer by a
 #'   counted jump, or shorter by the stretch between the two points.
 #'
-#' **Which segments are measured.** Only segments whose own `mad_m3s` is
-#' NULL or below `discharge_min` get a row: a river large enough to be a
-#' target passes or fails on its own size test, never on its distance to
-#' itself. A segment with NULL `mad_m3s` is never a target.
+#' **Which segments are measured.** Only segments whose own value of the
+#' measure is NULL or below `threshold` get a row: a river large enough
+#' to be a target passes or fails on its own size test, never on its
+#' distance to itself. A segment with a NULL value is never a target.
+#'
+#' **The three measures differ in what they see.** fwapg's discharge is
+#' missing on some main stems (none of BULK's 1,118 river-polygon rows
+#' carries one), while channel width is modelled on every river-polygon
+#' row and missing mostly on first-order streams, which are origins, not
+#' targets. Most lake flow lines carry no width but do carry an order, so
+#' under width a lake's line is rarely a river and under order it is.
+#' Stream order is topological: an order-5 stream in a dry basin can
+#' carry less water than an order-4 one in a wet basin.
 #'
 #' **Limits.**
 #' - The walk sees only `table`. A working table holds one watershed
@@ -63,20 +73,27 @@
 #'   `id_segment`, `watershed_group_code`, `blue_line_key`,
 #'   `watershed_key`, `downstream_route_measure`, `wscode_ltree`,
 #'   `localcode_ltree`, `edge_type`, `waterbody_key`, `length_metre`,
-#'   `mad_m3s` and `geom`.
+#'   `geom`, and the column of each measure asked for: `mad_m3s`,
+#'   `channel_width` or `stream_order`.
 #' @param to Character. Schema-qualified output table, created if it does
 #'   not exist, with columns `id_segment`, `watershed_group_code`,
-#'   `discharge_min`, `distance_max` and `dist_m`. A `near_river` rule
-#'   reads only rows of its own exact pair, so build the table with the
-#'   pairs the rules carry ([frs_habitat_classify()] does): a walk at a
-#'   longer distance does not serve a rule with a shorter one. Rows for the watershed groups in
-#'   `table` are replaced on every call; other groups' rows are kept.
-#' @param discharge_min Numeric vector. River discharges to find (m3/s),
-#'   each finite and above zero.
-#' @param distance_max Numeric vector, one per `discharge_min`. Farthest
+#'   `measure`, `threshold`, `distance_max` and `dist_m`. A `near_river`
+#'   rule reads only rows of its own exact measure, threshold and
+#'   distance, so build the table with the pairs the rules carry
+#'   ([frs_habitat_classify()] does): a walk at a longer distance does
+#'   not serve a rule with a shorter one. Rows for the watershed groups
+#'   in `table` are replaced on every call; other groups' rows are kept.
+#'   A table written by fresh 0.41.0 (with a `discharge_min` column and
+#'   no `measure`) stops the call; drop it and re-run.
+#' @param threshold Numeric vector. River sizes to find, each finite and
+#'   above zero, in the measure's unit: m3/s for `"discharge"`, m for
+#'   `"channel_width"`, an order for `"stream_order"`.
+#' @param distance_max Numeric vector, one per `threshold`. Farthest
 #'   distance (m) to record for that pair. Each pair is walked on its own,
 #'   so a pair's distances never depend on the other pairs in the call;
 #'   pairs must be distinct.
+#' @param measure Character, length 1 or one per `threshold`:
+#'   `"discharge"` (default), `"channel_width"` or `"stream_order"`.
 #' @param verbose Logical. Print rows written, segments with no local
 #'   code, and timing. Default `TRUE`.
 #'
@@ -92,36 +109,50 @@
 #'
 #' # Segments within 1 km of a river carrying 3 m3/s, BULK working table
 #' frs_near_river(conn, "working_bulk.streams", "working_bulk.near_river",
-#'   discharge_min = 3, distance_max = 1000)
+#'   threshold = 3, distance_max = 1000)
+#'
+#' # The same, finding the river by a modelled channel width of 20 m
+#' frs_near_river(conn, "working_bulk.streams", "working_bulk.near_river",
+#'   threshold = 20, distance_max = 1000, measure = "channel_width")
 #'
 #' DBI::dbGetQuery(conn, "
-#'   SELECT count(*) AS n, round(avg(dist_m)) AS mean_m
-#'   FROM working_bulk.near_river WHERE discharge_min = 3")
+#'   SELECT measure, threshold, count(*) AS n, round(avg(dist_m)) AS mean_m
+#'   FROM working_bulk.near_river GROUP BY 1, 2")
 #'
 #' DBI::dbDisconnect(conn)
 #' }
-frs_near_river <- function(conn, table, to, discharge_min, distance_max,
-                           verbose = TRUE) {
+frs_near_river <- function(conn, table, to, threshold, distance_max,
+                           measure = "discharge", verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
   .frs_validate_identifier(to, "output table")
   ok_num <- function(x) {
     is.numeric(x) && length(x) > 0 && all(is.finite(x)) && all(x > 0)
   }
-  if (!ok_num(discharge_min)) {
-    stop("discharge_min must be finite numbers above zero", call. = FALSE)
+  if (!ok_num(threshold)) {
+    stop("threshold must be finite numbers above zero", call. = FALSE)
   }
-  if (!ok_num(distance_max) || length(distance_max) != length(discharge_min)) {
+  if (!ok_num(distance_max) || length(distance_max) != length(threshold)) {
     stop(paste0("distance_max must be finite numbers above zero, one per ",
-                "discharge_min"), call. = FALSE)
+                "threshold"), call. = FALSE)
   }
-  if (anyDuplicated(data.frame(discharge_min, distance_max))) {
-    stop("each (discharge_min, distance_max) pair must be distinct",
+  if (!is.character(measure) || anyNA(measure) ||
+      !length(measure) %in% c(1L, length(threshold)) ||
+      !all(measure %in% names(.frs_near_river_cols()))) {
+    stop(sprintf(paste0("measure must be one of %s, length 1 or one per ",
+                        "threshold"),
+                 paste0('"', names(.frs_near_river_cols()), '"',
+                        collapse = ", ")), call. = FALSE)
+  }
+  measure <- rep_len(measure, length(threshold))
+  if (anyDuplicated(data.frame(measure, threshold, distance_max))) {
+    stop("each (measure, threshold, distance_max) pair must be distinct",
          call. = FALSE)
   }
+  size_cols <- unname(.frs_near_river_cols()[unique(measure)])
   cols_need <- c("id_segment", "watershed_group_code", "blue_line_key",
                  "watershed_key", "downstream_route_measure", "wscode_ltree",
                  "localcode_ltree", "edge_type", "waterbody_key",
-                 "length_metre", "mad_m3s", "geom")
+                 "length_metre", size_cols, "geom")
   cols_have <- names(DBI::dbGetQuery(conn,
     sprintf("SELECT * FROM %s LIMIT 0", table)))
   missing <- setdiff(cols_need, cols_have)
@@ -129,8 +160,9 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
     stop(sprintf("%s has no %s column%s (frs_near_river() needs %s)",
                  table, paste(missing, collapse = ", "),
                  if (length(missing) > 1) "s" else "",
-                 if ("mad_m3s" %in% missing)
-                   "mad_m3s, joined by frs_network_segment() or frs_col_join()"
+                 if (any(missing %in% size_cols))
+                   paste0("the column of each measure; mad_m3s is joined ",
+                          "by frs_network_segment() or frs_col_join()")
                  else "the columns frs_network_segment() writes"),
          call. = FALSE)
   }
@@ -160,49 +192,37 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
            GROUP BY waterbody_key, blue_line_key, watershed_key) x", table))
   conn_max <- lens$on_path + lens$side
 
-  .frs_db_execute(conn, sprintf(
-    "CREATE TABLE IF NOT EXISTS %s (
-       id_segment integer,
-       watershed_group_code character varying(4),
-       discharge_min double precision,
-       distance_max double precision,
-       dist_m double precision)", to))
-  to_name <- utils::tail(strsplit(to, ".", fixed = TRUE)[[1]], 1)
-  .frs_db_execute(conn, sprintf(
-    "CREATE INDEX IF NOT EXISTS %s_seg_idx ON %s
-       (id_segment, watershed_group_code, discharge_min, distance_max)",
-    to_name, to))
-  .frs_db_execute(conn, sprintf(
-    "CREATE INDEX IF NOT EXISTS %s_wsg_idx ON %s (watershed_group_code)",
-    to_name, to))
+  .frs_near_river_table(conn, to)
   # A custom AOI need not be one group, so delete every group the table holds.
   .frs_db_execute(conn, sprintf(
     "DELETE FROM %s WHERE watershed_group_code IN (
        SELECT DISTINCT watershed_group_code FROM %s)", to, table))
-  # One walk per (discharge_min, distance_max) pair, so each answer is a
-  # function of its own two numbers: the cap and prefilter come from the
-  # pair alone, never from another rule's distance.
-  for (i in seq_along(discharge_min)) {
-    q <- discharge_min[i]
+  # One walk per (measure, threshold, distance_max), so each answer is a
+  # function of its own numbers: the cap and prefilter come from the pair
+  # alone, never from another rule's distance.
+  for (i in seq_along(threshold)) {
+    q <- threshold[i]
     d <- distance_max[i]
+    col <- .frs_near_river_cols()[[measure[i]]]
     .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl))
     .frs_db_execute(conn, .frs_near_river_walk_sql(
-      table, walk_tbl, q, d, conn_max, entry_max = lens$side))
+      table, walk_tbl, q, d, conn_max, entry_max = lens$side, col = col))
     .frs_db_execute(conn, sprintf(
-      "INSERT INTO %s (id_segment, watershed_group_code, discharge_min,
+      "INSERT INTO %s (id_segment, watershed_group_code, measure, threshold,
          distance_max, dist_m)
-       SELECT origin_id, watershed_group_code, discharge_min,
+       SELECT origin_id, watershed_group_code, %s, threshold,
          %s::double precision, dist_m
-       FROM %s", to, .frs_sql_num(d), walk_tbl))
+       FROM %s", to, .frs_quote_string(measure[i]), .frs_sql_num(d),
+      walk_tbl))
     if (verbose) {
       stats <- DBI::dbGetQuery(conn, sprintf(
         "SELECT count(*)::int AS near,
            (SELECT count(*) FROM %s o WHERE o.localcode_ltree IS NULL
-              AND (o.mad_m3s IS NULL OR o.mad_m3s < %s))::int AS nocode
-         FROM %s", table, .frs_sql_num(q), walk_tbl))
-      cat("  Near river >= ", q, " m3/s: ", stats$near, " segments within ",
-          d, " m; ", stats$nocode, " with no local code did not walk\n",
-          sep = "")
+              AND (o.%s IS NULL OR o.%s < %s))::int AS nocode
+         FROM %s", table, col, col, .frs_sql_num(q), walk_tbl))
+      cat("  Near river ", .frs_near_river_label(measure[i], q), ": ",
+          stats$near, " segments within ", d, " m; ", stats$nocode,
+          " with no local code did not walk\n", sep = "")
     }
   }
   if (verbose) {
@@ -214,16 +234,68 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 }
 
 
-#' VALUES rows of (discharge_min, distance_max) as double precision
+#' Column each near_river measure reads
+#'
+#' @return Named character vector, measure = column on the streams table.
+#' @noRd
+.frs_near_river_cols <- function() {
+  c(discharge = "mad_m3s", channel_width = "channel_width",
+    stream_order = "stream_order")
+}
+
+
+#' A near_river measure and threshold, for messages
+#'
+#' @noRd
+.frs_near_river_label <- function(measure, threshold) {
+  switch(measure,
+    discharge = sprintf(">= %s m3/s", threshold),
+    channel_width = sprintf("channel width >= %s m", threshold),
+    stream_order = sprintf("order >= %s", threshold))
+}
+
+
+#' Create the near_river output table, refusing the 0.41.0 shape
+#'
+#' @noRd
+.frs_near_river_table <- function(conn, to) {
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE IF NOT EXISTS %s (
+       id_segment integer,
+       watershed_group_code character varying(4),
+       measure text,
+       threshold double precision,
+       distance_max double precision,
+       dist_m double precision)", to))
+  have <- names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0", to)))
+  if (!all(c("measure", "threshold") %in% have)) {
+    stop(sprintf(paste0(
+      "%s has no measure / threshold columns: it was written by fresh ",
+      "0.41.0, which measured discharge only. Drop it and re-run (the ",
+      "table is rebuilt from the streams table)."), to), call. = FALSE)
+  }
+  to_name <- utils::tail(strsplit(to, ".", fixed = TRUE)[[1]], 1)
+  .frs_db_execute(conn, sprintf(
+    "CREATE INDEX IF NOT EXISTS %s_seg_idx ON %s
+       (id_segment, watershed_group_code, measure, threshold, distance_max)",
+    to_name, to))
+  .frs_db_execute(conn, sprintf(
+    "CREATE INDEX IF NOT EXISTS %s_wsg_idx ON %s (watershed_group_code)",
+    to_name, to))
+  invisible(to)
+}
+
+
+#' VALUES rows of (threshold, distance_max) as double precision
 #'
 #' Both numbers go through `.frs_sql_num()`, the formatter the
-#' `near_river` predicate uses, so the stored `discharge_min` and the
+#' `near_river` predicate uses, so the stored `threshold` and the
 #' predicate's literal are the same text.
 #'
 #' @noRd
-.frs_near_river_values <- function(discharge_min, distance_max) {
+.frs_near_river_values <- function(threshold, distance_max) {
   paste(sprintf("(%s::double precision, %s::double precision)",
-                vapply(discharge_min, .frs_sql_num, character(1)),
+                vapply(threshold, .frs_sql_num, character(1)),
                 vapply(distance_max, .frs_sql_num, character(1))),
         collapse = ", ")
 }
@@ -231,8 +303,9 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 
 #' SQL that builds the near-river walk table
 #'
-#' One walk per `(discharge_min, distance_max)` pair (scalars): origins
-#' are the rows below `discharge_min`, joined to every main-flow row
+#' One walk per `(threshold, distance_max)` pair (scalars) on one size
+#' column `col` (`.frs_near_river_cols()`): origins are the rows whose
+#' `col` is NULL or below `threshold`, joined to every main-flow row
 #' downstream within `distance_max + conn_max` (straight line, then along
 #' the path). Path order is `wscode_ltree DESC, downstream_route_measure
 #' DESC, id_segment DESC`, with explicit row frames.
@@ -285,17 +358,20 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #' its own.
 #'
 #' The table holds one row per origin that found a river within range
-#' (`discharge_min`, `dist_m` = the smallest bank distance to a
-#' non-connector row at or above that discharge, for an origin below it).
+#' (`threshold`, `dist_m` = the smallest bank distance to a
+#' non-connector row whose `col` is at or above the threshold, for an
+#' origin below it).
 #'
 #' @noRd
-.frs_near_river_walk_sql <- function(table, walk_tbl, discharge_min,
+.frs_near_river_walk_sql <- function(table, walk_tbl, threshold,
                                      distance_max, conn_max, entry_max,
-                                     bank = TRUE, jumps = TRUE) {
+                                     bank = TRUE, jumps = TRUE,
+                                     col = "mad_m3s") {
   # One pair per walk: the cap and prefilter come from distance_max, so
   # two pairs in one walk would make one answer depend on the other, and
   # the output (grouped by discharge) would merge them.
-  stopifnot(length(discharge_min) == 1L, length(distance_max) == 1L)
+  stopifnot(length(threshold) == 1L, length(distance_max) == 1L,
+            col %in% .frs_near_river_cols())
   # Not counting jumps while subtracting entry jumps would go negative.
   stopifnot(jumps || !bank)
   cap <- .frs_sql_num(max(distance_max) + conn_max)
@@ -331,10 +407,11 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
   sprintf(
     "CREATE TEMP TABLE %s AS
      WITH origins AS (
-       SELECT id_segment, watershed_group_code, mad_m3s, blue_line_key,
+       SELECT id_segment, watershed_group_code,
+         %s::double precision AS val, blue_line_key,
          downstream_route_measure, wscode_ltree, localcode_ltree, geom
        FROM %s
-       WHERE (mad_m3s IS NULL OR mad_m3s < %s)
+       WHERE (%s IS NULL OR %s < %s)
          -- FWA_Downstream() would still join a row with no local code to
          -- the bottom row of every ancestor line (its wscode = localcode
          -- branch never reads the origin's local code), skipping the
@@ -343,7 +420,8 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
      ),
      downstream AS (
        SELECT o.id_segment AS origin_id, o.watershed_group_code,
-         o.mad_m3s AS origin_mad, t.id_segment, t.edge_type, t.mad_m3s,
+         o.val AS origin_val, t.id_segment, t.edge_type,
+         t.%s::double precision AS val,
          t.length_metre, t.waterbody_key, t.wscode_ltree,
          t.downstream_route_measure, t.geom,
          coalesce(LAG(ST_StartPoint(t.geom)) OVER (PARTITION BY o.id_segment
@@ -379,8 +457,8 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
          AND ST_DWithin(t.geom, o.geom, %s)
      ),
      entered AS (
-       SELECT origin_id, watershed_group_code, origin_mad, id_segment,
-         edge_type, mad_m3s, length_metre, waterbody_key, wscode_ltree,
+       SELECT origin_id, watershed_group_code, origin_val, id_segment,
+         edge_type, val, length_metre, waterbody_key, wscode_ltree,
          downstream_route_measure,
          ST_Distance(prev_pt, geom) AS jump_m,
          length_metre * ST_LineLocatePoint(ST_Force2D(geom),
@@ -389,8 +467,8 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
        FROM downstream
      ),
      walked AS (
-       SELECT origin_id, watershed_group_code, origin_mad, edge_type,
-         mad_m3s, below_m,
+       SELECT origin_id, watershed_group_code, origin_val, edge_type,
+         val, below_m,
          SUM(below_m + %s) OVER w - below_m AS path_m,
          %s AS connector_m,
          bool_or(above_dropped) OVER w AS cut
@@ -400,18 +478,19 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
      capped AS (
        SELECT * FROM walked WHERE path_m <= %s AND NOT cut
      )
-     SELECT c.origin_id, c.watershed_group_code, q.discharge_min,
+     SELECT c.origin_id, c.watershed_group_code, q.threshold,
        greatest(min(c.path_m - c.connector_m), 0) AS dist_m
      FROM capped c
-     INNER JOIN (VALUES %s) AS q(discharge_min, distance_max)
-       ON c.mad_m3s >= q.discharge_min
+     INNER JOIN (VALUES %s) AS q(threshold, distance_max)
+       ON c.val >= q.threshold
       AND c.edge_type NOT IN (1400, 1450)
-      AND (c.origin_mad IS NULL OR c.origin_mad < q.discharge_min)
+      AND (c.origin_val IS NULL OR c.origin_val < q.threshold)
       AND c.path_m - c.connector_m <= q.distance_max
-     GROUP BY c.origin_id, c.watershed_group_code, q.discharge_min",
-    walk_tbl, table, .frs_sql_num(max(discharge_min)), ord, table, cap, table, cap,
+     GROUP BY c.origin_id, c.watershed_group_code, q.threshold",
+    walk_tbl, col, table, col, col, .frs_sql_num(threshold), col, ord,
+    table, cap, table, cap,
     entry_sql, if (jumps) "jump_m" else "0", conn_sql, ord_bare, frame, cap,
-    .frs_near_river_values(discharge_min, distance_max))
+    .frs_near_river_values(threshold, distance_max))
 }
 
 

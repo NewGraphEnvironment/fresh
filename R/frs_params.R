@@ -167,10 +167,11 @@ frs_params <- function(conn = NULL,
         if (!is.null(rule[["mad"]])) {
           raw[[sp]][[habitat]][[i]][["mad"]] <- as.numeric(unlist(rule[["mad"]]))
         }
-        if (!is.null(rule[["near_river"]])) {
-          raw[[sp]][[habitat]][[i]][["near_river"]] <- lapply(
-            rule[["near_river"]][c("discharge_min", "distance_max")],
-            as.numeric)
+        # A mapping is stored as (measure, threshold, distance_max); a
+        # `false` opt-out stays FALSE (#263).
+        if (is.list(rule[["near_river"]])) {
+          raw[[sp]][[habitat]][[i]][["near_river"]] <-
+            .frs_near_river_normalize(rule[["near_river"]])
         }
       }
       if (habitat == "rear") .frs_validate_rear_connected(rule_list, sp)
@@ -470,45 +471,102 @@ frs_params <- function(conn = NULL,
 
 #' Validate a rule's near_river mapping
 #'
-#' Requires a named mapping with exactly `discharge_min` (m3/s) and
-#' `distance_max` (m), each a finite numeric scalar above zero, and
-#' refuses the key on a lake or wetland rule, whose lines route through
-#' a polygon and carry no size test to relax.
+#' A rule's `near_river` is either a named mapping with `distance_max`
+#' (m) and exactly one size key, `discharge_min` (m3/s),
+#' `channel_width_min` (m) or `stream_order_min` (an order), each a
+#' finite numeric scalar above zero; or `false`, which opts the rule out
+#' of a pair it would inherit from the thresholds CSV (#263). Both are
+#' refused on a lake or wetland rule, whose lines route through a polygon
+#' and carry no size test to relax or inherit. `true` is refused.
 #'
 #' @noRd
 .frs_validate_near_river <- function(rule, sp, habitat, idx) {
   nr <- rule[["near_river"]]
   where <- sprintf("rules YAML %s/%s rule %d near_river", sp, habitat, idx)
-  if (!is.list(nr) || is.null(names(nr)) || any(!nzchar(names(nr)))) {
-    stop(sprintf("%s must be a named mapping with discharge_min and distance_max",
-                 where), call. = FALSE)
+  wt <- rule[["waterbody_type"]]
+  on_lw <- !is.null(wt) && wt %in% c("L", "W")
+  if (isFALSE(nr)) {
+    if (on_lw) {
+      stop(sprintf(paste0(
+        "%s: false is not allowed on a waterbody_type: %s rule, which ",
+        "inherits no near_river pair to opt out of"), where, wt),
+        call. = FALSE)
+    }
+    return(invisible(NULL))
   }
-  nr_keys <- c("discharge_min", "distance_max")
+  if (isTRUE(nr)) {
+    stop(sprintf(paste0(
+      "%s: true is not a value. Give a mapping, or false to opt out of ",
+      "the pair the rule inherits from the thresholds CSV"), where),
+      call. = FALSE)
+  }
+  size_keys <- names(.frs_near_river_keys())
+  if (!is.list(nr) || is.null(names(nr)) || any(!nzchar(names(nr)))) {
+    stop(sprintf(paste0(
+      "%s must be a named mapping with distance_max and one of %s, ",
+      "or false"), where, paste(size_keys, collapse = ", ")), call. = FALSE)
+  }
+  nr_keys <- c(size_keys, "distance_max")
   unknown <- setdiff(names(nr), nr_keys)
   if (length(unknown) > 0) {
     stop(sprintf("%s has unknown keys: %s. Valid: %s", where,
                  paste(unknown, collapse = ", "),
                  paste(nr_keys, collapse = ", ")), call. = FALSE)
   }
-  missing <- setdiff(nr_keys, names(nr))
-  if (length(missing) > 0) {
-    stop(sprintf("%s is missing: %s", where,
-                 paste(missing, collapse = ", ")), call. = FALSE)
+  if (!"distance_max" %in% names(nr)) {
+    stop(sprintf("%s is missing: distance_max", where), call. = FALSE)
   }
-  for (k in nr_keys) {
+  n_size <- sum(size_keys %in% names(nr))
+  if (n_size != 1L) {
+    stop(sprintf("%s needs exactly one of %s, got %d", where,
+                 paste(size_keys, collapse = ", "), n_size), call. = FALSE)
+  }
+  for (k in intersect(nr_keys, names(nr))) {
     v <- nr[[k]]
     if (!is.numeric(v) || length(v) != 1L || !is.finite(v) || v <= 0) {
       stop(sprintf("%s$%s must be a finite number above zero", where, k),
            call. = FALSE)
     }
   }
-  wt <- rule[["waterbody_type"]]
-  if (!is.null(wt) && wt %in% c("L", "W")) {
+  if (on_lw) {
     stop(sprintf(paste0(
       "%s is not allowed on a waterbody_type: %s rule, which has no ",
       "size test to relax"), where, wt), call. = FALSE)
   }
   invisible(NULL)
+}
+
+
+#' The size key of each near_river measure
+#'
+#' @return Named character vector, rule key = measure.
+#' @noRd
+.frs_near_river_keys <- function() {
+  c(discharge_min = "discharge", channel_width_min = "channel_width",
+    stream_order_min = "stream_order")
+}
+
+
+#' A near_river mapping as (measure, threshold, distance_max)
+#'
+#' Accepts the rule-key form (`discharge_min` / `channel_width_min` /
+#' `stream_order_min` with `distance_max`) or the stored form (`measure`,
+#' `threshold`, `distance_max`) and returns the stored form with numeric
+#' values. `NULL` and `FALSE` pass through.
+#'
+#' @noRd
+.frs_near_river_normalize <- function(nr) {
+  if (is.null(nr) || isFALSE(nr)) return(nr)
+  if (!is.null(nr[["measure"]])) {
+    return(list(measure = as.character(nr[["measure"]]),
+                threshold = as.numeric(nr[["threshold"]]),
+                distance_max = as.numeric(nr[["distance_max"]])))
+  }
+  keys <- .frs_near_river_keys()
+  k <- intersect(names(keys), names(nr))
+  stopifnot(length(k) == 1L)
+  list(measure = keys[[k]], threshold = as.numeric(nr[[k]]),
+       distance_max = as.numeric(nr[["distance_max"]]))
 }
 
 

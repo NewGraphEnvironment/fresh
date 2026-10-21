@@ -273,13 +273,14 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
 #'
 #' Scans every spawn and rear rule of `species` in `params` for a
 #' `near_river` mapping and returns one row per distinct
-#' `(discharge_min, distance_max)` pair. [frs_near_river()] walks once
+#' `(measure, threshold, distance_max)`. [frs_near_river()] walks once
 #' per pair, so one rule's answer never depends on another rule's.
 #'
 #' @param params Named list from [frs_params()].
 #' @param species Character vector of species codes.
-#' @return A data frame with numeric `discharge_min` and `distance_max`,
-#'   ordered by both; zero rows when no rule asks.
+#' @return A data frame with character `measure` and numeric `threshold`
+#'   and `distance_max`, ordered by all three; zero rows when no rule
+#'   asks.
 #' @noRd
 .frs_near_river_specs <- function(params, species) {
   nrs <- list()
@@ -288,19 +289,30 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
     for (habitat in c("spawn", "rear")) {
       for (r in rules[[habitat]]) {
         nr <- r[["near_river"]]
-        if (!is.null(nr)) nrs[[length(nrs) + 1L]] <- nr
+        if (is.list(nr)) nrs[[length(nrs) + 1L]] <- .frs_near_river_normalize(nr)
       }
     }
   }
+  .frs_near_river_specs_frame(nrs)
+}
+
+
+#' One row per distinct near_river pair, ordered
+#'
+#' @param nrs List of stored-form near_river mappings.
+#' @noRd
+.frs_near_river_specs_frame <- function(nrs) {
   if (length(nrs) == 0) {
-    return(data.frame(discharge_min = numeric(0), distance_max = numeric(0)))
+    return(data.frame(measure = character(0), threshold = numeric(0),
+                      distance_max = numeric(0), stringsAsFactors = FALSE))
   }
   out <- unique(data.frame(
-    discharge_min = vapply(nrs, function(x) as.numeric(x[["discharge_min"]]),
-                           numeric(1)),
-    distance_max = vapply(nrs, function(x) as.numeric(x[["distance_max"]]),
-                          numeric(1))))
-  out <- out[order(out$discharge_min, out$distance_max), , drop = FALSE]
+    measure = vapply(nrs, function(x) x[["measure"]], character(1)),
+    threshold = vapply(nrs, function(x) x[["threshold"]], numeric(1)),
+    distance_max = vapply(nrs, function(x) x[["distance_max"]], numeric(1)),
+    stringsAsFactors = FALSE))
+  out <- out[order(out$measure, out$threshold, out$distance_max), ,
+             drop = FALSE]
   rownames(out) <- NULL
   out
 }

@@ -10,9 +10,9 @@
 - Agent's calls (mechanism, stated here): under `model` both `_channel_width_min` and `_discharge_min` must be set when `distance_max` is, so neither model is silently pair-less. `frs_near_river()` takes `threshold`, `distance_max` and `measure` (breaking from 0.41.0, released the same day with no external caller). The output table carries `measure` and `threshold` in place of `discharge_min`, and an output table in the 0.41.0 shape stops with a message to drop it. Predicates are built only for the models applied (cw is skipped when every group is mad), and the walk's pairs come from those models.
 
 ## Phase 1 — the measure (#262)
-- [ ] `frs_near_river(conn, table, to, threshold, distance_max, measure = "discharge", verbose)`: walk SQL parameterized on the measure's column (`mad_m3s` / `channel_width` / `stream_order`); origins NULL or below, targets at or above; output `(id_segment, watershed_group_code, measure, threshold, distance_max, dist_m)`; old-shape table stops; columns checked per measure
-- [ ] Rule grammar: `.frs_validate_near_river()` takes exactly one size key, or `false` (refused on L/W), refuses `true`; loader normalizes; `.frs_near_river_sql()` matches measure, threshold, distance
-- [ ] Tests: walk by width and by order on the fixture; predicate text; validator cases; existing tests moved to the new names
+- [x] `frs_near_river(conn, table, to, threshold, distance_max, measure = "discharge", verbose)`: walk SQL parameterized on the measure's column (`mad_m3s` / `channel_width` / `stream_order`); origins NULL or below, targets at or above; output `(id_segment, watershed_group_code, measure, threshold, distance_max, dist_m)`; old-shape table stops; columns checked per measure
+- [x] Rule grammar: `.frs_validate_near_river()` takes exactly one size key, or `false` (refused on L/W), refuses `true`; loader normalizes; `.frs_near_river_sql()` matches measure, threshold, distance
+- [x] Tests: walk by width and by order on the fixture; predicate text; validator cases; existing tests moved to the new names
 
 ## Phase 2 — inheritance (#263)
 - [ ] `frs_params()`: `*_river_measure` in `char_fields`; `.frs_build_near_river()` per stage (half pairs stop incl. `Inf`; unknown measure stops; `model` needs both mins); warn on unknown `*_river_*` columns
