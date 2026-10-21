@@ -53,3 +53,29 @@ Province-wide: 1450 rows inside river polygons 208,409 (mean 45 m, p90 92 m; 68,
 
 | Error | Resolution |
 |-------|------------|
+
+## Phase 4: BULK against an independent walk (2026-10-21 UTC, fresh 7320a21)
+
+`data-raw/near_river_check.R BULK 3 <reference SQL>`; log `data-raw/logs/near_river_259/bulk_*`. Working table from `frs_network_segment()` (no breaks), wet's annual pick as `mad_m3s`. The reference walks route measures on raw FWA to the centreline of the first primary-flow segment at or above 3 m³/s.
+
+| measure | value |
+|---|---|
+| segments / at or above 3 m³/s / no local code | 32,472 / 1,087 / 2,426 |
+| walk time, 1 km / 20 km | 12.6 s / 56.7 s |
+| within 1 km / within 20 km | 2,116 / 22,617 |
+| negative distances | 0 |
+| 1 km and 20 km walks disagreeing within 1 km | 0 |
+| bank offset (centreline minus bank), found by both | 14,885 of 22,594; mean 47.9 m, max 599.1 m |
+| rows for segments at or above 3 m³/s | 0 |
+| Coffin Creek (link#364's example) through wetlands | 4,594 to 12,337 m: fails at 1 km |
+
+2,466 starts, every residual attributed: agree 761 (max 0.003 m), bank 1,133 (subtraction alone, mean 33.7 m), beyond 438 (past 20 km both), entry 114 (the two walks enter a parent line at different points; for most the residual equals the jump fresh counts and the reference does not; median 529 m), nested_code 20 (2 targets; one BULK main-flow row carries a local code nested under a tributary's, 2,013 such rows province-wide), unexplained 0.
+
+**What the check found and fixed (commit 7320a21).** The first run had 183 negative distances (floating-point residue, −2e−13 m: clamped) and 127 segments within 1 km that the 20 km walk found and the 1 km walk did not. Cause: a path that leaves the table and re-enters (a tributary joining its river in a stretch outside BULK) counted the stretch as nothing, a 17.8 km stretch read as 973 m, and only the straight-line prefilter of the smaller reach hid it. Fix: count every jump between path rows at its straight length. That surfaced two more: a tributary meeting its parent part-way along a row counted the whole row (fix: walk only below the entry point, `ST_LineLocatePoint()`), and on one line a row upstream of the origin carried a lower local code, so `FWA_Downstream()`'s code branch put it on the path (fix: on the origin's own line the measure decides).
+
+**Plan assumptions that did not hold.**
+- "A connector with NULL localcode is never on the working table": `frs_network_segment()` keeps side-line rows with no local code (BULK 2,426: side channels 1100 238 of 358, 1350 177, 1450 486, plus 1,513 placeholder 1400s). Main-flow rows with no local code are dropped. A row with no local code never walks; province-wide 50,280 of 83,642 side channels (1100) have none. Only 5 of BULK's 238 such side channels start on a 3 m³/s river.
+- About a third of connectors (BULK 574 of 1,624 edge 1450) are side lines, which the main-flow walk drops; the walk jumps from the tributary's mouth to the centreline, and that jump is the bank (subtracted when no longer than the longest side-line connector run).
+- `Lmax` per `waterbody_key` alone would sum every tributary's connector in a polygon; it is per `(waterbody_key, blue_line_key)`.
+
+**Follow-up worth filing (draft, not filed):** side channels with no local code cannot walk, and the issue's example rule lists 1100 and 1150. A walk could start them from the point where they rejoin a main-flow row (`ST_StartPoint`, nearest main-flow row), as the reference does at every hop.
