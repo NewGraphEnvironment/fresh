@@ -8,7 +8,7 @@ message: 'To cite package "fresh" in publications use:'
 type: software
 license: MIT
 title: 'fresh: Freshwater Referenced Spatial Hydrology'
-version: 0.40.0
+version: 0.40.1
 abstract: Stream network-aware spatial operations via direct SQL against fwapg. Segment
   networks at break points, classify habitat by species, aggregate upstream features,
   and query network-referenced lakes, wetlands, and streams from the BC Freshwater
@@ -27,8 +27,8 @@ preferred-citation:
     email: al@newgraphenvironment.com
     orcid: https://orcid.org/0000-0002-3495-2128
     affiliation: New Graph Environment Ltd.
-  version: 0.40.0
-  date-released: '2026-10-07'
+  version: 0.40.1
+  date-released: '2026-10-21'
   url: https://newgraphenvironment.github.io/fresh/
   repository-code: https://github.com/NewGraphEnvironment/fresh
   license: MIT
@@ -37,7 +37,7 @@ preferred-citation:
     name: New Graph Environment Ltd.
 repository-code: https://github.com/NewGraphEnvironment/fresh
 url: https://newgraphenvironment.github.io/fresh/
-date-released: '2026-10-07'
+date-released: '2026-10-21'
 contact:
 - family-names: Irvine
   given-names: Allan
