@@ -43,9 +43,7 @@
 #'
 #' **Limits.**
 #' - The walk sees only `table`. A working table holds one watershed
-#'   group, so a river beyond the group's outlet is not found. The
-#'   count of segments whose walk ended within reach (at the outlet, or
-#'   the sea) is reported when `verbose`.
+#'   group, so a river beyond the group's outlet is not found.
 #' - A segment with no local watershed code (`localcode_ltree` NULL),
 #'   which is most side channels (edge types 1100, 1150, 1350), has no
 #'   place in `FWA_Downstream()`'s ordering. It never walks, so it gets
@@ -66,9 +64,8 @@
 #'   each finite, above zero and distinct.
 #' @param distance_max Numeric vector, one per `discharge_min`. Farthest
 #'   distance (m) to record at that discharge.
-#' @param verbose Logical. Print rows written, segments whose walk ended
-#'   within reach, segments with no local code, and timing. Default
-#'   `TRUE`.
+#' @param verbose Logical. Print rows written, segments with no local
+#'   code, and timing. Default `TRUE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -171,34 +168,26 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
   .frs_db_execute(conn, sprintf(
     "INSERT INTO %s (id_segment, watershed_group_code, discharge_min, dist_m)
      SELECT origin_id, watershed_group_code, discharge_min, dist_m
-     FROM %s WHERE discharge_min IS NOT NULL", to, walk_tbl))
+     FROM %s", to, walk_tbl))
 
   if (verbose) {
     stats <- DBI::dbGetQuery(conn, sprintf(
       "SELECT q.discharge_min,
          count(hit.origin_id)::int AS near,
-         count(*) FILTER (WHERE hit.origin_id IS NULL
-           AND o.localcode_ltree IS NOT NULL
-           AND coalesce(e.dist_m, 0) < q.distance_max + %s)::int AS ended,
          count(*) FILTER (WHERE o.localcode_ltree IS NULL)::int AS nocode
        FROM %s o
        CROSS JOIN (VALUES %s) AS q(discharge_min, distance_max)
        LEFT JOIN %s hit ON hit.origin_id = o.id_segment
          AND hit.discharge_min = q.discharge_min
-       LEFT JOIN %s e ON e.origin_id = o.id_segment
-         AND e.discharge_min IS NULL
        WHERE o.mad_m3s IS NULL OR o.mad_m3s < q.discharge_min
        GROUP BY q.discharge_min ORDER BY q.discharge_min",
-      .frs_sql_num(conn_max), table,
-      .frs_near_river_values(discharge_min, distance_max),
-      walk_tbl, walk_tbl))
+      table, .frs_near_river_values(discharge_min, distance_max), walk_tbl))
     for (i in seq_len(nrow(stats))) {
       cat("  Near river >= ", stats$discharge_min[i], " m3/s: ",
           stats$near[i], " segments within ",
           distance_max[match(stats$discharge_min[i], discharge_min)],
-          " m; ", stats$ended[i],
-          " walks ended within reach (group outlet or the sea); ",
-          stats$nocode[i], " with no local code did not walk\n", sep = "")
+          " m; ", stats$nocode[i],
+          " with no local code did not walk\n", sep = "")
     }
     cat("  Near river walk: ",
         round((proc.time() - t0)["elapsed"], 1), "s\n", sep = "")
@@ -270,11 +259,15 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #' with `jumps = FALSE` as well, jumps are not counted; both exist for
 #' the check script's comparison with an independent walk.
 #'
+#' The prefilter is an optimisation that must not change an answer. A
+#' row it drops is wholly beyond `cap`, and so is every row after it, but
+#' a jump can carry the path from a dropped row back within `cap`; the
+#' path is therefore cut at the first row whose neighbour directly above
+#' it on its own line is on the path and was dropped.
+#'
 #' The table holds, per origin, one row per discharge it found within
 #' range (`discharge_min`, `dist_m` = the smallest bank distance to a
-#' non-connector row at or above that discharge, for an origin below it)
-#' and one row with `discharge_min` NULL whose `dist_m` is how far the
-#' capped walk reached (the bottom of its last row).
+#' non-connector row at or above that discharge, for an origin below it).
 #'
 #' @noRd
 .frs_near_river_walk_sql <- function(table, walk_tbl, discharge_min,
@@ -331,7 +324,26 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
          t.length_metre, t.waterbody_key, t.wscode_ltree,
          t.downstream_route_measure, t.geom,
          coalesce(LAG(ST_StartPoint(t.geom)) OVER (PARTITION BY o.id_segment
-           ORDER BY %s), ST_StartPoint(o.geom)) AS prev_pt
+           ORDER BY %s), ST_StartPoint(o.geom)) AS prev_pt,
+         -- The row directly above this one on its own line. If it is on
+         -- the path but the prefilter dropped it, the walk cannot reach
+         -- this row without it: the path is cut here.
+         EXISTS (
+           SELECT 1 FROM (
+             SELECT r.blue_line_key, r.downstream_route_measure,
+               r.wscode_ltree, r.localcode_ltree, r.geom
+             FROM %s r
+             WHERE r.blue_line_key = t.blue_line_key
+               AND r.downstream_route_measure > t.downstream_route_measure
+             ORDER BY r.downstream_route_measure LIMIT 1) r
+           WHERE (r.blue_line_key <> o.blue_line_key
+                  OR r.downstream_route_measure < o.downstream_route_measure)
+             AND NOT ST_DWithin(r.geom, o.geom, %s)
+             AND FWA_Downstream(
+               o.blue_line_key, o.downstream_route_measure,
+               o.wscode_ltree, o.localcode_ltree,
+               r.blue_line_key, r.downstream_route_measure,
+               r.wscode_ltree, r.localcode_ltree)) AS above_dropped
        FROM origins o
        INNER JOIN %s t ON FWA_Downstream(
          o.blue_line_key, o.downstream_route_measure,
@@ -350,19 +362,20 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
          ST_Distance(prev_pt, geom) AS jump_m,
          length_metre * ST_LineLocatePoint(ST_Force2D(geom),
            ST_Force2D(prev_pt)) AS below_m,
-         %s AS entry_in_m
+         %s AS entry_in_m, above_dropped
        FROM downstream
      ),
      walked AS (
        SELECT origin_id, watershed_group_code, origin_mad, edge_type,
          mad_m3s, below_m,
          SUM(below_m + %s) OVER w - below_m AS path_m,
-         %s AS connector_m
+         %s AS connector_m,
+         bool_or(above_dropped) OVER w AS cut
        FROM entered
        WINDOW w AS (PARTITION BY origin_id ORDER BY %s%s)
      ),
      capped AS (
-       SELECT * FROM walked WHERE path_m <= %s
+       SELECT * FROM walked WHERE path_m <= %s AND NOT cut
      )
      SELECT c.origin_id, c.watershed_group_code, q.discharge_min,
        greatest(min(c.path_m - c.connector_m), 0) AS dist_m
@@ -372,12 +385,8 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
       AND c.edge_type NOT IN (1400, 1450)
       AND (c.origin_mad IS NULL OR c.origin_mad < q.discharge_min)
       AND c.path_m - c.connector_m <= q.distance_max
-     GROUP BY c.origin_id, c.watershed_group_code, q.discharge_min
-     UNION ALL
-     SELECT origin_id, watershed_group_code, NULL::double precision,
-       max(path_m + below_m)
-     FROM capped GROUP BY origin_id, watershed_group_code",
-    walk_tbl, table, .frs_sql_num(max(discharge_min)), ord, table, cap,
+     GROUP BY c.origin_id, c.watershed_group_code, q.discharge_min",
+    walk_tbl, table, .frs_sql_num(max(discharge_min)), ord, table, cap, table, cap,
     entry_sql, if (jumps) "jump_m" else "0", conn_sql, ord_bare, frame, cap,
     .frs_near_river_values(discharge_min, distance_max))
 }

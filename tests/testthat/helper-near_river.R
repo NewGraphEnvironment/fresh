@@ -1,17 +1,18 @@
 # Synthetic network for the near_river walk (#259), in pg_temp. Needs a
 # connection with the fwapg functions (FWA_Downstream) but no FWA rows.
 #
-# Each segment runs x = x0 .. x0 + len at height y (default 0), so straight-line and
+# Each segment runs x = x0 .. x0 + len at height y (default 0), or along
+# `geom` (WKT, downstream end first) where given, so straight-line and
 # network distance agree along the path the fixtures lay out. `scale`
 # shrinks the geometry but not length_metre: at 0.01 the straight-line
 # prefilter passes everything and only the network distance decides.
 
 .nr_seg <- function(id, blk, ws, lc = ws, drm, len, edge = 1000L, wbk = NA,
                     mad = NA, x0 = drm, cw = 1, gradient = 0.01,
-                    wsg = "TEST", y = 0, wk = blk) {
+                    wsg = "TEST", y = 0, wk = blk, geom = NA_character_) {
   data.frame(id = id, blk = blk, ws = ws, lc = lc, drm = drm, len = len,
              edge = edge, wbk = wbk, mad = mad, x0 = x0, cw = cw,
-             gradient = gradient, wsg = wsg, y = y, wk = wk)
+             gradient = gradient, wsg = wsg, y = y, wk = wk, geom = geom)
 }
 
 .nr_fixture <- function(conn, segs, tbl = "pg_temp.nr_streams", scale = 1) {
@@ -31,13 +32,20 @@
     r <- segs[i, ]
     DBI::dbExecute(conn, sprintf(
       "INSERT INTO %s VALUES (%d, %d, %d, %d, %s, %s, %s, %s, %s, %d,
-         '%s'::ltree, %s, %s, '%s',
-         ST_SetSRID(ST_MakeLine(ST_MakePoint(%s, %s), ST_MakePoint(%s, %s)), 3005))",
+         '%s'::ltree, %s, %s, '%s', %s)",
       tbl, r$id, r$id, r$blk, r$wk, num(r$drm), num(r$len), num(r$gradient),
       num(r$cw), num(r$mad), r$edge, r$ws,
       if (is.na(r$lc)) "NULL" else sprintf("'%s'::ltree", r$lc),
-      num(r$wbk), r$wsg, num(r$x0 * scale), num(r$y * scale),
-      num((r$x0 + r$len) * scale), num(r$y * scale)))
+      num(r$wbk), r$wsg,
+      if (!is.na(r$geom)) {
+        sprintf("ST_Scale(ST_GeomFromText('%s', 3005), %s, %s)", r$geom,
+                num(scale), num(scale))
+      } else {
+        sprintf(
+          "ST_SetSRID(ST_MakeLine(ST_MakePoint(%s, %s), ST_MakePoint(%s, %s)), 3005)",
+          num(r$x0 * scale), num(r$y * scale), num((r$x0 + r$len) * scale),
+          num(r$y * scale))
+      }))
   }
   invisible(tbl)
 }

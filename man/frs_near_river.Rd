@@ -26,9 +26,8 @@ each finite, above zero and distinct.}
 \item{distance_max}{Numeric vector, one per \code{discharge_min}. Farthest
 distance (m) to record at that discharge.}
 
-\item{verbose}{Logical. Print rows written, segments whose walk ended
-within reach, segments with no local code, and timing. Default
-\code{TRUE}.}
+\item{verbose}{Logical. Print rows written, segments with no local
+code, and timing. Default \code{TRUE}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -81,9 +80,7 @@ itself. A segment with NULL \code{mad_m3s} is never a target.
 \strong{Limits.}
 \itemize{
 \item The walk sees only \code{table}. A working table holds one watershed
-group, so a river beyond the group's outlet is not found. The
-count of segments whose walk ended within reach (at the outlet, or
-the sea) is reported when \code{verbose}.
+group, so a river beyond the group's outlet is not found.
 \item A segment with no local watershed code (\code{localcode_ltree} NULL),
 which is most side channels (edge types 1100, 1150, 1350), has no
 place in \code{FWA_Downstream()}'s ordering. It never walks, so it gets

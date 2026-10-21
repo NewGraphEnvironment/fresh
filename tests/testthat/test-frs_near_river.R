@@ -185,6 +185,30 @@ test_that("two entries into one polygon cannot make an answer depend on the call
                tolerance = 1e-9)
 })
 
+test_that("a row the prefilter drops cuts the path behind it", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # The tributary's mouth (0, 0) jumps 1,100 m to river row 61, wholly
+  # beyond a 1,000 m reach, which runs on into row 60 (5 m3/s), back
+  # within 200 m of the mouth. Through row 61 the river is 1,100 m away.
+  segs <- rbind(
+    .nr_seg(60, 1, "100", "100.400", 0, 900, 1250L, NA, 5,
+            geom = "LINESTRING(0 200, 0 1100)"),
+    .nr_seg(61, 1, "100", "100.400", 900, 500, 1250L, NA, 5,
+            geom = "LINESTRING(0 1100, 500 1100)"),
+    .nr_seg(62, 2, "100.500", drm = 0, len = 100, mad = 0.2,
+            geom = "LINESTRING(0 0, -100 0)"))
+  .nr_fixture(conn, segs)
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, q = 3, d = 1000)
+  expect_length(.nr_dist(conn), 0)
+  nr_run(conn, q = c(3, 1), d = c(1000, 9000))
+  expect_length(.nr_dist(conn), 0)
+  nr_run(conn, q = 3, d = 5000)
+  expect_equal(.nr_dist(conn)[["62"]], 1100, tolerance = 1e-9)
+})
+
 test_that("a stretch outside the table counts at its straight length", {
   skip_if_no_conn()
   conn <- frs_db_conn()
@@ -247,7 +271,7 @@ test_that("only the table's groups are replaced", {
   expect_length(.nr_dist(conn), 4)
 })
 
-test_that("frs_near_river reports walks that ended within reach", {
+test_that("frs_near_river reports rows measured and rows with no local code", {
   skip_if_no_conn()
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
@@ -255,21 +279,13 @@ test_that("frs_near_river reports walks that ended within reach", {
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   out <- capture.output(frs_near_river(conn, "pg_temp.nr_streams",
     "pg_temp.nr_near", discharge_min = 3, distance_max = 1000))
-  # Rows 14 and 15 walk 2,000 m or more before the outlet: within the
-  # 1,100 m cap they never ran out. No 3 m3/s origin ran out.
-  expect_match(out[1], "4 segments within 1000 m; 0 walks ended")
-  expect_match(out[1], "; 0 with no local code did not walk")
-  out10 <- capture.output(frs_near_river(conn, "pg_temp.nr_streams",
-    "pg_temp.nr_near", discharge_min = 10, distance_max = 3000))
-  # At 10 m3/s every row is an origin and nothing is a target. Rows 1, 2,
-  # 3, 10, 11, 12 and 13 reach the outlet within the 3,100 m cap.
-  expect_match(out10[1], "0 segments within 3000 m; 7 walks ended")
-  # A row with no local code cannot walk: counted apart, never as ended.
+  expect_match(out[1], "4 segments within 1000 m; 0 with no local code did not walk")
+  # A row with no local code cannot walk, and is counted.
   DBI::dbExecute(conn, "UPDATE pg_temp.nr_streams SET localcode_ltree = NULL
                         WHERE id_segment = 13")
   out_nc <- capture.output(frs_near_river(conn, "pg_temp.nr_streams",
     "pg_temp.nr_near", discharge_min = 3, distance_max = 1000))
-  expect_match(out_nc[1], "3 segments within 1000 m; 0 walks ended.*; 1 with no")
+  expect_match(out_nc[1], "3 segments within 1000 m; 1 with no local code")
   expect_false("13" %in% names(.nr_dist(conn)))
   # Row 1 is the river's bottom row (local code = watershed code), which
   # FWA_Downstream() calls downstream of any deeper code whatever the
