@@ -11,11 +11,12 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/NewGraphEnvironment/fresh/blob/v0.40.1/inst/CITATION)
+[`inst/CITATION`](https://github.com/NewGraphEnvironment/fresh/blob/main/inst/CITATION)
 
 Irvine A (2026). *fresh: Freshwater Referenced Spatial Hydrology*. New
-Graph Environment Ltd. Version 0.40.1,
-<https://github.com/NewGraphEnvironment/fresh>.
+Graph Environment Ltd.
+[doi:10.5281/zenodo.23524744](https://doi.org/10.5281/zenodo.23524744).
+Version 0.40.1, <https://github.com/NewGraphEnvironment/fresh>.
 
     @Manual{fresh,
       title = {fresh: Freshwater Referenced Spatial Hydrology},
@@ -25,4 +26,5 @@ Graph Environment Ltd. Version 0.40.1,
       version = {0.40.1},
       note = {Version 0.40.1},
       url = {https://github.com/NewGraphEnvironment/fresh},
+      doi = {10.5281/zenodo.23524744},
     }
