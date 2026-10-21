@@ -1,11 +1,11 @@
-fresh 0.40.0 @ 7320a21
-date 2026-10-21 04:47:51 UTC
+fresh 0.40.0 @ ac29896
+date 2026-10-21 05:11:06 UTC
 group BULK, discharge 3 m3/s, reach 20000 m
 segments 32472, with mad 30011, at or above q 1087, no local code 2426
-walk time: 1 km 12.6 s, 20 km 56.7 s
-within 1 km 2116, within 20 km 22617, negative distances 0
+walk time: 1 km 12.8 s, 20 km 57.0 s
+within 1 km 2116, within 20 km 22524, negative distances 0
 1 km and 20 km walks disagree on 0 segments within 1 km
-bank offsets: 14885 of 22594 found by both, mean 47.9 m, max 599.1 m (bound 3394.8 m); bank longer than centreline 0
+bank offsets: 14885 of 22501 found by both, mean 47.9 m, max 599.1 m (bound 3394.8 m); bank longer than centreline 0
 side channels with no local code (edge n joins_river): 1100 238 5; 1150 5 0; 1350 177 0; 2300 2 0
 Coffin Creek: 33 segments below q, 33 measured, 0 to 13410 m, 2 within 1 km; through wetlands 4594 to 12337 m
 rows for segments at or above q: 0

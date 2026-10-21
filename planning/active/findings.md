@@ -54,7 +54,7 @@ Province-wide: 1450 rows inside river polygons 208,409 (mean 45 m, p90 92 m; 68,
 | Error | Resolution |
 |-------|------------|
 
-## Phase 4: BULK against an independent walk (2026-10-21 UTC, fresh 7320a21)
+## Phase 4: BULK against an independent walk (2026-10-21 UTC, fresh ac29896)
 
 `data-raw/near_river_check.R BULK 3 <reference SQL>`; log `data-raw/logs/near_river_259/bulk_*`. Working table from `frs_network_segment()` (no breaks), wet's annual pick as `mad_m3s`. The reference walks route measures on raw FWA to the centreline of the first primary-flow segment at or above 3 m³/s.
 
@@ -62,10 +62,10 @@ Province-wide: 1450 rows inside river polygons 208,409 (mean 45 m, p90 92 m; 68,
 |---|---|
 | segments / at or above 3 m³/s / no local code | 32,472 / 1,087 / 2,426 |
 | walk time, 1 km / 20 km | 12.6 s / 56.7 s |
-| within 1 km / within 20 km | 2,116 / 22,617 |
+| within 1 km / within 20 km | 2,116 / 22,524 (22,617 before code-check round 1 kept no-local-code rows out of the origins) |
 | negative distances | 0 |
 | 1 km and 20 km walks disagreeing within 1 km | 0 |
-| bank offset (centreline minus bank), found by both | 14,885 of 22,594; mean 47.9 m, max 599.1 m |
+| bank offset (centreline minus bank), found by both | 14,885 of 22,501; mean 47.9 m, max 599.1 m |
 | rows for segments at or above 3 m³/s | 0 |
 | Coffin Creek (link#364's example) through wetlands | 4,594 to 12,337 m: fails at 1 km |
 
