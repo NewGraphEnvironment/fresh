@@ -4,7 +4,7 @@
 \alias{frs_habitat_predicates}
 \title{Build SQL predicates for one species' habitat classification}
 \usage{
-frs_habitat_predicates(sp_params, model = "cw")
+frs_habitat_predicates(sp_params, model = "cw", near_river_table = NULL)
 }
 \arguments{
 \item{sp_params}{A single-species list with \code{species_code},
@@ -15,6 +15,11 @@ optional \code{spawn_edge_types} / \code{rear_edge_types}). This is the shape
 
 \item{model}{Character. Habitat size model: \code{"cw"} (channel width,
 default) or \code{"mad"} (mean annual discharge, \code{mad_m3s}).}
+
+\item{near_river_table}{Character or \code{NULL}. Schema-qualified table of
+distances to the nearest river downstream, as written by
+\code{\link[=frs_near_river]{frs_near_river()}}. Required when a spawn or rear rule carries
+\code{near_river}; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} builds it and passes it.}
 }
 \value{
 A named list with four character scalars: \code{spawn}, \code{rear},
@@ -106,6 +111,7 @@ Other habitat:
 \code{\link{frs_habitat_overlay}()},
 \code{\link{frs_habitat_partition}()},
 \code{\link{frs_habitat_species}()},
+\code{\link{frs_near_river}()},
 \code{\link{frs_network_segment}()}
 }
 \concept{habitat}

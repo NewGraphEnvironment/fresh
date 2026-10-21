@@ -115,6 +115,7 @@ Other habitat:
 \code{\link{frs_habitat_partition}()},
 \code{\link{frs_habitat_predicates}()},
 \code{\link{frs_habitat_species}()},
+\code{\link{frs_near_river}()},
 \code{\link{frs_network_segment}()}
 }
 \concept{habitat}

@@ -17,3 +17,4 @@ cd ~/Projects/repo/fresh && git fetch -q origin && git checkout 259-rule-conditi
 
 - Open items answered with the recommended options: (a) decision 7, (b) document and pin.
 - Phase 1: grammar, compiler, predicates threading, spec collector. `test-near_river_rules.R` 63 pass; `test-frs_params.R` 178, `test-frs_habitat_predicates.R` 111, `test-utils.R` 59 unchanged. Mutants: allowlist removal 4 failures, OR grouping removed 7.
+- Phase 2: `frs_near_river()` + `helper-near_river.R` fixture. 24 pass; mutants red (bank 9, origin filter 7). Plan corrections: origins below max Q, Lmax per (waterbody_key, blue_line_key).
