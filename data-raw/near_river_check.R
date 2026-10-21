@@ -39,9 +39,9 @@
 #   nested_code  fresh's path holds a main-flow row whose local code nests
 #                under a tributary's code, which FWA_Downstream() places
 #                downstream of that tributary wherever it lies
-#   entry        within twice fresh's jumps plus the reference's largest
-#                gap: the two walks enter a parent line at different
-#                points (fresh at the first row FWA_Downstream() returns,
+#   entry        fresh jumped, and is longer, or shorter by no more than
+#                twice its jumps plus the reference's largest gap: the two
+#                walks enter a parent line at different points (fresh at the first row FWA_Downstream() returns,
 #                where the local code puts the confluence, counting the
 #                straight jump; the reference at the nearest point,
 #                counting nothing). Either sign: where the code puts the
@@ -229,7 +229,8 @@ pool <- DBI::dbGetQuery(conn, sprintf(
      LEFT JOIN %s.nojump j USING (id_segment)
    WHERE (s.mad_m3s IS NULL OR s.mad_m3s < %s)
      AND s.localcode_ltree IS NOT NULL
-     AND s.blue_line_key = s.watershed_key", tbl, near, schema, schema, q_sql))
+     AND s.blue_line_key = s.watershed_key
+   ORDER BY s.id_segment", tbl, near, schema, schema, q_sql))
 pick <- function(x, n) x[sample.int(nrow(x), min(n, nrow(x))), , drop = FALSE]
 starts <- unique(rbind(pick(pool, 2000),
                        pick(pool[!is.na(pool$bank_m) & pool$bank_m <= 200, ],
@@ -296,11 +297,13 @@ cmp$class <- with(cmp, ifelse(
            (is.na(bank_m) | bank_m > ref_m), "connector",
   ifelse(nested_code & !is.na(centre_diff_m) & centre_diff_m > 0,
          "nested_code",
-  ifelse(!is.na(centre_diff_m) &
-           abs(centre_diff_m) <= 2 * jumps_m + ref_gap + 1, "entry",
+  ifelse(!is.na(centre_diff_m) & jumps_m > 1 &
+           (centre_diff_m > 0 | -centre_diff_m <= 2 * jumps_m + ref_gap + 1),
+         "entry",
   # Jumps can carry a walk past the reach: without them it agrees.
-  ifelse(is.na(bank_m) & !is.na(nojump_m) & !is.na(ref_m) &
-           abs(nojump_m - ref_m) <= ref_gap + 1, "entry",
+  ifelse(is.na(bank_m) & !is.na(ref_m) &
+           ((!is.na(nojump_m) & abs(nojump_m - ref_m) <= ref_gap + 1) |
+              ref_m + ref_gap > d_far), "entry",
   ifelse(!is.na(bank_m) & is.na(ref_m), "ref_none",
          "unexplained"))))))))))))
 

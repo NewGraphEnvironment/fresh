@@ -54,23 +54,23 @@ Province-wide: 1450 rows inside river polygons 208,409 (mean 45 m, p90 92 m; 68,
 | Error | Resolution |
 |-------|------------|
 
-## Phase 4: BULK against an independent walk (2026-10-21 UTC, fresh 2362aa0)
+## Phase 4: BULK against an independent walk (2026-10-21 UTC, fresh 5a2a3ce)
 
 `data-raw/near_river_check.R BULK 3 <reference SQL>`; log `data-raw/logs/near_river_259/bulk_*`. Working table from `frs_network_segment()` (no breaks), wet's annual pick as `mad_m3s`. The reference walks route measures on raw FWA to the centreline of the first primary-flow segment at or above 3 m³/s.
 
 | measure | value |
 |---|---|
 | segments / at or above 3 m³/s / no local code | 32,472 / 1,087 / 2,426 |
-| walk time, 1 km / 20 km | 14.7 s / 62.7 s |
+| walk time, 1 km / 20 km | 16.5 s / 71.6 s (7.0 / 28 s before the review rounds' path checks) |
 | within 1 km / within 20 km | 2,118 / 22,523 (22,617 before code-check round 1 kept no-local-code rows out of the origins; 2,116 within 1 km before round 2 made the bank rule subtract only the in-polygon part of a jump) |
 | negative distances | 0 |
 | 1 km and 20 km walks disagreeing within 1 km | 0 |
 | bank offset (centreline minus bank), found by both | 16,051 of 22,501; mean 38.2 m, max 599.1 m |
-| bank distances shorter than the straight line to the target's polygon (independent bound) | 0 of 1,122 |
+| bank distances shorter than the straight line to the target's polygon (independent bound) | 0 of 1,169 |
 | rows for segments at or above 3 m³/s | 0 |
 | Coffin Creek (link#364's example) through wetlands | 4,594 to 12,337 m: fails at 1 km |
 
-2,455 starts, every residual attributed: agree 644 (max 0.003 m), bank 1,122 (subtraction alone, mean 33.6 m), beyond 438 (past 20 km both), entry 231 (the two walks enter a parent line at different points: fresh counts the jump, less any part inside the target's polygon; the reference counts nothing; median 201 m), nested_code 20 (2 targets; one BULK main-flow row carries a local code nested under a tributary's, 2,013 such rows province-wide), unexplained 0. Round 2's example (segment 17078330, a tributary ending on a side channel 331 m from the Bulkley's polygon) read 700.6 m and now reads 1,041.4 m.
+2,462 starts (sampled in `id_segment` order since round 4), every residual attributed: agree 614 (max 0.003 m), bank 1,169 (subtraction alone, mean 34.3 m), beyond 440 (past 20 km both), entry 225 (the two walks enter a parent line at different points: fresh counts the jump, less any part inside the target's polygon, the reference counts nothing; fresh longer in all but 6, which are 14 to 67 m shorter where a local code puts the confluence below where the lines meet), nested_code 14 (2 targets; one BULK main-flow row carries a local code nested under a tributary's, 2,013 such rows province-wide), unexplained 0. Round 2's example (segment 17078330, a tributary ending on a side channel 331 m from the Bulkley's polygon) read 700.6 m and now reads 1,041.4 m.
 
 **What the check found and fixed (commit 7320a21).** The first run had 183 negative distances (floating-point residue, −2e−13 m: clamped) and 127 segments within 1 km that the 20 km walk found and the 1 km walk did not. Cause: a path that leaves the table and re-enters (a tributary joining its river in a stretch outside BULK) counted the stretch as nothing, a 17.8 km stretch read as 973 m, and only the straight-line prefilter of the smaller reach hid it. Fix: count every jump between path rows at its straight length. That surfaced two more: a tributary meeting its parent part-way along a row counted the whole row (fix: walk only below the entry point, `ST_LineLocatePoint()`), and on one line a row upstream of the origin carried a lower local code, so `FWA_Downstream()`'s code branch put it on the path (fix: on the origin's own line the measure decides).
 
@@ -84,3 +84,5 @@ Province-wide: 1450 rows inside river polygons 208,409 (mean 45 m, p90 92 m; 68,
 **Code-check rounds (2026-10-21).** Round 1: rows with no local code walked through `FWA_Downstream()`'s `wscode_b = localcode_b` branch (93 BULK rows within 20 km); origins now require a local code. Round 2: the bank rule subtracted whole jumps across dry land (a tributary ending on a side channel); now only the part of the jump line inside the polygon. Round 3: the shared mechanism is that `FWA_Downstream()`'s rows, in path order, were assumed to form one contiguous chain whose `waterbody_key` / `edge_type` say where the walk is. Of the 11 places it reaches, two were open: several entries into one polygon could subtract past the cap's allowance (78 BULK pairs, none past it; now `least(conn_max, …)`), and where a local code puts a confluence below where the lines meet fresh is shorter than a nearest-point walk (6 BULK `entry` residuals of −14 to −67 m; documented as either sign).
 
 GEOS 3.9.0 (local fwapg) intersects an exactly vertical line at x = 1000 with a box containing it as `LINESTRING EMPTY` (x = 1500 and slanted lines are fine; `ST_Contains` says TRUE). On real data it could only drop a bank subtraction, the conservative direction. The fixture avoids it.
+
+Round 4: the straight-line prefilter could drop a path row reached by a jump while keeping a later row, so the walk jumped across it (synthetic repro; 0 BULK cases). The path is now cut at the first row whose neighbour directly above it on its own line is on the path and was dropped. The verbose "walks ended within reach" count counted walks the cap cut at a jump (332 against 23 for one spec), and was removed.
