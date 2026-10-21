@@ -1,8 +1,8 @@
-fresh 0.40.0 @ 2362aa0
-date 2026-10-21 05:36:23 UTC
+fresh 0.40.0 @ 1b72351
+date 2026-10-21 06:17:19 UTC
 group BULK, discharge 3 m3/s, reach 20000 m
 segments 32472, with mad 30011, at or above q 1087, no local code 2426
-walk time: 1 km 14.7 s, 20 km 62.7 s
+walk time: 1 km 14.4 s, 20 km 63.0 s
 within 1 km 2118, within 20 km 22523, negative distances 0
 1 km and 20 km walks disagree on 0 segments within 1 km
 bank offsets: 16051 of 22501 found by both, mean 38.2 m, max 599.1 m (bound 3394.8 m); bank longer than centreline 0
