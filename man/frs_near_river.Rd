@@ -66,6 +66,11 @@ distance.
 \item Any other jump between consecutive rows of the path is counted at
 its straight length: a side channel the walk does not follow, or a
 stretch of river outside \code{table} that the path leaves and re-enters.
+\item Where a tributary joins its parent follows FWA's local codes, as in
+every downstream trace in fresh. Where a code places the confluence
+away from where the lines meet, the distance can differ from a
+walk that enters at the nearest point, either way: longer by a
+counted jump, or shorter by the stretch between the two points.
 }
 
 \strong{Which segments are measured.} Only segments whose own \code{mad_m3s} is

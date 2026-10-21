@@ -156,6 +156,35 @@ test_that("a tributary meeting its parent mid-row walks only the part below", {
                tolerance = 1e-9)
 })
 
+test_that("two entries into one polygon cannot make an answer depend on the call", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  local_mocked_bindings(.frs_near_river_polygons = function() "pg_temp.nr_polys")
+  # The tributary jumps 100 m into polygon 7 onto row 2 (2 m3/s), and row
+  # 2 jumps another 100 m onto row 1 (5 m3/s): 200 m of entries against a
+  # 100 m allowance (the one side-line connector).
+  segs <- .nr_sideline()
+  segs$mad[segs$id == 2] <- 2
+  segs$y[segs$id == 1] <- -100
+  # Row 1 ends at x = 990, so the second jump is not exactly vertical:
+  # GEOS 3.9.0 intersects an exactly vertical x = 1000 line with the box
+  # as EMPTY (2026-10-21).
+  segs$len[segs$id == 1] <- 990
+  .nr_fixture(conn, segs)
+  .nr_polys(conn, list(list(wbk = 7, x0 = -10, y0 = -150, x1 = 2100, y1 = 100)))
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, q = 3, d = 550)
+  alone <- .nr_dist(conn)
+  nr_run(conn, q = c(3, 1), d = c(550, 9000))
+  expect_identical(.nr_dist(conn), alone)
+  # Tributary row 41: 100 + 500 + 100.5 m walked, 100 m left out, where
+  # the two entries alone would leave out 200.
+  nr_run(conn, q = 3, d = 5000)
+  expect_equal(.nr_dist(conn)[["41"]], 100 + 500 + sqrt(100^2 + 10^2) - 100,
+               tolerance = 1e-9)
+})
+
 test_that("a stretch outside the table counts at its straight length", {
   skip_if_no_conn()
   conn <- frs_db_conn()

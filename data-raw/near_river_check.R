@@ -44,7 +44,8 @@
 #                points (fresh at the first row FWA_Downstream() returns,
 #                where the local code puts the confluence, counting the
 #                straight jump; the reference at the nearest point,
-#                counting nothing). The two entry points are at most about
+#                counting nothing). Either sign: where the code puts the
+#                confluence below where the lines meet, fresh is shorter. The two entry points are at most about
 #                a jump plus a gap apart along the line. Includes a walk
 #                the jumps carry past the reach
 #   ref_none     the reference found no river where fresh did

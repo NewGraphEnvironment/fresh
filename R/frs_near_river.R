@@ -30,6 +30,11 @@
 #' - Any other jump between consecutive rows of the path is counted at
 #'   its straight length: a side channel the walk does not follow, or a
 #'   stretch of river outside `table` that the path leaves and re-enters.
+#' - Where a tributary joins its parent follows FWA's local codes, as in
+#'   every downstream trace in fresh. Where a code places the confluence
+#'   away from where the lines meet, the distance can differ from a
+#'   walk that enters at the nearest point, either way: longer by a
+#'   counted jump, or shorter by the stretch between the two points.
 #'
 #' **Which segments are measured.** Only segments whose own `mad_m3s` is
 #' NULL or below `discharge_min` get a row: a river large enough to be a
@@ -255,7 +260,9 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #' at most `entry_max`, the longest side-line connector run on the table.
 #' A jump from a side-line connector's top lies wholly inside; one from a
 #' tributary that ends on a side channel crosses dry land first, and
-#' that part stays in the distance. Polygons come from
+#' that part stays in the distance. The total is capped at `conn_max`,
+#' the allowance the cap and prefilter carry, so no answer depends on the
+#' other discharges and distances in the call. Polygons come from
 #' `.frs_near_river_polygons()`. Bank distance `path_m - connector_m` is
 #' clamped at zero against floating-point residue.
 #'
@@ -280,12 +287,14 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
   ord <- "t.wscode_ltree DESC, t.downstream_route_measure DESC, t.id_segment DESC"
   frame <- " ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
   conn_sql <- if (bank) {
+    # least(): the cap and prefilter allow conn_max of subtraction, so the
+    # SQL enforces that bound (a path can enter one polygon more than once).
     sprintf(paste0(
-      "CASE WHEN waterbody_key IS NULL THEN 0 ELSE SUM(",
+      "CASE WHEN waterbody_key IS NULL THEN 0 ELSE least(%s, SUM(",
       "CASE WHEN edge_type IN (1400, 1450) THEN below_m ELSE 0 END",
       " + entry_in_m) OVER (",
-      "PARTITION BY origin_id, waterbody_key ORDER BY %s%s) END"),
-      ord_bare, frame)
+      "PARTITION BY origin_id, waterbody_key ORDER BY %s%s)) END"),
+      .frs_sql_num(conn_max), ord_bare, frame)
   } else {
     "0"
   }
