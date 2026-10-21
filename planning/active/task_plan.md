@@ -22,7 +22,7 @@
 - [x] Tests: each measure and `model` under cw and mad; override; opt-out; no-op on `thresholds: false`; refusals; NA columns compile every bundled rule byte-identically; specs equal effective pairs (inherit / override / opt-out → two walks); no size part → no pair; mad species with no range reads `(FALSE OR EXISTS)`; the R rule's form; half pairs; yaml round trip of `false`
 
 ## Phase 3 — live check, docs, release
-- [ ] `data-raw/near_river_check.R`: the independent walk reads the measure's column; run on BULK by width and by order; log the result
+- [x] Live check by width and order: `data-raw/near_river_measure_check.R` (equivalence with the discharge walk on a relabelled copy, since the independent reference reads discharge only and lives outside the repo); BULK run logged, 0 rows apart for both measures. `near_river_check.R` updated to the new argument names.
 - [ ] Docs at the places #263 lists; NEWS; `devtools::document()`; `devtools::test()`; `lintr`; `pkgdown::check_pkgdown()`
 - [ ] `/code-check branch`; `/planning-archive`; `/gh-pr-push`
 

@@ -92,7 +92,13 @@ Not a test: `channel_width_min_bypass` is a loader passthrough (`R/frs_params.R:
 - `devtools::test()` green with the cases above; NEWS; docs name the columns and the sibling slot.
 - A release tag; link pins it in NewGraphEnvironment/link#364 Phase 1.
 
+## Phase 3 — what the live check can and cannot show (2026-10-21)
+
+- The #259 independent reference (`pg_temp.ch_dist_profile`) lives outside this repo and reads wet's discharge on raw FWA. It cannot score a width or order walk, so #262's "the live check gains width and order references" is narrowed to an equivalence check (`data-raw/near_river_measure_check.R`). Each walk by width or order must equal, row for row, the discharge walk on a copy whose `mad_m3s` holds that measure. The SQL is otherwise the one #259 validated, so this tests exactly what #262 changed: the column threading.
+- A `CREATE TABLE AS` copy has no network indexes. On it, the walk's `FWA_Downstream()` join ran over 10 minutes before it was cancelled; the direct walks took seconds. The copy is now `LIKE ... INCLUDING ALL`.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| Equivalence walk on a `CREATE TABLE AS` copy ran >10 min | Copy with `LIKE ... INCLUDING ALL` so the network indexes exist |

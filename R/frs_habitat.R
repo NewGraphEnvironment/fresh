@@ -99,7 +99,8 @@
 #'   object and `rules` here is ignored.
 #'
 #'   See [frs_params()] for the rules format. A rule's `near_river`
-#'   condition (see [frs_habitat_predicates()]) makes classify write
+#'   pair, its own or inherited from the thresholds CSV (see
+#'   [frs_habitat_predicates()]), makes classify write
 #'   `<to_habitat>_near_river` (or `<streams>_habitat_near_river`),
 #'   which is kept.
 #' @param params Named list from [frs_params()], or `NULL` to use

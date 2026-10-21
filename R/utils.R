@@ -222,20 +222,23 @@
 #'   implies `IS NOT NULL`, so the two together are redundant rather
 #'   than contradictory.
 #'
-#'   `near_river` is a mapping of `discharge_min` (m3/s) and
-#'   `distance_max` (m). It relaxes the rule's size test: the size parts
-#'   (`channel_width`, `mad`, inherited or explicit) become
-#'   `(<size> OR EXISTS (<near_river_table row within distance_max for
-#'   discharge_min>))`. A rule with no size part gets the EXISTS alone,
-#'   so `near_river` is then the rule's only size test. The EXISTS reads
-#'   only `s.id_segment` and `s.watershed_group_code`, never
-#'   `s.mad_m3s` or `s.channel_width` (link's validator substitutes
-#'   those two by pattern). Without `near_river` the size parts are
-#'   appended last, cw before mad, joined with `" AND "`, exactly as
-#'   before (#259).
+#'   `near_river` is a mapping of `distance_max` (m) and one size key
+#'   (`discharge_min`, `channel_width_min` or `stream_order_min`), or
+#'   `FALSE`. The rule's effective pair (`.frs_rule_near_river()`: its
+#'   own mapping, none on `FALSE`, else `csv_thresholds$near_river` when
+#'   the rule inherits and has a size part, #263) relaxes the size test:
+#'   the size parts (`channel_width`, `mad`, inherited or explicit)
+#'   become `(<size> OR EXISTS (<near_river_table row of that measure,
+#'   threshold and distance>))`. A rule with no size part gets the EXISTS
+#'   alone only from its own mapping. The EXISTS reads only
+#'   `s.id_segment` and `s.watershed_group_code`, never `s.mad_m3s` or
+#'   `s.channel_width` (link's validator substitutes those two by
+#'   pattern). Without a pair the size parts are appended last, cw before
+#'   mad, joined with `" AND "`, exactly as before (#259).
 #' @param csv_thresholds Named list with `gradient = c(min, max)`,
-#'   `channel_width = c(min, max)` and/or `mad_m3s = c(min, max)`. Any
-#'   may be NULL. [frs_habitat_predicates()] passes `channel_width` under
+#'   `channel_width = c(min, max)` and/or `mad_m3s = c(min, max)`, and
+#'   optionally `near_river`, the stage's inherited pair in stored form
+#'   (`measure`, `threshold`, `distance_max`). Any may be NULL. [frs_habitat_predicates()] passes `channel_width` under
 #'   the `cw` model and `mad_m3s` under the `mad` model; `mad_m3s =
 #'   c(NA, NA)` marks a species without MAD thresholds and makes
 #'   inheriting rules match nothing.

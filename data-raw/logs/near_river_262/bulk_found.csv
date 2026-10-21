@@ -1,0 +1,4 @@
+"watershed_group_code","measure","threshold","distance_max","segments_found","km_found","coffin_creek_segments_found","walk_s"
+"BULK","discharge",3,1000,2118,1157.4,2,16.2
+"BULK","channel_width",20,1000,2452,1302,2,15.9
+"BULK","stream_order",5,1000,3616,2080.8,6,12.8

@@ -1,0 +1,3 @@
+"watershed_group_code","measure","threshold","distance_max","rows_direct","only_direct","only_via_discharge"
+"BULK","channel_width",20,1000,2452,0,0
+"BULK","stream_order",5,1000,3616,0,0
