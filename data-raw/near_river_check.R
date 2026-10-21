@@ -125,14 +125,14 @@ DBI::dbExecute(conn, .frs_near_river_walk_sql(tbl,
   entry_max = 0, bank = FALSE))
 DBI::dbExecute(conn, sprintf(
   "CREATE TABLE %s.centre AS SELECT origin_id AS id_segment, dist_m
-   FROM pg_temp.frs_near_river_walk WHERE discharge_min IS NOT NULL", schema))
+   FROM pg_temp.frs_near_river_walk", schema))
 DBI::dbExecute(conn, "DROP TABLE pg_temp.frs_near_river_walk")
 DBI::dbExecute(conn, .frs_near_river_walk_sql(tbl,
   "pg_temp.frs_near_river_walk", q, d_far, conn_max = 0,
   entry_max = 0, bank = FALSE, jumps = FALSE))
 DBI::dbExecute(conn, sprintf(
   "CREATE TABLE %s.nojump AS SELECT origin_id AS id_segment, dist_m
-   FROM pg_temp.frs_near_river_walk WHERE discharge_min IS NOT NULL", schema))
+   FROM pg_temp.frs_near_river_walk", schema))
 offsets <- DBI::dbGetQuery(conn, sprintf(
   "SELECT count(*)::int AS both_found,
      count(*) FILTER (WHERE c.dist_m - n.dist_m > 0.001)::int AS offset_n,

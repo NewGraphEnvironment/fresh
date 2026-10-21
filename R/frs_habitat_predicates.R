@@ -267,18 +267,17 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
 }
 
 
-#' Distinct near_river discharges a set of species' rules ask for
+#' Distinct near_river pairs a set of species' rules ask for
 #'
 #' Scans every spawn and rear rule of `species` in `params` for a
-#' `near_river` mapping and returns one row per distinct `discharge_min`,
-#' with the largest `distance_max` asked for at it. [frs_near_river()]
-#' walks once per row; each rule's own distance is applied in its
-#' predicate.
+#' `near_river` mapping and returns one row per distinct
+#' `(discharge_min, distance_max)` pair. [frs_near_river()] walks once
+#' per pair, so one rule's answer never depends on another rule's.
 #'
 #' @param params Named list from [frs_params()].
 #' @param species Character vector of species codes.
 #' @return A data frame with numeric `discharge_min` and `distance_max`,
-#'   ordered by `discharge_min`; zero rows when no rule asks.
+#'   ordered by both; zero rows when no rule asks.
 #' @noRd
 .frs_near_river_specs <- function(params, species) {
   nrs <- list()
@@ -294,9 +293,12 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
   if (length(nrs) == 0) {
     return(data.frame(discharge_min = numeric(0), distance_max = numeric(0)))
   }
-  q <- vapply(nrs, function(x) as.numeric(x[["discharge_min"]]), numeric(1))
-  d <- vapply(nrs, function(x) as.numeric(x[["distance_max"]]), numeric(1))
-  qs <- sort(unique(q))
-  data.frame(discharge_min = qs,
-             distance_max = vapply(qs, function(x) max(d[q == x]), numeric(1)))
+  out <- unique(data.frame(
+    discharge_min = vapply(nrs, function(x) as.numeric(x[["discharge_min"]]),
+                           numeric(1)),
+    distance_max = vapply(nrs, function(x) as.numeric(x[["distance_max"]]),
+                          numeric(1))))
+  out <- out[order(out$discharge_min, out$distance_max), , drop = FALSE]
+  rownames(out) <- NULL
+  out
 }

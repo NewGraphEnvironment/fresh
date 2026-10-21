@@ -84,10 +84,11 @@
     .nr_seg(31, 3, "100.500.300", drm = 50, len = 500, mad = 0.1, x0 = 1650))
 }
 
-.nr_dist <- function(conn, to = "pg_temp.nr_near", q = 3) {
+.nr_dist <- function(conn, to = "pg_temp.nr_near", q = 3, d = NULL) {
   d <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT id_segment, dist_m FROM %s WHERE discharge_min = %s
-     AND watershed_group_code = 'TEST' ORDER BY id_segment", to, q))
+    "SELECT id_segment, dist_m FROM %s WHERE discharge_min = %s%s
+     AND watershed_group_code = 'TEST' ORDER BY id_segment", to, q,
+    if (is.null(d)) "" else sprintf(" AND distance_max = %s", d)))
   stats::setNames(d$dist_m, d$id_segment)
 }
 

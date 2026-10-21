@@ -19,7 +19,7 @@ nr_tbl <- "w.streams_near_river"
 nr_exists <- paste0(
   "EXISTS (SELECT 1 FROM w.streams_near_river n WHERE n.id_segment = s.id_segment ",
   "AND n.watershed_group_code = s.watershed_group_code ",
-  "AND n.discharge_min = 3 AND n.dist_m <= 1000)")
+  "AND n.discharge_min = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000)")
 
 # -- loader ----------------------------------------------------------------
 
@@ -194,8 +194,10 @@ test_that(".frs_rules_to_sql threads near_river_table to every rule", {
                      near_river = list(discharge_min = 10, distance_max = 50)))
   sql <- .frs_rules_to_sql(rules, list(channel_width = c(4, 9999)),
                            near_river_table = nr_tbl)
-  expect_match(sql, "n.discharge_min = 3 AND n.dist_m <= 1000", fixed = TRUE)
-  expect_match(sql, "n.discharge_min = 10 AND n.dist_m <= 50", fixed = TRUE)
+  expect_match(sql, "n.discharge_min = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000",
+               fixed = TRUE)
+  expect_match(sql, "n.discharge_min = 10 AND n.distance_max = 50 AND n.dist_m <= 50",
+               fixed = TRUE)
 })
 
 # -- frs_habitat_predicates and the spec collector -------------------------
@@ -250,7 +252,7 @@ test_that("species without near_river build no EXISTS and need no table", {
   expect_false(grepl("EXISTS", frs_habitat_predicates(sp_nr(rules))$rear))
 })
 
-test_that(".frs_near_river_specs keeps the largest distance per discharge", {
+test_that(".frs_near_river_specs lists each distinct pair once", {
   params <- list(
     CH = list(rules = list(
       spawn = list(list(near_river = list(discharge_min = 3, distance_max = 500))),
@@ -261,8 +263,12 @@ test_that(".frs_near_river_specs keeps the largest distance per discharge", {
     BT = list(rules = list(
       rear = list(list(near_river = list(discharge_min = 10, distance_max = 9e3))))))
   specs <- .frs_near_river_specs(params, c("CH", "CO"))
-  expect_identical(specs, data.frame(discharge_min = c(1, 3),
-                                     distance_max = c(200, 1000)))
+  expect_identical(specs, data.frame(discharge_min = c(1, 3, 3),
+                                     distance_max = c(200, 500, 1000)))
+  # A pair two rules share is walked once.
+  params$CO$rules$spawn <- list(list(near_river = list(discharge_min = 1,
+                                                       distance_max = 200)))
+  expect_identical(nrow(.frs_near_river_specs(params, c("CH", "CO"))), 3L)
   none <- .frs_near_river_specs(params["CO"], "BT")
   expect_identical(nrow(none), 0L)
   expect_identical(names(none), c("discharge_min", "distance_max"))

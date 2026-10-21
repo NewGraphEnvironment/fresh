@@ -44,6 +44,14 @@
 #' **Limits.**
 #' - The walk sees only `table`. A working table holds one watershed
 #'   group, so a river beyond the group's outlet is not found.
+#' - To stay fast, the walk joins only rows within `distance_max` (plus
+#'   the longest connector run) in a straight line, and cuts the path
+#'   where a row it skipped was directly above the next row on that
+#'   row's line. A path that jumps out of that reach and comes back in a
+#'   way that test cannot see (the skipped run ends a line, or the row
+#'   above is out of step with its local code) can read short. It needs
+#'   a jump between path rows; none occurs on BULK at 3 m3/s within 1 or
+#'   20 km.
 #' - A segment with no local watershed code (`localcode_ltree` NULL),
 #'   which is most side channels (edge types 1100, 1150, 1350), has no
 #'   place in `FWA_Downstream()`'s ordering. It never walks, so it gets
@@ -58,12 +66,14 @@
 #'   `mad_m3s` and `geom`.
 #' @param to Character. Schema-qualified output table, created if it does
 #'   not exist, with columns `id_segment`, `watershed_group_code`,
-#'   `discharge_min` and `dist_m`. Rows for the watershed groups in
+#'   `discharge_min`, `distance_max` and `dist_m`. Rows for the watershed groups in
 #'   `table` are replaced on every call; other groups' rows are kept.
 #' @param discharge_min Numeric vector. River discharges to find (m3/s),
-#'   each finite, above zero and distinct.
+#'   each finite and above zero.
 #' @param distance_max Numeric vector, one per `discharge_min`. Farthest
-#'   distance (m) to record at that discharge.
+#'   distance (m) to record for that pair. Each pair is walked on its own,
+#'   so a pair's distances never depend on the other pairs in the call;
+#'   pairs must be distinct.
 #' @param verbose Logical. Print rows written, segments with no local
 #'   code, and timing. Default `TRUE`.
 #'
@@ -94,13 +104,16 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
   ok_num <- function(x) {
     is.numeric(x) && length(x) > 0 && all(is.finite(x)) && all(x > 0)
   }
-  if (!ok_num(discharge_min) || anyDuplicated(discharge_min)) {
-    stop("discharge_min must be distinct finite numbers above zero",
-         call. = FALSE)
+  if (!ok_num(discharge_min)) {
+    stop("discharge_min must be finite numbers above zero", call. = FALSE)
   }
   if (!ok_num(distance_max) || length(distance_max) != length(discharge_min)) {
     stop(paste0("distance_max must be finite numbers above zero, one per ",
                 "discharge_min"), call. = FALSE)
+  }
+  if (anyDuplicated(data.frame(discharge_min, distance_max))) {
+    stop("each (discharge_min, distance_max) pair must be distinct",
+         call. = FALSE)
   }
   cols_need <- c("id_segment", "watershed_group_code", "blue_line_key",
                  "watershed_key", "downstream_route_measure", "wscode_ltree",
@@ -143,21 +156,19 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
            WHERE edge_type IN (1400, 1450) AND waterbody_key IS NOT NULL
            GROUP BY waterbody_key, blue_line_key, watershed_key) x", table))
   conn_max <- lens$on_path + lens$side
-  .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl))
-  .frs_db_execute(conn, .frs_near_river_walk_sql(
-    table, walk_tbl, discharge_min, distance_max, conn_max,
-    entry_max = lens$side))
 
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s (
        id_segment integer,
        watershed_group_code character varying(4),
        discharge_min double precision,
+       distance_max double precision,
        dist_m double precision)", to))
   to_name <- utils::tail(strsplit(to, ".", fixed = TRUE)[[1]], 1)
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX IF NOT EXISTS %s_seg_idx ON %s
-       (id_segment, watershed_group_code, discharge_min)", to_name, to))
+       (id_segment, watershed_group_code, discharge_min, distance_max)",
+    to_name, to))
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX IF NOT EXISTS %s_wsg_idx ON %s (watershed_group_code)",
     to_name, to))
@@ -165,30 +176,33 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
   .frs_db_execute(conn, sprintf(
     "DELETE FROM %s WHERE watershed_group_code IN (
        SELECT DISTINCT watershed_group_code FROM %s)", to, table))
-  .frs_db_execute(conn, sprintf(
-    "INSERT INTO %s (id_segment, watershed_group_code, discharge_min, dist_m)
-     SELECT origin_id, watershed_group_code, discharge_min, dist_m
-     FROM %s", to, walk_tbl))
-
-  if (verbose) {
-    stats <- DBI::dbGetQuery(conn, sprintf(
-      "SELECT q.discharge_min,
-         count(hit.origin_id)::int AS near,
-         count(*) FILTER (WHERE o.localcode_ltree IS NULL)::int AS nocode
-       FROM %s o
-       CROSS JOIN (VALUES %s) AS q(discharge_min, distance_max)
-       LEFT JOIN %s hit ON hit.origin_id = o.id_segment
-         AND hit.discharge_min = q.discharge_min
-       WHERE o.mad_m3s IS NULL OR o.mad_m3s < q.discharge_min
-       GROUP BY q.discharge_min ORDER BY q.discharge_min",
-      table, .frs_near_river_values(discharge_min, distance_max), walk_tbl))
-    for (i in seq_len(nrow(stats))) {
-      cat("  Near river >= ", stats$discharge_min[i], " m3/s: ",
-          stats$near[i], " segments within ",
-          distance_max[match(stats$discharge_min[i], discharge_min)],
-          " m; ", stats$nocode[i],
-          " with no local code did not walk\n", sep = "")
+  # One walk per (discharge_min, distance_max) pair, so each answer is a
+  # function of its own two numbers: the cap and prefilter come from the
+  # pair alone, never from another rule's distance.
+  for (i in seq_along(discharge_min)) {
+    q <- discharge_min[i]
+    d <- distance_max[i]
+    .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl))
+    .frs_db_execute(conn, .frs_near_river_walk_sql(
+      table, walk_tbl, q, d, conn_max, entry_max = lens$side))
+    .frs_db_execute(conn, sprintf(
+      "INSERT INTO %s (id_segment, watershed_group_code, discharge_min,
+         distance_max, dist_m)
+       SELECT origin_id, watershed_group_code, discharge_min,
+         %s::double precision, dist_m
+       FROM %s", to, .frs_sql_num(d), walk_tbl))
+    if (verbose) {
+      stats <- DBI::dbGetQuery(conn, sprintf(
+        "SELECT count(*)::int AS near,
+           (SELECT count(*) FROM %s o WHERE o.localcode_ltree IS NULL
+              AND (o.mad_m3s IS NULL OR o.mad_m3s < %s))::int AS nocode
+         FROM %s", table, .frs_sql_num(q), walk_tbl))
+      cat("  Near river >= ", q, " m3/s: ", stats$near, " segments within ",
+          d, " m; ", stats$nocode, " with no local code did not walk\n",
+          sep = "")
     }
+  }
+  if (verbose) {
     cat("  Near river walk: ",
         round((proc.time() - t0)["elapsed"], 1), "s\n", sep = "")
   }

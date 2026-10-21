@@ -103,8 +103,8 @@ a breaks table (\verb{\{streams_table\}_breaks}) for accessibility checks.
 When a spawn or rear rule of any of \code{species} carries \code{near_river}
 (see \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}), classify first runs
 \code{\link[=frs_near_river]{frs_near_river()}} on \code{table} into \verb{<to>_near_river}, one walk for
-every distinct \code{discharge_min} the rules ask for, and the rules read
-it. That needs
+every distinct \verb{(discharge_min, distance_max)} pair the rules ask for,
+and each rule reads its own pair's rows. That needs
 \code{mad_m3s} on \code{table} under either model. The table is kept after
 classify, so a caller can re-test the predicates against it, and its
 walk sees only \code{table}: a river beyond the group's outlet is not

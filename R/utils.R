@@ -376,10 +376,10 @@
 #' SQL test for a rule's near_river condition
 #'
 #' An `EXISTS` against the table [frs_near_river()] writes: a row for
-#' this segment at the rule's `discharge_min` with `dist_m` within its
-#' `distance_max`. Both numbers go through `.frs_sql_num()`, the same
-#' formatter that writes `discharge_min` into the table, so the equality
-#' compares one literal with itself.
+#' this segment from the walk of the rule's own `(discharge_min,
+#' distance_max)` pair, with `dist_m` within `distance_max`. Both numbers
+#' go through `.frs_sql_num()`, the same formatter that writes them into
+#' the table, so each equality compares one literal with itself.
 #'
 #' @param nr Named list with `discharge_min` and `distance_max`.
 #' @param near_river_table Character or `NULL`.
@@ -396,9 +396,10 @@
   sprintf(paste0(
     "EXISTS (SELECT 1 FROM %s n WHERE n.id_segment = s.id_segment ",
     "AND n.watershed_group_code = s.watershed_group_code ",
-    "AND n.discharge_min = %s AND n.dist_m <= %s)"),
+    "AND n.discharge_min = %s AND n.distance_max = %s AND n.dist_m <= %s)"),
     near_river_table,
     .frs_sql_num(nr[["discharge_min"]]),
+    .frs_sql_num(nr[["distance_max"]]),
     .frs_sql_num(nr[["distance_max"]]))
 }
 

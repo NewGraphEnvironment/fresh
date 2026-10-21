@@ -93,6 +93,18 @@ test_that("two discharges in one call measure each from its own origins", {
   expect_identical(.nr_dist(conn, q = 0.1), c(`15` = 0))
 })
 
+test_that("one discharge at two distances is walked twice, each on its own", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, q = c(3, 3), d = c(500, 1000))
+  expect_identical(.nr_dist(conn, d = 500), c(`10` = 0, `11` = 0, `12` = 400))
+  expect_identical(.nr_dist(conn, d = 1000),
+                   c(`10` = 0, `11` = 0, `12` = 400, `13` = 900))
+})
+
 test_that("a polygon passed through keeps its connector in the distance", {
   skip_if_no_conn()
   conn <- frs_db_conn()
@@ -263,7 +275,7 @@ test_that("only the table's groups are replaced", {
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn)
   DBI::dbExecute(conn, "INSERT INTO pg_temp.nr_near VALUES
-                          (999, 'TEST', 3, 1), (999, 'OTHR', 3, 1)")
+                          (999, 'TEST', 3, 1000, 1), (999, 'OTHR', 3, 1000, 1)")
   nr_run(conn)
   kept <- DBI::dbGetQuery(conn, "SELECT watershed_group_code w
                                  FROM pg_temp.nr_near WHERE id_segment = 999")

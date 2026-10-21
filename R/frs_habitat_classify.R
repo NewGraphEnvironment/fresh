@@ -20,8 +20,8 @@
 #' When a spawn or rear rule of any of `species` carries `near_river`
 #' (see [frs_habitat_predicates()]), classify first runs
 #' [frs_near_river()] on `table` into `<to>_near_river`, one walk for
-#' every distinct `discharge_min` the rules ask for, and the rules read
-#' it. That needs
+#' every distinct `(discharge_min, distance_max)` pair the rules ask for,
+#' and each rule reads its own pair's rows. That needs
 #' `mad_m3s` on `table` under either model. The table is kept after
 #' classify, so a caller can re-test the predicates against it, and its
 #' walk sees only `table`: a river beyond the group's outlet is not

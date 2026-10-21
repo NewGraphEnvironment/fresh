@@ -17,14 +17,16 @@ frs_near_river(conn, table, to, discharge_min, distance_max, verbose = TRUE)
 
 \item{to}{Character. Schema-qualified output table, created if it does
 not exist, with columns \code{id_segment}, \code{watershed_group_code},
-\code{discharge_min} and \code{dist_m}. Rows for the watershed groups in
+\code{discharge_min}, \code{distance_max} and \code{dist_m}. Rows for the watershed groups in
 \code{table} are replaced on every call; other groups' rows are kept.}
 
 \item{discharge_min}{Numeric vector. River discharges to find (m3/s),
-each finite, above zero and distinct.}
+each finite and above zero.}
 
 \item{distance_max}{Numeric vector, one per \code{discharge_min}. Farthest
-distance (m) to record at that discharge.}
+distance (m) to record for that pair. Each pair is walked on its own,
+so a pair's distances never depend on the other pairs in the call;
+pairs must be distinct.}
 
 \item{verbose}{Logical. Print rows written, segments with no local
 code, and timing. Default \code{TRUE}.}
@@ -81,6 +83,14 @@ itself. A segment with NULL \code{mad_m3s} is never a target.
 \itemize{
 \item The walk sees only \code{table}. A working table holds one watershed
 group, so a river beyond the group's outlet is not found.
+\item To stay fast, the walk joins only rows within \code{distance_max} (plus
+the longest connector run) in a straight line, and cuts the path
+where a row it skipped was directly above the next row on that
+row's line. A path that jumps out of that reach and comes back in a
+way that test cannot see (the skipped run ends a line, or the row
+above is out of step with its local code) can read short. It needs
+a jump between path rows; none occurs on BULK at 3 m3/s within 1 or
+20 km.
 \item A segment with no local watershed code (\code{localcode_ltree} NULL),
 which is most side channels (edge types 1100, 1150, 1350), has no
 place in \code{FWA_Downstream()}'s ordering. It never walks, so it gets
