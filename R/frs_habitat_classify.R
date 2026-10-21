@@ -210,6 +210,9 @@ frs_habitat_classify <- function(conn, table, to,
         paste(near_miss, collapse = ", "), table,
         if (length(near_miss) > 1) "s" else ""), call. = FALSE)
     }
+    # A near-river table in 0.41.0's shape would stop the walk after the
+    # habitat rows were deleted; refuse it here instead.
+    .frs_near_river_check_shape(conn, near_tbl)
   }
 
   # Ensure input tables are indexed — critical when called directly

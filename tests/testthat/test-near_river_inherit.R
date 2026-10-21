@@ -296,3 +296,25 @@ test_that("NA or absent columns compile every fixture rule as 0.41.0 did", {
   }
   expect_length(frozen, 66)
 })
+
+test_that("a blank cell is unset, as NA is (round 1)", {
+  csv <- tempfile(fileext = ".csv")
+  on.exit(unlink(csv))
+  x <- data.frame(species_code = c("BT", "CH"), rear_gradient_max = 0.05,
+                  rear_channel_width_min = 1.5,
+                  rear_river_measure = c("channel_width", ""),
+                  rear_river_channel_width_min = c(20, NA),
+                  rear_river_distance_max = c(1000, NA))
+  utils::write.csv(x, csv, row.names = FALSE, na = "")
+  p <- frs_params(csv = csv, rules_yaml = NULL)
+  expect_identical(p$BT$near_river$rear$measure, "channel_width")
+  expect_null(p$CH$near_river$rear)
+  # a blank measure with a pair set is the default, model
+  x$rear_river_measure <- c("channel_width", " ")
+  x$rear_river_channel_width_min <- c(20, 20)
+  x$rear_river_discharge_min <- c(NA, 3)
+  x$rear_river_distance_max <- c(1000, 1000)
+  utils::write.csv(x, csv, row.names = FALSE, na = "")
+  expect_identical(frs_params(csv = csv, rules_yaml = NULL)$CH$near_river$rear$measure,
+                   "model")
+})

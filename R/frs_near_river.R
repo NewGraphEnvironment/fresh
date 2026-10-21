@@ -167,6 +167,8 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
          call. = FALSE)
   }
 
+  .frs_near_river_check_shape(conn, to)
+
   t0 <- proc.time()
   walk_tbl <- "pg_temp.frs_near_river_walk"
   on.exit(.frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl)),
@@ -255,10 +257,33 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
 }
 
 
+#' Stop if a near_river output table exists in fresh 0.41.0's shape
+#'
+#' Writes nothing, so [frs_habitat_classify()] can run it before its first
+#' write. `to_regclass()` resolves `to` the way the later statements will.
+#'
+#' @noRd
+.frs_near_river_check_shape <- function(conn, to) {
+  .frs_validate_identifier(to, "output table")
+  exists <- !is.na(DBI::dbGetQuery(conn, sprintf(
+    "SELECT to_regclass(%s)::text AS r", .frs_quote_string(to)))$r)
+  if (!exists) return(invisible(to))
+  have <- names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0", to)))
+  if (!all(c("measure", "threshold") %in% have)) {
+    stop(sprintf(paste0(
+      "%s has no measure / threshold columns: it was written by fresh ",
+      "0.41.0, which measured discharge only. Drop it and re-run (the ",
+      "table is rebuilt from the streams table)."), to), call. = FALSE)
+  }
+  invisible(to)
+}
+
+
 #' Create the near_river output table, refusing the 0.41.0 shape
 #'
 #' @noRd
 .frs_near_river_table <- function(conn, to) {
+  .frs_near_river_check_shape(conn, to)
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s (
        id_segment integer,
@@ -267,13 +292,6 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
        threshold double precision,
        distance_max double precision,
        dist_m double precision)", to))
-  have <- names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0", to)))
-  if (!all(c("measure", "threshold") %in% have)) {
-    stop(sprintf(paste0(
-      "%s has no measure / threshold columns: it was written by fresh ",
-      "0.41.0, which measured discharge only. Drop it and re-run (the ",
-      "table is rebuilt from the streams table)."), to), call. = FALSE)
-  }
   to_name <- utils::tail(strsplit(to, ".", fixed = TRUE)[[1]], 1)
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX IF NOT EXISTS %s_seg_idx ON %s

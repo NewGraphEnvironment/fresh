@@ -758,9 +758,12 @@ frs_params <- function(conn = NULL,
   measures <- c("discharge", "channel_width", "stream_order", "model")
   one <- function(stage) {
     col <- function(k) paste0(stage, "_river_", k)
+    # Unset is NULL, NA, or a blank cell: read.csv() reads an empty field
+    # of a character column as "", which must not read as a measure.
     get <- function(k) {
       v <- row[[col(k)]]
-      if (is.null(v) || length(v) == 0 || is.na(v[1])) NULL else v[1]
+      if (is.null(v) || length(v) == 0 || is.na(v[1]) ||
+          !nzchar(trimws(as.character(v[1])))) NULL else v[1]
     }
     measure <- get("measure")
     measure <- if (is.null(measure)) "model" else trimws(as.character(measure))

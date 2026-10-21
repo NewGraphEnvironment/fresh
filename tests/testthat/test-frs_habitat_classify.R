@@ -431,3 +431,33 @@ test_that("integration: a near_river rule admits small streams near a river (#25
   DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams DROP COLUMN mad_m3s")
   expect_error(run("cw"), "near_river rule reads mad_m3s")
 })
+
+test_that("a 0.41.0 near-river table stops classify before any write (round 1)", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  for (t in c("pg_temp.nr_hab", "pg_temp.nr_hab_near_river")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_hab (id_segment integer,
+    watershed_group_code varchar(4), species_code text, accessible boolean,
+    spawning boolean, rearing boolean, lake_rearing boolean,
+    wetland_rearing boolean)")
+  DBI::dbExecute(conn, "INSERT INTO pg_temp.nr_hab VALUES
+    (1, 'TEST', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
+  DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_hab_near_river (id_segment
+    integer, watershed_group_code varchar(4), discharge_min double precision,
+    distance_max double precision, dist_m double precision)")
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
+  params$CH$rules <- list(rear = list(list(edge_types_explicit = c(1000, 1100),
+    near_river = list(discharge_min = 3, distance_max = 1000))))
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.nr_hab", species = "CH", params = params, gate = FALSE,
+    verbose = FALSE), "written by fresh 0.41.0")
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
+  expect_true(is.na(DBI::dbGetQuery(conn,
+    "SELECT to_regclass('pg_temp.nr_streams_acc_all')::text AS r")$r))
+})
