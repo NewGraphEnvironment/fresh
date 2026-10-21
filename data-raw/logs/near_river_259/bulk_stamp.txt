@@ -1,18 +1,24 @@
-fresh 0.40.0 @ ac29896
-date 2026-10-21 05:11:06 UTC
+fresh 0.40.0 @ 2362aa0
+date 2026-10-21 05:36:23 UTC
 group BULK, discharge 3 m3/s, reach 20000 m
 segments 32472, with mad 30011, at or above q 1087, no local code 2426
-walk time: 1 km 12.8 s, 20 km 57.0 s
-within 1 km 2116, within 20 km 22524, negative distances 0
+walk time: 1 km 14.7 s, 20 km 62.7 s
+within 1 km 2118, within 20 km 22523, negative distances 0
 1 km and 20 km walks disagree on 0 segments within 1 km
-bank offsets: 14885 of 22501 found by both, mean 47.9 m, max 599.1 m (bound 3394.8 m); bank longer than centreline 0
+bank offsets: 16051 of 22501 found by both, mean 38.2 m, max 599.1 m (bound 3394.8 m); bank longer than centreline 0
 side channels with no local code (edge n joins_river): 1100 238 5; 1150 5 0; 1350 177 0; 2300 2 0
 Coffin Creek: 33 segments below q, 33 measured, 0 to 13410 m, 2 within 1 km; through wetlands 4594 to 12337 m
 rows for segments at or above q: 0
-starts 2466, reference walk 9 s
-       class Freq                                             note
-       agree  761    max |residual| 0.003 m over 761 found by both
-        bank 1133              subtracted mean 33.7 m, max 599.1 m
-      beyond  438                                                 
-       entry  114 centreline residual median 529.3 m, max 1421.7 m
- nested_code   20        2 distinct targets, residual max 1555.9 m
+starts 2455, reference walk 9 s
+       class Freq
+       agree  644
+        bank 1122
+      beyond  438
+       entry  231
+ nested_code   20
+                                                                                               note
+                                                      max |residual| 0.003 m over 644 found by both
+ subtracted mean 33.6 m, max 599.1 m; 0 of 1122 with a polygon shorter than the straight line to it
+                                                                                                   
+                                                   centreline residual median 201.1 m, max 1421.7 m
+                                                          2 distinct targets, residual max 1555.9 m

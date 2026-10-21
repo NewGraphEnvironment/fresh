@@ -28,7 +28,10 @@
 #   agree        both find nothing, or within 1 m
 #   bank         fresh's centreline agrees within 1 m (or lies just past
 #                the reach); the bank rule's subtraction is the whole
-#                difference
+#                difference. The subtraction is fresh's own, so the class
+#                also counts bank distances shorter than the straight line
+#                from the segment to the target's polygon, an independent
+#                lower bound (expected 0)
 #   beyond       the reference's distance is past the 20 km reach
 #   truncation   the reference's target is outside the group's table
 #   connector    the reference stopped on a connector (1400/1450), which
@@ -252,11 +255,14 @@ cmp$ref_m[cmp$ref_status != "found"] <- NA
 DBI::dbWriteTable(conn, DBI::Id(schema = schema, table = "cmp"),
                   data.frame(id_segment = cmp$id_segment,
                              ref_lfid = cmp$ref_lfid,
+                             ref_wbk = cmp$ref_wbk,
                              reach = pmax(cmp$centre_m, cmp$ref_m, 0,
                                           na.rm = TRUE) + 1),
                   overwrite = TRUE)
 extra <- DBI::dbGetQuery(conn, sprintf(
   "SELECT c.id_segment,
+     (SELECT min(ST_Distance(ST_StartPoint(o.geom), p.geom))
+        FROM %s p WHERE p.waterbody_key = c.ref_wbk) AS straight_to_polygon_m,
      EXISTS (SELECT 1 FROM %s x
              WHERE x.linear_feature_id = c.ref_lfid) AS ref_in_table,
      EXISTS (SELECT 1 FROM %s t
@@ -267,7 +273,8 @@ extra <- DBI::dbGetQuery(conn, sprintf(
                      o.wscode_ltree, o.localcode_ltree, t.blue_line_key,
                      t.downstream_route_measure, t.wscode_ltree,
                      t.localcode_ltree)) AS nested_code
-   FROM %s.cmp c JOIN %s o USING (id_segment)", tbl, tbl, schema, tbl))
+   FROM %s.cmp c JOIN %s o USING (id_segment)",
+  .frs_near_river_polygons(), tbl, tbl, schema, tbl))
 cmp <- merge(cmp, extra, by = "id_segment")
 
 cmp$diff_m <- cmp$bank_m - cmp$ref_m
@@ -303,9 +310,16 @@ both <- cmp$class == "agree" & !is.na(cmp$bank_m)
 note("agree", sprintf("max |residual| %.3f m over %d found by both",
                       max(c(0, abs(cmp$diff_m[both]))), sum(both)))
 bk <- cmp$class == "bank"
-note("bank", sprintf("subtracted mean %.1f m, max %.1f m",
-                     mean(cmp$subtracted_m[bk], na.rm = TRUE),
-                     max(c(0, cmp$subtracted_m[bk]), na.rm = TRUE)))
+# Independent of fresh's subtraction: a bank distance can never be shorter
+# than the straight line from the segment's downstream end to the polygon.
+below_bound <- bk & !is.na(cmp$straight_to_polygon_m) &
+  cmp$bank_m < cmp$straight_to_polygon_m - 0.5
+note("bank", sprintf(paste0(
+  "subtracted mean %.1f m, max %.1f m; %d of %d with a polygon shorter ",
+  "than the straight line to it"),
+  mean(cmp$subtracted_m[bk], na.rm = TRUE),
+  max(c(0, cmp$subtracted_m[bk]), na.rm = TRUE), sum(below_bound),
+  sum(bk & !is.na(cmp$straight_to_polygon_m))))
 en <- cmp$class == "entry"
 note("entry", sprintf("centreline residual median %.1f m, max %.1f m",
                       stats::median(cmp$centre_diff_m[en], na.rm = TRUE),
