@@ -4,7 +4,7 @@
 \alias{frs_habitat_predicates}
 \title{Build SQL predicates for one species' habitat classification}
 \usage{
-frs_habitat_predicates(sp_params, model = "cw")
+frs_habitat_predicates(sp_params, model = "cw", near_river_table = NULL)
 }
 \arguments{
 \item{sp_params}{A single-species list with \code{species_code},
@@ -15,6 +15,13 @@ optional \code{spawn_edge_types} / \code{rear_edge_types}). This is the shape
 
 \item{model}{Character. Habitat size model: \code{"cw"} (channel width,
 default) or \code{"mad"} (mean annual discharge, \code{mad_m3s}).}
+
+\item{near_river_table}{Character or \code{NULL}. Schema-qualified table of
+distances to the nearest river downstream, as written by
+\code{\link[=frs_near_river]{frs_near_river()}}. Required when a spawn or rear rule carries
+\code{near_river}; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} builds it and passes it. A
+rule matches only rows walked at exactly its own \code{discharge_min} and
+\code{distance_max}.}
 }
 \value{
 A named list with four character scalars: \code{spawn}, \code{rear},
@@ -59,6 +66,41 @@ bypass) is ignored. An explicit \verb{mad: [min, max]} rule applies under
 either model. \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} resolves the model per
 watershed group.
 
+\strong{A river nearby (\code{near_river}).} A spawn or rear rule can carry
+
+\if{html}{\out{<div class="sourceCode yaml">}}\preformatted{near_river:
+  discharge_min: 3     # m3/s
+  distance_max: 1000   # m, along the network, downstream
+}\if{html}{\out{</div>}}
+
+The segment then passes the rule's size test (channel width under
+\code{cw}, \code{mad_m3s} under \code{mad}, inherited or explicit) \strong{or} a segment
+carrying at least \code{discharge_min} lies within \code{distance_max}
+downstream. Everything else in the rule (edge types, gradient,
+waterbody tests) still applies. The distance is measured by
+\code{\link[=frs_near_river]{frs_near_river()}}, which \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} runs and passes as
+\code{near_river_table}:
+\itemize{
+\item from the segment's downstream end, so a long segment whose lower end
+is within reach passes whole;
+\item to the river's bank: a tributary's connector line across the river's
+polygon is left out, and never counts as the river;
+\item only for segments whose own \code{mad_m3s} is NULL or below
+\code{discharge_min}: a river that large passes or fails on its own size
+test;
+\item within one watershed group's table, and never from a segment with no
+local watershed code (most side channels); see \code{\link[=frs_near_river]{frs_near_river()}}.
+}
+
+Two consequences to know. A rule with no size test of its own (a
+\code{thresholds: false} rule without \code{channel_width} or \code{mad}) makes
+\code{near_river} its only size test, and such a rule inherits \strong{no
+gradient}, so it tests slope only if it carries \verb{gradient:}. Under
+\code{mad}, a species with no MAD range, which otherwise gets no stream
+habitat from inheriting rules, qualifies through \code{near_river} where a
+river is near. \code{near_river} is not allowed on \code{waterbody_type: L} or
+\code{W} rules.
+
 Lake / wetland rearing predicates (\code{lake_rear}, \code{wetland_rear}) are
 gated on the presence of a \code{waterbody_type: L} / \code{waterbody_type: W}
 rule in \verb{rear:}. Without the rule, the predicate is \code{"FALSE"} — the
@@ -83,6 +125,13 @@ preds$lake_rear
 
 # Discharge-based model, as for a `mad` watershed group
 frs_habitat_predicates(sp_params, model = "mad")$spawn
+
+# A small stream passes when a 3 m3/s river is within 1 km downstream
+sp_params$params_sp$rules$rear <- list(list(
+  edge_types_explicit = c(1000, 1100),
+  near_river = list(discharge_min = 3, distance_max = 1000)))
+frs_habitat_predicates(sp_params,
+  near_river_table = "working.streams_habitat_near_river")$rear
 }
 \seealso{
 Other habitat: 
@@ -106,6 +155,7 @@ Other habitat:
 \code{\link{frs_habitat_overlay}()},
 \code{\link{frs_habitat_partition}()},
 \code{\link{frs_habitat_species}()},
+\code{\link{frs_near_river}()},
 \code{\link{frs_network_segment}()}
 }
 \concept{habitat}

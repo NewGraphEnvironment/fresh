@@ -31,7 +31,8 @@ listed in the file gets \verb{$rules$spawn}, \verb{$rules$rear}, and
 optionally \verb{$rules$spawn_connected} attached
 to its params entry. Species not listed in the file fall through
 to the CSV ranges path. See the \code{parameters_habitat_rules.yaml}
-header for the rule format.}
+header for the rule format, and \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}} for a
+rule's \code{near_river} condition.}
 }
 \value{
 A named list of parameter sets, keyed by species code. Each element

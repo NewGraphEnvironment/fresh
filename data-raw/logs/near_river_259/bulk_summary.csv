@@ -1,0 +1,6 @@
+"class","Freq","note"
+"agree",614,"max |residual| 0.003 m over 614 found by both"
+"bank",1169,"subtracted mean 34.3 m, max 546.4 m; 0 of 1169 with a polygon shorter than the straight line to it"
+"beyond",440,""
+"entry",225,"centreline residual median 180.7 m, max 2266.1 m"
+"nested_code",14,"2 distinct targets, residual max 1555.9 m"
