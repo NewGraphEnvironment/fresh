@@ -23,13 +23,13 @@
 
 ## Phase 3 — live check, docs, release
 - [x] Live check by width and order: `data-raw/near_river_measure_check.R` (equivalence with the discharge walk on a relabelled copy, since the independent reference reads discharge only and lives outside the repo); BULK run logged, 0 rows apart for both measures. `near_river_check.R` updated to the new argument names.
-- [ ] Docs at the places #263 lists; NEWS; `devtools::document()`; `devtools::test()`; `lintr`; `pkgdown::check_pkgdown()`
-- [ ] `/code-check branch`; `/planning-archive`; `/gh-pr-push`
+- [x] Docs at the places #263 lists; NEWS; `devtools::document()`; `devtools::test()`; `lintr`; `pkgdown::check_pkgdown()`
+- [x] `/code-check branch` (4 rounds; ended on an enumeration and a clean round 4); `/planning-archive`; PR
 
 ## Validation
-- [ ] Tests pass
-- [ ] `/code-check` clean (once over the branch)
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] Tests pass
+- [x] `/code-check` clean (once over the branch)
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 Verified by the suite, the byte-identity test over every bundled rule, and the live BULK check.

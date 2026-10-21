@@ -11,3 +11,5 @@
 - Full suite: 1,823 expectations, 0 failures, 0 errors, 2 skips, 3 warnings.
 - Phase 3: BULK measure check (`data-raw/logs/near_river_262/`). With width 20 m and order 5 at 1 km, the direct walks and the discharge walks on relabelled copies are 0 rows apart in both directions. Walks take 13 to 16 s. On main-flow river-polygon rows (1250), wet's discharge covers 1,114 of 1,118, width 1,118 and order 1,118. On lake lines (1200), width covers 1,145 of 2,935 and order all 2,935. This host holds wet's full load (102.8 M rows).
 - Docs at the places #263 lists, NEWS 0.42.0, `devtools::document()`, `pkgdown::check_pkgdown()` clean. lintr adds no new lint of substance in the changed files; the per-file counts rise only by cross-file "no visible global function" artifacts.
+- Code-check: round 1 two findings, round 2 one (inside fix 2), round 3 one (the same mechanism), round 4 clean. Ended on the enumeration in findings.md plus round 4.
+- Full suite after the review fixes: 1,837 expectations, 0 failures, 0 errors, 2 skips. `pkgdown::check_pkgdown()` clean. Version 0.42.0.
