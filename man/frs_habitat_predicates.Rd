@@ -19,7 +19,9 @@ default) or \code{"mad"} (mean annual discharge, \code{mad_m3s}).}
 \item{near_river_table}{Character or \code{NULL}. Schema-qualified table of
 distances to the nearest river downstream, as written by
 \code{\link[=frs_near_river]{frs_near_river()}}. Required when a spawn or rear rule carries
-\code{near_river}; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} builds it and passes it.}
+\code{near_river}; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} builds it and passes it. A
+rule matches only rows walked at exactly its own \code{discharge_min} and
+\code{distance_max}.}
 }
 \value{
 A named list with four character scalars: \code{spawn}, \code{rear},

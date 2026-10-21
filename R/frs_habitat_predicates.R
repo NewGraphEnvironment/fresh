@@ -89,7 +89,9 @@
 #' @param near_river_table Character or `NULL`. Schema-qualified table of
 #'   distances to the nearest river downstream, as written by
 #'   [frs_near_river()]. Required when a spawn or rear rule carries
-#'   `near_river`; [frs_habitat_classify()] builds it and passes it.
+#'   `near_river`; [frs_habitat_classify()] builds it and passes it. A
+#'   rule matches only rows walked at exactly its own `discharge_min` and
+#'   `distance_max`.
 #' @return A named list with four character scalars: `spawn`, `rear`,
 #'   `lake_rear`, `wetland_rear`. Each is an SQL boolean expression
 #'   suitable for embedding in `CASE WHEN ... THEN TRUE ELSE FALSE

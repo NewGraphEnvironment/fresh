@@ -71,7 +71,7 @@ Original items:
 ## Validation
 
 - [x] Tests pass
-- [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
+- [x] `/code-check branch`: six rounds (each found a real defect, all fixed); ended by enumeration of the 12 places the round-3 mechanism reaches, all holding (round 5) with the last closed by construction (round 6). Files `planning/active/review-round1.md`..`review-round6.md`.
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

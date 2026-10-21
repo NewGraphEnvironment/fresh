@@ -66,7 +66,10 @@
 #'   `mad_m3s` and `geom`.
 #' @param to Character. Schema-qualified output table, created if it does
 #'   not exist, with columns `id_segment`, `watershed_group_code`,
-#'   `discharge_min`, `distance_max` and `dist_m`. Rows for the watershed groups in
+#'   `discharge_min`, `distance_max` and `dist_m`. A `near_river` rule
+#'   reads only rows of its own exact pair, so build the table with the
+#'   pairs the rules carry ([frs_habitat_classify()] does): a walk at a
+#'   longer distance does not serve a rule with a shorter one. Rows for the watershed groups in
 #'   `table` are replaced on every call; other groups' rows are kept.
 #' @param discharge_min Numeric vector. River discharges to find (m3/s),
 #'   each finite and above zero.
@@ -228,10 +231,10 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 
 #' SQL that builds the near-river walk table
 #'
-#' One walk serves every discharge: origins are the rows below the
-#' largest `discharge_min`, joined to every main-flow row downstream
-#' within `max(distance_max) + conn_max` (straight line, then along the
-#' path). Path order is `wscode_ltree DESC, downstream_route_measure
+#' One walk per `(discharge_min, distance_max)` pair (scalars): origins
+#' are the rows below `discharge_min`, joined to every main-flow row
+#' downstream within `distance_max + conn_max` (straight line, then along
+#' the path). Path order is `wscode_ltree DESC, downstream_route_measure
 #' DESC, id_segment DESC`, with explicit row frames.
 #'
 #' `path_m` is the distance from the origin's downstream end to the point
@@ -247,8 +250,7 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #' third of connectors as side lines, which the main-flow filter drops),
 #' a side channel, or the river beyond the group's boundary. Counting
 #' it keeps a path that leaves the table and re-enters from reading
-#' short, so one discharge and distance gets the same answer whatever
-#' else is asked.
+#' short.
 #'
 #' On the origin's own blue line the measure decides: a row there is on
 #' the path only below the origin. `FWA_Downstream()` also accepts a row
@@ -264,8 +266,8 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #' A jump from a side-line connector's top lies wholly inside; one from a
 #' tributary that ends on a side channel crosses dry land first, and
 #' that part stays in the distance. The total is capped at `conn_max`,
-#' the allowance the cap and prefilter carry, so no answer depends on the
-#' other discharges and distances in the call. Polygons come from
+#' the allowance the cap and prefilter carry, so the cap never drops a
+#' row whose bank distance is within `distance_max`. Polygons come from
 #' `.frs_near_river_polygons()`. Bank distance `path_m - connector_m` is
 #' clamped at zero against floating-point residue.
 #'
@@ -273,20 +275,27 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #' with `jumps = FALSE` as well, jumps are not counted; both exist for
 #' the check script's comparison with an independent walk.
 #'
-#' The prefilter is an optimisation that must not change an answer. A
-#' row it drops is wholly beyond `cap`, and so is every row after it, but
-#' a jump can carry the path from a dropped row back within `cap`; the
-#' path is therefore cut at the first row whose neighbour directly above
-#' it on its own line is on the path and was dropped.
+#' The prefilter drops rows wholly beyond `cap`; on a contiguous path
+#' every row after one is beyond `cap` too. A jump can carry the path
+#' from a dropped row back within `cap`, so the path is cut at the first
+#' row whose neighbour directly above it on its own line is on the path
+#' and was dropped. Two shapes that test cannot see can still read
+#' short (see [frs_near_river()], Limits); the answer for a pair is
+#' still a function of that pair alone, because each pair is walked on
+#' its own.
 #'
-#' The table holds, per origin, one row per discharge it found within
-#' range (`discharge_min`, `dist_m` = the smallest bank distance to a
+#' The table holds one row per origin that found a river within range
+#' (`discharge_min`, `dist_m` = the smallest bank distance to a
 #' non-connector row at or above that discharge, for an origin below it).
 #'
 #' @noRd
 .frs_near_river_walk_sql <- function(table, walk_tbl, discharge_min,
                                      distance_max, conn_max, entry_max,
                                      bank = TRUE, jumps = TRUE) {
+  # One pair per walk: the cap and prefilter come from distance_max, so
+  # two pairs in one walk would make one answer depend on the other, and
+  # the output (grouped by discharge) would merge them.
+  stopifnot(length(discharge_min) == 1L, length(distance_max) == 1L)
   # Not counting jumps while subtracting entry jumps would go negative.
   stopifnot(jumps || !bank)
   cap <- .frs_sql_num(max(distance_max) + conn_max)

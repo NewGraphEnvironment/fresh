@@ -17,7 +17,10 @@ frs_near_river(conn, table, to, discharge_min, distance_max, verbose = TRUE)
 
 \item{to}{Character. Schema-qualified output table, created if it does
 not exist, with columns \code{id_segment}, \code{watershed_group_code},
-\code{discharge_min}, \code{distance_max} and \code{dist_m}. Rows for the watershed groups in
+\code{discharge_min}, \code{distance_max} and \code{dist_m}. A \code{near_river} rule
+reads only rows of its own exact pair, so build the table with the
+pairs the rules carry (\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} does): a walk at a
+longer distance does not serve a rule with a shorter one. Rows for the watershed groups in
 \code{table} are replaced on every call; other groups' rows are kept.}
 
 \item{discharge_min}{Numeric vector. River discharges to find (m3/s),
