@@ -72,7 +72,9 @@ overridden the barrier for that species. Default \code{NULL} (no
 overrides; every blocking break restricts access).}
 
 \item{overwrite}{Logical. If \code{TRUE}, replace existing rows for
-these species in the output table. Default \code{TRUE}.}
+these species in the output table. Default \code{TRUE}. The
+\verb{<to>_near_river} table (below) is rebuilt for the table's groups
+whatever \code{overwrite} says.}
 
 \item{verbose}{Logical. Print progress. Default \code{TRUE}.}
 }
@@ -97,6 +99,16 @@ modelled.
 Requires a segmented streams table (from \code{\link[=frs_network_segment]{frs_network_segment()}})
 with \code{id_segment}, gradient, channel width, and ltree columns, plus
 a breaks table (\verb{\{streams_table\}_breaks}) for accessibility checks.
+
+When a spawn or rear rule of any of \code{species} carries \code{near_river}
+(see \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}), classify first runs
+\code{\link[=frs_near_river]{frs_near_river()}} on \code{table} into \verb{<to>_near_river}, one walk for
+every distinct \code{discharge_min} the rules ask for, and the rules read
+it. That needs
+\code{mad_m3s} on \code{table} under either model. The table is kept after
+classify, so a caller can re-test the predicates against it, and its
+walk sees only \code{table}: a river beyond the group's outlet is not
+found.
 }
 \examples{
 \dontrun{

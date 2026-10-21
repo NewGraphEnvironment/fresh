@@ -385,3 +385,49 @@ test_that("integration: mad guard reads columns from mixed-case / empty tables",
     params_method = data.frame(watershed_group_code = "ADMS", model = "mad"),
     gate = FALSE, verbose = FALSE))
 })
+
+test_that("integration: a near_river rule admits small streams near a river (#259)", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  for (t in c("pg_temp.nr_hab", "pg_temp.nr_hab_near_river")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"))
+  # One stream rule: width 1 m fails CH's 1.5 m rearing minimum, and 0.2
+  # m3/s fails its 0.28 m3/s MAD minimum, so only near_river can admit.
+  params$CH$rules <- list(rear = list(list(
+    edge_types_explicit = 1000L,
+    near_river = list(discharge_min = 3, distance_max = 1000))))
+
+  run <- function(model) {
+    frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+      to = "pg_temp.nr_hab", species = "CH", params = params,
+      params_method = data.frame(watershed_group_code = "TEST",
+                                 model = model),
+      gate = FALSE, verbose = FALSE)
+    d <- DBI::dbGetQuery(conn, "SELECT id_segment, rearing FROM pg_temp.nr_hab
+                                WHERE species_code = 'CH' ORDER BY id_segment")
+    stats::setNames(d$rearing, d$id_segment)
+  }
+  want <- c(`1` = FALSE, `2` = FALSE, `3` = FALSE, `10` = FALSE,
+            `11` = TRUE, `12` = TRUE, `13` = TRUE, `14` = FALSE, `15` = FALSE)
+  expect_identical(run("cw"), want)
+  expect_identical(run("mad"), want)
+  near <- DBI::dbGetQuery(conn, "SELECT count(*)::int n
+                                 FROM pg_temp.nr_hab_near_river")$n
+  expect_identical(near, 4L)
+
+  # Without near_river the same rule admits nothing.
+  params$CH$rules$rear[[1]]$near_river <- NULL
+  expect_false(any(run("cw")))
+
+  # A near_river rule on a table with no mad_m3s is a clear error.
+  params$CH$rules$rear[[1]]$near_river <-
+    list(discharge_min = 3, distance_max = 1000)
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams DROP COLUMN mad_m3s")
+  expect_error(run("cw"), "near_river rule reads mad_m3s")
+})

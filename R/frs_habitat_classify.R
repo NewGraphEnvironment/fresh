@@ -17,6 +17,16 @@
 #' with `id_segment`, gradient, channel width, and ltree columns, plus
 #' a breaks table (`{streams_table}_breaks`) for accessibility checks.
 #'
+#' When a spawn or rear rule of any of `species` carries `near_river`
+#' (see [frs_habitat_predicates()]), classify first runs
+#' [frs_near_river()] on `table` into `<to>_near_river`, one walk for
+#' every distinct `discharge_min` the rules ask for, and the rules read
+#' it. That needs
+#' `mad_m3s` on `table` under either model. The table is kept after
+#' classify, so a caller can re-test the predicates against it, and its
+#' walk sees only `table`: a river beyond the group's outlet is not
+#' found.
+#'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param table Character. Schema-qualified segmented streams table
 #'   (from [frs_network_segment()]).
@@ -59,7 +69,9 @@
 #'   overridden the barrier for that species. Default `NULL` (no
 #'   overrides; every blocking break restricts access).
 #' @param overwrite Logical. If `TRUE`, replace existing rows for
-#'   these species in the output table. Default `TRUE`.
+#'   these species in the output table. Default `TRUE`. The
+#'   `<to>_near_river` table (below) is rebuilt for the table's groups
+#'   whatever `overwrite` says.
 #' @param verbose Logical. Print progress. Default `TRUE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
@@ -161,6 +173,18 @@ frs_habitat_classify <- function(conn, table, to,
       "frs_network_segment())"),
       paste(names(models)[models == "mad"], collapse = ", "), table),
       call. = FALSE)
+  }
+
+  # near_river rules (#259) read a table of distances down to the nearest
+  # river, built from mad_m3s under either model, so check for it here too.
+  near_specs <- .frs_near_river_specs(params, species)
+  near_tbl <- if (nrow(near_specs) > 0) paste0(to, "_near_river")
+  if (!is.null(near_tbl) && !"mad_m3s" %in% names(DBI::dbGetQuery(conn,
+      sprintf("SELECT * FROM %s LIMIT 0", table)))) {
+    stop(sprintf(paste0(
+      "a near_river rule reads mad_m3s but %s has no mad_m3s column ",
+      "(join it with frs_col_join() or frs_network_segment())"),
+      table), call. = FALSE)
   }
 
   # Ensure input tables are indexed — critical when called directly
@@ -270,6 +294,13 @@ frs_habitat_classify <- function(conn, table, to,
   }
   }  # end gate if/else
 
+  # -- Distances down to the nearest river, for near_river rules -------------
+  if (!is.null(near_tbl)) {
+    frs_near_river(conn, table, near_tbl,
+      discharge_min = near_specs$discharge_min,
+      distance_max = near_specs$distance_max, verbose = verbose)
+  }
+
   # -- Classify each species using pre-computed accessibility -----------------
   for (sp_params in species_params) {
     t0 <- proc.time()
@@ -284,9 +315,11 @@ frs_habitat_classify <- function(conn, table, to,
     # cw is always built: it is the fallback for groups missing from
     # params_method and for an empty table (no WSGs resolved).
     preds <- .frs_preds_by_model(
-      list(cw = frs_habitat_predicates(sp_params, model = "cw"),
+      list(cw = frs_habitat_predicates(sp_params, model = "cw",
+                                       near_river_table = near_tbl),
            mad = if ("mad" %in% models) {
-             frs_habitat_predicates(sp_params, model = "mad")
+             frs_habitat_predicates(sp_params, model = "mad",
+                                    near_river_table = near_tbl)
            }),
       models)
     spawn_cond        <- preds$spawn
