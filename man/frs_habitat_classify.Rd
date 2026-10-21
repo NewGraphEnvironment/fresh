@@ -100,15 +100,19 @@ Requires a segmented streams table (from \code{\link[=frs_network_segment]{frs_n
 with \code{id_segment}, gradient, channel width, and ltree columns, plus
 a breaks table (\verb{\{streams_table\}_breaks}) for accessibility checks.
 
-When a spawn or rear rule of any of \code{species} carries \code{near_river}
-(see \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}), classify first runs
-\code{\link[=frs_near_river]{frs_near_river()}} on \code{table} into \verb{<to>_near_river}, one walk for
-every distinct \verb{(discharge_min, distance_max)} pair the rules ask for,
-and each rule reads its own pair's rows. That needs
-\code{mad_m3s} on \code{table} under either model. The table is kept after
-classify, so a caller can re-test the predicates against it, and its
-walk sees only \code{table}: a river beyond the group's outlet is not
-found.
+When a spawn or rear rule of any of \code{species} has a \code{near_river} pair
+(its own mapping, or one it inherits from the thresholds CSV; see
+\code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}), classify first runs \code{\link[=frs_near_river]{frs_near_river()}}
+on \code{table} into \verb{<to>_near_river}, one walk for every distinct
+\verb{(measure, threshold, distance_max)} the rules ask for under the size
+models applied, and each rule reads its own pair's rows. Each pair
+needs its measure's column on \code{table} (\code{mad_m3s}, \code{channel_width} or
+\code{stream_order}) under either model; once a classified species has a
+pair, that check runs for every group, \code{cw} included. Species with no
+\code{params_fresh} row are not classified and walk nothing. The table is
+kept after classify, so a caller can re-test the predicates against
+it, and its walk sees only \code{table}: a river beyond the group's outlet
+is not found.
 }
 \examples{
 \dontrun{

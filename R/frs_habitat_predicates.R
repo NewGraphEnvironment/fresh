@@ -158,35 +158,21 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
   size_col <- if (model == "mad") "mad_m3s" else "channel_width"
   size_spawn <- params_sp$ranges$spawn[[size_col]]
   size_rear  <- params_sp$ranges$rear[[size_col]]
-  size_inherit <- function(rng) {
-    if (is.null(rng) && model == "mad") c(NA_real_, NA_real_) else rng
-  }
   size_sql <- function(rng) {
     if (is.null(rng)) return(if (model == "mad") "FALSE" else NULL)
     sprintf("s.%s >= %s AND s.%s <= %s",
       size_col, .frs_sql_num(rng[1]), size_col, .frs_sql_num(rng[2]))
   }
-  # Rule-level `channel_width:` is a cw-model construct (the bundled
-  # `waterbody_type: R` rules use it as the river-polygon bypass).
-  # bcfishpass's mad branch has no such bypass, so drop it under mad and
-  # let the rule inherit the MAD range like any other.
-  model_rules <- function(rules) {
-    if (model != "mad") return(rules)
-    lapply(rules, function(r) {
-      r[["channel_width"]] <- NULL
-      r
-    })
-  }
 
   # --- spawn predicate ---
   if (!is.null(params_sp[["rules"]]) &&
       !is.null(params_sp[["rules"]][["spawn"]])) {
-    csv_thresholds_spawn <- list(
-      gradient = c(sp_params$spawn_gradient_min,
-                   sp_params$spawn_gradient_max))
-    csv_thresholds_spawn[[size_col]] <- size_inherit(size_spawn)
+    csv_thresholds_spawn <- c(
+      list(gradient = c(sp_params$spawn_gradient_min,
+                        sp_params$spawn_gradient_max)),
+      .frs_stage_inherit(params_sp, "spawn", model))
     spawn_pred <- .frs_rules_to_sql(
-      model_rules(params_sp[["rules"]][["spawn"]]), csv_thresholds_spawn,
+      .frs_stage_rules(params_sp, "spawn", model), csv_thresholds_spawn,
       near_river_table = near_river_table)
   } else {
     spawn_pred <- sprintf("s.gradient >= %s AND s.gradient <= %s",
@@ -206,17 +192,10 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
   if (!is.null(params_sp[["rules"]]) &&
       !is.null(params_sp[["rules"]][["rear"]])) {
     rear_g <- params_sp$ranges$rear$gradient
-    csv_thresholds_rear <- list(
-      gradient = if (is.null(rear_g)) NULL else c(0, rear_g[2]))
-    csv_thresholds_rear[[size_col]] <- size_inherit(size_rear)
-    # Filter out rules flagged `area_only: true` — those rules drive
-    # lake_rearing / wetland_rearing bucket-flag derivation only and
-    # should not contribute to the main `rear` predicate. The bucket
-    # rule lookup below still finds them via .frs_find_waterbody_rule().
-    rear_rules_for_main <- Filter(
-      function(r) !isTRUE(r[["area_only"]]),
-      params_sp[["rules"]][["rear"]])
-    rear_pred <- .frs_rules_to_sql(model_rules(rear_rules_for_main),
+    csv_thresholds_rear <- c(
+      list(gradient = if (is.null(rear_g)) NULL else c(0, rear_g[2])),
+      .frs_stage_inherit(params_sp, "rear", model))
+    rear_pred <- .frs_rules_to_sql(.frs_stage_rules(params_sp, "rear", model),
                                    csv_thresholds_rear,
                                    near_river_table = near_river_table)
   } else {
@@ -269,27 +248,87 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
 }
 
 
+#' The rules one stage compiles, for one size model
+#'
+#' A stage's rules as the main predicate compiles them. On `rear`, rules
+#' flagged `area_only: true` are dropped: they drive the lake / wetland
+#' bucket flags only, and `.frs_find_waterbody_rule()` still finds them.
+#' Under `mad`, a rule-level `channel_width:` is dropped: it is a
+#' cw-model construct (the bundled `waterbody_type: R` rules use it as
+#' the river-polygon bypass), bcfishpass's mad branch has no such bypass,
+#' and the rule then inherits the MAD range like any other.
+#'
+#' @param params_sp One species' element of [frs_params()].
+#' @param stage `"spawn"` or `"rear"`.
+#' @param model `"cw"` or `"mad"`.
+#' @return A list of rules, possibly empty; `NULL` when the species has
+#'   no rules for the stage.
+#' @noRd
+.frs_stage_rules <- function(params_sp, stage, model) {
+  rules <- params_sp[["rules"]][[stage]]
+  if (is.null(rules)) return(NULL)
+  if (stage == "rear") rules <- Filter(function(r) !isTRUE(r[["area_only"]]),
+                                       rules)
+  if (model != "mad") return(rules)
+  lapply(rules, function(r) {
+    r[["channel_width"]] <- NULL
+    r
+  })
+}
+
+
+#' What a stage's rules inherit from the thresholds CSV, besides gradient
+#'
+#' The size range of the model (`channel_width` under `cw`, `mad_m3s`
+#' under `mad`, where a species with no MAD range gets `c(NA, NA)`, which
+#' makes inheriting rules match nothing) and the stage's near_river pair
+#' resolved for the model (#263). It is not a size column, so it goes in
+#' under both models.
+#'
+#' @inheritParams .frs_stage_rules
+#' @return A named list holding whichever of the two is set.
+#' @noRd
+.frs_stage_inherit <- function(params_sp, stage, model) {
+  size_col <- if (model == "mad") "mad_m3s" else "channel_width"
+  out <- list()
+  rng <- params_sp$ranges[[stage]][[size_col]]
+  if (is.null(rng) && model == "mad") rng <- c(NA_real_, NA_real_)
+  out[[size_col]] <- rng
+  out[["near_river"]] <- .frs_near_river_resolve(
+    params_sp[["near_river"]][[stage]], model)
+  out
+}
+
+
 #' Distinct near_river pairs a set of species' rules ask for
 #'
-#' Scans every spawn and rear rule of `species` in `params` for a
-#' `near_river` mapping and returns one row per distinct
+#' Collects every spawn and rear rule's effective pair
+#' (`.frs_rule_near_river()`, the compiler's own resolver: an explicit
+#' mapping, or the stage's inherited pair, never a `near_river: false`)
+#' under each size model in `models`, and returns one row per distinct
 #' `(measure, threshold, distance_max)`. [frs_near_river()] walks once
 #' per pair, so one rule's answer never depends on another rule's.
 #'
 #' @param params Named list from [frs_params()].
 #' @param species Character vector of species codes.
+#' @param models Character. The size models predicates are built for
+#'   (`"cw"`, `"mad"`); a `model` measure resolves per model.
 #' @return A data frame with character `measure` and numeric `threshold`
 #'   and `distance_max`, ordered by all three; zero rows when no rule
 #'   asks.
 #' @noRd
-.frs_near_river_specs <- function(params, species) {
+.frs_near_river_specs <- function(params, species, models = "cw") {
   nrs <- list()
   for (sp in species) {
-    rules <- params[[sp]][["rules"]]
-    for (habitat in c("spawn", "rear")) {
-      for (r in rules[[habitat]]) {
-        nr <- r[["near_river"]]
-        if (is.list(nr)) nrs[[length(nrs) + 1L]] <- .frs_near_river_normalize(nr)
+    params_sp <- params[[sp]]
+    for (model in unique(models)) {
+      for (stage in c("spawn", "rear")) {
+        rules <- .frs_stage_rules(params_sp, stage, model)
+        csv <- .frs_stage_inherit(params_sp, stage, model)
+        for (r in rules) {
+          nr <- .frs_rule_near_river(r, csv)
+          if (!is.null(nr)) nrs[[length(nrs) + 1L]] <- nr
+        }
       }
     }
   }

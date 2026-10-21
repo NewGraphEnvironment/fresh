@@ -82,13 +82,25 @@ frs_params <- function(conn = NULL,
     stop("Table must have a 'species_code' column", call. = FALSE)
   }
 
+  # A misspelt near_river column would be inert, so name it (#263).
+  river_cols <- grep("_river_", names(raw), value = TRUE)
+  river_bad <- setdiff(river_cols, .frs_near_river_csv_cols())
+  if (length(river_bad) > 0) {
+    warning(sprintf(paste0(
+      "unknown near_river column%s ignored: %s. Known: %s"),
+      if (length(river_bad) > 1) "s" else "",
+      paste(river_bad, collapse = ", "),
+      paste(.frs_near_river_csv_cols(), collapse = ", ")), call. = FALSE)
+  }
+
   # Build a list keyed by species_code
   species_list <- split(raw, raw$species_code)
   params <- lapply(species_list, function(row) {
     row <- as.list(row)
 
     # Convert numeric fields (skip character columns like edge_types)
-    char_fields <- c("species_code", "spawn_edge_types", "rear_edge_types")
+    char_fields <- c("species_code", "spawn_edge_types", "rear_edge_types",
+                     "spawn_river_measure", "rear_river_measure")
     num_fields <- setdiff(names(row), char_fields)
     for (f in num_fields) {
       row[[f]] <- as.numeric(row[[f]])
@@ -96,6 +108,9 @@ frs_params <- function(conn = NULL,
 
     # Build ranges sub-list for frs_classify()
     row$ranges <- .frs_build_ranges(row)
+    # The near_river pair each stage's rules inherit (#263): a sibling of
+    # ranges, which frs_classify() types as numeric length-2 ranges.
+    row$near_river <- .frs_build_near_river(row)
 
     row
   })
@@ -694,4 +709,109 @@ frs_params <- function(conn = NULL,
     spawn = build_range("spawn"),
     rear = build_range("rear")
   )
+}
+
+
+#' The near_river thresholds columns, per stage
+#'
+#' @return Character vector of the ten column names.
+#' @noRd
+.frs_near_river_csv_cols <- function() {
+  as.vector(outer(c("spawn", "rear"), c("measure", "discharge_min",
+    "channel_width_min", "stream_order_min", "distance_max"),
+    function(stage, k) paste0(stage, "_river_", k)))
+}
+
+
+#' Build the near_river pair each stage inherits from a thresholds row
+#'
+#' Reads `<stage>_river_measure` (`discharge`, `channel_width`,
+#' `stream_order` or `model`; NA or absent is `model`), the three
+#' `<stage>_river_<measure>_min` columns and `<stage>_river_distance_max`.
+#' A stage has a pair when `distance_max` is set and so is the `_min` of
+#' its measure; under `model` both `channel_width_min` (read under `cw`)
+#' and `discharge_min` (read under `mad`) must be set, so neither model
+#' is left without one. A `_min` with no `distance_max`, a `distance_max`
+#' with no usable `_min`, a value not finite and above zero, or an
+#' unknown measure stops, naming the species and stage. All three `_min`
+#' columns may be set at once (a ladder compares measures on one CSV);
+#' the measure picks.
+#'
+#' @param row One species' thresholds row as a list, numerics converted.
+#' @return A list with `spawn` and `rear`, each `NULL` or a list of
+#'   `measure`, `discharge_min`, `channel_width_min`, `stream_order_min`
+#'   (each `NULL` when not set) and `distance_max`.
+#' @noRd
+.frs_build_near_river <- function(row) {
+  sp <- row[["species_code"]]
+  measures <- c("discharge", "channel_width", "stream_order", "model")
+  one <- function(stage) {
+    col <- function(k) paste0(stage, "_river_", k)
+    get <- function(k) {
+      v <- row[[col(k)]]
+      if (is.null(v) || length(v) == 0 || is.na(v[1])) NULL else v[1]
+    }
+    measure <- get("measure")
+    measure <- if (is.null(measure)) "model" else trimws(as.character(measure))
+    if (!measure %in% measures) {
+      stop(sprintf("%s %s: %s must be one of %s, got '%s'", sp, stage,
+                   col("measure"), paste(measures, collapse = ", "), measure),
+           call. = FALSE)
+    }
+    vals <- list(discharge_min = get("discharge_min"),
+                 channel_width_min = get("channel_width_min"),
+                 stream_order_min = get("stream_order_min"),
+                 distance_max = get("distance_max"))
+    for (k in names(vals)) {
+      v <- vals[[k]]
+      if (!is.null(v) && (!is.finite(v) || v <= 0)) {
+        stop(sprintf("%s %s: %s must be a finite number above zero, got %s",
+                     sp, stage, col(k), v), call. = FALSE)
+      }
+    }
+    mins <- vals[c("discharge_min", "channel_width_min", "stream_order_min")]
+    set <- names(mins)[!vapply(mins, is.null, logical(1))]
+    if (is.null(vals$distance_max)) {
+      if (length(set) > 0) {
+        stop(sprintf("%s %s: %s is set but %s is not", sp, stage,
+                     paste(col(set), collapse = ", "), col("distance_max")),
+             call. = FALSE)
+      }
+      return(NULL)
+    }
+    need <- if (measure == "model") {
+      c("channel_width_min", "discharge_min")
+    } else {
+      paste0(measure, "_min")
+    }
+    lacking <- setdiff(need, set)
+    if (length(lacking) > 0) {
+      stop(sprintf("%s %s: %s is set and %s is '%s', which needs %s",
+                   sp, stage, col("distance_max"), col("measure"), measure,
+                   paste(col(lacking), collapse = " and ")), call. = FALSE)
+    }
+    c(list(measure = measure), vals)
+  }
+  list(spawn = one("spawn"), rear = one("rear"))
+}
+
+
+#' A stage's inherited near_river pair, resolved for one size model
+#'
+#' `model` resolves to channel width under `cw` and discharge under
+#' `mad`, as the size test does.
+#'
+#' @param stage_nr One stage of `.frs_build_near_river()`, or `NULL`.
+#' @param model `"cw"` or `"mad"`.
+#' @return `NULL`, or a stored-form mapping (`measure`, `threshold`,
+#'   `distance_max`).
+#' @noRd
+.frs_near_river_resolve <- function(stage_nr, model) {
+  if (is.null(stage_nr)) return(NULL)
+  m <- stage_nr[["measure"]]
+  if (identical(m, "model")) {
+    m <- if (identical(model, "mad")) "discharge" else "channel_width"
+  }
+  list(measure = m, threshold = stage_nr[[paste0(m, "_min")]],
+       distance_max = stage_nr[["distance_max"]])
 }

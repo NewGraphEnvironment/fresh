@@ -15,11 +15,11 @@
 - [x] Tests: walk by width and by order on the fixture; predicate text; validator cases; existing tests moved to the new names
 
 ## Phase 2 — inheritance (#263)
-- [ ] `frs_params()`: `*_river_measure` in `char_fields`; `.frs_build_near_river()` per stage (half pairs stop incl. `Inf`; unknown measure stops; `model` needs both mins); warn on unknown `*_river_*` columns
-- [ ] `.frs_rule_inherits()`, `.frs_rule_size_parts()` extracted from `.frs_rule_to_sql()`; `.frs_rule_near_river()` resolves explicit → `false` → inherited when the rule inherits and has a size part; `.frs_stage_inherit()` / `.frs_stage_rules()` shared by `frs_habitat_predicates()` and `.frs_near_river_specs(params, species, models)`
-- [ ] `frs_habitat_classify()`: specs after the `params_fresh` filter, over the applied models; column check per measure; cw predicates only when used; roxygen
-- [ ] Bundled thresholds CSV gains the ten columns as NA
-- [ ] Tests: each measure and `model` under cw and mad; override; opt-out; no-op on `thresholds: false`; refusals; NA columns compile every bundled rule byte-identically; specs equal effective pairs (inherit / override / opt-out → two walks); no size part → no pair; mad species with no range reads `(FALSE OR EXISTS)`; the R rule's form; half pairs; yaml round trip of `false`
+- [x] `frs_params()`: `*_river_measure` in `char_fields`; `.frs_build_near_river()` per stage (half pairs stop incl. `Inf`; unknown measure stops; `model` needs both mins); warn on unknown `*_river_*` columns
+- [x] `.frs_rule_inherits()`, `.frs_rule_size_parts()` extracted from `.frs_rule_to_sql()`; `.frs_rule_near_river()` resolves explicit → `false` → inherited when the rule inherits and has a size part; `.frs_stage_inherit()` / `.frs_stage_rules()` shared by `frs_habitat_predicates()` and `.frs_near_river_specs(params, species, models)`
+- [x] `frs_habitat_classify()`: specs after the `params_fresh` filter, over the applied models; column check per measure; cw predicates only when used; roxygen
+- [x] Bundled thresholds CSV gains the ten columns as NA
+- [x] Tests: each measure and `model` under cw and mad; override; opt-out; no-op on `thresholds: false`; refusals; NA columns compile every bundled rule byte-identically; specs equal effective pairs (inherit / override / opt-out → two walks); no size part → no pair; mad species with no range reads `(FALSE OR EXISTS)`; the R rule's form; half pairs; yaml round trip of `false`
 
 ## Phase 3 — live check, docs, release
 - [ ] `data-raw/near_river_check.R`: the independent walk reads the measure's column; run on BULK by width and by order; log the result
