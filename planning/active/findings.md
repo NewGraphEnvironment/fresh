@@ -54,7 +54,7 @@ Province-wide: 1450 rows inside river polygons 208,409 (mean 45 m, p90 92 m; 68,
 | Error | Resolution |
 |-------|------------|
 
-## Phase 4: BULK against an independent walk (2026-10-21 UTC, fresh 5a2a3ce)
+## Phase 4: BULK against an independent walk (2026-10-21 UTC, fresh b616b44)
 
 `data-raw/near_river_check.R BULK 3 <reference SQL>`; log `data-raw/logs/near_river_259/bulk_*`. Working table from `frs_network_segment()` (no breaks), wet's annual pick as `mad_m3s`. The reference walks route measures on raw FWA to the centreline of the first primary-flow segment at or above 3 m³/s.
 
@@ -86,3 +86,4 @@ Province-wide: 1450 rows inside river polygons 208,409 (mean 45 m, p90 92 m; 68,
 GEOS 3.9.0 (local fwapg) intersects an exactly vertical line at x = 1000 with a box containing it as `LINESTRING EMPTY` (x = 1500 and slanted lines are fine; `ST_Contains` says TRUE). On real data it could only drop a bank subtraction, the conservative direction. The fixture avoids it.
 
 Round 4: the straight-line prefilter could drop a path row reached by a jump while keeping a later row, so the walk jumped across it (synthetic repro; 0 BULK cases). The path is now cut at the first row whose neighbour directly above it on its own line is on the path and was dropped. The verbose "walks ended within reach" count counted walks the cap cut at a jump (332 against 23 for one spec), and was removed.
+Round 5: the cut is sound (never removes a row reachable within the cap; 0 BULK differences with it removed) but misses two shapes (a skipped run that ends its line; a row above out of step with its local code), so one answer could still depend on another rule's distance. Rather than chase shapes (the complete detector rescans whole main stems per origin), each `(discharge_min, distance_max)` pair is now walked on its own and stored with `distance_max`, which the predicate matches; the residual short read is documented. BULK unchanged (`b616b44`).
