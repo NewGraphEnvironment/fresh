@@ -20,10 +20,16 @@
 #'   tributary meets a river drawn as a polygon, its line crosses the
 #'   polygon as a connector (FWA edge types 1400 and 1450) to the
 #'   centreline. A connector carries the tributary's own small flow, so
-#'   it is never a target, and the length of connector inside the
-#'   target's polygon (same `waterbody_key`) is left out of the distance.
-#'   A connector inside a polygon the walk only passes through, because
-#'   that river is too small, stays in the distance.
+#'   it is never a target, and the connector inside the target's polygon
+#'   (same `waterbody_key`) is left out of the distance. FWA draws about a
+#'   third of connectors as side lines, which the walk does not follow;
+#'   the walk then jumps from the tributary's mouth to the centreline, and
+#'   that jump is left out too. A connector inside a polygon the walk only
+#'   passes through, because that river is too small, stays in the
+#'   distance.
+#' - Any other jump between consecutive rows of the path is counted at
+#'   its straight length: a side channel the walk does not follow, or a
+#'   stretch of river outside `table` that the path leaves and re-enters.
 #'
 #' **Which segments are measured.** Only segments whose own `mad_m3s` is
 #' NULL or below `discharge_min` get a row: a river large enough to be a
@@ -35,9 +41,11 @@
 #'   group, so a river beyond the group's outlet is not found. The
 #'   count of segments whose walk ended within reach (at the outlet, or
 #'   the sea) is reported when `verbose`.
-#' - A connector with no local watershed code is not on a working table
-#'   ([frs_network_segment()] drops those rows), so a polygon the walk
-#'   passes through can be short by its connector.
+#' - A segment with no local watershed code (`localcode_ltree` NULL),
+#'   which is most side channels (edge types 1100, 1150, 1350), has no
+#'   place in `FWA_Downstream()`'s ordering. It never walks, so it gets
+#'   no row and never passes on `near_river`. Their count is reported
+#'   when `verbose`.
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param table Character. Schema-qualified segmented streams table with
@@ -54,7 +62,8 @@
 #' @param distance_max Numeric vector, one per `discharge_min`. Farthest
 #'   distance (m) to record at that discharge.
 #' @param verbose Logical. Print rows written, segments whose walk ended
-#'   within reach, and timing. Default `TRUE`.
+#'   within reach, segments with no local code, and timing. Default
+#'   `TRUE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
 #'
@@ -120,16 +129,21 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
     tbl_name, table))
   .frs_db_execute(conn, sprintf("ANALYZE %s", table))
 
-  # The longest connector run one path can subtract, so the cap and the
+  # The longest connector runs a path can subtract, on its own lines (main
+  # flow) and as a jump across a side-line connector, so the cap and the
   # prefilter reach every target whose bank distance is within range.
-  conn_max <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT coalesce(max(l), 0)::double precision AS l FROM (
-       SELECT sum(length_metre) AS l FROM %s
-       WHERE edge_type IN (1400, 1450) AND waterbody_key IS NOT NULL
-       GROUP BY waterbody_key, blue_line_key) x", table))$l
+  lens <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT coalesce(max(l) FILTER (WHERE main), 0)::double precision AS on_path,
+       coalesce(max(l) FILTER (WHERE NOT main), 0)::double precision AS side
+     FROM (SELECT blue_line_key = watershed_key AS main,
+             sum(length_metre) AS l FROM %s
+           WHERE edge_type IN (1400, 1450) AND waterbody_key IS NOT NULL
+           GROUP BY waterbody_key, blue_line_key, watershed_key) x", table))
+  conn_max <- lens$on_path + lens$side
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl))
   .frs_db_execute(conn, .frs_near_river_walk_sql(
-    table, walk_tbl, discharge_min, distance_max, conn_max))
+    table, walk_tbl, discharge_min, distance_max, conn_max,
+    entry_max = lens$side))
 
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s (
@@ -158,7 +172,9 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
       "SELECT q.discharge_min,
          count(hit.origin_id)::int AS near,
          count(*) FILTER (WHERE hit.origin_id IS NULL
-           AND coalesce(e.dist_m, 0) < q.distance_max + %s)::int AS ended
+           AND o.localcode_ltree IS NOT NULL
+           AND coalesce(e.dist_m, 0) < q.distance_max + %s)::int AS ended,
+         count(*) FILTER (WHERE o.localcode_ltree IS NULL)::int AS nocode
        FROM %s o
        CROSS JOIN (VALUES %s) AS q(discharge_min, distance_max)
        LEFT JOIN %s hit ON hit.origin_id = o.id_segment
@@ -175,7 +191,8 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
           stats$near[i], " segments within ",
           distance_max[match(stats$discharge_min[i], discharge_min)],
           " m; ", stats$ended[i],
-          " walks ended within reach (group outlet or the sea)\n", sep = "")
+          " walks ended within reach (group outlet or the sea); ",
+          stats$nocode[i], " with no local code did not walk\n", sep = "")
     }
     cat("  Near river walk: ",
         round((proc.time() - t0)["elapsed"], 1), "s\n", sep = "")
@@ -205,13 +222,42 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #' One walk serves every discharge: origins are the rows below the
 #' largest `discharge_min`, joined to every main-flow row downstream
 #' within `max(distance_max) + conn_max` (straight line, then along the
-#' path). Two windows run in path order (`wscode_ltree DESC,
-#' downstream_route_measure DESC, id_segment DESC`, explicit row frames):
-#' `path_m`, the distance from the origin's downstream end to the row's
-#' upstream end; and `connector_m`, the connector length so far inside
-#' the row's own polygon. A row's bank distance is `path_m -
-#' connector_m`, which is never negative because the connector rows it
-#' subtracts all precede it.
+#' path). Path order is `wscode_ltree DESC, downstream_route_measure
+#' DESC, id_segment DESC`, with explicit row frames.
+#'
+#' `path_m` is the distance from the origin's downstream end to the point
+#' where the walk enters the row: the lengths walked on the rows before
+#' it plus every **jump** on the way. The walk enters each row at the
+#' point nearest the previous row's downstream end (the origin's, for the
+#' first row); a jump is the straight distance to that point, and only
+#' the part of a row below it is walked. On a contiguous path every jump
+#' is zero and every row is walked whole; where a tributary meets its
+#' parent part-way along a row, only the part below the confluence
+#' counts. A jump is a stretch
+#' the table does not hold: a side-line connector (FWA draws about a
+#' third of connectors as side lines, which the main-flow filter drops),
+#' a side channel, or the river beyond the group's boundary. Counting
+#' it keeps a path that leaves the table and re-enters from reading
+#' short, so one discharge and distance gets the same answer whatever
+#' else is asked.
+#'
+#' On the origin's own blue line the measure decides: a row there is on
+#' the path only below the origin. `FWA_Downstream()` also accepts a row
+#' by its local code alone, and a few FWA lines carry local codes out of
+#' step with their measures, which would put a row upstream of the origin
+#' on its path.
+#'
+#' `connector_m` is what the bank rule subtracts for a row in a polygon:
+#' the connector rows (1400, 1450) on the path inside the row's own
+#' polygon, plus the jumps that land on a row of that polygon and are no
+#' longer than `entry_max`, the longest side-line connector run on the
+#' table. A longer jump into the polygon (the river re-entering the
+#' table) is not subtracted. Bank distance `path_m - connector_m` is
+#' clamped at zero against floating-point residue.
+#'
+#' With `bank = FALSE` nothing is subtracted (centreline distance), and
+#' with `jumps = FALSE` as well, jumps are not counted; both exist for
+#' the check script's comparison with an independent walk.
 #'
 #' The table holds, per origin, one row per discharge it found within
 #' range (`discharge_min`, `dist_m` = the smallest bank distance to a
@@ -221,11 +267,24 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
 #'
 #' @noRd
 .frs_near_river_walk_sql <- function(table, walk_tbl, discharge_min,
-                                     distance_max, conn_max) {
+                                     distance_max, conn_max, entry_max,
+                                     bank = TRUE, jumps = TRUE) {
+  # Not counting jumps while subtracting entry jumps would go negative.
+  stopifnot(jumps || !bank)
   cap <- .frs_sql_num(max(distance_max) + conn_max)
-  ord <- paste0("t.wscode_ltree DESC, t.downstream_route_measure DESC, ",
-                "t.id_segment DESC ROWS BETWEEN UNBOUNDED PRECEDING AND ",
-                "CURRENT ROW")
+  ord_bare <- "wscode_ltree DESC, downstream_route_measure DESC, id_segment DESC"
+  ord <- "t.wscode_ltree DESC, t.downstream_route_measure DESC, t.id_segment DESC"
+  frame <- " ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+  conn_sql <- if (bank) {
+    sprintf(paste0(
+      "CASE WHEN waterbody_key IS NULL THEN 0 ELSE SUM(",
+      "CASE WHEN edge_type IN (1400, 1450) THEN below_m ELSE 0 END",
+      " + CASE WHEN jump_m <= %s THEN jump_m ELSE 0 END) OVER (",
+      "PARTITION BY origin_id, waterbody_key ORDER BY %s%s) END"),
+      .frs_sql_num(entry_max), ord_bare, frame)
+  } else {
+    "0"
+  }
   sprintf(
     "CREATE TEMP TABLE %s AS
      WITH origins AS (
@@ -236,11 +295,11 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
      ),
      downstream AS (
        SELECT o.id_segment AS origin_id, o.watershed_group_code,
-         o.mad_m3s AS origin_mad, t.edge_type, t.mad_m3s, t.length_metre,
-         -t.length_metre + SUM(t.length_metre) OVER w AS path_m,
-         CASE WHEN t.waterbody_key IS NULL THEN 0 ELSE coalesce(
-           SUM(t.length_metre) FILTER (WHERE t.edge_type IN (1400, 1450))
-             OVER wb, 0) END AS connector_m
+         o.mad_m3s AS origin_mad, t.id_segment, t.edge_type, t.mad_m3s,
+         t.length_metre, t.waterbody_key, t.wscode_ltree,
+         t.downstream_route_measure, t.geom,
+         coalesce(LAG(ST_StartPoint(t.geom)) OVER (PARTITION BY o.id_segment
+           ORDER BY %s), ST_StartPoint(o.geom)) AS prev_pt
        FROM origins o
        INNER JOIN %s t ON FWA_Downstream(
          o.blue_line_key, o.downstream_route_measure,
@@ -248,15 +307,32 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
          t.blue_line_key, t.downstream_route_measure,
          t.wscode_ltree, t.localcode_ltree)
        WHERE t.blue_line_key = t.watershed_key
+         AND (t.blue_line_key <> o.blue_line_key
+              OR t.downstream_route_measure < o.downstream_route_measure)
          AND ST_DWithin(t.geom, o.geom, %s)
-       WINDOW w AS (PARTITION BY o.id_segment ORDER BY %s),
-         wb AS (PARTITION BY o.id_segment, t.waterbody_key ORDER BY %s)
+     ),
+     entered AS (
+       SELECT origin_id, watershed_group_code, origin_mad, id_segment,
+         edge_type, mad_m3s, length_metre, waterbody_key, wscode_ltree,
+         downstream_route_measure,
+         ST_Distance(prev_pt, geom) AS jump_m,
+         length_metre * ST_LineLocatePoint(ST_Force2D(geom),
+           ST_Force2D(prev_pt)) AS below_m
+       FROM downstream
+     ),
+     walked AS (
+       SELECT origin_id, watershed_group_code, origin_mad, edge_type,
+         mad_m3s, below_m,
+         SUM(below_m + %s) OVER w - below_m AS path_m,
+         %s AS connector_m
+       FROM entered
+       WINDOW w AS (PARTITION BY origin_id ORDER BY %s%s)
      ),
      capped AS (
-       SELECT * FROM downstream WHERE path_m <= %s
+       SELECT * FROM walked WHERE path_m <= %s
      )
      SELECT c.origin_id, c.watershed_group_code, q.discharge_min,
-       min(c.path_m - c.connector_m) AS dist_m
+       greatest(min(c.path_m - c.connector_m), 0) AS dist_m
      FROM capped c
      INNER JOIN (VALUES %s) AS q(discharge_min, distance_max)
        ON c.mad_m3s >= q.discharge_min
@@ -266,8 +342,9 @@ frs_near_river <- function(conn, table, to, discharge_min, distance_max,
      GROUP BY c.origin_id, c.watershed_group_code, q.discharge_min
      UNION ALL
      SELECT origin_id, watershed_group_code, NULL::double precision,
-       max(path_m + length_metre)
+       max(path_m + below_m)
      FROM capped GROUP BY origin_id, watershed_group_code",
-    walk_tbl, table, .frs_sql_num(max(discharge_min)), table, cap, ord, ord,
-    cap, .frs_near_river_values(discharge_min, distance_max))
+    walk_tbl, table, .frs_sql_num(max(discharge_min)), ord, table, cap,
+    if (jumps) "jump_m" else "0", conn_sql, ord_bare, frame, cap,
+    .frs_near_river_values(discharge_min, distance_max))
 }

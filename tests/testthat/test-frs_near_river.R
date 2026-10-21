@@ -106,6 +106,79 @@ test_that("a polygon passed through keeps its connector in the distance", {
   expect_identical(.nr_dist(conn)[["21"]], 0)
 })
 
+test_that("a jump across a side-line connector into the polygon is the bank", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_sideline())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, d = 5000)
+  expect_identical(.nr_dist(conn), c(`41` = 0, `42` = 400))
+})
+
+test_that("a tributary meeting its parent mid-row walks only the part below", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Row 2 now carries 2 m3/s (not a target at 3). The tributary's mouth
+  # sits 100 m off row 2's midpoint, so the walk jumps 100 m (polygon 7's
+  # entry, left out) and walks 500 m of row 2 down to row 1.
+  segs <- .nr_sideline()
+  segs$mad[segs$id == 2] <- 2
+  .nr_fixture(conn, segs)
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, d = 5000)
+  # Row 2 itself is now measured: row 1 lies right below it.
+  expect_equal(.nr_dist(conn), c(`2` = 0, `41` = 500, `42` = 900),
+               tolerance = 1e-9)
+})
+
+test_that("a stretch outside the table counts at its straight length", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_offtable())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, d = 5000)
+  expect_identical(.nr_dist(conn), c(`51` = 2000, `52` = 2500))
+  # One discharge and distance gets one answer, whatever else is asked.
+  nr_run(conn, q = c(3, 1), d = c(1000, 9000))
+  expect_length(.nr_dist(conn), 0)
+  nr_run(conn, q = 3, d = 1000)
+  expect_length(.nr_dist(conn), 0)
+})
+
+test_that("bank = FALSE measures to the centreline", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.frs_near_river_walk")
+  DBI::dbExecute(conn, .frs_near_river_walk_sql("pg_temp.nr_streams",
+    "pg_temp.frs_near_river_walk", 3, 5000, conn_max = 100, entry_max = 0,
+    bank = FALSE))
+  d <- DBI::dbGetQuery(conn, "SELECT origin_id, dist_m
+    FROM pg_temp.frs_near_river_walk WHERE discharge_min = 3
+    ORDER BY origin_id")
+  expect_identical(stats::setNames(d$dist_m, d$origin_id),
+                   c(`10` = 0, `11` = 100, `12` = 500, `13` = 1000,
+                     `14` = 2000, `15` = 3000))
+})
+
+test_that("on the origin's own line a row upstream is never on the path", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  segs <- .nr_tributary()
+  # Row 15 (upstream of 13 and 14) carries a local code below theirs, so
+  # FWA_Downstream()'s code branch calls it downstream of both.
+  segs$lc[segs$id == 15] <- "100.499"
+  .nr_fixture(conn, segs)
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  nr_run(conn, d = 5000)
+  expect_identical(.nr_dist(conn)[c("13", "14")], c(`13` = 900, `14` = 1900))
+})
+
 test_that("only the table's groups are replaced", {
   skip_if_no_conn()
   conn <- frs_db_conn()
@@ -133,11 +206,19 @@ test_that("frs_near_river reports walks that ended within reach", {
   # Rows 14 and 15 walk 2,000 m or more before the outlet: within the
   # 1,100 m cap they never ran out. No 3 m3/s origin ran out.
   expect_match(out[1], "4 segments within 1000 m; 0 walks ended")
+  expect_match(out[1], "; 0 with no local code did not walk")
   out10 <- capture.output(frs_near_river(conn, "pg_temp.nr_streams",
     "pg_temp.nr_near", discharge_min = 10, distance_max = 3000))
   # At 10 m3/s every row is an origin and nothing is a target. Rows 1, 2,
   # 3, 10, 11, 12 and 13 reach the outlet within the 3,100 m cap.
   expect_match(out10[1], "0 segments within 3000 m; 7 walks ended")
+  # A row with no local code cannot walk: counted apart, never as ended.
+  DBI::dbExecute(conn, "UPDATE pg_temp.nr_streams SET localcode_ltree = NULL
+                        WHERE id_segment = 13")
+  out_nc <- capture.output(frs_near_river(conn, "pg_temp.nr_streams",
+    "pg_temp.nr_near", discharge_min = 3, distance_max = 1000))
+  expect_match(out_nc[1], "3 segments within 1000 m; 0 walks ended.*; 1 with no")
+  expect_false("13" %in% names(.nr_dist(conn)))
 })
 
 test_that("frs_near_river validates its inputs", {

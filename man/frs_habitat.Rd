@@ -99,7 +99,10 @@ Only consulted when \code{params = NULL}. If you pass your own
 \code{params} from \code{frs_params()}, the rules are baked into that
 object and \code{rules} here is ignored.
 
-See \code{\link[=frs_params]{frs_params()}} for the rules format.}
+See \code{\link[=frs_params]{frs_params()}} for the rules format. A rule's \code{near_river}
+condition (see \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}) makes classify write
+\verb{<to_habitat>_near_river} (or \verb{<streams>_habitat_near_river}),
+which is kept.}
 
 \item{gradient_recompute}{Logical. If \code{TRUE} (default), recompute
 gradient from DEM vertices after splitting segments. If \code{FALSE},

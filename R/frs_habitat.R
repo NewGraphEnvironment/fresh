@@ -98,7 +98,10 @@
 #'   `params` from `frs_params()`, the rules are baked into that
 #'   object and `rules` here is ignored.
 #'
-#'   See [frs_params()] for the rules format.
+#'   See [frs_params()] for the rules format. A rule's `near_river`
+#'   condition (see [frs_habitat_predicates()]) makes classify write
+#'   `<to_habitat>_near_river` (or `<streams>_habitat_near_river`),
+#'   which is kept.
 #' @param params Named list from [frs_params()], or `NULL` to use
 #'   bundled `parameters_habitat_thresholds.csv` and rules YAML.
 #' @param params_fresh Data frame from `parameters_fresh.csv`, or

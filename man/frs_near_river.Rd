@@ -27,7 +27,8 @@ each finite, above zero and distinct.}
 distance (m) to record at that discharge.}
 
 \item{verbose}{Logical. Print rows written, segments whose walk ended
-within reach, and timing. Default \code{TRUE}.}
+within reach, segments with no local code, and timing. Default
+\code{TRUE}.}
 }
 \value{
 \code{conn} invisibly, for pipe chaining.
@@ -55,10 +56,16 @@ whose lower end is within the distance passes whole.
 tributary meets a river drawn as a polygon, its line crosses the
 polygon as a connector (FWA edge types 1400 and 1450) to the
 centreline. A connector carries the tributary's own small flow, so
-it is never a target, and the length of connector inside the
-target's polygon (same \code{waterbody_key}) is left out of the distance.
-A connector inside a polygon the walk only passes through, because
-that river is too small, stays in the distance.
+it is never a target, and the connector inside the target's polygon
+(same \code{waterbody_key}) is left out of the distance. FWA draws about a
+third of connectors as side lines, which the walk does not follow;
+the walk then jumps from the tributary's mouth to the centreline, and
+that jump is left out too. A connector inside a polygon the walk only
+passes through, because that river is too small, stays in the
+distance.
+\item Any other jump between consecutive rows of the path is counted at
+its straight length: a side channel the walk does not follow, or a
+stretch of river outside \code{table} that the path leaves and re-enters.
 }
 
 \strong{Which segments are measured.} Only segments whose own \code{mad_m3s} is
@@ -72,9 +79,11 @@ itself. A segment with NULL \code{mad_m3s} is never a target.
 group, so a river beyond the group's outlet is not found. The
 count of segments whose walk ended within reach (at the outlet, or
 the sea) is reported when \code{verbose}.
-\item A connector with no local watershed code is not on a working table
-(\code{\link[=frs_network_segment]{frs_network_segment()}} drops those rows), so a polygon the walk
-passes through can be short by its connector.
+\item A segment with no local watershed code (\code{localcode_ltree} NULL),
+which is most side channels (edge types 1100, 1150, 1350), has no
+place in \code{FWA_Downstream()}'s ordering. It never walks, so it gets
+no row and never passes on \code{near_river}. Their count is reported
+when \code{verbose}.
 }
 }
 \examples{

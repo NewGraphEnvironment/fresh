@@ -21,7 +21,8 @@
 #'   optionally `$rules$spawn_connected` attached
 #'   to its params entry. Species not listed in the file fall through
 #'   to the CSV ranges path. See the `parameters_habitat_rules.yaml`
-#'   header for the rule format.
+#'   header for the rule format, and [frs_habitat_predicates()] for a
+#'   rule's `near_river` condition.
 #'
 #' @return A named list of parameter sets, keyed by species code. Each element
 #'   is a list with threshold values and a `ranges` sub-list suitable for

@@ -1,17 +1,17 @@
 # Synthetic network for the near_river walk (#259), in pg_temp. Needs a
 # connection with the fwapg functions (FWA_Downstream) but no FWA rows.
 #
-# Each segment runs x = x0 .. x0 + len at y = 0, so straight-line and
+# Each segment runs x = x0 .. x0 + len at height y (default 0), so straight-line and
 # network distance agree along the path the fixtures lay out. `scale`
 # shrinks the geometry but not length_metre: at 0.01 the straight-line
 # prefilter passes everything and only the network distance decides.
 
 .nr_seg <- function(id, blk, ws, lc = ws, drm, len, edge = 1000L, wbk = NA,
                     mad = NA, x0 = drm, cw = 1, gradient = 0.01,
-                    wsg = "TEST") {
+                    wsg = "TEST", y = 0, wk = blk) {
   data.frame(id = id, blk = blk, ws = ws, lc = lc, drm = drm, len = len,
              edge = edge, wbk = wbk, mad = mad, x0 = x0, cw = cw,
-             gradient = gradient, wsg = wsg)
+             gradient = gradient, wsg = wsg, y = y, wk = wk)
 }
 
 .nr_fixture <- function(conn, segs, tbl = "pg_temp.nr_streams", scale = 1) {
@@ -31,11 +31,13 @@
     r <- segs[i, ]
     DBI::dbExecute(conn, sprintf(
       "INSERT INTO %s VALUES (%d, %d, %d, %d, %s, %s, %s, %s, %s, %d,
-         '%s'::ltree, '%s'::ltree, %s, '%s',
-         ST_SetSRID(ST_MakeLine(ST_MakePoint(%s, 0), ST_MakePoint(%s, 0)), 3005))",
-      tbl, r$id, r$id, r$blk, r$blk, num(r$drm), num(r$len), num(r$gradient),
-      num(r$cw), num(r$mad), r$edge, r$ws, r$lc, num(r$wbk), r$wsg,
-      num(r$x0 * scale), num((r$x0 + r$len) * scale)))
+         '%s'::ltree, %s, %s, '%s',
+         ST_SetSRID(ST_MakeLine(ST_MakePoint(%s, %s), ST_MakePoint(%s, %s)), 3005))",
+      tbl, r$id, r$id, r$blk, r$wk, num(r$drm), num(r$len), num(r$gradient),
+      num(r$cw), num(r$mad), r$edge, r$ws,
+      if (is.na(r$lc)) "NULL" else sprintf("'%s'::ltree", r$lc),
+      num(r$wbk), r$wsg, num(r$x0 * scale), num(r$y * scale),
+      num((r$x0 + r$len) * scale), num(r$y * scale)))
   }
   invisible(tbl)
 }
@@ -79,4 +81,29 @@
     "SELECT id_segment, dist_m FROM %s WHERE discharge_min = %s
      AND watershed_group_code = 'TEST' ORDER BY id_segment", to, q))
   stats::setNames(d$dist_m, d$id_segment)
+}
+
+# A tributary (blue_line_key 2, at y = 100) whose connector across polygon
+# 7 is a side line (blue_line_key 99, 100 m), which the walk drops: from
+# t1's downstream end the walk jumps 100 m to the river's centreline.
+# Bank distances: t1 0, t2 400 (centreline 100 and 500).
+.nr_sideline <- function() {
+  rbind(
+    .nr_seg(1, 1, "100", "100.400", 0, 1000, 1250L, 7, 5),
+    .nr_seg(2, 1, "100", "100.400", 1000, 1000, 1250L, 7, 5),
+    .nr_seg(40, 99, "100.500", NA, drm = 0, len = 100, edge = 1450L, wbk = 7,
+            mad = 0.2, x0 = 1500, wk = 2),
+    .nr_seg(41, 2, "100.500", drm = 100, len = 400, mad = 0.2, x0 = 1500,
+            y = 100),
+    .nr_seg(42, 2, "100.500", drm = 500, len = 500, mad = 0.2, x0 = 1900,
+            y = 100))
+}
+
+# A tributary whose mouth is 2 km from the only river row on the table:
+# the river between them is outside the table. t1 2000, t2 2500.
+.nr_offtable <- function() {
+  rbind(
+    .nr_seg(1, 1, "100", "100.400", 0, 1000, 1250L, 7, 5),
+    .nr_seg(51, 2, "100.500", drm = 0, len = 500, mad = 0.2, x0 = 3000),
+    .nr_seg(52, 2, "100.500", drm = 500, len = 500, mad = 0.2, x0 = 3500))
 }
