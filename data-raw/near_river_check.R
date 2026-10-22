@@ -94,7 +94,7 @@ counts <- DBI::dbGetQuery(conn, sprintf(
 
 walk_timed <- function(d) {
   t0 <- proc.time()
-  frs_near_river(conn, tbl, near, discharge_min = q, distance_max = d,
+  frs_near_river(conn, tbl, near, threshold = q, distance_max = d,
                  verbose = TRUE)
   (proc.time() - t0)[["elapsed"]]
 }

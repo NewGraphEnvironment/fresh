@@ -32,12 +32,23 @@ optionally \verb{$rules$spawn_connected} attached
 to its params entry. Species not listed in the file fall through
 to the CSV ranges path. See the \code{parameters_habitat_rules.yaml}
 header for the rule format, and \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}} for a
-rule's \code{near_river} condition.}
+rule's \code{near_river} condition.
+
+The ten \verb{<stage>_river_*} columns (\code{spawn} and \code{rear}: \code{measure},
+\code{discharge_min}, \code{channel_width_min}, \code{stream_order_min},
+\code{distance_max}) give each stage the \code{near_river} pair its inheriting
+rules take (see \code{\link[=frs_habitat_predicates]{frs_habitat_predicates()}}). NA or absent means no
+pair. A stage has a pair when \verb{<stage>_river_distance_max} and the
+threshold of its measure are set; under \code{model} (the default) both
+\code{channel_width_min} and \code{discharge_min} must be. Half a pair, a value
+not finite and above zero, or an unknown measure stops; an unknown
+\verb{*_river_*} column warns, since it would otherwise be ignored.}
 }
 \value{
 A named list of parameter sets, keyed by species code. Each element
-is a list with threshold values and a \code{ranges} sub-list suitable for
-passing to \code{frs_classify()}.
+is a list with threshold values, a \code{ranges} sub-list suitable for
+passing to \code{frs_classify()}, and a \code{near_river} sub-list (\code{spawn},
+\code{rear}, each \code{NULL} or the stage's pair).
 }
 \description{
 Load species-specific habitat thresholds from a PostgreSQL table or a local

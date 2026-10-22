@@ -19,7 +19,8 @@ nr_tbl <- "w.streams_near_river"
 nr_exists <- paste0(
   "EXISTS (SELECT 1 FROM w.streams_near_river n WHERE n.id_segment = s.id_segment ",
   "AND n.watershed_group_code = s.watershed_group_code ",
-  "AND n.discharge_min = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000)")
+  "AND n.measure = 'discharge' AND n.threshold = 3 AND n.distance_max = 1000 ",
+  "AND n.dist_m <= 1000)")
 
 # -- loader ----------------------------------------------------------------
 
@@ -28,10 +29,11 @@ test_that(".frs_load_rules accepts near_river and stores numerics", {
   on.exit(unlink(tmp))
   expect_silent(rules <- .frs_load_rules(tmp))
   nr <- rules$CH$rear[[1]]$near_river
-  expect_identical(names(nr), c("discharge_min", "distance_max"))
-  expect_type(nr$discharge_min, "double")
+  expect_identical(names(nr), c("measure", "threshold", "distance_max"))
+  expect_identical(nr$measure, "discharge")
+  expect_type(nr$threshold, "double")
   expect_type(nr$distance_max, "double")
-  expect_equal(nr$discharge_min, 3)
+  expect_equal(nr$threshold, 3)
   expect_equal(nr$distance_max, 1000)
 })
 
@@ -42,7 +44,8 @@ test_that(".frs_load_rules accepts near_river on spawn and on a river rule", {
   on.exit(unlink(tmp))
   rules <- .frs_load_rules(tmp)
   expect_equal(rules$CH$spawn[[1]]$near_river,
-               list(discharge_min = 0.5, distance_max = 500.5))
+               list(measure = "discharge", threshold = 0.5,
+                    distance_max = 500.5))
 })
 
 test_that(".frs_load_rules rejects malformed near_river", {
@@ -63,7 +66,7 @@ test_that(".frs_load_rules rejects malformed near_river", {
   msgs <- c(empty = "named mapping", scalar = "named mapping",
             unknown = "unknown keys: upstream",
             missing_d = "missing: distance_max",
-            missing_q = "missing: discharge_min",
+            missing_q = "needs exactly one of discharge_min, channel_width_min, stream_order_min, got 0",
             zero_q = "discharge_min must be a finite number above zero",
             neg_d = "distance_max must be a finite number above zero",
             inf_d = "distance_max must be a finite number above zero",
@@ -93,6 +96,57 @@ test_that(".frs_load_rules refuses near_river on lake and wetland rules", {
                  sprintf("not allowed on a waterbody_type: %s rule", wt))
     unlink(tmp)
   }
+})
+
+test_that(".frs_load_rules normalizes each size key to its measure (#262)", {
+  for (k in c("discharge_min", "channel_width_min", "stream_order_min")) {
+    tmp <- nr_rule_yaml(extra = c(sprintf("        %s: 4", k),
+                                  "        distance_max: 1000"))
+    nr <- .frs_load_rules(tmp)$CH$rear[[1]]$near_river
+    expect_identical(nr, list(measure = .frs_near_river_keys()[[k]],
+                              threshold = 4, distance_max = 1000), info = k)
+    unlink(tmp)
+  }
+  tmp <- nr_rule_yaml(extra = c("        discharge_min: 3",
+                                "        channel_width_min: 20",
+                                "        distance_max: 1000"))
+  expect_error(.frs_load_rules(tmp), "needs exactly one of .*got 2")
+  unlink(tmp)
+})
+
+test_that("near_river: false loads as FALSE; true is refused (#263)", {
+  tmp <- write_rules(c("CH:", "  rear:", "    - edge_types_explicit: [1000]",
+                       "      near_river: false"))
+  rules <- .frs_load_rules(tmp)
+  expect_identical(rules$CH$rear[[1]]$near_river, FALSE)
+  unlink(tmp)
+  # A thresholds: false rule takes it too (it inherits nothing, so a no-op).
+  tmp <- write_rules(c("CH:", "  rear:", "    - edge_types_explicit: [1050]",
+                       "      thresholds: false", "      near_river: false"))
+  expect_silent(.frs_load_rules(tmp))
+  unlink(tmp)
+  tmp <- write_rules(c("CH:", "  rear:", "    - edge_types_explicit: [1000]",
+                       "      near_river: true"))
+  expect_error(.frs_load_rules(tmp), "true is not a value")
+  unlink(tmp)
+  for (wt in c("L", "W")) {
+    tmp <- write_rules(c("CH:", "  rear:", sprintf("    - waterbody_type: %s", wt),
+                         "      near_river: false"))
+    expect_error(.frs_load_rules(tmp),
+                 sprintf("false is not allowed on a waterbody_type: %s", wt))
+    unlink(tmp)
+  }
+})
+
+test_that("the EXISTS matches the measure, threshold and distance", {
+  sql <- .frs_near_river_sql(
+    list(channel_width_min = 20, distance_max = 500), nr_tbl)
+  expect_match(sql, paste0("n.measure = 'channel_width' AND n.threshold = 20 ",
+                           "AND n.distance_max = 500 AND n.dist_m <= 500"),
+               fixed = TRUE)
+  q3 <- list(discharge_min = 3, distance_max = 1000)
+  expect_identical(.frs_near_river_sql(.frs_near_river_normalize(q3), nr_tbl),
+                   .frs_near_river_sql(q3, nr_tbl))
 })
 
 # -- compiler --------------------------------------------------------------
@@ -194,9 +248,9 @@ test_that(".frs_rules_to_sql threads near_river_table to every rule", {
                      near_river = list(discharge_min = 10, distance_max = 50)))
   sql <- .frs_rules_to_sql(rules, list(channel_width = c(4, 9999)),
                            near_river_table = nr_tbl)
-  expect_match(sql, "n.discharge_min = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000",
+  expect_match(sql, "n.threshold = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000",
                fixed = TRUE)
-  expect_match(sql, "n.discharge_min = 10 AND n.distance_max = 50 AND n.dist_m <= 50",
+  expect_match(sql, "n.threshold = 10 AND n.distance_max = 50 AND n.dist_m <= 50",
                fixed = TRUE)
 })
 
@@ -263,7 +317,8 @@ test_that(".frs_near_river_specs lists each distinct pair once", {
     BT = list(rules = list(
       rear = list(list(near_river = list(discharge_min = 10, distance_max = 9e3))))))
   specs <- .frs_near_river_specs(params, c("CH", "CO"))
-  expect_identical(specs, data.frame(discharge_min = c(1, 3, 3),
+  expect_identical(specs, data.frame(measure = "discharge",
+                                     threshold = c(1, 3, 3),
                                      distance_max = c(200, 500, 1000)))
   # A pair two rules share is walked once.
   params$CO$rules$spawn <- list(list(near_river = list(discharge_min = 1,
@@ -271,5 +326,5 @@ test_that(".frs_near_river_specs lists each distinct pair once", {
   expect_identical(nrow(.frs_near_river_specs(params, c("CH", "CO"))), 3L)
   none <- .frs_near_river_specs(params["CO"], "BT")
   expect_identical(nrow(none), 0L)
-  expect_identical(names(none), c("discharge_min", "distance_max"))
+  expect_identical(names(none), c("measure", "threshold", "distance_max"))
 })

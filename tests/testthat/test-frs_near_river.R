@@ -3,7 +3,7 @@
 
 nr_run <- function(conn, q = 3, d = 1000, tbl = "pg_temp.nr_streams",
                    to = "pg_temp.nr_near", ...) {
-  frs_near_river(conn, tbl, to, discharge_min = q, distance_max = d,
+  frs_near_river(conn, tbl, to, threshold = q, distance_max = d,
                  verbose = FALSE, ...)
 }
 
@@ -246,7 +246,7 @@ test_that("bank = FALSE measures to the centreline", {
     "pg_temp.frs_near_river_walk", 3, 5000, conn_max = 100, entry_max = 0,
     bank = FALSE))
   d <- DBI::dbGetQuery(conn, "SELECT origin_id, dist_m
-    FROM pg_temp.frs_near_river_walk WHERE discharge_min = 3
+    FROM pg_temp.frs_near_river_walk WHERE threshold = 3
     ORDER BY origin_id")
   expect_identical(stats::setNames(d$dist_m, d$origin_id),
                    c(`10` = 0, `11` = 100, `12` = 500, `13` = 1000,
@@ -275,7 +275,8 @@ test_that("only the table's groups are replaced", {
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn)
   DBI::dbExecute(conn, "INSERT INTO pg_temp.nr_near VALUES
-                          (999, 'TEST', 3, 1000, 1), (999, 'OTHR', 3, 1000, 1)")
+                          (999, 'TEST', 'discharge', 3, 1000, 1),
+                          (999, 'OTHR', 'discharge', 3, 1000, 1)")
   nr_run(conn)
   kept <- DBI::dbGetQuery(conn, "SELECT watershed_group_code w
                                  FROM pg_temp.nr_near WHERE id_segment = 999")
@@ -290,13 +291,13 @@ test_that("frs_near_river reports rows measured and rows with no local code", {
   .nr_fixture(conn, .nr_tributary())
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   out <- capture.output(frs_near_river(conn, "pg_temp.nr_streams",
-    "pg_temp.nr_near", discharge_min = 3, distance_max = 1000))
+    "pg_temp.nr_near", threshold = 3, distance_max = 1000))
   expect_match(out[1], "4 segments within 1000 m; 0 with no local code did not walk")
   # A row with no local code cannot walk, and is counted.
   DBI::dbExecute(conn, "UPDATE pg_temp.nr_streams SET localcode_ltree = NULL
                         WHERE id_segment = 13")
   out_nc <- capture.output(frs_near_river(conn, "pg_temp.nr_streams",
-    "pg_temp.nr_near", discharge_min = 3, distance_max = 1000))
+    "pg_temp.nr_near", threshold = 3, distance_max = 1000))
   expect_match(out_nc[1], "3 segments within 1000 m; 1 with no local code")
   expect_false("13" %in% names(.nr_dist(conn)))
   # Row 1 is the river's bottom row (local code = watershed code), which
@@ -309,7 +310,7 @@ test_that("frs_near_river reports rows measured and rows with no local code", {
 })
 
 test_that("frs_near_river validates its inputs", {
-  expect_error(frs_near_river(NULL, "a.b", "a.c", 0, 10), "discharge_min")
+  expect_error(frs_near_river(NULL, "a.b", "a.c", 0, 10), "threshold")
   expect_error(frs_near_river(NULL, "a.b", "a.c", c(3, 3), c(1, 1)),
                "distinct")
   expect_error(frs_near_river(NULL, "a.b", "a.c", 3, c(1, 2)), "one per")
@@ -322,4 +323,67 @@ test_that("frs_near_river validates its inputs", {
   .nr_fixture(conn, segs)
   DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams DROP COLUMN mad_m3s")
   expect_error(nr_run(conn), "no mad_m3s column.*frs_col_join")
+})
+
+test_that("width and order find the river the way discharge does (#262)", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  segs <- .nr_tributary()
+  river <- segs$blk == 1
+  segs$cw <- ifelse(river, 30, 2)
+  segs$so <- ifelse(river, 5L, 2L)
+  .nr_fixture(conn, segs)
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.nr_near",
+    threshold = c(3, 20, 4), distance_max = rep(1000, 3),
+    measure = c("discharge", "channel_width", "stream_order"),
+    verbose = FALSE)
+  by_q <- .nr_dist(conn)
+  expect_identical(by_q, c(`10` = 0, `11` = 0, `12` = 400, `13` = 900))
+  expect_identical(.nr_dist(conn, q = 20, measure = "channel_width"), by_q)
+  expect_identical(.nr_dist(conn, q = 4, measure = "stream_order"), by_q)
+  # Each measure reads only its own column: with no width on the river,
+  # width finds nothing while discharge still does.
+  DBI::dbExecute(conn, "UPDATE pg_temp.nr_streams SET channel_width = NULL
+                        WHERE blue_line_key = 1")
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.nr_near",
+    threshold = c(3, 20), distance_max = c(1000, 1000),
+    measure = c("discharge", "channel_width"), verbose = FALSE)
+  expect_length(.nr_dist(conn, q = 20, measure = "channel_width"), 0)
+  expect_identical(.nr_dist(conn), by_q)
+  # An order at or above the threshold makes a row a target, not an origin.
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.nr_near",
+    threshold = 2, distance_max = 1000, measure = "stream_order",
+    verbose = FALSE)
+  expect_length(.nr_dist(conn, q = 2, measure = "stream_order"), 0)
+})
+
+test_that("frs_near_river validates the measure and refuses a 0.41.0 table", {
+  expect_error(frs_near_river(NULL, "a.b", "a.c", 3, 1, measure = "width"),
+               "measure must be one of")
+  expect_error(frs_near_river(NULL, "a.b", "a.c", c(3, 4), c(1, 1),
+                              measure = c("discharge", "discharge", "x")),
+               "measure must be one of")
+  expect_error(frs_near_river(NULL, "a.b", "a.c", c(3, 3), c(1, 1),
+                              measure = "discharge"), "distinct")
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  # Two measures at the same numbers are different pairs.
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
+  expect_no_error(frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.nr_near",
+    c(3, 3), c(1000, 1000), measure = c("discharge", "stream_order"),
+    verbose = FALSE))
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams DROP COLUMN stream_order")
+  expect_error(frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.nr_near",
+    4, 1000, measure = "stream_order", verbose = FALSE),
+    "no stream_order column.*column of each measure")
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_old")
+  DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_old (id_segment integer,
+    watershed_group_code varchar(4), discharge_min double precision,
+    distance_max double precision, dist_m double precision)")
+  expect_error(frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.nr_old",
+    3, 1000, verbose = FALSE), "written by fresh 0.41.0")
 })

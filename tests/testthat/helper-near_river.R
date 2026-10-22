@@ -9,10 +9,12 @@
 
 .nr_seg <- function(id, blk, ws, lc = ws, drm, len, edge = 1000L, wbk = NA,
                     mad = NA, x0 = drm, cw = 1, gradient = 0.01,
-                    wsg = "TEST", y = 0, wk = blk, geom = NA_character_) {
+                    wsg = "TEST", y = 0, wk = blk, geom = NA_character_,
+                    so = 1L) {
   data.frame(id = id, blk = blk, ws = ws, lc = lc, drm = drm, len = len,
              edge = edge, wbk = wbk, mad = mad, x0 = x0, cw = cw,
-             gradient = gradient, wsg = wsg, y = y, wk = wk, geom = geom)
+             gradient = gradient, wsg = wsg, y = y, wk = wk, geom = geom,
+             so = so)
 }
 
 .nr_fixture <- function(conn, segs, tbl = "pg_temp.nr_streams", scale = 1) {
@@ -26,13 +28,13 @@
       channel_width double precision, mad_m3s double precision,
       edge_type integer, wscode_ltree ltree, localcode_ltree ltree,
       waterbody_key integer, watershed_group_code character varying(4),
-      geom geometry(LineString, 3005))", tbl))
+      geom geometry(LineString, 3005), stream_order integer)", tbl))
   num <- function(x) if (is.na(x)) "NULL" else format(x, scientific = FALSE)
   for (i in seq_len(nrow(segs))) {
     r <- segs[i, ]
     DBI::dbExecute(conn, sprintf(
       "INSERT INTO %s VALUES (%d, %d, %d, %d, %s, %s, %s, %s, %s, %d,
-         '%s'::ltree, %s, %s, '%s', %s)",
+         '%s'::ltree, %s, %s, '%s', %s, %s)",
       tbl, r$id, r$id, r$blk, r$wk, num(r$drm), num(r$len), num(r$gradient),
       num(r$cw), num(r$mad), r$edge, r$ws,
       if (is.na(r$lc)) "NULL" else sprintf("'%s'::ltree", r$lc),
@@ -45,7 +47,7 @@
           "ST_SetSRID(ST_MakeLine(ST_MakePoint(%s, %s), ST_MakePoint(%s, %s)), 3005)",
           num(r$x0 * scale), num(r$y * scale), num((r$x0 + r$len) * scale),
           num(r$y * scale))
-      }))
+      }, num(r$so)))
   }
   invisible(tbl)
 }
@@ -84,10 +86,11 @@
     .nr_seg(31, 3, "100.500.300", drm = 50, len = 500, mad = 0.1, x0 = 1650))
 }
 
-.nr_dist <- function(conn, to = "pg_temp.nr_near", q = 3, d = NULL) {
+.nr_dist <- function(conn, to = "pg_temp.nr_near", q = 3, d = NULL,
+                     measure = "discharge") {
   d <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT id_segment, dist_m FROM %s WHERE discharge_min = %s%s
-     AND watershed_group_code = 'TEST' ORDER BY id_segment", to, q,
+    "SELECT id_segment, dist_m FROM %s WHERE measure = '%s' AND threshold = %s%s
+     AND watershed_group_code = 'TEST' ORDER BY id_segment", to, measure, q,
     if (is.null(d)) "" else sprintf(" AND distance_max = %s", d)))
   stats::setNames(d$dist_m, d$id_segment)
 }

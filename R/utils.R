@@ -222,20 +222,23 @@
 #'   implies `IS NOT NULL`, so the two together are redundant rather
 #'   than contradictory.
 #'
-#'   `near_river` is a mapping of `discharge_min` (m3/s) and
-#'   `distance_max` (m). It relaxes the rule's size test: the size parts
-#'   (`channel_width`, `mad`, inherited or explicit) become
-#'   `(<size> OR EXISTS (<near_river_table row within distance_max for
-#'   discharge_min>))`. A rule with no size part gets the EXISTS alone,
-#'   so `near_river` is then the rule's only size test. The EXISTS reads
-#'   only `s.id_segment` and `s.watershed_group_code`, never
-#'   `s.mad_m3s` or `s.channel_width` (link's validator substitutes
-#'   those two by pattern). Without `near_river` the size parts are
-#'   appended last, cw before mad, joined with `" AND "`, exactly as
-#'   before (#259).
+#'   `near_river` is a mapping of `distance_max` (m) and one size key
+#'   (`discharge_min`, `channel_width_min` or `stream_order_min`), or
+#'   `FALSE`. The rule's effective pair (`.frs_rule_near_river()`: its
+#'   own mapping, none on `FALSE`, else `csv_thresholds$near_river` when
+#'   the rule inherits and has a size part, #263) relaxes the size test:
+#'   the size parts (`channel_width`, `mad`, inherited or explicit)
+#'   become `(<size> OR EXISTS (<near_river_table row of that measure,
+#'   threshold and distance>))`. A rule with no size part gets the EXISTS
+#'   alone only from its own mapping. The EXISTS reads only
+#'   `s.id_segment` and `s.watershed_group_code`, never `s.mad_m3s` or
+#'   `s.channel_width` (link's validator substitutes those two by
+#'   pattern). Without a pair the size parts are appended last, cw before
+#'   mad, joined with `" AND "`, exactly as before (#259).
 #' @param csv_thresholds Named list with `gradient = c(min, max)`,
-#'   `channel_width = c(min, max)` and/or `mad_m3s = c(min, max)`. Any
-#'   may be NULL. [frs_habitat_predicates()] passes `channel_width` under
+#'   `channel_width = c(min, max)` and/or `mad_m3s = c(min, max)`, and
+#'   optionally `near_river`, the stage's inherited pair in stored form
+#'   (`measure`, `threshold`, `distance_max`). Any may be NULL. [frs_habitat_predicates()] passes `channel_width` under
 #'   the `cw` model and `mad_m3s` under the `mad` model; `mad_m3s =
 #'   c(NA, NA)` marks a species without MAD thresholds and makes
 #'   inheriting rules match nothing.
@@ -249,25 +252,11 @@
 .frs_rule_to_sql <- function(rule, csv_thresholds = NULL,
                              near_river_table = NULL) {
   parts <- character(0)
-  size_parts <- character(0)
 
   # Use [[ ]] not $ to avoid partial matching: rule$edge_types
   # would match rule$edge_types_explicit because edge_types is a
   # prefix.
-  inherit_thresholds <- is.null(rule[["thresholds"]]) ||
-    isTRUE(rule[["thresholds"]])
-
-  # Auto-skip gradient/cw inheritance for lake/wetland rules.
-  # Lake and wetland flow lines are routing lines through waterbodies —
-  # gradient and channel_width are meaningless on them. The relevant
-  # threshold is the polygon area floor (lake_ha_min / wetland_ha_min),
-  # not stream channel dimensions.
-  # Rule-level explicit overrides (rule[["gradient"]], rule[["channel_width"]])
-  # still apply if someone sets them deliberately.
-  wb_type <- rule[["waterbody_type"]]
-  if (!is.null(wb_type) && wb_type %in% c("L", "W")) {
-    inherit_thresholds <- FALSE
-  }
+  inherit_thresholds <- .frs_rule_inherits(rule)
 
   if (!is.null(rule[["edge_types"]])) {
     et_categories <- rule[["edge_types"]]
@@ -326,6 +315,54 @@
       .frs_sql_num(g[1]), .frs_sql_num(g[2])))
   }
 
+  size_parts <- .frs_rule_size_parts(rule, csv_thresholds)
+
+  # near_river relaxes the size test (#259): the rule's own mapping, or
+  # the stage's pair from the thresholds CSV when the rule inherits and
+  # has a size test (#263). Without one the size parts go last,
+  # unchanged, so every existing rule compiles byte-identically.
+  nr <- .frs_rule_near_river(rule, csv_thresholds, size_parts)
+  if (is.null(nr)) {
+    parts <- c(parts, size_parts)
+  } else {
+    near_sql <- .frs_near_river_sql(nr, near_river_table)
+    parts <- c(parts, if (length(size_parts) == 0) near_sql else
+      sprintf("(%s OR %s)", paste(size_parts, collapse = " AND "), near_sql))
+  }
+
+  if (length(parts) == 0) return("(TRUE)")
+  paste0("(", paste(parts, collapse = " AND "), ")")
+}
+
+
+#' Does a rule inherit thresholds from the CSV?
+#'
+#' True unless the rule sets `thresholds: false` or is a lake or wetland
+#' rule. Lake and wetland flow lines route through a polygon, so
+#' gradient, channel width and discharge mean nothing on them; their
+#' threshold is the polygon area floor (`lake_ha_min` /
+#' `wetland_ha_min`). Rule-level explicit values still apply.
+#'
+#' @noRd
+.frs_rule_inherits <- function(rule) {
+  inherit <- is.null(rule[["thresholds"]]) || isTRUE(rule[["thresholds"]])
+  wb_type <- rule[["waterbody_type"]]
+  if (!is.null(wb_type) && wb_type %in% c("L", "W")) inherit <- FALSE
+  inherit
+}
+
+
+#' A rule's size test, as SQL parts
+#'
+#' Channel width and then discharge, each the rule's own value or, when
+#' the rule inherits, the CSV's. An inherited `mad_m3s = c(NA, NA)` (a
+#' `mad` species with no MAD range) is `"FALSE"`.
+#'
+#' @return Character vector, empty when the rule has no size test.
+#' @noRd
+.frs_rule_size_parts <- function(rule, csv_thresholds = NULL) {
+  size_parts <- character(0)
+  inherit_thresholds <- .frs_rule_inherits(rule)
   # Channel width: same override-then-inherit pattern.
   if (!is.null(rule[["channel_width"]])) {
     cw <- rule[["channel_width"]]
@@ -356,36 +393,55 @@
       "s.mad_m3s BETWEEN %s AND %s",
       .frs_sql_num(mad[1]), .frs_sql_num(mad[2])))
   }
+  size_parts
+}
 
-  # near_river relaxes the size test (#259). Without it the size parts
-  # go last, unchanged, so every existing rule compiles byte-identically.
+
+#' A rule's effective near_river pair
+#'
+#' The rule's own mapping wins; `near_river: false` means none; otherwise
+#' the stage's pair from the thresholds CSV (`csv_thresholds$near_river`,
+#' already resolved for the size model), when the rule inherits
+#' thresholds and has a size test (#263). A rule with no size test
+#' inherits no pair: under `cw` that is a rule whose stage has no width
+#' range, and a pair would make "near a river" its only size test,
+#' tightening it. One function for the compiler and for the walk's pair
+#' list (`.frs_near_river_specs()`), so the two cannot disagree.
+#'
+#' @param size_parts The rule's size parts (`.frs_rule_size_parts()`).
+#' @return `NULL`, or a stored-form mapping (`measure`, `threshold`,
+#'   `distance_max`).
+#' @noRd
+.frs_rule_near_river <- function(rule, csv_thresholds = NULL,
+                                 size_parts = .frs_rule_size_parts(
+                                   rule, csv_thresholds)) {
   nr <- rule[["near_river"]]
-  if (is.null(nr)) {
-    parts <- c(parts, size_parts)
-  } else {
-    near_sql <- .frs_near_river_sql(nr, near_river_table)
-    parts <- c(parts, if (length(size_parts) == 0) near_sql else
-      sprintf("(%s OR %s)", paste(size_parts, collapse = " AND "), near_sql))
+  if (isFALSE(nr)) return(NULL)
+  if (!is.null(nr)) return(.frs_near_river_normalize(nr))
+  inherited <- csv_thresholds[["near_river"]]
+  if (is.null(inherited) || !.frs_rule_inherits(rule) ||
+      length(size_parts) == 0) {
+    return(NULL)
   }
-
-  if (length(parts) == 0) return("(TRUE)")
-  paste0("(", paste(parts, collapse = " AND "), ")")
+  .frs_near_river_normalize(inherited)
 }
 
 
 #' SQL test for a rule's near_river condition
 #'
 #' An `EXISTS` against the table [frs_near_river()] writes: a row for
-#' this segment from the walk of the rule's own `(discharge_min,
-#' distance_max)` pair, with `dist_m` within `distance_max`. Both numbers
-#' go through `.frs_sql_num()`, the same formatter that writes them into
+#' this segment from the walk of the rule's own `(measure, threshold,
+#' distance_max)`, with `dist_m` within `distance_max`. Both numbers go
+#' through `.frs_sql_num()`, the same formatter that writes them into
 #' the table, so each equality compares one literal with itself.
 #'
-#' @param nr Named list with `discharge_min` and `distance_max`.
+#' @param nr A near_river mapping, in rule-key or stored form
+#'   (`.frs_near_river_normalize()`).
 #' @param near_river_table Character or `NULL`.
 #' @return Character SQL.
 #' @noRd
 .frs_near_river_sql <- function(nr, near_river_table) {
+  nr <- .frs_near_river_normalize(nr)
   if (is.null(near_river_table)) {
     stop(paste0(
       "a rule carries near_river but near_river_table is NULL; ",
@@ -396,9 +452,11 @@
   sprintf(paste0(
     "EXISTS (SELECT 1 FROM %s n WHERE n.id_segment = s.id_segment ",
     "AND n.watershed_group_code = s.watershed_group_code ",
-    "AND n.discharge_min = %s AND n.distance_max = %s AND n.dist_m <= %s)"),
+    "AND n.measure = %s AND n.threshold = %s AND n.distance_max = %s ",
+    "AND n.dist_m <= %s)"),
     near_river_table,
-    .frs_sql_num(nr[["discharge_min"]]),
+    .frs_quote_string(nr[["measure"]]),
+    .frs_sql_num(nr[["threshold"]]),
     .frs_sql_num(nr[["distance_max"]]),
     .frs_sql_num(nr[["distance_max"]]))
 }

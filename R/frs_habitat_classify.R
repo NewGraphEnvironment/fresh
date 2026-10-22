@@ -17,15 +17,19 @@
 #' with `id_segment`, gradient, channel width, and ltree columns, plus
 #' a breaks table (`{streams_table}_breaks`) for accessibility checks.
 #'
-#' When a spawn or rear rule of any of `species` carries `near_river`
-#' (see [frs_habitat_predicates()]), classify first runs
-#' [frs_near_river()] on `table` into `<to>_near_river`, one walk for
-#' every distinct `(discharge_min, distance_max)` pair the rules ask for,
-#' and each rule reads its own pair's rows. That needs
-#' `mad_m3s` on `table` under either model. The table is kept after
-#' classify, so a caller can re-test the predicates against it, and its
-#' walk sees only `table`: a river beyond the group's outlet is not
-#' found.
+#' When a spawn or rear rule of any of `species` has a `near_river` pair
+#' (its own mapping, or one it inherits from the thresholds CSV; see
+#' [frs_habitat_predicates()]), classify first runs [frs_near_river()]
+#' on `table` into `<to>_near_river`, one walk for every distinct
+#' `(measure, threshold, distance_max)` the rules ask for under the size
+#' models applied, and each rule reads its own pair's rows. Each pair
+#' needs its measure's column on `table` (`mad_m3s`, `channel_width` or
+#' `stream_order`) under either model; once a classified species has a
+#' pair, that check runs for every group, `cw` included. Species with no
+#' `params_fresh` row are not classified and walk nothing. The table is
+#' kept after classify, so a caller can re-test the predicates against
+#' it, and its walk sees only `table`: a river beyond the group's outlet
+#' is not found.
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param table Character. Schema-qualified segmented streams table
@@ -175,22 +179,51 @@ frs_habitat_classify <- function(conn, table, to,
       call. = FALSE)
   }
 
+  # Predicates are built for the models applied: cw is the fallback for
+  # groups missing from params_method and for an empty table, and is
+  # skipped only when every group is on mad.
+  pred_models <- if (length(models) > 0 && all(models == "mad")) {
+    "mad"
+  } else {
+    c("cw", if (any(models == "mad")) "mad")
+  }
+
   # near_river rules (#259) read a table of distances down to the nearest
-  # river, built from mad_m3s under either model, so check for it here too.
-  near_specs <- .frs_near_river_specs(params, species)
+  # river, measured on the column each pair names (#262). A pair is a
+  # rule's own mapping or the one it inherits from the thresholds CSV
+  # (#263), under each model applied. Pairs come only from species that
+  # classify (a params_fresh row), so no walk is wasted, and the columns
+  # are checked here, before any write.
+  sp_classify <- species[vapply(species, function(sp) {
+    !is.null(params[[sp]]) && any(params_fresh$species_code == sp)
+  }, logical(1))]
+  near_specs <- .frs_near_river_specs(params, sp_classify, pred_models)
   near_tbl <- if (nrow(near_specs) > 0) paste0(to, "_near_river")
-  if (!is.null(near_tbl) && !"mad_m3s" %in% names(DBI::dbGetQuery(conn,
-      sprintf("SELECT * FROM %s LIMIT 0", table)))) {
-    stop(sprintf(paste0(
-      "a near_river rule reads mad_m3s but %s has no mad_m3s column ",
-      "(join it with frs_col_join() or frs_network_segment())"),
-      table), call. = FALSE)
+  if (!is.null(near_tbl)) {
+    # Every check the walk makes before it writes, here, before classify
+    # writes: a stop inside frs_near_river() would come after the group's
+    # habitat rows were deleted.
+    .frs_near_river_check(conn, table, near_tbl,
+      threshold = near_specs$threshold,
+      distance_max = near_specs$distance_max, measure = near_specs$measure)
   }
 
   # Ensure input tables are indexed — critical when called directly
   # (bypassing frs_habitat which indexes during frs_network_segment)
   .frs_index_working(conn, table)
   if (gate) .frs_index_working(conn, breaks_tbl)
+
+  # -- Distances down to the nearest river, for near_river rules -------------
+  # Walked before `to` is touched: the walk reads only `table`, and a
+  # failure inside it (anything Postgres refuses at run time, which no
+  # check up front can list) then leaves the group's habitat rows as they
+  # were rather than deleted (fresh#263 review).
+  if (!is.null(near_tbl)) {
+    frs_near_river(conn, table, near_tbl,
+      threshold = near_specs$threshold,
+      distance_max = near_specs$distance_max,
+      measure = near_specs$measure, verbose = verbose)
+  }
 
   # Create output table if not exists
   .frs_db_execute(conn, sprintf(
@@ -294,13 +327,6 @@ frs_habitat_classify <- function(conn, table, to,
   }
   }  # end gate if/else
 
-  # -- Distances down to the nearest river, for near_river rules -------------
-  if (!is.null(near_tbl)) {
-    frs_near_river(conn, table, near_tbl,
-      discharge_min = near_specs$discharge_min,
-      distance_max = near_specs$distance_max, verbose = verbose)
-  }
-
   # -- Classify each species using pre-computed accessibility -----------------
   for (sp_params in species_params) {
     t0 <- proc.time()
@@ -312,12 +338,13 @@ frs_habitat_classify <- function(conn, table, to,
     # Build per-species SQL predicates (pure-R, no DB).
     # Returns list(spawn, rear, lake_rear, wetland_rear) ready to embed
     # in CASE WHEN ... THEN TRUE ELSE FALSE END.
-    # cw is always built: it is the fallback for groups missing from
-    # params_method and for an empty table (no WSGs resolved).
+    # Built for the models applied (pred_models, above).
     preds <- .frs_preds_by_model(
-      list(cw = frs_habitat_predicates(sp_params, model = "cw",
-                                       near_river_table = near_tbl),
-           mad = if ("mad" %in% models) {
+      list(cw = if ("cw" %in% pred_models) {
+             frs_habitat_predicates(sp_params, model = "cw",
+                                    near_river_table = near_tbl)
+           },
+           mad = if ("mad" %in% pred_models) {
              frs_habitat_predicates(sp_params, model = "mad",
                                     near_river_table = near_tbl)
            }),

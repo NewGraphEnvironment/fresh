@@ -18,10 +18,10 @@ default) or \code{"mad"} (mean annual discharge, \code{mad_m3s}).}
 
 \item{near_river_table}{Character or \code{NULL}. Schema-qualified table of
 distances to the nearest river downstream, as written by
-\code{\link[=frs_near_river]{frs_near_river()}}. Required when a spawn or rear rule carries
-\code{near_river}; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} builds it and passes it. A
-rule matches only rows walked at exactly its own \code{discharge_min} and
-\code{distance_max}.}
+\code{\link[=frs_near_river]{frs_near_river()}}. Required when a spawn or rear rule has a
+\code{near_river} pair, its own or inherited; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}}
+builds it and passes it. A rule matches only rows walked at exactly
+its own measure, threshold and \code{distance_max}.}
 }
 \value{
 A named list with four character scalars: \code{spawn}, \code{rear},
@@ -66,40 +66,63 @@ bypass) is ignored. An explicit \verb{mad: [min, max]} rule applies under
 either model. \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} resolves the model per
 watershed group.
 
-\strong{A river nearby (\code{near_river}).} A spawn or rear rule can carry
+\strong{A river nearby (\code{near_river}).} A segment can pass a rule's size
+test (channel width under \code{cw}, \code{mad_m3s} under \code{mad}, inherited or
+explicit) \strong{or} lie within a distance downstream of a river. "A
+river" is a segment at least some size by one of three measures:
+discharge (\code{mad_m3s}), modelled channel width or stream order. A rule
+gets the condition in one of two ways:
+\itemize{
+\item \strong{Inherited from the thresholds CSV}, per stage, beside its
+gradient, width and MAD ranges: \verb{<stage>_river_measure}
+(\code{discharge}, \code{channel_width}, \code{stream_order}, or \code{model}, which
+reads width under \code{cw} and discharge under \code{mad}; absent is
+\code{model}), the threshold of each measure
+(\verb{<stage>_river_discharge_min}, \verb{<stage>_river_channel_width_min},
+\verb{<stage>_river_stream_order_min}) and \verb{<stage>_river_distance_max}
+(m). \code{\link[=frs_params]{frs_params()}} stores the pair as \code{params[[sp]]$near_river}.
+Every rule that inherits thresholds \strong{and has a size test} takes
+it. A rule with no size test (under \code{cw}, one whose stage has no
+width range) does not, because the pair would then be its only size
+test and tighten it. A \code{waterbody_type: R} rule inherits like a
+stream rule: with the bundled \verb{channel_width: [0, 9999]} that admits
+a river line with no width that lies near a bigger river, so a
+consumer that means "the river polygon is the river" sets
+\code{near_river: false} on it.
+\item \strong{On the rule}, overriding what it would inherit:
 
 \if{html}{\out{<div class="sourceCode yaml">}}\preformatted{near_river:
-  discharge_min: 3     # m3/s
+  discharge_min: 3     # or channel_width_min (m) or stream_order_min
   distance_max: 1000   # m, along the network, downstream
 }\if{html}{\out{</div>}}
 
-The segment then passes the rule's size test (channel width under
-\code{cw}, \code{mad_m3s} under \code{mad}, inherited or explicit) \strong{or} a segment
-carrying at least \code{discharge_min} lies within \code{distance_max}
-downstream. Everything else in the rule (edge types, gradient,
-waterbody tests) still applies. The distance is measured by
-\code{\link[=frs_near_river]{frs_near_river()}}, which \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} runs and passes as
-\code{near_river_table}:
+or \code{near_river: false} to opt out of an inherited pair (a no-op on a
+\code{thresholds: false} rule, which inherits nothing).
+}
+
+The size test becomes \verb{(<size> OR EXISTS ...)}; everything else in the
+rule (edge types, gradient, waterbody tests) still applies. The
+distance is measured by \code{\link[=frs_near_river]{frs_near_river()}}, which
+\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} runs and passes as \code{near_river_table}:
 \itemize{
 \item from the segment's downstream end, so a long segment whose lower end
 is within reach passes whole;
 \item to the river's bank: a tributary's connector line across the river's
 polygon is left out, and never counts as the river;
-\item only for segments whose own \code{mad_m3s} is NULL or below
-\code{discharge_min}: a river that large passes or fails on its own size
-test;
+\item only for segments smaller than the threshold by the same measure: a
+river that large passes or fails on its own size test;
 \item within one watershed group's table, and never from a segment with no
 local watershed code (most side channels); see \code{\link[=frs_near_river]{frs_near_river()}}.
 }
 
-Two consequences to know. A rule with no size test of its own (a
-\code{thresholds: false} rule without \code{channel_width} or \code{mad}) makes
-\code{near_river} its only size test, and such a rule inherits \strong{no
-gradient}, so it tests slope only if it carries \verb{gradient:}. Under
-\code{mad}, a species with no MAD range, which otherwise gets no stream
-habitat from inheriting rules, qualifies through \code{near_river} where a
-river is near. \code{near_river} is not allowed on \code{waterbody_type: L} or
-\code{W} rules.
+Two consequences to know. A \code{thresholds: false} rule with its own
+mapping and no \code{channel_width} or \code{mad} has \code{near_river} as its only
+size test, and inherits \strong{no gradient}, so it tests slope only if it
+carries \verb{gradient:}. Under \code{mad}, a species with no MAD range, which
+otherwise gets no stream habitat from inheriting rules, qualifies
+through \code{near_river} where a river is near. \code{near_river} (a mapping or
+\code{false}) is not allowed on \code{waterbody_type: L} or \code{W} rules. Species
+with no rules compile from \code{ranges} directly and get no pair.
 
 Lake / wetland rearing predicates (\code{lake_rear}, \code{wetland_rear}) are
 gated on the presence of a \code{waterbody_type: L} / \code{waterbody_type: W}
@@ -130,6 +153,14 @@ frs_habitat_predicates(sp_params, model = "mad")$spawn
 sp_params$params_sp$rules$rear <- list(list(
   edge_types_explicit = c(1000, 1100),
   near_river = list(discharge_min = 3, distance_max = 1000)))
+frs_habitat_predicates(sp_params,
+  near_river_table = "working.streams_habitat_near_river")$rear
+
+# The same rule with no mapping inherits the stage's pair from the
+# thresholds CSV (here a 20 m channel within 1 km, under cw)
+sp_params$params_sp$rules$rear[[1]]$near_river <- NULL
+sp_params$params_sp$near_river$rear <- list(measure = "channel_width",
+  channel_width_min = 20, distance_max = 1000)
 frs_habitat_predicates(sp_params,
   near_river_table = "working.streams_habitat_near_river")$rear
 }
