@@ -55,12 +55,25 @@ frs_params(
   [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)
   for a rule's `near_river` condition.
 
+  The ten `<stage>_river_*` columns (`spawn` and `rear`: `measure`,
+  `discharge_min`, `channel_width_min`, `stream_order_min`,
+  `distance_max`) give each stage the `near_river` pair its inheriting
+  rules take (see
+  [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)).
+  NA or absent means no pair. A stage has a pair when
+  `<stage>_river_distance_max` and the threshold of its measure are set;
+  under `model` (the default) both `channel_width_min` and
+  `discharge_min` must be. Half a pair, a value not finite and above
+  zero, or an unknown measure stops; an unknown `*_river_*` column
+  warns, since it would otherwise be ignored.
+
 ## Value
 
 A named list of parameter sets, keyed by species code. Each element is a
-list with threshold values and a `ranges` sub-list suitable for passing
-to
-[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md).
+list with threshold values, a `ranges` sub-list suitable for passing to
+[`frs_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_classify.md),
+and a `near_river` sub-list (`spawn`, `rear`, each `NULL` or the stage's
+pair).
 
 ## See also
 

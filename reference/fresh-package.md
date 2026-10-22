@@ -18,8 +18,9 @@ Useful links:
 ## Author
 
 **Maintainer**: Allan Irvine <al@newgraphenvironment.com>
-([ORCID](https://orcid.org/0000-0002-3495-2128))
+([ORCID](https://orcid.org/0000-0002-3495-2128)) (New Graph Environment
+Ltd.)
 
 Other contributors:
 
-- New Graph Environment \[copyright holder\]
+- New Graph Environment Ltd. \[copyright holder, funder\]

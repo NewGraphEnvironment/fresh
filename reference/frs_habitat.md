@@ -139,8 +139,9 @@ frs_habitat(
 
   See
   [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
-  for the rules format. A rule's `near_river` condition (see
-  [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md))
+  for the rules format. A rule's `near_river` pair, its own or inherited
+  from the thresholds CSV (see
+  [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)),
   makes classify write `<to_habitat>_near_river` (or
   `<streams>_habitat_near_river`), which is kept.
 

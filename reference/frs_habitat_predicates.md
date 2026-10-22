@@ -36,10 +36,11 @@ frs_habitat_predicates(sp_params, model = "cw", near_river_table = NULL)
   Character or `NULL`. Schema-qualified table of distances to the
   nearest river downstream, as written by
   [`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md).
-  Required when a spawn or rear rule carries `near_river`;
+  Required when a spawn or rear rule has a `near_river` pair, its own or
+  inherited;
   [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
   builds it and passes it. A rule matches only rows walked at exactly
-  its own `discharge_min` and `distance_max`.
+  its own measure, threshold and `distance_max`.
 
 ## Value
 
@@ -81,17 +82,42 @@ either model.
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
 resolves the model per watershed group.
 
-**A river nearby (`near_river`).** A spawn or rear rule can carry
+**A river nearby (`near_river`).** A segment can pass a rule's size test
+(channel width under `cw`, `mad_m3s` under `mad`, inherited or explicit)
+**or** lie within a distance downstream of a river. "A river" is a
+segment at least some size by one of three measures: discharge
+(`mad_m3s`), modelled channel width or stream order. A rule gets the
+condition in one of two ways:
 
-    near_river:
-      discharge_min: 3     # m3/s
-      distance_max: 1000   # m, along the network, downstream
+- **Inherited from the thresholds CSV**, per stage, beside its gradient,
+  width and MAD ranges: `<stage>_river_measure` (`discharge`,
+  `channel_width`, `stream_order`, or `model`, which reads width under
+  `cw` and discharge under `mad`; absent is `model`), the threshold of
+  each measure (`<stage>_river_discharge_min`,
+  `<stage>_river_channel_width_min`, `<stage>_river_stream_order_min`)
+  and `<stage>_river_distance_max` (m).
+  [`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
+  stores the pair as `params[[sp]]$near_river`. Every rule that inherits
+  thresholds **and has a size test** takes it. A rule with no size test
+  (under `cw`, one whose stage has no width range) does not, because the
+  pair would then be its only size test and tighten it. A
+  `waterbody_type: R` rule inherits like a stream rule: with the bundled
+  `channel_width: [0, 9999]` that admits a river line with no width that
+  lies near a bigger river, so a consumer that means "the river polygon
+  is the river" sets `near_river: false` on it.
 
-The segment then passes the rule's size test (channel width under `cw`,
-`mad_m3s` under `mad`, inherited or explicit) **or** a segment carrying
-at least `discharge_min` lies within `distance_max` downstream.
-Everything else in the rule (edge types, gradient, waterbody tests)
-still applies. The distance is measured by
+- **On the rule**, overriding what it would inherit:
+
+      near_river:
+        discharge_min: 3     # or channel_width_min (m) or stream_order_min
+        distance_max: 1000   # m, along the network, downstream
+
+  or `near_river: false` to opt out of an inherited pair (a no-op on a
+  `thresholds: false` rule, which inherits nothing).
+
+The size test becomes `(<size> OR EXISTS ...)`; everything else in the
+rule (edge types, gradient, waterbody tests) still applies. The distance
+is measured by
 [`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md),
 which
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
@@ -103,22 +129,21 @@ runs and passes as `near_river_table`:
 - to the river's bank: a tributary's connector line across the river's
   polygon is left out, and never counts as the river;
 
-- only for segments whose own `mad_m3s` is NULL or below
-  `discharge_min`: a river that large passes or fails on its own size
-  test;
+- only for segments smaller than the threshold by the same measure: a
+  river that large passes or fails on its own size test;
 
 - within one watershed group's table, and never from a segment with no
   local watershed code (most side channels); see
   [`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md).
 
-Two consequences to know. A rule with no size test of its own (a
-`thresholds: false` rule without `channel_width` or `mad`) makes
-`near_river` its only size test, and such a rule inherits **no
-gradient**, so it tests slope only if it carries `gradient:`. Under
-`mad`, a species with no MAD range, which otherwise gets no stream
-habitat from inheriting rules, qualifies through `near_river` where a
-river is near. `near_river` is not allowed on `waterbody_type: L` or `W`
-rules.
+Two consequences to know. A `thresholds: false` rule with its own
+mapping and no `channel_width` or `mad` has `near_river` as its only
+size test, and inherits **no gradient**, so it tests slope only if it
+carries `gradient:`. Under `mad`, a species with no MAD range, which
+otherwise gets no stream habitat from inheriting rules, qualifies
+through `near_river` where a river is near. `near_river` (a mapping or
+`false`) is not allowed on `waterbody_type: L` or `W` rules. Species
+with no rules compile from `ranges` directly and get no pair.
 
 Lake / wetland rearing predicates (`lake_rear`, `wetland_rear`) are
 gated on the presence of a `waterbody_type: L` / `waterbody_type: W`
@@ -183,5 +208,14 @@ sp_params$params_sp$rules$rear <- list(list(
   near_river = list(discharge_min = 3, distance_max = 1000)))
 frs_habitat_predicates(sp_params,
   near_river_table = "working.streams_habitat_near_river")$rear
-#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.discharge_min = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
+#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.measure = 'discharge' AND n.threshold = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
+
+# The same rule with no mapping inherits the stage's pair from the
+# thresholds CSV (here a 20 m channel within 1 km, under cw)
+sp_params$params_sp$rules$rear[[1]]$near_river <- NULL
+sp_params$params_sp$near_river$rear <- list(measure = "channel_width",
+  channel_width_min = 20, distance_max = 1000)
+frs_habitat_predicates(sp_params,
+  near_river_table = "working.streams_habitat_near_river")$rear
+#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.measure = 'channel_width' AND n.threshold = 20 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
 ```

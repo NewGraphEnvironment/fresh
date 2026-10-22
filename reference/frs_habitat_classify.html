@@ -15,7 +15,7 @@ row per segment x species."><meta property="og:image" content="https://newgraphe
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.41.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.42.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,7 @@ row per segment x species."><meta property="og:image" content="https://newgraphe
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Classify Habitat for Multiple Species</h1>
-      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.41.0/R/frs_habitat_classify.R" class="external-link"><code>R/frs_habitat_classify.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/R/frs_habitat_classify.R" class="external-link"><code>R/frs_habitat_classify.R</code></a></small>
       <div class="d-none name"><code>frs_habitat_classify.Rd</code></div>
     </div>
 
@@ -173,15 +173,19 @@ modelled.</p>
 <p>Requires a segmented streams table (from <code><a href="frs_network_segment.html">frs_network_segment()</a></code>)
 with <code>id_segment</code>, gradient, channel width, and ltree columns, plus
 a breaks table (<code>{streams_table}_breaks</code>) for accessibility checks.</p>
-<p>When a spawn or rear rule of any of <code>species</code> carries <code>near_river</code>
-(see <code><a href="frs_habitat_predicates.html">frs_habitat_predicates()</a></code>), classify first runs
-<code><a href="frs_near_river.html">frs_near_river()</a></code> on <code>table</code> into <code>&lt;to&gt;_near_river</code>, one walk for
-every distinct <code>(discharge_min, distance_max)</code> pair the rules ask for,
-and each rule reads its own pair's rows. That needs
-<code>mad_m3s</code> on <code>table</code> under either model. The table is kept after
-classify, so a caller can re-test the predicates against it, and its
-walk sees only <code>table</code>: a river beyond the group's outlet is not
-found.</p>
+<p>When a spawn or rear rule of any of <code>species</code> has a <code>near_river</code> pair
+(its own mapping, or one it inherits from the thresholds CSV; see
+<code><a href="frs_habitat_predicates.html">frs_habitat_predicates()</a></code>), classify first runs <code><a href="frs_near_river.html">frs_near_river()</a></code>
+on <code>table</code> into <code>&lt;to&gt;_near_river</code>, one walk for every distinct
+<code>(measure, threshold, distance_max)</code> the rules ask for under the size
+models applied, and each rule reads its own pair's rows. Each pair
+needs its measure's column on <code>table</code> (<code>mad_m3s</code>, <code>channel_width</code> or
+<code>stream_order</code>) under either model; once a classified species has a
+pair, that check runs for every group, <code>cw</code> included. Species with no
+<code>params_fresh</code> row are not classified and walk nothing. The table is
+kept after classify, so a caller can re-test the predicates against
+it, and its walk sees only <code>table</code>: a river beyond the group's outlet
+is not found.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

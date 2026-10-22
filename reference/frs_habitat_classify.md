@@ -132,16 +132,21 @@ Requires a segmented streams table (from
 with `id_segment`, gradient, channel width, and ltree columns, plus a
 breaks table (`{streams_table}_breaks`) for accessibility checks.
 
-When a spawn or rear rule of any of `species` carries `near_river` (see
+When a spawn or rear rule of any of `species` has a `near_river` pair
+(its own mapping, or one it inherits from the thresholds CSV; see
 [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)),
 classify first runs
 [`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md)
 on `table` into `<to>_near_river`, one walk for every distinct
-`(discharge_min, distance_max)` pair the rules ask for, and each rule
-reads its own pair's rows. That needs `mad_m3s` on `table` under either
-model. The table is kept after classify, so a caller can re-test the
-predicates against it, and its walk sees only `table`: a river beyond
-the group's outlet is not found.
+`(measure, threshold, distance_max)` the rules ask for under the size
+models applied, and each rule reads its own pair's rows. Each pair needs
+its measure's column on `table` (`mad_m3s`, `channel_width` or
+`stream_order`) under either model; once a classified species has a
+pair, that check runs for every group, `cw` included. Species with no
+`params_fresh` row are not classified and walk nothing. The table is
+kept after classify, so a caller can re-test the predicates against it,
+and its walk sees only `table`: a river beyond the group's outlet is not
+found.
 
 ## See also
 

@@ -13,7 +13,7 @@ frs_classify() pipeline."><meta property="og:image" content="https://newgraphenv
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.41.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.42.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,7 +40,7 @@ frs_classify() pipeline."><meta property="og:image" content="https://newgraphenv
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Load Habitat Model Parameter Sets</h1>
-      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.41.0/R/frs_params.R" class="external-link"><code>R/frs_params.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/R/frs_params.R" class="external-link"><code>R/frs_params.R</code></a></small>
       <div class="d-none name"><code>frs_params.Rd</code></div>
     </div>
 
@@ -92,14 +92,24 @@ optionally <code>$rules$spawn_connected</code> attached
 to its params entry. Species not listed in the file fall through
 to the CSV ranges path. See the <code>parameters_habitat_rules.yaml</code>
 header for the rule format, and <code><a href="frs_habitat_predicates.html">frs_habitat_predicates()</a></code> for a
-rule's <code>near_river</code> condition.</p></dd>
+rule's <code>near_river</code> condition.</p>
+<p>The ten <code>&lt;stage&gt;_river_*</code> columns (<code>spawn</code> and <code>rear</code>: <code>measure</code>,
+<code>discharge_min</code>, <code>channel_width_min</code>, <code>stream_order_min</code>,
+<code>distance_max</code>) give each stage the <code>near_river</code> pair its inheriting
+rules take (see <code><a href="frs_habitat_predicates.html">frs_habitat_predicates()</a></code>). NA or absent means no
+pair. A stage has a pair when <code>&lt;stage&gt;_river_distance_max</code> and the
+threshold of its measure are set; under <code>model</code> (the default) both
+<code>channel_width_min</code> and <code>discharge_min</code> must be. Half a pair, a value
+not finite and above zero, or an unknown measure stops; an unknown
+<code>*_river_*</code> column warns, since it would otherwise be ignored.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A named list of parameter sets, keyed by species code. Each element
-is a list with threshold values and a <code>ranges</code> sub-list suitable for
-passing to <code><a href="frs_classify.html">frs_classify()</a></code>.</p>
+is a list with threshold values, a <code>ranges</code> sub-list suitable for
+passing to <code><a href="frs_classify.html">frs_classify()</a></code>, and a <code>near_river</code> sub-list (<code>spawn</code>,
+<code>rear</code>, each <code>NULL</code> or the stage's pair).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

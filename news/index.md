@@ -1,5 +1,58 @@
 # Changelog
 
+## fresh 0.42.0
+
+Closes [\#262](https://github.com/NewGraphEnvironment/fresh/issues/262)
+and [\#263](https://github.com/NewGraphEnvironment/fresh/issues/263).
+
+**A river nearby is measured by discharge, channel width or stream
+order. Breaking change to
+[`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md).** -
+`frs_near_river(conn, table, to, threshold, distance_max, measure = "discharge")`
+reads `mad_m3s`, `channel_width` or `stream_order`. A segment smaller
+than the threshold by that measure is an origin, and one at least that
+size is a target. The rest of the walk is unchanged. - The output table
+records `measure` and `threshold` in place of `discharge_min`. A table
+written by 0.41.0 stops the call with a message to drop it. - A rule’s
+mapping takes exactly one of `discharge_min`, `channel_width_min` or
+`stream_order_min`, with `distance_max`. The predicate matches the
+measure, the threshold and the distance. - The measures see different
+rivers. fwapg’s discharge is missing on some main stems (none of BULK’s
+1,118 river-polygon rows carries one), while channel width is modelled
+on every river-polygon row. Most lake flow lines carry an order but no
+width. - On BULK, each walk by width (20 m) and by order (5) equals, row
+for row, the discharge walk on a copy of the table whose `mad_m3s` holds
+that measure (`data-raw/near_river_measure_check.R`, logs in
+`data-raw/logs/near_river_262/`). The independent reference that checked
+the walk in 0.41.0 reads discharge only, so it does not score these.
+Each walk takes 13 to 16 s at 1 km on BULK’s 32,472 segments.
+
+**The near-river pair is a threshold, inherited like gradient, width and
+discharge.** - `parameters_habitat_thresholds.csv` can carry ten
+columns: per stage, `<stage>_river_measure` (`discharge`,
+`channel_width`, `stream_order`, or `model`, the default, which reads
+width under `cw` and discharge under `mad`), the threshold of each
+measure, and `<stage>_river_distance_max`.
+[`frs_params()`](https://newgraphenvironment.github.io/fresh/reference/frs_params.md)
+stores the pair as `params[[sp]]$near_river`, beside `ranges`. Half a
+pair or a bad value stops, and an unknown `*_river_*` column warns. - A
+spawn or rear rule that inherits thresholds and has a size test takes
+its stage’s pair. Its own mapping overrides the pair, and
+`near_river: false` opts it out. A rule with no size test takes no pair,
+because the pair would become its only size test. `waterbody_type: R`
+rules inherit like stream rules. - The compiler and the walk’s list of
+pairs use one resolver, so a pair is walked exactly when a rule reads
+it.
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+collects pairs only from species with a `params_fresh` row, and builds
+predicates only for the size models its groups use. It now walks before
+it writes the habitat table, so a walk that fails leaves the group’s
+habitat rows in place. Its checks of the walk’s inputs, including each
+measure’s column and type, run before anything is written. - With the
+columns absent or NA, every rule compiles exactly as in 0.41.0. A test
+checks this against 0.41.0’s own output for fresh’s bundled rules and
+two of link’s bundles. The bundled CSV carries the columns as NA.
+
 ## fresh 0.41.0
 
 Closes [\#259](https://github.com/NewGraphEnvironment/fresh/issues/259).

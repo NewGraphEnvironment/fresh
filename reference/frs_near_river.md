@@ -1,10 +1,12 @@
 # Distance from Each Segment Down to the Nearest River
 
-For every segment of a segmented streams table whose own discharge is
-below a threshold, walks the network downstream and records the distance
-to the nearest segment carrying at least that discharge. A habitat
-rule's `near_river` condition reads the result, so a small stream close
-to a large river can pass a rule whose size test it fails (see
+For every segment of a segmented streams table that is smaller than a
+threshold, walks the network downstream and records the distance to the
+nearest segment at least that size. Size is one of three measures: mean
+annual discharge (`mad_m3s`), modelled channel width (`channel_width`)
+or stream order (`stream_order`). A habitat rule's `near_river`
+condition reads the result, so a small stream close to a large river can
+pass a rule whose size test it fails (see
 [`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)).
 [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
 calls this itself when a rule asks; call it directly to inspect the
@@ -13,7 +15,15 @@ distances.
 ## Usage
 
 ``` r
-frs_near_river(conn, table, to, discharge_min, distance_max, verbose = TRUE)
+frs_near_river(
+  conn,
+  table,
+  to,
+  threshold,
+  distance_max,
+  measure = "discharge",
+  verbose = TRUE
+)
 ```
 
 ## Arguments
@@ -30,31 +40,40 @@ frs_near_river(conn, table, to, discharge_min, distance_max, verbose = TRUE)
   Character. Schema-qualified segmented streams table with `id_segment`,
   `watershed_group_code`, `blue_line_key`, `watershed_key`,
   `downstream_route_measure`, `wscode_ltree`, `localcode_ltree`,
-  `edge_type`, `waterbody_key`, `length_metre`, `mad_m3s` and `geom`.
+  `edge_type`, `waterbody_key`, `length_metre`, `geom`, and the column
+  of each measure asked for: `mad_m3s`, `channel_width` or
+  `stream_order`.
 
 - to:
 
   Character. Schema-qualified output table, created if it does not
-  exist, with columns `id_segment`, `watershed_group_code`,
-  `discharge_min`, `distance_max` and `dist_m`. A `near_river` rule
-  reads only rows of its own exact pair, so build the table with the
-  pairs the rules carry
+  exist, with columns `id_segment`, `watershed_group_code`, `measure`,
+  `threshold`, `distance_max` and `dist_m`. A `near_river` rule reads
+  only rows of its own exact measure, threshold and distance, so build
+  the table with the pairs the rules carry
   ([`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
   does): a walk at a longer distance does not serve a rule with a
   shorter one. Rows for the watershed groups in `table` are replaced on
-  every call; other groups' rows are kept.
+  every call; other groups' rows are kept. A table written by fresh
+  0.41.0 (with a `discharge_min` column and no `measure`) stops the
+  call; drop it and re-run.
 
-- discharge_min:
+- threshold:
 
-  Numeric vector. River discharges to find (m3/s), each finite and above
-  zero.
+  Numeric vector. River sizes to find, each finite and above zero, in
+  the measure's unit: m3/s for `"discharge"`, m for `"channel_width"`,
+  an order for `"stream_order"`.
 
 - distance_max:
 
-  Numeric vector, one per `discharge_min`. Farthest distance (m) to
-  record for that pair. Each pair is walked on its own, so a pair's
-  distances never depend on the other pairs in the call; pairs must be
-  distinct.
+  Numeric vector, one per `threshold`. Farthest distance (m) to record
+  for that pair. Each pair is walked on its own, so a pair's distances
+  never depend on the other pairs in the call; pairs must be distinct.
+
+- measure:
+
+  Character, length 1 or one per `threshold`: `"discharge"` (default),
+  `"channel_width"` or `"stream_order"`.
 
 - verbose:
 
@@ -79,8 +98,8 @@ main stem below it.
 - It ends at the bank of the river, not at its centreline. Where a
   tributary meets a river drawn as a polygon, its line crosses the
   polygon as a connector (FWA edge types 1400 and 1450) to the
-  centreline. A connector carries the tributary's own small flow, so it
-  is never a target, and the connector inside the target's polygon (same
+  centreline. A connector belongs to the tributary, so it is never a
+  target, and the connector inside the target's polygon (same
   `waterbody_key`) is left out of the distance. FWA draws about a third
   of connectors as side lines, which the walk does not follow; the walk
   then jumps from the tributary's mouth to the centreline, and that jump
@@ -97,10 +116,19 @@ main stem below it.
   that enters at the nearest point, either way: longer by a counted
   jump, or shorter by the stretch between the two points.
 
-**Which segments are measured.** Only segments whose own `mad_m3s` is
-NULL or below `discharge_min` get a row: a river large enough to be a
-target passes or fails on its own size test, never on its distance to
-itself. A segment with NULL `mad_m3s` is never a target.
+**Which segments are measured.** Only segments whose own value of the
+measure is NULL or below `threshold` get a row: a river large enough to
+be a target passes or fails on its own size test, never on its distance
+to itself. A segment with a NULL value is never a target.
+
+**The three measures differ in what they see.** fwapg's discharge is
+missing on some main stems (none of BULK's 1,118 river-polygon rows
+carries one), while channel width is modelled on every river-polygon row
+and missing mostly on first-order streams, which are origins, not
+targets. Most lake flow lines carry no width but do carry an order, so
+under width a lake's line is rarely a river and under order it is.
+Stream order is topological: an order-5 stream in a dry basin can carry
+less water than an order-4 one in a wet basin.
 
 **Limits.**
 
@@ -154,11 +182,15 @@ conn <- frs_db_conn()
 
 # Segments within 1 km of a river carrying 3 m3/s, BULK working table
 frs_near_river(conn, "working_bulk.streams", "working_bulk.near_river",
-  discharge_min = 3, distance_max = 1000)
+  threshold = 3, distance_max = 1000)
+
+# The same, finding the river by a modelled channel width of 20 m
+frs_near_river(conn, "working_bulk.streams", "working_bulk.near_river",
+  threshold = 20, distance_max = 1000, measure = "channel_width")
 
 DBI::dbGetQuery(conn, "
-  SELECT count(*) AS n, round(avg(dist_m)) AS mean_m
-  FROM working_bulk.near_river WHERE discharge_min = 3")
+  SELECT measure, threshold, count(*) AS n, round(avg(dist_m)) AS mean_m
+  FROM working_bulk.near_river GROUP BY 1, 2")
 
 DBI::dbDisconnect(conn)
 } # }

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.41.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.42.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,15 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.41.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.42.0" id="fresh-0420">fresh 0.42.0<a class="anchor" aria-label="anchor" href="#fresh-0420"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/262" class="external-link">#262</a> and <a href="https://github.com/NewGraphEnvironment/fresh/issues/263" class="external-link">#263</a>.</p>
+<p><strong>A river nearby is measured by discharge, channel width or stream order. Breaking change to <code><a href="../reference/frs_near_river.html">frs_near_river()</a></code>.</strong> - <code>frs_near_river(conn, table, to, threshold, distance_max, measure = "discharge")</code> reads <code>mad_m3s</code>, <code>channel_width</code> or <code>stream_order</code>. A segment smaller than the threshold by that measure is an origin, and one at least that size is a target. The rest of the walk is unchanged. - The output table records <code>measure</code> and <code>threshold</code> in place of <code>discharge_min</code>. A table written by 0.41.0 stops the call with a message to drop it. - A rule’s mapping takes exactly one of <code>discharge_min</code>, <code>channel_width_min</code> or <code>stream_order_min</code>, with <code>distance_max</code>. The predicate matches the measure, the threshold and the distance. - The measures see different rivers. fwapg’s discharge is missing on some main stems (none of BULK’s 1,118 river-polygon rows carries one), while channel width is modelled on every river-polygon row. Most lake flow lines carry an order but no width. - On BULK, each walk by width (20 m) and by order (5) equals, row for row, the discharge walk on a copy of the table whose <code>mad_m3s</code> holds that measure (<code>data-raw/near_river_measure_check.R</code>, logs in <code>data-raw/logs/near_river_262/</code>). The independent reference that checked the walk in 0.41.0 reads discharge only, so it does not score these. Each walk takes 13 to 16 s at 1 km on BULK’s 32,472 segments.</p>
+<p><strong>The near-river pair is a threshold, inherited like gradient, width and discharge.</strong> - <code>parameters_habitat_thresholds.csv</code> can carry ten columns: per stage, <code>&lt;stage&gt;_river_measure</code> (<code>discharge</code>, <code>channel_width</code>, <code>stream_order</code>, or <code>model</code>, the default, which reads width under <code>cw</code> and discharge under <code>mad</code>), the threshold of each measure, and <code>&lt;stage&gt;_river_distance_max</code>. <code><a href="../reference/frs_params.html">frs_params()</a></code> stores the pair as <code>params[[sp]]$near_river</code>, beside <code>ranges</code>. Half a pair or a bad value stops, and an unknown <code>*_river_*</code> column warns. - A spawn or rear rule that inherits thresholds and has a size test takes its stage’s pair. Its own mapping overrides the pair, and <code>near_river: false</code> opts it out. A rule with no size test takes no pair, because the pair would become its only size test. <code>waterbody_type: R</code> rules inherit like stream rules. - The compiler and the walk’s list of pairs use one resolver, so a pair is walked exactly when a rule reads it. <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> collects pairs only from species with a <code>params_fresh</code> row, and builds predicates only for the size models its groups use. It now walks before it writes the habitat table, so a walk that fails leaves the group’s habitat rows in place. Its checks of the walk’s inputs, including each measure’s column and type, run before anything is written. - With the columns absent or NA, every rule compiles exactly as in 0.41.0. A test checks this against 0.41.0’s own output for fresh’s bundled rules and two of link’s bundles. The bundled CSV carries the columns as NA.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.41.0" id="fresh-0410">fresh 0.41.0<a class="anchor" aria-label="anchor" href="#fresh-0410"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/259" class="external-link">#259</a>.</p>
