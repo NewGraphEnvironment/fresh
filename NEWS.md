@@ -1,6 +1,6 @@
 # fresh 0.43.0
 
-Relates to [link#326](https://github.com/NewGraphEnvironment/link/issues/326).
+Closes [#269](https://github.com/NewGraphEnvironment/fresh/issues/269). Relates to [link#326](https://github.com/NewGraphEnvironment/link/issues/326).
 
 **`frs_order_child()` can apply bcfishpass's width and gradient tests on its order-1 rearing exception.**
 - Two new arguments, both `NULL` by default, so existing calls are unchanged. `channel_width_max` admits only a direct child whose width is known and at most the value. `gradient_max` admits only one whose gradient is at most the value.
