@@ -22,6 +22,8 @@ frs_order_child(
   child_order_min = NULL,
   child_order_max = NULL,
   distance_max = NULL,
+  channel_width_max = NULL,
+  gradient_max = NULL,
   verbose = TRUE
 )
 ```
@@ -77,6 +79,20 @@ frs_order_child(
   be `<= distance_max` (metres from tributary mouth). Default `NULL`
   (whole tributary).
 
+- channel_width_max:
+
+  Numeric or `NULL`. If set, a segment's `channel_width` must be known
+  and at most this value (metres). Pass the species' rearing width
+  minimum to admit the lines the width minimum turned away, as
+  bcfishpass does. A segment with no width is never admitted. Default
+  `NULL` (no width test).
+
+- gradient_max:
+
+  Numeric or `NULL`. If set, a segment's `gradient` must be at most this
+  value (a proportion, as in `gradient`). Pass the species' rearing
+  gradient maximum. Default `NULL` (no gradient test).
+
 - verbose:
 
   Logical. Print before/after counts. Default `TRUE`.
@@ -101,6 +117,57 @@ bcfishpass models this with a hard-coded predicate
 function exposes the same biology as a parametric post-classification
 rule, so callers can tune `parent_order_min`, `child_order_min/max`, and
 `distance_max` without touching the rule grammar.
+
+In bcfishpass the exception sits inside the rest of the rearing test:
+`s.gradient <= rear_gradient_max AND cw.channel_width <= rear_channel_width_max AND (cw.channel_width >= rear_channel_width_min OR (s.stream_order_parent >= 5 AND s.stream_order = 1))`
+(`smnorris/bcfishpass@7f444f1b`,
+`model/02_habitat_linear/sql/load_habitat_linear_bt.sql:88-97`). So a
+line with no width never qualifies (`NULL <= max` is not true), and a
+line steeper than the rearing maximum never rears. Pass
+`channel_width_max` (the species' rearing width minimum) and
+`gradient_max` (its rearing gradient maximum) to apply those two tests:
+the first admits only lines with a known width at most the value.
+bcfishpass tests below the minimum (`<`); a line at exactly the minimum
+also passes the ordinary rule's width test, so the two differ only on a
+line the ordinary rule does not cover. Pass a smaller value for a strict
+test. Left `NULL`, neither test applies and every direct child is
+admitted whatever its width or gradient.
+
+This function does not reproduce bcfishpass's exception on its own. What
+it leaves to the caller, or does differently:
+
+- **Model.** The exception sits in bcfishpass's channel-width branch
+  only, so a group modelled on discharge (`mad`) never takes it: call
+  this only for groups on `cw`.
+
+- **Spawning and connectivity.** bcfishpass's exception rows still pass
+  the spawning and connectivity conditions of their rearing block; this
+  function runs after classification and clustering and tests neither.
+
+- **Waterbody and edge type.** Every CH, CO, ST and WCT rearing block
+  that carries the exception also filters by waterbody and edge type, in
+  one of three forms; BT's blocks have none. Let `E` be edge types 1000,
+  1100, 2000 and 2300.
+
+  - CH (all three blocks) and WCT's first: a river polygon, or no
+    waterbody and an edge type in `E`
+    (`load_habitat_linear_ch.sql:89-92`).
+
+  - ST (all three) and WCT's second and third: a river polygon, or no
+    waterbody, or an edge type in `E`
+    (`load_habitat_linear_st.sql:88-90`).
+
+  - CO (all three): as ST, with 1050 and 1150 added to `E`
+    (`load_habitat_linear_co.sql:89-92`); its first two blocks also rear
+    every 1050 and 1150 line with no width test.
+
+  This function tests no edge or waterbody type, so for CH, CO, ST and
+  WCT it also admits the direct children these filters turn away.
+
+- **Direct child.** bcfishpass has no `stream_order = stream_order_max`
+  test (its `stream_order_parent` is per `blue_line_key`), so it also
+  admits order-1 headwater reaches of higher-order lines that drain to a
+  large river. This function leaves those out on purpose (fresh#158).
 
 ## Direct-child semantics
 
@@ -158,6 +225,8 @@ of scope here.
       AND s.stream_order >= <child_order_min>   -- default 1 if both NULL
       AND s.stream_order <= <child_order_max>   -- default 1 if both NULL
       [AND s.downstream_route_measure <= <distance_max>]
+      [AND s.channel_width IS NOT NULL AND s.channel_width <= <channel_width_max>]
+      [AND s.gradient <= <gradient_max>]
 
 Bracketed clauses are emitted only when the corresponding parameter is
 non-NULL.
@@ -168,8 +237,8 @@ non-NULL.
 if (FALSE) { # \dontrun{
 conn <- frs_db_conn()
 
-# Reproduce bcfishpass exactly: direct children of order-5+ rivers,
-# no distance cap, for BT/CH/CO/ST/WCT.
+# Direct children of order-5+ rivers, no distance cap, no width or
+# gradient test, for BT/CH/CO/ST/WCT.
 for (sp in c("BT", "CH", "CO", "ST", "WCT")) {
   frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
     species = sp)
@@ -178,6 +247,12 @@ for (sp in c("BT", "CH", "CO", "ST", "WCT")) {
 # Distance-capped: only the lower 300 m of each direct-child trib.
 frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
   species = "BT", distance_max = 300)
+
+# bcfishpass's width and gradient tests, in a channel-width group: only
+# lines whose known width is at most BT's rearing minimum and whose
+# gradient is within its rearing maximum.
+frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
+  species = "BT", channel_width_max = 1.5, gradient_max = 0.1049)
 
 # Restrict to 3rd-order-and-above direct children of major rivers.
 frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",

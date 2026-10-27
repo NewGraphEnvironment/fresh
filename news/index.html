@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.42.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.43.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.43.0" id="fresh-0430">fresh 0.43.0<a class="anchor" aria-label="anchor" href="#fresh-0430"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/269" class="external-link">#269</a>. Relates to <a href="https://github.com/NewGraphEnvironment/link/issues/326" class="external-link">link#326</a>.</p>
+<p><strong><code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> can apply bcfishpass’s width and gradient tests on its order-1 rearing exception.</strong> - Two new arguments, both <code>NULL</code> by default, so existing calls are unchanged. <code>channel_width_max</code> admits only a direct child whose width is known and at most the value. <code>gradient_max</code> admits only one whose gradient is at most the value. - bcfishpass’s exception sits inside the rest of its rearing test (<code>smnorris/bcfishpass@7f444f1b</code>, <code>load_habitat_linear_bt.sql:88-97</code>). A line with no width never qualifies, and neither does one steeper than the rearing maximum. Passed the species’ rearing width minimum and gradient maximum, the function applies both tests. - The docs list what the function still leaves to the caller or does differently: the group’s model (<code>cw</code> only), spawning and connectivity, bcfishpass’s waterbody and edge-type filters for CH, CO, ST and WCT (three forms), and the <code>stream_order_max</code> direct-child test. - A rules YAML <code>channel_width_min_bypass</code> block accepts <code>width_known_below_min: true|false</code>. It is validated as a logical scalar, and callers read it to pass the two bounds.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.42.0" id="fresh-0420">fresh 0.42.0<a class="anchor" aria-label="anchor" href="#fresh-0420"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/262" class="external-link">#262</a> and <a href="https://github.com/NewGraphEnvironment/fresh/issues/263" class="external-link">#263</a>.</p>
