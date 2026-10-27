@@ -31,7 +31,7 @@
   update_sql
 }
 
-test_that("frs_order_child default emits canonical bcfishpass-parity SQL", {
+test_that("frs_order_child default emits the direct-child SQL", {
   sql_log <- .run_order_child()
   expect_length(sql_log, 1L)
   s <- sql_log[1]
@@ -149,4 +149,76 @@ test_that("frs_order_child rejects bad identifiers", {
       species = "BT", parent_order_min = "five"),
     "parent_order_min must be a numeric scalar"
   )
+})
+
+test_that("frs_order_child emits no width or gradient test by default", {
+  s <- .run_order_child()[1]
+  expect_no_match(s, "channel_width")
+  expect_no_match(s, "s\\.gradient")
+})
+
+test_that("frs_order_child emits the width and gradient tests when set", {
+  s <- .run_order_child(channel_width_max = 1.5, gradient_max = 0.1049)[1]
+  expect_match(s, "s\\.channel_width IS NOT NULL AND s\\.channel_width <= 1\\.5\\b")
+  expect_match(s, "s\\.gradient <= 0\\.1049\\b")
+  # Each applies on its own
+  s_w <- .run_order_child(channel_width_max = 2)[1]
+  expect_match(s_w, "s\\.channel_width <= 2\\b")
+  expect_no_match(s_w, "s\\.gradient")
+  s_g <- .run_order_child(gradient_max = 0.05)[1]
+  expect_match(s_g, "s\\.gradient <= 0\\.05\\b")
+  expect_no_match(s_g, "channel_width")
+})
+
+test_that("frs_order_child refuses a bad width or gradient bound", {
+  for (bad in list("1.5", c(1, 2), NA_real_, Inf, -1)) {
+    expect_error(.run_order_child(channel_width_max = bad),
+                 "channel_width_max must be NULL or a finite number >= 0")
+    expect_error(.run_order_child(gradient_max = bad),
+                 "gradient_max must be NULL or a finite number >= 0")
+  }
+})
+
+test_that("frs_order_child admits only a known, narrow enough, gentle line (live)", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  st <- "working.test_order_child_streams"
+  hab <- "working.test_order_child_habitat"
+  on.exit({
+    .frs_test_drop(conn, st)
+    .frs_test_drop(conn, hab)
+    DBI::dbDisconnect(conn)
+  })
+  .frs_test_drop(conn, st)
+  .frs_test_drop(conn, hab)
+  # Six order-1 lines, each its own blue line, each draining to an
+  # order-6 river. Segment 1 has no width; 2 is steep; 3 is the one
+  # bcfishpass admits; 4 is wider than the bound; 5 has no gradient; 6 sits
+  # exactly at the bound, which is inclusive.
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT * FROM (VALUES
+       (1, 101, 1, 6, 0::double precision, NULL::double precision, 0.02::double precision),
+       (2, 102, 1, 6, 0, 1.0, 0.20),
+       (3, 103, 1, 6, 0, 1.0, 0.02),
+       (4, 104, 1, 6, 0, 2.0, 0.02),
+       (5, 105, 1, 6, 0, 1.0, NULL),
+       (6, 106, 1, 6, 0, 1.5, 0.02)
+     ) v(id_segment, blue_line_key, stream_order, stream_order_parent,
+         downstream_route_measure, channel_width, gradient)", st))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT id_segment, 'BT'::text AS species_code,
+       TRUE AS accessible, FALSE AS rearing FROM %s", hab, st))
+
+  n <- frs_order_child(conn, st, hab, species = "BT",
+                       channel_width_max = 1.5, gradient_max = 0.1049,
+                       verbose = FALSE)
+  got <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT id_segment FROM %s WHERE rearing ORDER BY id_segment", hab))
+  expect_equal(n, 2L)
+  expect_equal(got$id_segment, c(3L, 6L))
+
+  # Without the bounds every direct child is admitted (the old behaviour).
+  DBI::dbExecute(conn, sprintf("UPDATE %s SET rearing = FALSE", hab))
+  n_all <- frs_order_child(conn, st, hab, species = "BT", verbose = FALSE)
+  expect_equal(n_all, 6L)
 })

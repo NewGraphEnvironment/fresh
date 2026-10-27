@@ -455,7 +455,8 @@ frs_params <- function(conn = NULL,
         sp, habitat, idx), call. = FALSE)
     }
     bypass_keys <- c("stream_order_min", "stream_order_max",
-                     "stream_order_parent_min", "distance_max")
+                     "stream_order_parent_min", "distance_max",
+                     "width_known_below_min")
     unknown_b <- setdiff(names(bypass), bypass_keys)
     if (length(unknown_b) > 0) {
       stop(sprintf(
@@ -474,6 +475,16 @@ frs_params <- function(conn = NULL,
           "rules YAML %s/%s rule %d channel_width_min_bypass$%s must be a positive integer scalar",
           sp, habitat, idx, k), call. = FALSE)
       }
+    }
+    # width_known_below_min: TRUE asks the caller to admit only lines
+    # whose width is known and at most the rule's width minimum, inside the
+    # rule's gradient maximum (bcfishpass's exception; frs_order_child()'s
+    # channel_width_max and gradient_max).
+    v <- bypass[["width_known_below_min"]]
+    if (!is.null(v) && !(is.logical(v) && length(v) == 1L && !is.na(v))) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d channel_width_min_bypass$width_known_below_min must be TRUE or FALSE",
+        sp, habitat, idx), call. = FALSE)
     }
     # distance_max is a positive numeric scalar (metres along route).
     if (!is.null(bypass[["distance_max"]])) {
