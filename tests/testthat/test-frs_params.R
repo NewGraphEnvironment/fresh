@@ -1106,3 +1106,45 @@ test_that("frs_params ranges match DB values", {
   expect_equal(params$CO$ranges$spawn$gradient, c(0, 0.0549))
   expect_equal(params$CO$ranges$spawn$channel_width, c(2, 9999))
 })
+
+test_that(".frs_load_rules accepts channel_width_min_bypass.width_known_below_min", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c(
+    "BT:",
+    "  rear:",
+    "    - edge_types:",
+    "        - stream",
+    "      channel_width_min_bypass:",
+    "        stream_order_min: 1",
+    "        stream_order_max: 1",
+    "        stream_order_parent_min: 5",
+    "        width_known_below_min: true"), tmp)
+  expect_silent(rules <- .frs_load_rules(tmp))
+  expect_identical(
+    rules$BT$rear[[1]]$channel_width_min_bypass$width_known_below_min, TRUE)
+})
+
+test_that(".frs_load_rules refuses a non-logical width_known_below_min", {
+  for (val in c("'true'", "1", "[true, false]", "~")) {
+    tmp <- tempfile(fileext = ".yaml")
+    writeLines(c(
+      "BT:",
+      "  rear:",
+      "    - edge_types:",
+      "        - stream",
+      "      channel_width_min_bypass:",
+      "        stream_order_min: 1",
+      paste0("        width_known_below_min: ", val)), tmp)
+    if (val == "~") {
+      # YAML null drops the key: nothing to validate, nothing set.
+      rules <- .frs_load_rules(tmp)
+      expect_null(
+        rules$BT$rear[[1]]$channel_width_min_bypass$width_known_below_min)
+    } else {
+      expect_error(.frs_load_rules(tmp), "width_known_below_min must be TRUE or FALSE",
+                   info = val)
+    }
+    unlink(tmp)
+  }
+})

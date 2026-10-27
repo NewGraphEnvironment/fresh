@@ -25,6 +25,21 @@
 #' rule, so callers can tune `parent_order_min`, `child_order_min/max`,
 #' and `distance_max` without touching the rule grammar.
 #'
+#' In bcfishpass the exception sits inside the rest of the rearing test:
+#' `s.gradient <= rear_gradient_max AND cw.channel_width <=
+#' rear_channel_width_max AND (cw.channel_width >= rear_channel_width_min
+#' OR (s.stream_order_parent >= 5 AND s.stream_order = 1))`
+#' (`smnorris/bcfishpass@7f444f1b`,
+#' `model/02_habitat_linear/sql/load_habitat_linear_bt.sql:88-97`). So a
+#' line with no width never qualifies (`NULL <= max` is not true), and a
+#' line steeper than the rearing maximum never rears. Pass
+#' `channel_width_lt` (the species' rearing width minimum) and
+#' `gradient_max` (its rearing gradient maximum) to reproduce that: the
+#' first admits only lines with a known width below the minimum, which is
+#' exactly what the exception adds, since a width at or above the minimum
+#' rears through the ordinary rule. Left `NULL`, neither test applies and
+#' every direct child is admitted whatever its width or gradient.
+#'
 #' @section Direct-child semantics:
 #'
 #' A "direct child" of a large river is a segment that satisfies all of:
@@ -80,6 +95,8 @@
 #'   AND s.stream_order >= <child_order_min>   -- default 1 if both NULL
 #'   AND s.stream_order <= <child_order_max>   -- default 1 if both NULL
 #'   [AND s.downstream_route_measure <= <distance_max>]
+#'   [AND s.channel_width IS NOT NULL AND s.channel_width < <channel_width_lt>]
+#'   [AND s.gradient <= <gradient_max>]
 #' ```
 #'
 #' Bracketed clauses are emitted only when the corresponding parameter
@@ -109,6 +126,15 @@
 #' @param distance_max Numeric or `NULL`. If set, segment's
 #'   `downstream_route_measure` must be `<= distance_max` (metres from
 #'   tributary mouth). Default `NULL` (whole tributary).
+#' @param channel_width_lt Numeric or `NULL`. If set, a segment's
+#'   `channel_width` must be known and strictly less than this value
+#'   (metres). Pass the species' rearing width minimum to admit only the
+#'   lines that the width minimum turned away, as bcfishpass does. A
+#'   segment with no width is never admitted. Default `NULL` (no width
+#'   test).
+#' @param gradient_max Numeric or `NULL`. If set, a segment's `gradient`
+#'   must be at most this value (a proportion, as in `gradient`). Pass the
+#'   species' rearing gradient maximum. Default `NULL` (no gradient test).
 #' @param verbose Logical. Print before/after counts. Default `TRUE`.
 #'
 #' @return Invisibly, the number of segments newly labeled.
@@ -128,6 +154,11 @@
 #' frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
 #'   species = "BT", distance_max = 300)
 #'
+#' # bcfishpass's exception in full: only lines whose known width is below
+#' # BT's rearing minimum and whose gradient is within its rearing maximum.
+#' frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
+#'   species = "BT", channel_width_lt = 1.5, gradient_max = 0.1049)
+#'
 #' # Restrict to 3rd-order-and-above direct children of major rivers.
 #' frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
 #'   species = "BT", child_order_min = 3)
@@ -143,6 +174,8 @@ frs_order_child <- function(conn,
                             child_order_min = NULL,
                             child_order_max = NULL,
                             distance_max = NULL,
+                            channel_width_lt = NULL,
+                            gradient_max = NULL,
                             verbose = TRUE) {
   .frs_validate_identifier(table, "table")
   .frs_validate_identifier(habitat, "habitat")
@@ -152,6 +185,15 @@ frs_order_child <- function(conn,
   }
   if (!is.numeric(parent_order_min) || length(parent_order_min) != 1L) {
     stop("parent_order_min must be a numeric scalar", call. = FALSE)
+  }
+
+  for (nm in c("channel_width_lt", "gradient_max")) {
+    v <- get(nm)
+    if (!is.null(v) &&
+        (!is.numeric(v) || length(v) != 1L || !is.finite(v) || v < 0)) {
+      stop(sprintf("%s must be NULL or a finite number >= 0", nm),
+           call. = FALSE)
+    }
   }
 
   sp_quoted <- .frs_quote_string(species)
@@ -175,6 +217,15 @@ frs_order_child <- function(conn,
     sprintf("AND s.downstream_route_measure <= %s",
             .frs_sql_num(distance_max))
   } else ""
+  # bcfishpass's `cw.channel_width <= max AND (cw >= min OR order-1)`: a
+  # NULL width fails the first test, so it is never admitted.
+  width_clause <- if (!is.null(channel_width_lt)) {
+    sprintf("AND s.channel_width IS NOT NULL AND s.channel_width < %s",
+            .frs_sql_num(channel_width_lt))
+  } else ""
+  gradient_clause <- if (!is.null(gradient_max)) {
+    sprintf("AND s.gradient <= %s", .frs_sql_num(gradient_max))
+  } else ""
 
   # `stream_order_max` is derived per BLK on the fly. fresh.streams
   # doesn't store it; bcfp's bcfishpass.streams does. The CTE makes
@@ -194,13 +245,14 @@ frs_order_child <- function(conn,
        AND h.%s IS NOT TRUE
        AND s.stream_order = s.stream_order_max
        AND s.stream_order_parent >= %d
-       %s %s %s",
+       %s %s %s %s %s",
     table,
     habitat, label,
     sp_quoted,
     label,
     pom,
-    child_min_clause, child_max_clause, distance_clause)
+    child_min_clause, child_max_clause, distance_clause,
+    width_clause, gradient_clause)
 
   n_before <- 0L
   if (verbose) {
