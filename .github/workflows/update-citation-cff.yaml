@@ -1,5 +1,7 @@
-name: Update CITATION.cff
-
+# Regenerate CITATION.cff from DESCRIPTION when DESCRIPTION changes on main.
+#
+# The job is New Graph Environment's shared workflow, so a runner, a timeout or a step
+# changes in one place: https://github.com/NewGraphEnvironment/flows
 on:
   push:
     branches: [main]
@@ -7,51 +9,11 @@ on:
       - 'DESCRIPTION'
   workflow_dispatch:
 
+name: Update CITATION.cff
+
 permissions:
   contents: write
 
 jobs:
   update-citation:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: r-lib/actions/setup-r@v2
-        with:
-          use-public-rspm: true
-
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          packages: cffr
-
-      # Same recipe as /citation-cff step 2a: no CRAN-namesake DOI or page, the
-      # concept DOI from DESCRIPTION's Config/DOI, and the firm as publisher.
-      - name: Update CITATION.cff
-        run: |
-          Rscript -e '
-            x <- cffr::cff_create()
-            x$references <- NULL; x$doi <- NULL; x$repository <- NULL
-            x$identifiers <- Filter(function(i) !grepl("CRAN.package", i$value, fixed = TRUE), unclass(x$identifiers))
-            if (!length(x$identifiers)) x$identifiers <- NULL
-            d <- read.dcf("DESCRIPTION", fields = c("Package", "Config/DOI"))
-            if (!is.na(d[1, 2])) {
-              x$doi <- d[1, 2]
-              x$message <- paste0("If you use ", d[1, 1], ", please cite it by its DOI, ", x$doi, ".")
-            }
-            pc <- x[intersect(c("title", "authors", "version", "date-released", "url",
-                                "repository-code", "license", "doi"), names(x))]
-            pc$type <- "software"
-            pc$publisher <- list(name = "New Graph Environment Ltd.")
-            x$`preferred-citation` <- pc
-            cffr::cff_write(x = x)
-          '
-
-      - name: Commit if changed
-        run: |
-          if ! git diff --quiet CITATION.cff; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add CITATION.cff
-            git commit -m "Auto-update CITATION.cff from DESCRIPTION"
-            git push
-          fi
+    uses: NewGraphEnvironment/flows/.github/workflows/r-citation-cff.yaml@v1
