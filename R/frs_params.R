@@ -477,9 +477,9 @@ frs_params <- function(conn = NULL,
       }
     }
     # width_known_below_min: TRUE asks the caller to admit only lines
-    # whose width is known and below the rule's width minimum, inside the
+    # whose width is known and at most the rule's width minimum, inside the
     # rule's gradient maximum (bcfishpass's exception; frs_order_child()'s
-    # channel_width_lt and gradient_max).
+    # channel_width_max and gradient_max).
     v <- bypass[["width_known_below_min"]]
     if (!is.null(v) && !(is.logical(v) && length(v) == 1L && !is.na(v))) {
       stop(sprintf(

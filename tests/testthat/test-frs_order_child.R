@@ -158,12 +158,12 @@ test_that("frs_order_child emits no width or gradient test by default", {
 })
 
 test_that("frs_order_child emits the width and gradient tests when set", {
-  s <- .run_order_child(channel_width_lt = 1.5, gradient_max = 0.1049)[1]
-  expect_match(s, "s\\.channel_width IS NOT NULL AND s\\.channel_width < 1\\.5\\b")
+  s <- .run_order_child(channel_width_max = 1.5, gradient_max = 0.1049)[1]
+  expect_match(s, "s\\.channel_width IS NOT NULL AND s\\.channel_width <= 1\\.5\\b")
   expect_match(s, "s\\.gradient <= 0\\.1049\\b")
   # Each applies on its own
-  s_w <- .run_order_child(channel_width_lt = 2)[1]
-  expect_match(s_w, "s\\.channel_width < 2\\b")
+  s_w <- .run_order_child(channel_width_max = 2)[1]
+  expect_match(s_w, "s\\.channel_width <= 2\\b")
   expect_no_match(s_w, "s\\.gradient")
   s_g <- .run_order_child(gradient_max = 0.05)[1]
   expect_match(s_g, "s\\.gradient <= 0\\.05\\b")
@@ -172,14 +172,14 @@ test_that("frs_order_child emits the width and gradient tests when set", {
 
 test_that("frs_order_child refuses a bad width or gradient bound", {
   for (bad in list("1.5", c(1, 2), NA_real_, Inf, -1)) {
-    expect_error(.run_order_child(channel_width_lt = bad),
-                 "channel_width_lt must be NULL or a finite number >= 0")
+    expect_error(.run_order_child(channel_width_max = bad),
+                 "channel_width_max must be NULL or a finite number >= 0")
     expect_error(.run_order_child(gradient_max = bad),
                  "gradient_max must be NULL or a finite number >= 0")
   }
 })
 
-test_that("frs_order_child admits only a known, sub-minimum, gentle line (live)", {
+test_that("frs_order_child admits only a known, narrow enough, gentle line (live)", {
   skip_if_no_conn()
   conn <- frs_db_conn()
   st <- "working.test_order_child_streams"
@@ -191,18 +191,18 @@ test_that("frs_order_child admits only a known, sub-minimum, gentle line (live)"
   })
   .frs_test_drop(conn, st)
   .frs_test_drop(conn, hab)
-  # Five order-1 lines, each its own blue line, each draining to an
+  # Six order-1 lines, each its own blue line, each draining to an
   # order-6 river. Segment 1 has no width; 2 is steep; 3 is the one
-  # bcfishpass admits; 4 is wider than the minimum (it would rear through
-  # the ordinary rule, so the exception adds nothing there); 5 has no
-  # gradient.
+  # bcfishpass admits; 4 is wider than the bound; 5 has no gradient; 6 sits
+  # exactly at the bound, which is inclusive.
   DBI::dbExecute(conn, sprintf(
     "CREATE TABLE %s AS SELECT * FROM (VALUES
        (1, 101, 1, 6, 0::double precision, NULL::double precision, 0.02::double precision),
        (2, 102, 1, 6, 0, 1.0, 0.20),
        (3, 103, 1, 6, 0, 1.0, 0.02),
-       (4, 104, 1, 6, 0, 1.5, 0.02),
-       (5, 105, 1, 6, 0, 1.0, NULL)
+       (4, 104, 1, 6, 0, 2.0, 0.02),
+       (5, 105, 1, 6, 0, 1.0, NULL),
+       (6, 106, 1, 6, 0, 1.5, 0.02)
      ) v(id_segment, blue_line_key, stream_order, stream_order_parent,
          downstream_route_measure, channel_width, gradient)", st))
   DBI::dbExecute(conn, sprintf(
@@ -210,15 +210,15 @@ test_that("frs_order_child admits only a known, sub-minimum, gentle line (live)"
        TRUE AS accessible, FALSE AS rearing FROM %s", hab, st))
 
   n <- frs_order_child(conn, st, hab, species = "BT",
-                       channel_width_lt = 1.5, gradient_max = 0.1049,
+                       channel_width_max = 1.5, gradient_max = 0.1049,
                        verbose = FALSE)
   got <- DBI::dbGetQuery(conn, sprintf(
     "SELECT id_segment FROM %s WHERE rearing ORDER BY id_segment", hab))
-  expect_equal(n, 1L)
-  expect_equal(got$id_segment, 3L)
+  expect_equal(n, 2L)
+  expect_equal(got$id_segment, c(3L, 6L))
 
   # Without the bounds every direct child is admitted (the old behaviour).
   DBI::dbExecute(conn, sprintf("UPDATE %s SET rearing = FALSE", hab))
   n_all <- frs_order_child(conn, st, hab, species = "BT", verbose = FALSE)
-  expect_equal(n_all, 5L)
+  expect_equal(n_all, 6L)
 })

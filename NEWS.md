@@ -3,7 +3,7 @@
 Relates to [link#326](https://github.com/NewGraphEnvironment/link/issues/326).
 
 **`frs_order_child()` can apply bcfishpass's width and gradient tests on its order-1 rearing exception.**
-- Two new arguments, both `NULL` by default, so existing calls are unchanged. `channel_width_lt` admits only a direct child whose width is known and below the value. `gradient_max` admits only one whose gradient is at most the value.
+- Two new arguments, both `NULL` by default, so existing calls are unchanged. `channel_width_max` admits only a direct child whose width is known and at most the value. `gradient_max` admits only one whose gradient is at most the value.
 - bcfishpass's exception sits inside the rest of its rearing test (`smnorris/bcfishpass@7f444f1b`, `load_habitat_linear_bt.sql:88-97`). A line with no width never qualifies, and neither does one steeper than the rearing maximum. Passed the species' rearing width minimum and gradient maximum, the function applies both tests.
 - The docs list what the function still leaves to the caller or does differently: the group's model (`cw` only), spawning and connectivity, bcfishpass's waterbody and edge-type filters for CH, CO, ST and WCT (three forms), and the `stream_order_max` direct-child test.
 - A rules YAML `channel_width_min_bypass` block accepts `width_known_below_min: true|false`. It is validated as a logical scalar, and callers read it to pass the two bounds.

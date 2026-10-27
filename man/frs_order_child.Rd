@@ -14,7 +14,7 @@ frs_order_child(
   child_order_min = NULL,
   child_order_max = NULL,
   distance_max = NULL,
-  channel_width_lt = NULL,
+  channel_width_max = NULL,
   gradient_max = NULL,
   verbose = TRUE
 )
@@ -53,10 +53,10 @@ default to \code{1L} (matches bcfishpass's \code{stream_order = 1} predicate).}
 \code{downstream_route_measure} must be \verb{<= distance_max} (metres from
 tributary mouth). Default \code{NULL} (whole tributary).}
 
-\item{channel_width_lt}{Numeric or \code{NULL}. If set, a segment's
-\code{channel_width} must be known and strictly less than this value
-(metres). Pass the species' rearing width minimum to admit only the
-lines that the width minimum turned away, as bcfishpass does. A
+\item{channel_width_max}{Numeric or \code{NULL}. If set, a segment's
+\code{channel_width} must be known and at most this value
+(metres). Pass the species' rearing width minimum to admit the lines
+the width minimum turned away, as bcfishpass does. A
 segment with no width is never admitted. Default \code{NULL} (no width
 test).}
 
@@ -101,10 +101,13 @@ In bcfishpass the exception sits inside the rest of the rearing test:
 \verb{model/02_habitat_linear/sql/load_habitat_linear_bt.sql:88-97}). So a
 line with no width never qualifies (\code{NULL <= max} is not true), and a
 line steeper than the rearing maximum never rears. Pass
-\code{channel_width_lt} (the species' rearing width minimum) and
+\code{channel_width_max} (the species' rearing width minimum) and
 \code{gradient_max} (its rearing gradient maximum) to apply those two tests:
-the first admits only lines with a known width below the minimum, since
-a width at or above the minimum rears through the ordinary rule. Left
+the first admits only lines with a known width at most the value.
+bcfishpass tests below the minimum (\code{<}); a line at exactly the minimum
+also passes the ordinary rule's width test, so the two differ only on a
+line the ordinary rule does not cover. Pass a smaller value for a strict
+test. Left
 \code{NULL}, neither test applies and every direct child is admitted whatever
 its width or gradient.
 
@@ -200,7 +203,7 @@ WHERE <habitat>.id_segment = s.id_segment
   AND s.stream_order >= <child_order_min>   -- default 1 if both NULL
   AND s.stream_order <= <child_order_max>   -- default 1 if both NULL
   [AND s.downstream_route_measure <= <distance_max>]
-  [AND s.channel_width IS NOT NULL AND s.channel_width < <channel_width_lt>]
+  [AND s.channel_width IS NOT NULL AND s.channel_width <= <channel_width_max>]
   [AND s.gradient <= <gradient_max>]
 }\if{html}{\out{</div>}}
 
@@ -224,10 +227,10 @@ frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
   species = "BT", distance_max = 300)
 
 # bcfishpass's width and gradient tests, in a channel-width group: only
-# lines whose known width is below BT's rearing minimum and whose
+# lines whose known width is at most BT's rearing minimum and whose
 # gradient is within its rearing maximum.
 frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
-  species = "BT", channel_width_lt = 1.5, gradient_max = 0.1049)
+  species = "BT", channel_width_max = 1.5, gradient_max = 0.1049)
 
 # Restrict to 3rd-order-and-above direct children of major rivers.
 frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",

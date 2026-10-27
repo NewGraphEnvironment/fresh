@@ -33,10 +33,13 @@
 #' `model/02_habitat_linear/sql/load_habitat_linear_bt.sql:88-97`). So a
 #' line with no width never qualifies (`NULL <= max` is not true), and a
 #' line steeper than the rearing maximum never rears. Pass
-#' `channel_width_lt` (the species' rearing width minimum) and
+#' `channel_width_max` (the species' rearing width minimum) and
 #' `gradient_max` (its rearing gradient maximum) to apply those two tests:
-#' the first admits only lines with a known width below the minimum, since
-#' a width at or above the minimum rears through the ordinary rule. Left
+#' the first admits only lines with a known width at most the value.
+#' bcfishpass tests below the minimum (`<`); a line at exactly the minimum
+#' also passes the ordinary rule's width test, so the two differ only on a
+#' line the ordinary rule does not cover. Pass a smaller value for a strict
+#' test. Left
 #' `NULL`, neither test applies and every direct child is admitted whatever
 #' its width or gradient.
 #'
@@ -123,7 +126,7 @@
 #'   AND s.stream_order >= <child_order_min>   -- default 1 if both NULL
 #'   AND s.stream_order <= <child_order_max>   -- default 1 if both NULL
 #'   [AND s.downstream_route_measure <= <distance_max>]
-#'   [AND s.channel_width IS NOT NULL AND s.channel_width < <channel_width_lt>]
+#'   [AND s.channel_width IS NOT NULL AND s.channel_width <= <channel_width_max>]
 #'   [AND s.gradient <= <gradient_max>]
 #' ```
 #'
@@ -154,10 +157,10 @@
 #' @param distance_max Numeric or `NULL`. If set, segment's
 #'   `downstream_route_measure` must be `<= distance_max` (metres from
 #'   tributary mouth). Default `NULL` (whole tributary).
-#' @param channel_width_lt Numeric or `NULL`. If set, a segment's
-#'   `channel_width` must be known and strictly less than this value
-#'   (metres). Pass the species' rearing width minimum to admit only the
-#'   lines that the width minimum turned away, as bcfishpass does. A
+#' @param channel_width_max Numeric or `NULL`. If set, a segment's
+#'   `channel_width` must be known and at most this value
+#'   (metres). Pass the species' rearing width minimum to admit the lines
+#'   the width minimum turned away, as bcfishpass does. A
 #'   segment with no width is never admitted. Default `NULL` (no width
 #'   test).
 #' @param gradient_max Numeric or `NULL`. If set, a segment's `gradient`
@@ -183,10 +186,10 @@
 #'   species = "BT", distance_max = 300)
 #'
 #' # bcfishpass's width and gradient tests, in a channel-width group: only
-#' # lines whose known width is below BT's rearing minimum and whose
+#' # lines whose known width is at most BT's rearing minimum and whose
 #' # gradient is within its rearing maximum.
 #' frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
-#'   species = "BT", channel_width_lt = 1.5, gradient_max = 0.1049)
+#'   species = "BT", channel_width_max = 1.5, gradient_max = 0.1049)
 #'
 #' # Restrict to 3rd-order-and-above direct children of major rivers.
 #' frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
@@ -203,7 +206,7 @@ frs_order_child <- function(conn,
                             child_order_min = NULL,
                             child_order_max = NULL,
                             distance_max = NULL,
-                            channel_width_lt = NULL,
+                            channel_width_max = NULL,
                             gradient_max = NULL,
                             verbose = TRUE) {
   .frs_validate_identifier(table, "table")
@@ -216,7 +219,7 @@ frs_order_child <- function(conn,
     stop("parent_order_min must be a numeric scalar", call. = FALSE)
   }
 
-  for (nm in c("channel_width_lt", "gradient_max")) {
+  for (nm in c("channel_width_max", "gradient_max")) {
     v <- get(nm)
     if (!is.null(v) &&
         (!is.numeric(v) || length(v) != 1L || !is.finite(v) || v < 0)) {
@@ -248,9 +251,9 @@ frs_order_child <- function(conn,
   } else ""
   # bcfishpass's `cw.channel_width <= max AND (cw >= min OR order-1)`: a
   # NULL width fails the first test, so it is never admitted.
-  width_clause <- if (!is.null(channel_width_lt)) {
-    sprintf("AND s.channel_width IS NOT NULL AND s.channel_width < %s",
-            .frs_sql_num(channel_width_lt))
+  width_clause <- if (!is.null(channel_width_max)) {
+    sprintf("AND s.channel_width IS NOT NULL AND s.channel_width <= %s",
+            .frs_sql_num(channel_width_max))
   } else ""
   gradient_clause <- if (!is.null(gradient_max)) {
     sprintf("AND s.gradient <= %s", .frs_sql_num(gradient_max))
