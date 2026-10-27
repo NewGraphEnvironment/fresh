@@ -34,11 +34,18 @@
 #' line with no width never qualifies (`NULL <= max` is not true), and a
 #' line steeper than the rearing maximum never rears. Pass
 #' `channel_width_lt` (the species' rearing width minimum) and
-#' `gradient_max` (its rearing gradient maximum) to reproduce that: the
-#' first admits only lines with a known width below the minimum, which is
-#' exactly what the exception adds, since a width at or above the minimum
-#' rears through the ordinary rule. Left `NULL`, neither test applies and
-#' every direct child is admitted whatever its width or gradient.
+#' `gradient_max` (its rearing gradient maximum) to apply those two tests:
+#' the first admits only lines with a known width below the minimum, since
+#' a width at or above the minimum rears through the ordinary rule. Left
+#' `NULL`, neither test applies and every direct child is admitted whatever
+#' its width or gradient.
+#'
+#' Two of bcfishpass's conditions are the caller's, not this function's.
+#' The exception sits in bcfishpass's channel-width branch only, so a group
+#' modelled on discharge (`mad`) never takes it: call this only for groups
+#' on `cw`. And bcfishpass's exception rows still pass the spawning and
+#' connectivity conditions of their rearing block; this function runs after
+#' classification and clustering and tests neither.
 #'
 #' @section Direct-child semantics:
 #'
@@ -154,8 +161,9 @@
 #' frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
 #'   species = "BT", distance_max = 300)
 #'
-#' # bcfishpass's exception in full: only lines whose known width is below
-#' # BT's rearing minimum and whose gradient is within its rearing maximum.
+#' # bcfishpass's width and gradient tests, in a channel-width group: only
+#' # lines whose known width is below BT's rearing minimum and whose
+#' # gradient is within its rearing maximum.
 #' frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
 #'   species = "BT", channel_width_lt = 1.5, gradient_max = 0.1049)
 #'

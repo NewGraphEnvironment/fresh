@@ -1137,7 +1137,7 @@ test_that(".frs_load_rules refuses a non-logical width_known_below_min", {
       "        stream_order_min: 1",
       paste0("        width_known_below_min: ", val)), tmp)
     if (val == "~") {
-      # YAML null drops the key: nothing to validate, nothing set.
+      # YAML null reads as NULL: nothing to validate, nothing set.
       rules <- .frs_load_rules(tmp)
       expect_null(
         rules$BT$rear[[1]]$channel_width_min_bypass$width_known_below_min)
