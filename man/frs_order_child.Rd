@@ -108,12 +108,25 @@ a width at or above the minimum rears through the ordinary rule. Left
 \code{NULL}, neither test applies and every direct child is admitted whatever
 its width or gradient.
 
-Two of bcfishpass's conditions are the caller's, not this function's.
-The exception sits in bcfishpass's channel-width branch only, so a group
-modelled on discharge (\code{mad}) never takes it: call this only for groups
-on \code{cw}. And bcfishpass's exception rows still pass the spawning and
-connectivity conditions of their rearing block; this function runs after
-classification and clustering and tests neither.
+This function does not reproduce bcfishpass's exception on its own. What
+it leaves to the caller, or does differently:
+\itemize{
+\item \strong{Model.} The exception sits in bcfishpass's channel-width branch
+only, so a group modelled on discharge (\code{mad}) never takes it: call
+this only for groups on \code{cw}.
+\item \strong{Spawning and connectivity.} bcfishpass's exception rows still pass
+the spawning and connectivity conditions of their rearing block; this
+function runs after classification and clustering and tests neither.
+\item \strong{Waterbody and edge type.} For CH, CO, ST and WCT (not BT), each
+rearing block also limits rows to river polygons or to stream edge
+types outside any waterbody (e.g. \code{load_habitat_linear_ch.sql:88-94}).
+This function tests no edge or waterbody type, so for those species it
+also admits direct children inside lake and wetland polygons.
+\item \strong{Direct child.} bcfishpass has no \code{stream_order = stream_order_max}
+test (its \code{stream_order_parent} is per \code{blue_line_key}), so it also
+admits order-1 headwater reaches of higher-order lines that drain to a
+large river. This function leaves those out on purpose (fresh#158).
+}
 }
 
 \section{Direct-child semantics}{
@@ -188,8 +201,8 @@ is non-NULL.
 \dontrun{
 conn <- frs_db_conn()
 
-# Reproduce bcfishpass exactly: direct children of order-5+ rivers,
-# no distance cap, for BT/CH/CO/ST/WCT.
+# Direct children of order-5+ rivers, no distance cap, no width or
+# gradient test, for BT/CH/CO/ST/WCT.
 for (sp in c("BT", "CH", "CO", "ST", "WCT")) {
   frs_order_child(conn, "fresh.streams", "fresh.streams_habitat",
     species = sp)

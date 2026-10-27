@@ -31,7 +31,7 @@
   update_sql
 }
 
-test_that("frs_order_child default emits canonical bcfishpass-parity SQL", {
+test_that("frs_order_child default emits the direct-child SQL", {
   sql_log <- .run_order_child()
   expect_length(sql_log, 1L)
   s <- sql_log[1]
