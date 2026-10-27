@@ -1,9 +1,7 @@
 # R CMD check on every pull request and every push to main.
 #
-# A copy of New Graph Environment's shared template for R packages. A repo that needs more
-# (system libraries, an extra guard step, a relaxed error-on) edits its own copy and says why
-# in a comment beside the change, so a later sync can tell a local change from drift.
-# Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
+# The job is New Graph Environment's shared workflow, so a runner, a timeout or a step
+# changes in one place: https://github.com/NewGraphEnvironment/flows
 on:
   push:
     branches: [main]
@@ -16,59 +14,4 @@ permissions: read-all
 
 jobs:
   R-CMD-check:
-    runs-on: ubuntu-latest
-    # Without a limit, a stalled apt mirror or a package compiling from source holds the job for up to 6 h.
-    timeout-minutes: 45
-    concurrency:
-      group: check-${{ github.event_name != 'pull_request' || github.run_id }}
-      cancel-in-progress: true
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      R_KEEP_PKG_SOURCE: yes
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: r-lib/actions/setup-pandoc@v2
-
-      - uses: r-lib/actions/setup-r@v2
-        with:
-          use-public-rspm: true
-
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rcmdcheck
-          needs: check
-
-      - uses: r-lib/actions/check-r-package@v2
-        with:
-          upload-snapshots: true
-          build_args: 'c("--no-manual")'
-
-      # A skip is invisible behind a green tick, so print every skip block the tests wrote.
-      - name: Report skipped tests
-        if: ${{ !cancelled() }}
-        shell: Rscript {0}
-        run: |
-          tdirs <- file.path(list.dirs("check", recursive = FALSE), "tests")
-          tdirs <- tdirs[dir.exists(tdirs)]
-          if (!length(tdirs)) {
-            cat("no tests/ under check/ -- the check did not reach the test stage, or the package has no tests\n")
-            quit(save = "no")
-          }
-          outs <- list.files(tdirs, pattern = "[.]Rout", full.names = TRUE, recursive = TRUE)
-          if (!length(outs)) {
-            stop("tests/ is present under check/ but holds no .Rout -- this step cannot ",
-                 "see the test output and would be reporting nothing about nothing")
-          }
-          hit <- FALSE
-          for (f in outs) {
-            x <- readLines(f, warn = FALSE)
-            i <- grep("Skipped tests", x, fixed = TRUE)
-            if (length(i)) {
-              hit <- TRUE
-              cat("==", f, "\n")
-              cat(x[i[1]:length(x)], sep = "\n")
-              cat("\n")
-            }
-          }
-          if (!hit) cat("No skip block in", length(outs), ".Rout file(s).\n")
+    uses: NewGraphEnvironment/flows/.github/workflows/r-cmd-check.yaml@v1
