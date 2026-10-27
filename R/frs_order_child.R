@@ -49,11 +49,20 @@
 #' - **Spawning and connectivity.** bcfishpass's exception rows still pass
 #'   the spawning and connectivity conditions of their rearing block; this
 #'   function runs after classification and clustering and tests neither.
-#' - **Waterbody and edge type.** For CH, CO, ST and WCT (not BT), each
-#'   rearing block also limits rows to river polygons or to stream edge
-#'   types outside any waterbody (e.g. `load_habitat_linear_ch.sql:88-94`).
-#'   This function tests no edge or waterbody type, so for those species it
-#'   also admits direct children inside lake and wetland polygons.
+#' - **Waterbody and edge type.** Every CH, CO, ST and WCT rearing block
+#'   that carries the exception also filters by waterbody and edge type, in
+#'   one of three forms; BT's blocks have none. Let `E` be edge types 1000,
+#'   1100, 2000 and 2300.
+#'   - CH (all three blocks) and WCT's first: a river polygon, or no
+#'     waterbody and an edge type in `E` (`load_habitat_linear_ch.sql:89-92`).
+#'   - ST (all three) and WCT's second and third: a river polygon, or no
+#'     waterbody, or an edge type in `E` (`load_habitat_linear_st.sql:88-90`).
+#'   - CO (all three): as ST, with 1050 and 1150 added to `E`
+#'     (`load_habitat_linear_co.sql:89-92`); its first two blocks also rear
+#'   every 1050 and 1150 line with no width test.
+#'
+#'   This function tests no edge or waterbody type, so for CH, CO, ST and
+#'   WCT it also admits the direct children these filters turn away.
 #' - **Direct child.** bcfishpass has no `stream_order = stream_order_max`
 #'   test (its `stream_order_parent` is per `blue_line_key`), so it also
 #'   admits order-1 headwater reaches of higher-order lines that drain to a
