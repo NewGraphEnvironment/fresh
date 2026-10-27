@@ -25,7 +25,7 @@ library(fresh)
 #>  'Before, my competitiveness and my desire to reach a position enslaved me. I didn't value everything I received from the fruits of my labor because I gave importance and I revered power and material things.' - Farruko
 #>   source
 library(sf)
-#> Linking to GEOS 3.14.1, GDAL 3.12.2, PROJ 9.7.1; sf_use_s2() is TRUE
+#> Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.4.0; sf_use_s2() is TRUE
 
 sf_use_s2(FALSE)
 #> Spherical geometry (s2) switched off
