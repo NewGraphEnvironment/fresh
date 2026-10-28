@@ -14,3 +14,6 @@ data/rag/
 # testthat failure snapshots
 tests/testthat/_problems/
 tests/testthat/testthat-problems.rds
+
+# knitr scratch at the repo root; the tracked copies live in vignettes/figure/
+figure/
