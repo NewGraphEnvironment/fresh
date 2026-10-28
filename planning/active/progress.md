@@ -24,3 +24,4 @@ the owner says to resume.
 - Phase 2: scoped walk implemented; `devtools::test(filter = "network_features")` 0 fail / 121 pass, including the local VICT comparison (both `include_equivalents`) and the bcfishpass ADMS byte-identity test on the new path. The error on a failed DDL names a missing `segments` column as a second cause, since that fails at the same statement
 - Mutation runs: the VICT live test missed both prefilter arms. Moved it to SKGT with NULL-coded feature copies; it now fails on removing either arm (2 and 6 failures) or the `DROP` (3)
 - Phase 3: full run SALR LKEL CHWK LSKE (19:40-20:57 UTC), 56 rows, every `d_set` agrees; old SQL censored at 600 s on all 8 CH/BT walks, new 0.3-8.4 s; log README with the table
+- Phase 4: research section "Prefiltering the feature side" with the Phase 3 table and the two open items; `research/README.md` row; CLAUDE.md Technical notes bullet
