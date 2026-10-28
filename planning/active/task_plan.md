@@ -96,7 +96,7 @@ Plan review: `review-plan.md` (Plan agent, 2026-10-28). Its two blockers and the
 
 ## Phase 4: Record what is known (after Phase 3's TSV is committed, O2)
 - [x] `research/fwa_downstream_walk.md`: new section "Prefiltering the feature side", with the two criteria, the planner mechanism (the GiST `@>` estimate drives it off the segment-driven plan; the set prefilter is only safe with a small indexed segments relation; the fenced-lateral alternative and why it loses on link's shape), the Phase 3 numbers, and two open items: upstream (the mirror criteria, unmeasured) and `aoi = NULL` on a pre-scoped working table (S1: the prefilter would help there with no temp table, but on a province-wide table the InitPlan over 11 M rows admits everything). One sentence that the per-side code columns are parameters and `blue_line_key`, `downstream_route_measure`, `watershed_group_code` are FWA names the function already carries (A4). Header `Verified` / `Issues` / `Produced by` updated; `research/README.md` row updated
-- [ ] `NEWS.md` entry under `# fresh 0.45.0` (numbers from Phase 3, cites link#261 evidence), `DESCRIPTION` 0.44.0 → 0.45.0 as the branch's final commit
+- [x] `NEWS.md` entry under `# fresh 0.45.0` (numbers from Phase 3, cites link#261 evidence), `DESCRIPTION` 0.44.0 → 0.45.0 as the branch's final commit
 - [x] `CLAUDE.md` Technical notes: one bullet under a new "Network features (`frs_network_features()`)" heading: aoi-scoped downstream walks build a session temp table (one backend), prefilter admits ancestors-or-equal ∪ blue lines
 
 ## Owed at the end (reported, done after merge)
@@ -108,7 +108,7 @@ Plan review: `review-plan.md` (Plan agent, 2026-10-28). Its two blockers and the
 - [x] Tests pass (`devtools::test()` with error grep; live tests against the local Docker fwapg)
 - [x] `/code-check` clean (once over the branch with `/code-check branch`)
 - [x] `lintr::lint_package()` clean on touched files; `devtools::document()` run; `pkgdown::check_pkgdown()` (no new export)
-- [ ] PWF checkboxes match landed work
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion, then `/gh-pr-push`
 
 **How each change is proved.** Equivalence: mocked tests pin the SQL shape; the local Docker live test compares the function to the unprefiltered join on real FWA data; the existing ADMS test compares it to bcfishpass's table; Phase 3 digests compare old and new function SQL on link's views. Speed: Phase 3's interleaved timings, on the function's own SQL, on fresh's documented shape; link's `walk_prefilter.tsv` already covers the temp-table shape. Cleanup: the live test asserts no `frs_tmp_` table survives the call, and a mocked test asserts the drop runs when the walk errors.
