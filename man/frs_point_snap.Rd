@@ -94,7 +94,16 @@ cost one snap query, not 10,000.
 }
 \details{
 Candidates are network segments within \code{tolerance} of the point,
-nearest first (ties broken by \code{linear_feature_id}). Placeholder
+nearest first. An exact distance tie — a point whose nearest point on
+two segments is the vertex they share — goes to the segment with the
+\strong{higher} \code{downstream_route_measure}, the one starting at that vertex,
+because measures resolve \verb{[downstream, upstream)}; \code{linear_feature_id}
+breaks what is still tied. This is fwapg's rule
+(NewGraphEnvironment/fwapg#41), so \code{frs_point_snap()} and
+\code{fwa_indexpoint()} agree on which segment a tie belongs to. The
+comparison is on the raw measure, not the whole-metre one below.
+Within one stream it is positional; a tie across two different blue
+lines is merely deterministic. Placeholder
 (\verb{999.*}) and unmapped (NULL local code) segments are never candidates;
 \code{exclude_edge_types} drops more. The measure is a whole metre, following
 bcfishpass (\verb{04_pscis.sql}): the position rounded down, but never below

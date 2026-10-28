@@ -144,11 +144,11 @@ each, because these are the parts of the plan most likely to be mis-remembered l
 
 ## Phase 2 — the tie rule in `frs_point_snap()`
 
-- [ ] Rewrite the two SQL-string assertions (`test-frs_point_snap.R:24`, `:76-77`) and add one for
+- [x] Rewrite the two SQL-string assertions (`test-frs_point_snap.R:24`, `:76-77`) and add one for
       the final `ORDER BY`, to the new rule. They fail against the current code. These are the
       only two assertions in the suite that encode the old rule (grepped: no `_snaps/`, no test
       asserts a snapped `linear_feature_id`).
-- [ ] `.frs_point_snap_sql()`: carry `s.<col_ds>` out of the lateral under an internal alias —
+- [x] `.frs_point_snap_sql()`: carry `s.<col_ds>` out of the lateral under an internal alias —
       **distinct from `col_ds` itself**, or `s.*` yields two columns of that name and
       `c.downstream_route_measure` becomes ambiguous — and order all three sites on it:
       `:446` `ORDER BY s.geom <-> p.geom, s.<col_ds> DESC, s.<col_seg>`;
@@ -158,28 +158,28 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       The alias is not covered by the `cols_out` collision check at `:163-166`; a qualified
       `c.<alias>` in `ORDER BY` resolves to the input column, so a user `col_id` of the same name
       is safe — note it rather than relying on that check.
-- [ ] Keep `candidate_rank`'s window order and the final `ORDER BY` identical. A third assertion
+- [x] Keep `candidate_rank`'s window order and the final `ORDER BY` identical. A third assertion
       depends on it: `test-frs_point_snap.R:464-470`, `expect_equal(d$candidate_rank, seq_len(nrow(d)))`.
       State this as the invariant so a later edit to one site and not the other fails loudly.
-- [ ] Re-measure the two tie points through `.frs_point_snap_sql()` on the local docker, once on
+- [x] Re-measure the two tie points through `.frs_point_snap_sql()` on the local docker, once on
       `main`'s SQL and once on the new SQL, **before** writing any id as an assertion. wet's ids
       came from `fwa_indexpoint()`, which returns one candidate per `blue_line_key`; fresh returns
       candidates per **segment** and applies its own `999`/NULL-localcode/`1425` guards, so the
       ids and the ranks are not transferable.
-- [ ] Live tests at the two tie points (WGS84): **08KD006** (-122.373062133789, 54.0455589294434),
+- [x] Live tests at the two tie points (WGS84): **08KD006** (-122.373062133789, 54.0455589294434),
       a tie on Willow River blue line 356360570 between 703862843 and 703862887; **07EA001**
       (-125.626388549805, 57.4208297729492) on blue line 359014591 — which needs
       `num_features > 1` or `col_blk = 359014591` for its stream's tie to surface at all. These
       test fresh's own SQL, so they gate only on a connection — **no migration needed** — and each
       is shown red before the change. 07FA007 is a head case and belongs to Phase 4.
-- [ ] Re-verify the five live test files that consume the snap's pick at the Bulkley points, in
+- [x] Re-verify the five live test files that consume the snap's pick at the Bulkley points, in
       case any of those points is a tie: `test-frs_network_downstream.R:37`,
       `test-frs_network_prune.R:35` and `:54`, `test-frs_network_upstream.R:54`,
       `test-frs_point_locate.R:7`, `test-frs_break.R:258`.
-- [ ] Update the roxygen prose at `R/frs_point_snap.R:11-12` and `:378-382`, **and `CLAUDE.md:213`**
+- [x] Update the roxygen prose at `R/frs_point_snap.R:11-12` and `:378-382`, **and `CLAUDE.md:213`**
       under "Point snap", which names `linear_feature_id` as the tie-break.
-- [ ] `EXPLAIN` the new lateral on the local fwapg and keep the plan for the research note.
-- [ ] Confirm `num_features = 1` and `> 1` agree on which candidate ranks first.
+- [x] `EXPLAIN` the new lateral on the local fwapg and keep the plan for the research note.
+- [x] Confirm `num_features = 1` and `> 1` agree on which candidate ranks first.
 
 ## Phase 3 — the sweep, before and after
 

@@ -20,8 +20,10 @@ test_that("snap SQL is one lateral KNN query within tolerance", {
   sql <- .frs_point_snap_sql(pts_sql, col_id = "id_point")
   lateral <- sql_lateral(sql)
   expect_match(lateral, "ST_DWithin\\(s\\.geom, p\\.geom, 100\\)")
-  expect_match(lateral,
-               "ORDER BY s\\.geom <-> p\\.geom, s\\.linear_feature_id")
+  # the tie key is the RAW measure, not the clamped one the caller gets (#266)
+  expect_match(lateral, paste0(
+    "ORDER BY s\\.geom <-> p\\.geom, ",
+    "s\\.downstream_route_measure DESC, s\\.linear_feature_id"))
   expect_match(lateral, "LIMIT 1\\b")
   expect_match(lateral, "whse_basemapping.fwa_stream_networks_sp s")
   expect_no_match(sql, "fwa_indexpoint")
@@ -73,9 +75,35 @@ test_that("candidate_rank only when num_features > 1, outside the lateral", {
   expect_match(lateral, "LIMIT 3\\b")
   expect_match(sql_select(sql), paste0(
     "row_number\\(\\) OVER \\(PARTITION BY c\\.id ",
-    "ORDER BY c\\.distance_to_stream, c\\.linear_feature_id\\) ",
-    "AS candidate_rank"))
+    "ORDER BY c\\.distance_to_stream, c\\.measure_raw DESC, ",
+    "c\\.linear_feature_id\\) AS candidate_rank"))
   expect_no_match(lateral, "row_number")
+})
+
+test_that("an exact distance tie goes to the higher raw measure (#266)", {
+  sql <- .frs_point_snap_sql(pts_sql, col_id = "id_point")
+  # the final order carries the same rule as the lateral and the window
+  expect_match(sql, paste0(
+    "ORDER BY c\\.id, c\\.distance_to_stream, c\\.measure_raw DESC, ",
+    "c\\.linear_feature_id$"))
+  # the raw measure is carried out of the lateral under its own alias,
+  # because the emitted measure is clamped to a whole metre and two
+  # segments sharing a vertex on a whole metre clamp to the same value
+  lateral <- sql_lateral(sql)
+  expect_match(lateral, "s.downstream_route_measure AS measure_raw",
+               fixed = TRUE)
+  # and it reaches no caller: the outer SELECT does not list it
+  select <- sql_select(sql)
+  expect_no_match(select, "measure_raw AS")
+  expect_no_match(select, "  c.measure_raw,", fixed = TRUE)
+})
+
+test_that("the tie key is the measure column .frs_opt() names", {
+  withr::local_options(fresh.measure_ds_col = "m_start")
+  lateral <- sql_lateral(.frs_point_snap_sql(pts_sql, col_id = "id_point"))
+  expect_match(lateral, "s.m_start AS measure_raw", fixed = TRUE)
+  expect_match(lateral, "ORDER BY s.geom <-> p.geom, s.m_start DESC, s.linear_feature_id",
+               fixed = TRUE)
 })
 
 test_that("snap SQL reads table and columns from .frs_opt()", {
@@ -499,4 +527,143 @@ test_that("a table input writes the snap to `to`", {
   expect_equal(out$blue_line_key, from_df$blue_line_key)
   expect_equal(out$downstream_route_measure,
                from_df$downstream_route_measure)
+})
+
+# The tie rule (#266). An exact distance tie is a point whose nearest point on
+# two segments is the vertex they share. 08KD006 on the Willow River is the one
+# the issue hands us that reproduces through fresh's per-segment snap: the two
+# tied segments carry different local codes, because a tributary joins there.
+# These test fresh's own SQL, so they need no migration — only a database.
+tie_site <- data.frame(
+  site = "08KD006",
+  x = -122.373062133789,
+  y = 54.0455589294434,
+  blk = 356360570
+)
+tie_lower <- 703862843L   # ds 13543.88, localcode 100.594120.061391
+tie_upper <- 703862887L   # ds 14040.01, localcode 100.594120.063640, starts at the vertex
+
+# The assertions below are about which segment the rule picks, so every FWA
+# fact they pin has to hold on this host before they mean anything: the pair
+# exists, it ties to the bit, and the two carry the measures and local codes
+# the assertions name. A database whose FWA vintage has moved skips instead of
+# failing confusingly — but only for what the guard actually checks, so the
+# guard checks all of it.
+skip_unless_tied <- function(conn) {
+  d <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT linear_feature_id,
+            ST_Distance(geom, ST_Transform(ST_SetSRID(ST_MakePoint(%.15f, %.15f), 4326), 3005))
+              AS d,
+            downstream_route_measure AS ds, upstream_route_measure AS us,
+            localcode_ltree::text AS lc
+     FROM whse_basemapping.fwa_stream_networks_sp
+     WHERE linear_feature_id IN (%d, %d)
+     ORDER BY downstream_route_measure",
+    tie_site$x, tie_site$y, tie_lower, tie_upper))
+  # the point snaps to the vertex the two share, which is the lower segment's
+  # upstream end and the upper segment's downstream end; from that the clamped
+  # measures the assertions name follow, rather than being retyped here
+  clamp <- function(m, ds, us) ceiling(max(ds, floor(min(us, m))))
+  ok <- nrow(d) == 2L &&
+    # the driver returns linear_feature_id as integer64, not integer
+    identical(as.numeric(d$linear_feature_id), as.numeric(c(tie_lower, tie_upper))) &&
+    identical(d$d[[1]], d$d[[2]]) &&
+    abs(d$us[[1]] - d$ds[[2]]) < 0.02 &&
+    clamp(d$us[[1]], d$ds[[1]], d$us[[1]]) == 14040 &&
+    clamp(d$ds[[2]], d$ds[[2]], d$us[[2]]) == 14041 &&
+    identical(d$lc, c("100.594120.061391", "100.594120.063640"))
+  skip_if_not(ok, "08KD006 is not the exact tie these assertions describe on this database")
+}
+
+# The mid-list test also needs both tied segments to be among the 5 nearest
+# once the hint is dropped, which depends on the other stream's segments —
+# nothing skip_unless_tied() can see from the pair alone.
+skip_unless_both_in_five <- function(conn) {
+  n <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*) AS n FROM (
+       SELECT linear_feature_id
+       FROM whse_basemapping.fwa_stream_networks_sp s
+       WHERE ST_DWithin(s.geom, ST_Transform(ST_SetSRID(ST_MakePoint(%.15f, %.15f), 4326), 3005), 150)
+         AND s.localcode_ltree IS NOT NULL AND NOT s.wscode_ltree <@ \'999\'
+         AND s.edge_type <> 1425
+       ORDER BY s.geom <-> ST_Transform(ST_SetSRID(ST_MakePoint(%.15f, %.15f), 4326), 3005)
+       LIMIT 5
+     ) f WHERE linear_feature_id IN (%d, %d)",
+    tie_site$x, tie_site$y, tie_site$x, tie_site$y, tie_lower, tie_upper))$n
+  skip_if_not(n == 2L, "the tied pair is not among the 5 nearest on this database")
+}
+
+test_that("a tie goes to the segment starting at the shared vertex", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn), add = TRUE)
+  skip_unless_tied(conn)
+
+  # the hint puts the tied pair at rank 1, so this is the lateral's own pick:
+  # the only ordering site that matters at num_features = 1
+  one <- sf::st_drop_geometry(frs_point_snap(
+    conn, tie_site, col_id = "site", col_blk = "blk", tolerance = 150))
+  expect_identical(nrow(one), 1L)
+  expect_equal(one$linear_feature_id, tie_upper)
+  expect_equal(one$downstream_route_measure, 14041)
+  expect_identical(as.character(one$localcode_ltree), "100.594120.063640")
+})
+
+test_that("the tie rule orders the candidate list, not just the first pick", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn), add = TRUE)
+  skip_unless_tied(conn)
+  skip_unless_both_in_five(conn)
+
+  # without the hint two segments of another stream are nearer, so the tie
+  # lands mid-list: this is the window and the final ORDER BY
+  many <- sf::st_drop_geometry(frs_point_snap(
+    conn, tie_site[, c("site", "x", "y")], col_id = "site",
+    tolerance = 150, num_features = 5))
+  tied <- many[many$linear_feature_id %in% c(tie_lower, tie_upper), ]
+  expect_identical(nrow(tied), 2L)
+  expect_equal(tied$linear_feature_id, c(tie_upper, tie_lower))
+  expect_equal(tied$downstream_route_measure, c(14041, 14040))
+  # the two are at one distance, and the ranks are adjacent and in that order
+  expect_identical(tied$distance_to_stream[[1]], tied$distance_to_stream[[2]])
+  expect_equal(diff(tied$candidate_rank), 1L)
+  # candidate_rank still agrees with the returned order (the window and the
+  # final ORDER BY carry the same rule)
+  expect_equal(many$candidate_rank, seq_len(nrow(many)))
+})
+
+test_that("num_features = 1 returns what num_features > 1 ranks first", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn), add = TRUE)
+  skip_unless_tied(conn)
+
+  args <- list(conn = conn, points = tie_site, col_id = "site",
+               col_blk = "blk", tolerance = 150)
+  one <- sf::st_drop_geometry(do.call(frs_point_snap, args))
+  many <- sf::st_drop_geometry(do.call(frs_point_snap, c(args, num_features = 5)))
+  first <- many[many$candidate_rank == 1L, ]
+  expect_equal(one$linear_feature_id, first$linear_feature_id)
+  expect_equal(one$downstream_route_measure, first$downstream_route_measure)
+})
+
+test_that("the KNN index-ordered scan survives the tie key", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn), add = TRUE)
+
+  sql <- .frs_point_snap_sql(sprintf(
+    "SELECT 1::integer AS id, ST_Transform(ST_SetSRID(ST_MakePoint(%.15f, %.15f), 4326), 3005) AS geom",
+    tie_site$x, tie_site$y), col_id = "site", tolerance = 150, num_features = 5)
+  plan <- paste(DBI::dbGetQuery(conn, paste("EXPLAIN (COSTS OFF)", sql))[[1]],
+                collapse = "\n")
+  # The tie key is sorted incrementally over the index's distance order, not
+  # instead of it: a plain Sort over a Seq Scan here would be the regression.
+  # The shape is what matters — the index's name belongs to fwapg and the
+  # relation alias in Presorted Key is one PostgreSQL generates, so neither is
+  # pinned.
+  expect_match(plan, "Index Scan using \\w+ on fwa_stream_networks_sp")
+  expect_match(plan, "Order By: \\(geom <-> ")
+  expect_match(plan, "Presorted Key: \\(\\(\\w+\\.geom <-> ")
 })

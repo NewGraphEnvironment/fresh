@@ -201,3 +201,96 @@ Branch `origin/127-wet-station-snap-measure-the-effect-of-f` (PR wet#132, open):
   commits without a transaction statement.
 - There is **no** note in wet about where one shared copy should live — that decision is this
   issue's, and it was taken at the gate (exported from fresh as `frs_migration_trial()`).
+
+## Re-measuring the issue's three gauge points through fresh's own snap (O2, 2026-10-27, m4)
+
+The issue's three points were measured through `fwa_indexpoint()`, which returns one candidate
+per `blue_line_key`. `frs_point_snap()` returns candidates **per segment** and applies its own
+guards, so the ids had to be re-measured before they could be written as assertions. Measured on
+the local docker fwapg with `main`'s SQL.
+
+| gauge | result through fresh's snap at tolerance 150 |
+|---|---|
+| **08KD006** | the issue's tie is real and **exact**: 703862843 and 703862887 are both `67.563693805068` m away, bit-identical, and nothing else is at that distance. But two segments of blue line **356302336** are nearer (9.4 m, 22.3 m), so the tie surfaces at `candidate_rank` 3 and 4 with `num_features = 5`, or at rank 1 with a `col_blk` hint of 356360570. |
+| **07EA001** | does not reproduce. Blue line 359014591's nearest segment is **670.9 m** from the gauge — far outside any snapping tolerance. (Its own tie is real there: 207086967 and 207086752 are both 670.921 m away. But 207086752 is both the lower id **and** the segment starting at the shared vertex, so the old rule and the new rule agree on it — it cannot be a red/green pin either way.) |
+| **07FA007** | a head case (O1), moved to Phase 4. Its ranks 2 and 3 are an exact tie at `16.327150173041` m, but **across two blue lines** (223047489 on 359001991, 223047586 on 359570983), not two segments of one. |
+
+So the Phase 2 pin is **08KD006**, and only 08KD006.
+
+- `703862843`: ds 13543.88, us 14040.00493, localcode `100.594120.061391`, length 496.13 m
+- `703862887`: ds 14040.01, us 14162.33033, localcode `100.594120.063640`, length 122.32 m
+- clamped measures at the tie: **14040** on the lower segment, **14041** on the upper — the 1 m
+  the research note describes, and the localcodes differ because a tributary joins at that vertex.
+- `main`'s rule (lowest `linear_feature_id`) picks **703862843** / 14040 / `…061391`.
+- the new rule (higher raw `downstream_route_measure`) picks **703862887** / 14041 / `…063640`.
+
+### A point placed *on* the shared vertex is not a deterministic pin
+
+The vertex is at `POINT(-122.37407465666284 54.0456823671828)`. Constructing the pin there looked
+stronger — distance 0 to both segments, so no hint and no `num_features > 1` needed — and it is
+wrong twice over:
+
+1. It is a **three-way** tie. The tributary's own segment 703862850 (blue line 356302336,
+   ds 0, edge type 1450) also touches that vertex, and it is not excluded by `.frs_snap_guards()`.
+2. `ST_Distance` is not bit-equal there. `frs_point_snap()` reports `1.197678e-09`, and `main`'s
+   SQL already returns **703862887** for that point — the right answer for the wrong reason,
+   decided by floating-point noise rather than by the tie rule.
+
+An exact tie is one measured off the segments, not one constructed at the vertex.
+
+### fresh's rule is positional only within one blue line
+
+fwapg's `ORDER BY blue_line_key, distance_to_stream, downstream_route_measure DESC,
+linear_feature_id` partitions by `blue_line_key` before it compares measures, because
+`fwa_indexpoint()` takes one candidate per stream. fresh orders candidates per segment, nearest
+first, so it cannot lead on `blue_line_key` without breaking distance ordering. Where a tie falls
+across two different blue lines (07FA007's ranks 2 and 3), fresh compares measures that belong to
+different streams: deterministic, but no more positional than the lowest-id rule was. Record it in
+the research note rather than pretending the two rules coincide.
+
+## The head case, constructed by query (O1, measured 2026-10-27, m4)
+
+The sweep could not be relied on to find one, and it cannot: `whole_metre_top = 0` — **no**
+candidate segment has an integer `upstream_route_measure`, so fresh's own clamped measure never
+lands exactly on a stream's top. The pin has to be constructed.
+
+**First attempt, wrong.** 246 candidate segments are shorter than a metre and contain no whole
+metre, so `CEIL(GREATEST(ds, …))` lands past their own upstream end; **6** of those are also the
+top segment of their blue line, so the measure is past the whole stream's head. `fwa_locatealong()`
+resolves none of the six — and the migration does not fix them either (measured: 0 before, 0
+after). Closing the range at the top only helps a measure *at* the top, not one *past* it.
+
+**The pin: a measure exactly equal to a blue line's maximum `upstream_route_measure`.**
+`ds <= m < us` cannot hold it; `ds <= m <= us` can. Measured on five blue lines sampled by
+`ORDER BY md5(blue_line_key::text)`:
+
+| call | before | after both migrations | rolled back |
+|---|---|---|---|
+| `fwa_locatealong` | 0 rows on all five | **3 of 5 resolve** (356194098 @ 2378.0308, 356225614 @ 517.2700, 359044951 @ 320.3324) | 0 rows again |
+| `fwa_watershedatmeasure` | **errors**: `line_interpolate_point: 2nd arg isn't within [0,1]`, raised from `fwa_upstreambordercrossings` | no error, 0 rows | — |
+
+The second row is B1's replacement pin, confirmed: the transition is **error → no error**, not a
+placement, and it comes through `fwa_upstreambordercrossings`, which the tiebreak migration
+rewrites — not through `fwa_watershedatmeasure`'s own segment pick, which has no top bound to
+close.
+
+Two of the five do not flip (356129923, 360447231), so a Phase 4 test must not assume any given
+blue line exhibits the case: it guards on the before state being 0 and asserts the after state
+resolves.
+
+## What the smoke sweep measured (small samples, 2026-10-27)
+
+A capped run (300 PSCIS, 200 observations, 500 crossings measures, 10 sampled expensive
+positions → 1,010 snapped positions, 4,040 CSV measures, 153 expensive positions):
+
+| state | csv locatealong misses | watershed misses | watershed errors |
+|---|---|---|---|
+| base | 34 | 9 | 50 |
+| tiebreak only | 32 | 10 | 49 |
+| both | 32 | 10 | 49 |
+
+So the migration is measurable on fresh's inputs even at this size: two CSV measures that
+`fwa_locatealong()` missed now resolve, and one position that **errored** now does not. Ties in
+the snap at this sample: 45 tied groups over 300 PSCIS and 27 over 200 observations — and most are
+**across** streams (39 of 45, 23 of 27), not within one, so the positional tie is the minority
+case. The full run replaces these numbers.
