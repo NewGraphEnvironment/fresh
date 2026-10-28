@@ -300,7 +300,7 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       log dir, migration filenames + md5s, fwapg commit.
 - [x] Refresh the `research/README.md` index row.
 - [x] `devtools::document()`, `lintr::lint_package()`, `devtools::test()` (grepped in one call).
-- [ ] `NEWS.md` entry and `DESCRIPTION` version bump as the **final** commit of the branch.
+- [x] `NEWS.md` entry and `DESCRIPTION` version bump as the **final** commit of the branch.
 
 ## Owed at the end (reported, done after merge)
 
@@ -312,9 +312,9 @@ each, because these are the parts of the plan most likely to be mis-remembered l
 
 ## Validation
 
-- [ ] Tests pass (`Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5`)
-- [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass (`Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5`)
+- [x] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 How each change is proved:
