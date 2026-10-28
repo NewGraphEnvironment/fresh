@@ -46,3 +46,22 @@
   `valid_clusters` is always empty and that branch is untested. Once the
   do-not-touch table in `task_plan.md` is respected the change there is pure
   join-predicate work, but the test does not cover it.
+
+### Phase 3 — `.frs_cluster_both()` (done)
+
+- Two tests, both red first on their discriminating assertions.
+- `phase1_ids` replaced by `h.<label_connect> IS NOT TRUE` as planned, in the
+  same commit as the join fix. The two fixture assertions that pin the
+  equivalence — an on-spawning segment in an invalid cluster stays, a
+  NULL-`spawning` segment in one does not — passed both before and after, which
+  is what "equivalent" is supposed to look like.
+- The two UPDATE branches collapsed into one with a conditional valid-cluster
+  clause; with `phase1_protect` gone that was all that separated them.
+- Probed rather than assumed, both load-bearing for the fixture: the 8-arg
+  `fwa_upstream()` does **not** treat a segment as upstream of itself (so an
+  isolated rear+spawn segment really does sit in an invalid cluster, which is
+  what makes the phase-1 assertion able to fail), and `subpath('300', 0, -1)`
+  is the empty ltree, of which every ltree is a descendant — so a cluster
+  minimum below `confluence_m` can be validated by spawning on an unrelated
+  river. Every cluster minimum in the fixture sits at drm >= 1000 for that
+  reason.

@@ -144,16 +144,16 @@ and two SELECTs — so for a target row "phase 1" is exactly
 
 ### Phase 3 — `.frs_cluster_both()` (live)
 
-- [ ] Test, red first: the OTHR-survives and OTHR-does-not-rescue pair, plus a
+- [x] Test, red first: the OTHR-survives and OTHR-does-not-rescue pair, plus a
       TEST row with both flags TRUE inside an invalid cluster that must stay
       (the `phase1_ids` replacement), a NULL-`spawning` TEST row in an invalid
       cluster that must go (`IS NOT TRUE` vs `= FALSE`), and a cluster inside
       `bridge_distance` that today falls outside it because the `LEFT JOIN`
       doubles the distance.
-- [ ] Fix in one commit: `tmp_clusters` carries the group (`:444`), phase 2's
+- [x] Fix in one commit: `tmp_clusters` carries the group (`:444`), phase 2's
       join (`:466`), phase 3's `LEFT JOIN` (`:516`), both UPDATE branches
       (`:574`, `:583`), and `phase1_ids` deleted (`:429`, `:563`).
-- [ ] With `phase1_protect` gone the two UPDATE branches differ only by the
+- [x] With `phase1_protect` gone the two UPDATE branches differ only by the
       cluster clause — collapse them only if it falls out cleanly.
 
 ### Phase 4 — `.frs_cluster_upstream()` and `.frs_distance_filter()`

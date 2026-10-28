@@ -87,3 +87,36 @@ counts as upstream of every other on that code, because the helper sets
 `spawn_upstream` therefore has to sit on a separate river (`wscode = "200"`),
 which is not a descendant of `"100"`. A fixture that relied on downstream
 position alone within one wscode would have been unable to fail.
+
+## The phase-3 LEFT JOIN corrupted the job's own distances
+
+`R/frs_cluster.R`'s phase 3 joined habitat with `LEFT JOIN … ON st.id_segment =
+h2.id_segment AND h2.species_code = sp`. A colliding row in another group
+therefore **duplicated the streams row**, and
+
+```sql
+-st.length_metre + SUM(st.length_metre) OVER (
+  PARTITION BY cm.cluster_id ORDER BY st.wscode_ltree DESC, …)
+```
+
+counted that segment once per duplicate. Measured on the fixture in
+`test-frs_connectivity_wsg.R`: spawning 2000 m below the cluster, two
+intermediate segments each carrying one extra habitat row in another group, cap
+2500 m — the trace read 4000 m and the cluster was invalidated.
+
+So this site was not only a cross-group leak. It returned a wrong answer for the
+watershed group being processed, and the other group's rows needed no flags set
+to cause it.
+
+## The confluence boost can validate a cluster from an unrelated river
+
+`subpath(cm.wscode_ltree, 0, -1)` on a one-label wscode is the **empty ltree**,
+and every ltree is a descendant of it. So for a cluster minimum below
+`confluence_m`, the parent-stream branch
+`FWA_Upstream(subpath(wscode, 0, -1), wscode, st.wscode, st.localcode)` reduces
+to a string comparison that admits `label_connect` on any river sorting above
+this one. Real FWA wscodes have many labels, so this is reachable in the tests
+rather than in production — every cluster minimum in the fixtures sits at
+drm >= 1000 to keep the branch out of play. Not fixed here: out of scope for
+fresh#242, and worth its own look before anyone writes a fixture with
+single-label wscodes below the confluence tolerance.

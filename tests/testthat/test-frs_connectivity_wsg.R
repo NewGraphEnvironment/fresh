@@ -93,3 +93,77 @@ test_that("the additive spawn_connected step promotes no other group's row", {
   expect_false(own[["3"]])                   # not promoted: no trace reaches it
   expect_false(.bkt_flags(conn, "spawning", wsg = "OTHR")[["2"]])
 })
+
+
+# --- frs_cluster(direction = "both") ---
+#
+# Cluster minima sit at drm >= 1000 throughout: below `confluence_m` the
+# upstream check also tries `subpath(wscode, 0, -1)`, which on a one-label
+# wscode is the empty ltree, and every ltree is its descendant — so the boost
+# would validate a cluster from spawning on an unrelated river.
+
+.clb_run <- function(conn, bridge_distance = 10000, species = "BT") {
+  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "rearing", label_connect = "spawning",
+    species = species, direction = "both", bridge_gradient = 0.05,
+    bridge_distance = bridge_distance, confluence_m = 10, verbose = FALSE)
+}
+
+# One valid cluster and three invalid ones, each isolated on its own river so
+# ST_ClusterDBSCAN keeps them apart:
+#   A = {2}  valid   — spawning (1) immediately downstream
+#   C = {3}  invalid — nothing up or down; (4) is a non-rearing decoy above it
+#   D = {5}  invalid — rearing AND spawning on one segment, which is not
+#                      upstream of itself under the 8-arg FWA_Upstream
+#   E = {6}  invalid — spawning set NULL by the caller below
+.clb_segs <- function() {
+  rbind(
+    .bkt_seg(1, 0, spawn = TRUE),
+    .bkt_seg(2, 1000, rear = TRUE),
+    .bkt_seg(3, 1000, rear = TRUE, blk = 3L, wscode = "300", y = 10000),
+    .bkt_seg(4, 2000, blk = 3L, wscode = "300", y = 10000),
+    .bkt_seg(5, 1000, rear = TRUE, spawn = TRUE, blk = 4L, wscode = "400",
+             y = 20000),
+    .bkt_seg(6, 1000, rear = TRUE, blk = 5L, wscode = "500", y = 30000))
+}
+
+test_that("cluster both leaves another group's rows alone and is not rescued by them", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .bkt_fixture(conn, .clb_segs())
+  DBI::dbExecute(conn, "UPDATE pg_temp.bkt_habitat SET spawning = NULL
+                        WHERE id_segment = 6 AND species_code = 'BT'")
+  # OTHR reuses id 3 as rearing (must survive) and id 4 as spawning. Stream 4
+  # is upstream of cluster C's minimum, so today that spawning row validates
+  # cluster C and TEST's id 3 is kept.
+  .bkt_habitat_add(conn, rbind(.bkt_seg(3, 1000, rear = TRUE),
+                               .bkt_seg(4, 2000, spawn = TRUE)))
+  .clb_run(conn)
+
+  own <- .bkt_flags(conn, "rearing")
+  expect_true(own[["2"]])    # valid: spawning downstream within bridge_distance
+  expect_false(own[["3"]])   # invalid, and not rescued by OTHR's spawning row
+  expect_true(own[["5"]])    # on-spawning segment: protected whatever its cluster
+  expect_false(own[["6"]])   # spawning NULL is not protection
+  expect_true(.bkt_flags(conn, "rearing", wsg = "OTHR")[["3"]])
+})
+
+test_that("another group's rows do not inflate the downstream trace distance", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Spawning at the foot of a 4 km mainstem, rearing at its head: the trace
+  # reaches spawning at 2000 m, inside a 2500 m cap.
+  segs <- rbind(.bkt_seg(1, 0, spawn = TRUE), .bkt_seg(2, 1000),
+                .bkt_seg(3, 2000), .bkt_seg(4, 3000, rear = TRUE))
+  .bkt_fixture(conn, segs)
+  # OTHR rows on the two intermediate ids carry no flags at all. Today they
+  # still duplicate those segments in the trace through a LEFT JOIN on
+  # id_segment, so the running length sum reads 4000 m and the cap bites: the
+  # bug corrupts this group's own answer, not just the other group's rows.
+  .bkt_habitat_add(conn, rbind(.bkt_seg(2, 1000), .bkt_seg(3, 2000)))
+  .clb_run(conn, bridge_distance = 2500)
+
+  expect_true(.bkt_flags(conn, "rearing")[["4"]])
+})
