@@ -105,9 +105,9 @@ Plan review: `review-plan.md` (Plan agent, 2026-10-28). Its two blockers and the
 
 ## Validation
 
-- [ ] Tests pass (`devtools::test()` with error grep; live tests against the local Docker fwapg)
+- [x] Tests pass (`devtools::test()` with error grep; live tests against the local Docker fwapg)
 - [ ] `/code-check` clean (once over the branch with `/code-check branch`)
-- [ ] `lintr::lint_package()` clean on touched files; `devtools::document()` run; `pkgdown::check_pkgdown()` (no new export)
+- [x] `lintr::lint_package()` clean on touched files; `devtools::document()` run; `pkgdown::check_pkgdown()` (no new export)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion, then `/gh-pr-push`
 

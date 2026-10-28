@@ -25,3 +25,4 @@ the owner says to resume.
 - Mutation runs: the VICT live test missed both prefilter arms. Moved it to SKGT with NULL-coded feature copies; it now fails on removing either arm (2 and 6 failures) or the `DROP` (3)
 - Phase 3: full run SALR LKEL CHWK LSKE (19:40-20:57 UTC), 56 rows, every `d_set` agrees; old SQL censored at 600 s on all 8 CH/BT walks, new 0.3-8.4 s; log README with the table
 - Phase 4: research section "Prefiltering the feature side" with the Phase 3 table and the two open items; `research/README.md` row; CLAUDE.md Technical notes bullet
+- Validation: full `devtools::test()` 0 failed / 0 error / 6 skipped / 2038 passed (20:59-21:00 UTC); network_features files 130 passed, 0 skipped (bcfishpass ADMS and local SKGT both ran); lintr clean on touched files after qualifying `testthat::local_mocked_bindings` in the mock helper; `devtools::document()` no change; `pkgdown::check_pkgdown()` no problems

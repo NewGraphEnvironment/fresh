@@ -10,7 +10,7 @@ mock_nf_db <- function(query_fn = NULL, exec_fn = NULL, env = parent.frame()) {
   rec <- new.env()
   rec$exec <- character(0)
   rec$query <- NULL
-  local_mocked_bindings(
+  testthat::local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
       rec$exec <- c(rec$exec, sql)
       if (!is.null(exec_fn)) exec_fn(sql)
