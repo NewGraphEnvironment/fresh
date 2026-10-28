@@ -185,6 +185,27 @@ no other client backend active; log and table in `data-raw/logs/network_features
   `old_scoped` and `new` on SALR CH and CHWK CH/BT, the tie order the new `ORDER BY` key
   now fixes.
 
+## Code-check: the scoped call's failure paths, enumerated (round 4 close)
+
+Rounds 1 to 4 found no bug in R code. Each found a claim stated of a wider population than
+it was measured on (round 3 named the mechanism, with a 58-claim table that round 4
+re-checked: nothing marked verified was wrong). Round 4 found one inside round 3's fix: the
+pooling sentence named one failure point of two. So the set it belongs to is enumerated here:
+every statement a scoped call sends, against each condition the docs name.
+
+| statement (order) | in `tryCatch`? | read-only txn / standby | pooler, statement on another backend | `segments` missing a column |
+|---|---|---|---|---|
+| 1 `CREATE TEMP TABLE … AS SELECT` | yes | fails → named error | first statement, cannot be "another" | fails → named error |
+| 2-4 `CREATE INDEX` (btree, 2 GiST) | yes | not reached | `relation does not exist` → named error | not reached |
+| 5 `ANALYZE` | yes | not reached | same → named error | not reached |
+| 6 walk (`frs_db_query`) | no | not reached | bare `relation "pg_temp.frs_tmp_…" does not exist` | not reached |
+| 7 `DROP TABLE IF EXISTS` (`on.exit`, swallowed) | n/a | runs; fails inside an aborted caller transaction, table lives until rollback | no-op on its backend; the table can stay on the backend that made it | runs |
+
+No path returns wrong data: the table name is random per call, so a statement that reaches
+another backend finds no table and errors. The roxygen, the error message (and its test
+literal), NEWS and the PR body now state the pooling row as two failure points: the named
+error while building, and the bare error at the walk.
+
 ## Errors Encountered
 
 | Error | Resolution |

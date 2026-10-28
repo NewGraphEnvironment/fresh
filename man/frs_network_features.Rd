@@ -142,9 +142,10 @@ must reach one backend, and one of them creates a temp table. In a
 read-only transaction or on a hot standby the call stops there, with an
 error naming the cause. A transaction-pooling connection pooler
 (pgbouncer \code{pool_mode = transaction}) can send the statements to
-different backends, so the walk fails because the temp table is not
-there, and the table can be left on the backend that made it. Use a
-direct connection or session pooling. If the call is inside a transaction that
+different backends. The call then fails, either while building the table
+(the same error) or at the walk, because the temp table is not on the
+walk's backend, and the table can be left on the backend that made it.
+Use a direct connection or session pooling. If the call is inside a transaction that
 the walk aborts, the temp table's \code{DROP} fails too and the table lasts
 until that transaction is rolled back.
 

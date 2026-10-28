@@ -91,9 +91,10 @@
 #' read-only transaction or on a hot standby the call stops there, with an
 #' error naming the cause. A transaction-pooling connection pooler
 #' (pgbouncer `pool_mode = transaction`) can send the statements to
-#' different backends, so the walk fails because the temp table is not
-#' there, and the table can be left on the backend that made it. Use a
-#' direct connection or session pooling. If the call is inside a transaction that
+#' different backends. The call then fails, either while building the table
+#' (the same error) or at the walk, because the temp table is not on the
+#' walk's backend, and the table can be left on the backend that made it.
+#' Use a direct connection or session pooling. If the call is inside a transaction that
 #' the walk aborts, the temp table's `DROP` fails too and the table lasts
 #' until that transaction is rolled back.
 #'
@@ -357,8 +358,9 @@ frs_network_features <- function(
         "`frs_network_features(aoi = \"", aoi, "\")` builds a session ",
         "temp table of the AOI's segments for a downstream walk, and ",
         "could not. A session that cannot create one (read-only ",
-        "transaction, standby, or transaction pooler) fails here, as ",
-        "does a `segments` table missing one of: ",
+        "transaction or standby) fails here, as does a transaction ",
+        "pooler that sent one of these statements to another backend, ",
+        "and a `segments` table missing one of: ",
         paste(c(cols_segments, "watershed_group_code"), collapse = ", "),
         ".\nCaused by: ", conditionMessage(e)
       )

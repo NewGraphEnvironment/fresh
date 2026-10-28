@@ -627,7 +627,8 @@ test_that("a session that cannot build the temp table gets a named cause", {
   )
   expect_s3_class(err, "error")
   expect_match(conditionMessage(err), "session temp table", fixed = TRUE)
-  expect_match(conditionMessage(err), "read-only transaction, standby, or transaction pooler",
+  expect_match(conditionMessage(err), "read-only transaction or standby", fixed = TRUE)
+  expect_match(conditionMessage(err), "transaction pooler that sent one of these statements",
                fixed = TRUE)
   expect_match(conditionMessage(err), msg, fixed = TRUE)
   expect_identical(conditionMessage(err$parent), msg)

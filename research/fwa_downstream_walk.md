@@ -77,7 +77,7 @@ link's barrier views; old, new, new, old; mean of the two new runs, DDL included
 | LSKE (77,496) | > 600 / 65.9 / 8.35 s | > 600 / 34.2 / 4.33 s | 4.51 / 1.74 s |
 
 "Scoped only" is the v0.44.0 SQL against an indexed temp copy of the group, with no
-prefilter. Every walk returned the same sorted arrays in every form.
+prefilter. Every walk returned the same sorted arrays in every form that finished.
 
 **Open.**
 
