@@ -16,3 +16,8 @@ cd /Users/airvine/Projects/repo/fresh && git fetch -q origin && git checkout 272
 
 The approval of 2026-10-28 covered the baseline only. The run-to-PR mandate starts when
 the owner says to resume.
+
+## Session 2026-10-28 (resumed)
+
+- Resumed under the run-to-PR mandate; branch current with origin/main, issue body unchanged since planning, CI green
+- Phase 1: 26 mocked assertions + one local live test fail on the unchanged function (28 failures, 81 passes); the live equivalence assertions pass, so the reference join agrees with the current SQL

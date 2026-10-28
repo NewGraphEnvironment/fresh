@@ -129,6 +129,19 @@ Segment counts: LKEL 2,382; SALR 9,384; ADMS 11,520. Pick a smaller group in Pha
 `fwa_downstream()` (#265 lists the call sites). This issue keeps the predicate and touches
 only `frs_network_features()`.
 
+## Resume, 2026-10-28: the live test's fixture
+
+The whole stream network as `features` is the densest feature table there is. With the
+new form on VICT (temp table of 2,147 segments), the prefilter admits **209,987** segments,
+almost all through the wscode arm (segments whose wscode equals a VICT ancestor), and the
+walk probes the temp table once per admitted feature: 43.3 s, against 92.8 s for the plain
+join. Same digest (`4ab773e1ddeb9e316d03f987dcc9125e`, 1,597 segments with a feature).
+
+Every 25th segment province-wide (`linear_feature_id % 25 = 0`, 195,875 rows, indexed and
+analyzed like a feature table): new 1.7 s, plain 2.3 s, same digest
+(`74bb945034718735fed79a0f7294e38f`, 535 segments, 980 pairs). The live test uses that.
+It also showed `CREATE TEMP TABLE pg_temp.<name>` is accepted on PostgreSQL 17.5.
+
 ## Errors Encountered
 
 | Error | Resolution |

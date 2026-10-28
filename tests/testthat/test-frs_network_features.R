@@ -3,6 +3,35 @@
 # before reaching SQL composition. SQL-composition tests + live
 # parity tests land in Phase 2 + Phase 3.
 
+# Mock both DB entry points. `.frs_db_execute` records each statement
+# (the aoi path's temp-table DDL and its DROP); `frs_db_query` records the
+# walk. `query_fn` replaces the walk's return, e.g. to make it throw.
+mock_nf_db <- function(query_fn = NULL, exec_fn = NULL, env = parent.frame()) {
+  rec <- new.env()
+  rec$exec <- character(0)
+  rec$query <- NULL
+  local_mocked_bindings(
+    .frs_db_execute = function(conn, sql) {
+      rec$exec <- c(rec$exec, sql)
+      if (!is.null(exec_fn)) exec_fn(sql)
+      0L
+    },
+    frs_db_query = function(conn, sql, ...) {
+      rec$query <- sql
+      if (!is.null(query_fn)) return(query_fn(sql))
+      tibble::tibble(segment_id = character(), feature_ids = character())
+    },
+    .env = env
+  )
+  rec
+}
+
+# The temp table's name, read from the CREATE statement.
+nf_tmp_name <- function(rec) {
+  create <- grep("^CREATE TEMP TABLE", rec$exec, value = TRUE)
+  regmatches(create, regexpr("pg_temp\\.frs_tmp_[a-z0-9]+", create))
+}
+
 test_that("`direction` is required (no default)", {
   expect_error(
     frs_network_features(
@@ -184,14 +213,8 @@ test_that("segments-first / features-second arg order in fwa predicate", {
   expect_true(pos_a > 0 && pos_b > 0 && pos_a < pos_b)
 })
 
-test_that("aoi injects WHERE on watershed_group_code", {
-  captured <- NULL
-  local_mocked_bindings(
-    frs_db_query = function(conn, sql, ...) {
-      captured <<- sql
-      tibble::tibble(segment_id = character(), feature_ids = character())
-    }
-  )
+test_that("aoi scopes segments in the temp table's DDL, not the walk's WHERE", {
+  rec <- mock_nf_db()
   frs_network_features(
     conn = "mock",
     segments = "fresh.streams",
@@ -200,7 +223,11 @@ test_that("aoi injects WHERE on watershed_group_code", {
     direction = "downstream",
     aoi = "ADMS"
   )
-  expect_match(captured, "WHERE a\\.watershed_group_code = 'ADMS'")
+  create <- grep("^CREATE TEMP TABLE", rec$exec, value = TRUE)
+  expect_length(create, 1L)
+  expect_match(create, "FROM fresh.streams WHERE watershed_group_code = 'ADMS'",
+               fixed = TRUE)
+  expect_no_match(rec$query, "watershed_group_code")
 })
 
 test_that("aoi NULL omits the WHERE clause", {
@@ -405,4 +432,222 @@ test_that(".frs_parse_pg_array handles edge cases", {
   expect_equal(.frs_parse_pg_array("not-an-array"), character(0))
   expect_equal(.frs_parse_pg_array("{a,NULL,c}"),
                c("a", NA_character_, "c"))
+})
+
+## #272: aoi-scoped downstream walk — temp table + feature prefilter ------
+
+test_that("downstream + aoi builds an indexed, analyzed temp table first", {
+  rec <- mock_nf_db()
+  frs_network_features(
+    conn = "mock",
+    segments = "fresh.streams",
+    features = "fresh.crossings",
+    feature_id_col = "id",
+    direction = "downstream",
+    aoi = "ADMS"
+  )
+  tmp <- nf_tmp_name(rec)
+  expect_length(tmp, 1L)
+  ddl <- rec$exec[!grepl("^DROP", rec$exec)]
+  expect_match(ddl[1], paste0(
+    "CREATE TEMP TABLE ", tmp, " AS SELECT id_segment, blue_line_key, ",
+    "downstream_route_measure, wscode_ltree, localcode_ltree FROM fresh.streams"
+  ), fixed = TRUE)
+  expect_true(any(ddl == sprintf("CREATE INDEX ON %s (blue_line_key)", tmp)))
+  expect_true(any(ddl == sprintf("CREATE INDEX ON %s USING gist (wscode_ltree)", tmp)))
+  expect_true(any(ddl == sprintf("CREATE INDEX ON %s USING gist (localcode_ltree)", tmp)))
+  expect_identical(ddl[length(ddl)], sprintf("ANALYZE %s", tmp))
+  expect_length(ddl, 5L)
+})
+
+test_that("downstream + aoi walks the temp table against prefiltered features", {
+  rec <- mock_nf_db()
+  frs_network_features(
+    conn = "mock",
+    segments = "fresh.streams",
+    features = "fresh.crossings",
+    feature_id_col = "id",
+    direction = "downstream",
+    aoi = "ADMS"
+  )
+  tmp <- nf_tmp_name(rec)
+  q <- rec$query
+  expect_match(q, sprintf("FROM %s a\\s+INNER JOIN \\(", gsub(".", "\\.", tmp, fixed = TRUE)))
+  # only the five columns the walk reads, so a view's geom is not materialized
+  expect_match(q, paste0(
+    "SELECT f.id, f.blue_line_key, f.downstream_route_measure, ",
+    "f.wscode_ltree, f.localcode_ltree\\s+FROM fresh.crossings f"))
+  expect_match(q, "f.wscode_ltree = ANY (ARRAY(", fixed = TRUE)
+  expect_match(q, sprintf("SELECT DISTINCT subpath(s.wscode_ltree, 0, k) FROM %s s", tmp),
+               fixed = TRUE)
+  expect_match(q, "generate_series(1, nlevel(s.wscode_ltree)) k", fixed = TRUE)
+  expect_match(q, sprintf(
+    "OR f.blue_line_key = ANY (ARRAY(SELECT DISTINCT s.blue_line_key FROM %s s))", tmp),
+    fixed = TRUE)
+  expect_match(q, "\\) b ON\\s+whse_basemapping\\.fwa_downstream\\(")
+  expect_no_match(q, "fresh\\.streams")
+})
+
+test_that("aoi = NULL sends no DDL and no prefilter", {
+  rec <- mock_nf_db()
+  frs_network_features(
+    conn = "mock",
+    segments = "fresh.streams",
+    features = "fresh.crossings",
+    feature_id_col = "id",
+    direction = "downstream"
+  )
+  expect_length(rec$exec, 0L)
+  expect_no_match(rec$query, "subpath|ANY \\(ARRAY|frs_tmp_")
+  expect_match(rec$query, "FROM fresh.streams a\\s+INNER JOIN fresh.crossings b ON")
+})
+
+test_that("direction = upstream sends no DDL and no prefilter, with or without aoi", {
+  for (aoi in list(NULL, "ADMS")) {
+    rec <- mock_nf_db()
+    frs_network_features(
+      conn = "mock",
+      segments = "fresh.streams",
+      features = "fresh.crossings",
+      feature_id_col = "id",
+      direction = "upstream",
+      aoi = aoi
+    )
+    expect_length(rec$exec, 0L)
+    expect_no_match(rec$query, "subpath|ANY \\(ARRAY|frs_tmp_")
+    expect_match(rec$query, "FROM fresh.streams a\\s+INNER JOIN fresh.crossings b ON")
+    if (!is.null(aoi)) {
+      expect_match(rec$query, "WHERE a\\.watershed_group_code = 'ADMS'")
+    }
+  }
+})
+
+test_that("per-side code columns thread into the temp table and the prefilter", {
+  rec <- mock_nf_db()
+  frs_network_features(
+    conn = "mock",
+    segments = "weird.segments",
+    features = "weird.features",
+    feature_id_col = "id",
+    direction = "downstream",
+    aoi = "ADMS",
+    segments_wscode_col = "ws_a",
+    segments_localcode_col = "lc_a",
+    features_wscode_col = "ws_b",
+    features_localcode_col = "lc_b"
+  )
+  tmp <- nf_tmp_name(rec)
+  expect_match(rec$exec[1], "SELECT id_segment, blue_line_key, downstream_route_measure, ws_a, lc_a FROM",
+               fixed = TRUE)
+  expect_true(any(rec$exec == sprintf("CREATE INDEX ON %s USING gist (ws_a)", tmp)))
+  expect_true(any(rec$exec == sprintf("CREATE INDEX ON %s USING gist (lc_a)", tmp)))
+  q <- rec$query
+  expect_match(q, "SELECT f.id, f.blue_line_key, f.downstream_route_measure, f.ws_b, f.lc_b",
+               fixed = TRUE)
+  expect_match(q, "f.ws_b = ANY (ARRAY(", fixed = TRUE)
+  expect_match(q, "subpath(s.ws_a, 0, k)", fixed = TRUE)
+  expect_match(q, "nlevel(s.ws_a)", fixed = TRUE)
+  expect_match(q, "a.ws_a, a.lc_a", fixed = TRUE)
+  expect_match(q, "b.ws_b, b.lc_b", fixed = TRUE)
+})
+
+test_that("an id column that is also a key column is projected once", {
+  # Before #272, feature_id_col = "blue_line_key" was legal: the walk read
+  # b.blue_line_key twice from a table. A subquery projecting it twice would
+  # make b.blue_line_key ambiguous.
+  rec <- mock_nf_db()
+  frs_network_features(
+    conn = "mock",
+    segments = "fresh.streams",
+    features = "fresh.crossings",
+    segment_id_col = "blue_line_key",
+    feature_id_col = "blue_line_key",
+    direction = "downstream",
+    aoi = "ADMS"
+  )
+  expect_match(rec$exec[1], "SELECT blue_line_key, downstream_route_measure, wscode_ltree",
+               fixed = TRUE)
+  expect_match(rec$query, "SELECT f.blue_line_key, f.downstream_route_measure, f.wscode_ltree",
+               fixed = TRUE)
+})
+
+test_that("the temp table is dropped after the walk, last", {
+  rec <- mock_nf_db()
+  frs_network_features(
+    conn = "mock",
+    segments = "fresh.streams",
+    features = "fresh.crossings",
+    feature_id_col = "id",
+    direction = "downstream",
+    aoi = "ADMS"
+  )
+  tmp <- nf_tmp_name(rec)
+  expect_identical(rec$exec[length(rec$exec)], sprintf("DROP TABLE IF EXISTS %s", tmp))
+  expect_length(grep("^DROP", rec$exec), 1L)
+})
+
+test_that("the temp table's DROP is attempted when the walk throws", {
+  # This proves the DROP is sent, not that the table is gone: inside a
+  # caller's aborted transaction the DROP itself fails (and is swallowed),
+  # and the table lives until the caller rolls back.
+  rec <- mock_nf_db(query_fn = function(sql) stop("walk failed"))
+  expect_error(
+    frs_network_features(
+      conn = "mock",
+      segments = "fresh.streams",
+      features = "fresh.crossings",
+      feature_id_col = "id",
+      direction = "downstream",
+      aoi = "ADMS"
+    ),
+    "walk failed"
+  )
+  tmp <- nf_tmp_name(rec)
+  expect_identical(rec$exec[length(rec$exec)], sprintf("DROP TABLE IF EXISTS %s", tmp))
+})
+
+test_that("a session that cannot build the temp table gets a named cause", {
+  msg <- "cannot execute CREATE TABLE in a read-only transaction"
+  rec <- mock_nf_db(exec_fn = function(sql) {
+    if (startsWith(sql, "CREATE TEMP TABLE")) stop(msg)
+  })
+  err <- tryCatch(
+    frs_network_features(
+      conn = "mock",
+      segments = "fresh.streams",
+      features = "fresh.crossings",
+      feature_id_col = "id",
+      direction = "downstream",
+      aoi = "ADMS"
+    ),
+    error = function(e) e
+  )
+  expect_s3_class(err, "error")
+  expect_match(conditionMessage(err), "session temp table", fixed = TRUE)
+  expect_match(conditionMessage(err), "read-only transaction, standby, or transaction pooler",
+               fixed = TRUE)
+  expect_match(conditionMessage(err), msg, fixed = TRUE)
+  expect_identical(conditionMessage(err$parent), msg)
+  expect_null(rec$query)
+  # the DROP is still attempted, since the CREATE may have partly run
+  expect_match(rec$exec[length(rec$exec)], "^DROP TABLE IF EXISTS pg_temp\\.frs_tmp_")
+})
+
+test_that("ORDER BY ends in the feature id in both directions", {
+  for (dir in c("downstream", "upstream")) {
+    for (aoi in list(NULL, "ADMS")) {
+      rec <- mock_nf_db()
+      frs_network_features(
+        conn = "mock",
+        segments = "fresh.streams",
+        features = "fresh.crossings",
+        feature_id_col = "modelled_crossing_id",
+        direction = dir,
+        aoi = aoi
+      )
+      expect_match(rec$query, paste0(
+        "b\\.downstream_route_measure DESC,\\s+",
+        "b\\.modelled_crossing_id\\s+\\) d"))
+    }
+  }
 })
