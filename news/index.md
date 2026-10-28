@@ -1,5 +1,84 @@
 # Changelog
 
+## fresh 0.46.0
+
+Closes [\#242](https://github.com/NewGraphEnvironment/fresh/issues/242).
+Follows
+[\#240](https://github.com/NewGraphEnvironment/fresh/issues/240).
+
+**The connectivity passes no longer read or write other watershed
+groups’ rows in a shared habitat table.** - `frs_habitat(to_habitat = )`
+writes every watershed-group job into one habitat table, and the passes
+that run after classification joined it on `id_segment` alone.
+`id_segment` is unique only *within* a group — each working table
+numbers its segments from `max(id_segment) + row_number()` — so one
+group’s pass read and cleared another group’s rows. Every habitat join
+in
+[`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md)
+(all three directions), `.frs_distance_filter()` and
+`.frs_connected_waterbody()` now matches `watershed_group_code` as well,
+and every UPDATE is confined to the groups present in `table`.
+`.frs_bucket_connected()` already did
+([\#240](https://github.com/NewGraphEnvironment/fresh/issues/240)). -
+**The worst of them cleared whole groups with no id collision
+involved.** `.frs_connected_waterbody()`’s subtractive step named no
+group at all: it set `spawning = FALSE` for the species wherever
+`id_segment` was not among the ids *this* job qualified, so every group
+already in the table lost its spawning. With the shipped parameters SK
+and KO reach this path, which made it the live one. -
+**`frs_cluster(direction = "both")` was also returning wrong answers for
+the group it was processing.** Its downstream trace joined habitat with
+a `LEFT JOIN` on `id_segment`, so a colliding row elsewhere in the table
+duplicated the traced segment and the running sum of `length_metre`
+counted it twice. A cluster inside `bridge_distance` could therefore
+read as beyond it. The other group’s rows needed no flags set at all for
+this. -
+[`frs_cluster()`](https://newgraphenvironment.github.io/fresh/reference/frs_cluster.md)’s
+`table` and `habitat` must now carry `watershed_group_code`. Anything
+reaching it already needs `wscode_ltree`, `localcode_ltree`,
+`blue_line_key`, `watershed_key`, `downstream_route_measure`,
+`gradient`, `length_metre` and `linear_feature_id`, so in practice this
+is a table from
+[`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
+or
+[`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md),
+which carry it. With `species = NULL` it now resolves only the species
+present in `table`’s groups rather than every species in the table. -
+On-spawning protection in `frs_cluster(direction = "both")` is now the
+predicate `label_connect IS NOT TRUE` on the UPDATE rather than an
+`id_segment NOT IN (…)` list read from the whole habitat table, where
+another group’s row protected this group’s segment. It assumes
+`(id_segment, watershed_group_code, species_code)` is unique in the
+habitat table; no index enforces that. - **The progress lines now report
+the job rather than the whole table.** The before/after counts are
+aggregates with no join to carry the group, so they take a shared clause
+instead; a serial multi-watershed-group run was printing another group’s
+numbers as this job’s. Eight sites across five functions,
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)’s
+included — it writes the shared table rather than reading it, which is
+why the first pass at this missed it. - **The published examples no
+longer teach the join this release fixes.**
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)’s
+example built a view joining `fresh.streams` to `fresh.streams_habitat`
+on `id_segment` alone, five lines above its own note that both tables
+accumulate across groups — the defect
+[\#218](https://github.com/NewGraphEnvironment/fresh/issues/218)
+measured, shipped as the recommended recipe. With it, three example
+`count(*)` queries that totalled a shared habitat table as though it
+were one job’s result, and two prose claims that `id_segment` links the
+two tables.
+[`frs_feature_index()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_index.md)’s
+output carries no `watershed_group_code` at all, so its example cannot
+join on both; it now states the constraint, and widening that schema is
+part of
+[\#277](https://github.com/NewGraphEnvironment/fresh/issues/277). - Each
+pass has a test in which a second group’s rows share `id_segment` values
+with the first: it asserts that those rows are untouched, that they
+neither rescue nor condemn the first group’s, and that the pass still
+keeps and strips what it should. Every one of the 19 predicates was then
+restored, one at a time, against a baseline confirmed green and
+skip-free: all 19 are caught by a named test.
+
 ## fresh 0.45.0
 
 Closes [\#272](https://github.com/NewGraphEnvironment/fresh/issues/272).

@@ -11,7 +11,7 @@ clusters have their label set to FALSE."><meta property="og:image" content="http
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.45.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.46.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@ clusters have their label set to FALSE."><meta property="og:image" content="http
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Validate Cluster Connectivity on Stream Network</h1>
-      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.45.0/R/frs_cluster.R" class="external-link"><code>R/frs_cluster.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/R/frs_cluster.R" class="external-link"><code>R/frs_cluster.R</code></a></small>
       <div class="d-none name"><code>frs_cluster.Rd</code></div>
     </div>
 
@@ -75,12 +75,18 @@ clusters have their label set to <code>FALSE</code>.</p>
 
 <dt id="arg-table">table<a class="anchor" aria-label="anchor" href="#arg-table"></a></dt>
 <dd><p>Character. Schema-qualified streams table with geometry
-and ltree columns (from <code><a href="frs_network_segment.html">frs_network_segment()</a></code>).</p></dd>
+and ltree columns (from <code><a href="frs_network_segment.html">frs_network_segment()</a></code>). Must carry
+<code>watershed_group_code</code>.</p></dd>
 
 
 <dt id="arg-habitat">habitat<a class="anchor" aria-label="anchor" href="#arg-habitat"></a></dt>
 <dd><p>Character. Schema-qualified habitat table with boolean
-label columns (from <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code>).</p></dd>
+label columns (from <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code>). Must carry
+<code>watershed_group_code</code>: <code>id_segment</code> is unique only within a watershed
+group, so every join matches both. A shared habitat table holding other
+groups' rows is therefore safe — they are never read or cleared, and
+<code>species = NULL</code> resolves only the species present in <code>table</code>'s groups
+(fresh#242).</p></dd>
 
 
 <dt id="arg-label-cluster">label_cluster<a class="anchor" aria-label="anchor" href="#arg-label-cluster"></a></dt>
@@ -185,9 +191,11 @@ segments, then validates each cluster by checking for
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># After frs_network_segment() + frs_habitat_classify():</span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"</span></span></span>
-<span class="r-in"><span><span class="st">  SELECT count(*) FILTER (WHERE rearing) AS rearing_before</span></span></span>
+<span class="r-in"><span><span class="st">  SELECT watershed_group_code,</span></span></span>
+<span class="r-in"><span><span class="st">         count(*) FILTER (WHERE rearing) AS rearing_before</span></span></span>
 <span class="r-in"><span><span class="st">  FROM fresh.streams_habitat</span></span></span>
-<span class="r-in"><span><span class="st">  WHERE species_code = 'CO'"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="st">  WHERE species_code = 'CO'</span></span></span>
+<span class="r-in"><span><span class="st">  GROUP BY watershed_group_code"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="co">#&gt;   rearing_before</span></span></span>
 <span class="r-in"><span><span class="co">#&gt; 1             33</span></span></span>
 <span class="r-in"><span></span></span>

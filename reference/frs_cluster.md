@@ -36,12 +36,18 @@ frs_cluster(
   Character. Schema-qualified streams table with geometry and ltree
   columns (from
   [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)).
+  Must carry `watershed_group_code`.
 
 - habitat:
 
   Character. Schema-qualified habitat table with boolean label columns
   (from
   [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)).
+  Must carry `watershed_group_code`: `id_segment` is unique only within
+  a watershed group, so every join matches both. A shared habitat table
+  holding other groups' rows is therefore safe — they are never read or
+  cleared, and `species = NULL` resolves only the species present in
+  `table`'s groups (fresh#242).
 
 - label_cluster:
 
@@ -141,9 +147,11 @@ conn <- frs_db_conn()
 
 # After frs_network_segment() + frs_habitat_classify():
 DBI::dbGetQuery(conn, "
-  SELECT count(*) FILTER (WHERE rearing) AS rearing_before
+  SELECT watershed_group_code,
+         count(*) FILTER (WHERE rearing) AS rearing_before
   FROM fresh.streams_habitat
-  WHERE species_code = 'CO'")
+  WHERE species_code = 'CO'
+  GROUP BY watershed_group_code")
 #>   rearing_before
 #> 1             33
 

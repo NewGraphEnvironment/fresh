@@ -13,7 +13,7 @@ sub-segment."><meta property="og:image" content="https://newgraphenvironment.git
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.45.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.46.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,7 +40,7 @@ sub-segment."><meta property="og:image" content="https://newgraphenvironment.git
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Segment a Stream Network at Break Points</h1>
-      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.45.0/R/frs_network_segment.R" class="external-link"><code>R/frs_network_segment.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/R/frs_network_segment.R" class="external-link"><code>R/frs_network_segment.R</code></a></small>
       <div class="d-none name"><code>frs_network_segment.Rd</code></div>
     </div>
 
@@ -213,19 +213,21 @@ alongside falls, crossings, or any other point table.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># 3. Classify habitat — see frs_habitat_classify() for details.</span></span></span>
 <span class="r-in"><span><span class="co">#    Writes to fresh.streams_habitat (long format, no geometry).</span></span></span>
-<span class="r-in"><span><span class="co">#    id_segment links back to fresh.streams for mapping.</span></span></span>
+<span class="r-in"><span><span class="co">#    (id_segment, watershed_group_code) links back to fresh.streams for</span></span></span>
+<span class="r-in"><span><span class="co">#    mapping — id_segment is unique only within a group (fresh#218).</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="frs_habitat_classify.html">frs_habitat_classify</a></span><span class="op">(</span><span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  table <span class="op">=</span> <span class="st">"fresh.streams"</span>,</span></span>
 <span class="r-in"><span>  to <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span></span>
 <span class="r-in"><span>  species <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"CO"</span>, <span class="st">"BT"</span>, <span class="st">"ST"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Check results</span></span></span>
+<span class="r-in"><span><span class="co"># Check results, per watershed group: the table accumulates one job per</span></span></span>
+<span class="r-in"><span><span class="co"># group, so a total over the whole table is not one job's result.</span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"</span></span></span>
-<span class="r-in"><span><span class="st">  SELECT species_code,</span></span></span>
+<span class="r-in"><span><span class="st">  SELECT watershed_group_code, species_code,</span></span></span>
 <span class="r-in"><span><span class="st">         count(*) FILTER (WHERE accessible) as accessible,</span></span></span>
 <span class="r-in"><span><span class="st">         count(*) FILTER (WHERE spawning) as spawning</span></span></span>
 <span class="r-in"><span><span class="st">  FROM fresh.streams_habitat</span></span></span>
-<span class="r-in"><span><span class="st">  GROUP BY species_code"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="st">  GROUP BY watershed_group_code, species_code"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
