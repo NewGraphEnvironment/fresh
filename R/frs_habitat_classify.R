@@ -398,8 +398,8 @@ frs_habitat_classify <- function(conn, table, to,
         "SELECT count(*) FILTER (WHERE accessible)::int AS acc,
                 count(*) FILTER (WHERE spawning)::int AS spn,
                 count(*) FILTER (WHERE rearing)::int AS rr
-         FROM %s WHERE species_code = %s",
-        to, .frs_quote_string(sp)))
+         FROM %s WHERE species_code = %s%s",
+        to, .frs_quote_string(sp), .frs_wsg_in(table)))
       cat("  ", sp, ": ", elapsed, "s (",
           stats$acc, " accessible, ",
           stats$spn, " spawning, ",

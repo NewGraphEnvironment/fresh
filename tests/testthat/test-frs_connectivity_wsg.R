@@ -400,8 +400,11 @@ test_that("cluster downstream is not rescued by another group's connect rows", {
 # Every test above passes verbose = FALSE, so none of them executes the
 # before/after count queries. Those are aggregates with no join to carry the
 # group, so they take `.frs_wsg_in()` instead; unscoped they report the whole
-# shared habitat table as the job's own progress. Four call sites, four separate
-# sprintf() argument lists, so all four are exercised here.
+# shared habitat table as the job's own progress. Eight call sites across five
+# functions, each its own sprintf() argument list; the four reached from here are
+# exercised below. The other four are `frs_habitat_classify()`'s, which writes the
+# shared table rather than reading it, and whose count the first pass at this
+# missed entirely.
 
 test_that("the verbose progress lines count this job's groups, not the table's", {
   skip_if_no_conn()
@@ -454,4 +457,221 @@ test_that("the verbose progress lines count this job's groups, not the table's",
       "pg_temp.bkt_habitat", species = "BT", column = "lake_rearing",
       distance_max = 1e6, verbose = TRUE)),
     "lake_rearing connected to spawning within 1e\\+06 m: 1 -> 0")
+})
+
+
+# --- The axis every fixture above holds fixed ---
+#
+# In each test above, the other group's flag AGREES with this group's on the
+# colliding id, so dropping a clustering-CTE predicate only ever duplicates a
+# row the CTE already holds — and a duplicate changes nothing, which is why the
+# mutation sweep found three of those predicates uncatchable and why the first
+# write-up of it called them defence in depth. That reasoning was wrong. When
+# the other group says `label_cluster = TRUE` on an id whose own group says
+# FALSE, the CTE *gains* a segment: clusters merge, `cluster_minimums` moves,
+# and this group's answer changes. These two tests hold that axis instead.
+
+test_that("another group's rearing on an id this group calls FALSE does not move the cluster minimum", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # One mainstem on a multi-label wscode, so the empty-`subpath` confluence
+  # boost is not in play. Spawning at drm 0; the rearing segment under test at
+  # drm 2000, whose own cluster minimum is 2000 m up and so 1000 m short of
+  # spawning under a 500 m cap. Segment 3 sits between them and is NOT rearing
+  # for TEST.
+  w <- "100.100000"
+  segs <- rbind(.bkt_seg(1, 0, spawn = TRUE, wscode = w),
+                .bkt_seg(3, 1000, wscode = w),
+                .bkt_seg(2, 2000, rear = TRUE, wscode = w))
+  .bkt_fixture(conn, segs)
+  # OTHR calls id 3 rearing. Without the group on the tmp_clusters join that
+  # pulls segment 3 into TEST's cluster, dropping the minimum to drm 1000,
+  # from where the trace does reach spawning inside the cap.
+  .bkt_habitat_add(conn, .bkt_seg(3, 1000, rear = TRUE))
+  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "rearing", label_connect = "spawning", species = "BT",
+    direction = "both", bridge_gradient = 0.05, bridge_distance = 500,
+    confluence_m = 10, verbose = FALSE)
+
+  expect_false(.bkt_flags(conn, "rearing")[["2"]])
+})
+
+test_that("the same holds for the upstream direction's clustering CTE", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Same mechanism, the other direction, and here the discriminator is the
+  # same-blue-line measure rather than a trace distance. Spawning sits at drm
+  # 1500, BELOW the rearing segment's own cluster minimum of 2000, so nothing
+  # is upstream of the cluster. Segment 3 is adjacent to it and not rearing for
+  # TEST; pulling it in drops the minimum to 1000, and drm 1500 is then above.
+  #
+  # The spawning row is placed off the line (y = 50) so it does not sit between
+  # the two rearing segments geometrically — only rearing rows are clustered,
+  # so its geometry is immaterial, and this keeps 2 and 3 adjacent.
+  segs <- rbind(.bkt_seg(3, 1000),
+                .bkt_seg(2, 2000, rear = TRUE),
+                .bkt_seg(1, 1500, len = 100, spawn = TRUE, y = 50))
+  .bkt_fixture(conn, segs)
+  .bkt_habitat_add(conn, .bkt_seg(3, 1000, rear = TRUE))
+  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "rearing", label_connect = "spawning", species = "BT",
+    direction = "upstream", confluence_m = 10, verbose = FALSE)
+
+  expect_false(.bkt_flags(conn, "rearing")[["2"]])
+})
+
+test_that("species = NULL resolves only the species in this job's groups", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Nothing anywhere calls frs_cluster(species = NULL), and silence there is
+  # the one case where a whole pass is skipped rather than misreported: an
+  # empty species vector runs the `for` body zero times, so every disconnected
+  # cluster is kept and no count says so.
+  segs <- rbind(.bkt_seg(1, 2000, spawn = TRUE),
+                .bkt_seg(2, 1000, rear = TRUE),
+                .bkt_seg(3, 1000, rear = TRUE, blk = 4L, wscode = "400",
+                         y = 20000))
+  .bkt_fixture(conn, segs, species_other = character(0))
+  # A species that exists only in the other group must not be resolved, and
+  # must not be touched.
+  DBI::dbExecute(conn, "INSERT INTO pg_temp.bkt_habitat VALUES
+    (2, 'OTHR', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
+  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "rearing", label_connect = "spawning", species = NULL,
+    direction = "upstream", confluence_m = 10, verbose = FALSE)
+
+  own <- .bkt_flags(conn, "rearing")
+  expect_true(own[["2"]])    # BT was resolved and its valid cluster kept
+  expect_false(own[["3"]])   # BT was resolved and its invalid cluster stripped
+  # CH exists only in OTHR: never resolved, never written
+  expect_true(DBI::dbGetQuery(conn, "SELECT rearing FROM pg_temp.bkt_habitat
+    WHERE species_code = 'CH' AND watershed_group_code = 'OTHR'")$rearing)
+})
+
+
+test_that("the same holds for the downstream direction's clustering CTE", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  blks <- .cds_pick(conn)
+  skip_if(is.null(blks), "no two suitable mainstem blue lines in this database")
+  ids <- .cds_fixture(conn, blks)
+  b <- ids$b
+  skip_if(length(b) < 3, "the invalid stream has fewer than three segments")
+  # Re-flag: label_connect on the invalid stream's LOWEST segment, nothing on
+  # its second, label_cluster from its third up. The cluster minimum is then
+  # the third segment, and the second segment's own length is the gap the trace
+  # has to cross to reach the connection.
+  DBI::dbExecute(conn, sprintf(
+    "UPDATE pg_temp.bkt_habitat SET rearing = FALSE, spawning = FALSE
+     WHERE species_code = 'BT' AND id_segment IN (%s)",
+    paste(b, collapse = ", ")))
+  DBI::dbExecute(conn, sprintf(
+    "UPDATE pg_temp.bkt_habitat SET spawning = TRUE
+     WHERE species_code = 'BT' AND id_segment = %d", b[1]))
+  DBI::dbExecute(conn, sprintf(
+    "UPDATE pg_temp.bkt_habitat SET rearing = TRUE
+     WHERE species_code = 'BT' AND id_segment IN (%s)",
+    paste(b[-(1:2)], collapse = ", ")))
+  # Cap at exactly the second segment's length: the trace from the third
+  # segment reaches the second at distance 0 and the first at that length,
+  # which `dist_to_cluster < cap` excludes.
+  cap <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT length_metre FROM pg_temp.bkt_streams WHERE id_segment = %d",
+    b[2]))$length_metre
+  skip_if(!length(cap) || !is.finite(cap) || cap <= 0, "no usable segment length")
+  # OTHR calls the second segment rearing. Without the group on the clustering
+  # CTE it joins TEST's cluster, dropping the minimum one segment and putting
+  # the connection within reach.
+  .bkt_habitat_add(conn, .bkt_seg(b[2], 0, rear = TRUE))
+  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "rearing", label_connect = "spawning", species = "BT",
+    direction = "downstream", bridge_gradient = 1, bridge_distance = cap,
+    verbose = FALSE)
+
+  expect_false(.bkt_flags(conn, "rearing")[[as.character(b[3])]])
+})
+
+
+test_that("another group's spawning does not lend lake adjacency to this group's cluster", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # The fourth site the mutation sweep could not catch, and the reason the
+  # first write-up called it unobservable: that argument reasoned only about
+  # the wrongly-added stream's own row, which holds for lake_adjacent = FALSE.
+  # Under the DEFAULT, lake_adjacent = TRUE, `clustered` / `cluster_geoms` /
+  # `valid_clusters` credit a whole cluster for touching the lake, so the added
+  # stream lends its adjacency to the rest of its cluster.
+  #
+  # The geometry runs radially outward from the lake's centroid through a
+  # boundary vertex, and is then CHECKED rather than assumed: a line 500 m east
+  # of one vertex can sit back inside the polygon, which is how the first
+  # version of this fixture quietly credited the segment it meant to exclude.
+  lk <- DBI::dbGetQuery(conn, "
+    WITH l AS (
+      SELECT geom FROM whse_basemapping.fwa_lakes_poly
+      WHERE area_ha >= 10 ORDER BY waterbody_key LIMIT 1),
+    p AS (
+      SELECT ST_StartPoint(ST_ExteriorRing(ST_GeometryN(geom, 1))) AS b,
+             ST_Centroid(geom) AS c FROM l)
+    SELECT ST_X(b) AS bx, ST_Y(b) AS by,
+           (ST_X(b) - ST_X(c)) / NULLIF(ST_Distance(b, c), 0) AS ux,
+           (ST_Y(b) - ST_Y(c)) / NULLIF(ST_Distance(b, c), 0) AS uy
+    FROM p")
+  skip_if(nrow(lk) == 0 || is.na(lk$ux), "no usable FWA lake of 10 ha or more")
+
+  .bkt_tables_create(conn)
+  # Three segments on one wscode, so each is upstream of the others. Geometry
+  # need not agree with the measures: only the clustering and the 2 m
+  # adjacency test read it.
+  #   4  rearing, at drm 0 so nothing is below it and the Phase 1 trace is empty
+  #   6  from the boundary vertex outward, so within 2 m of the lake —
+  #      spawning only in the OTHER group
+  #   5  further out and adjacent to 6, spawning in THIS group
+  pt <- function(d) c(lk$bx + lk$ux * d, lk$by + lk$uy * d)
+  add <- function(id, drm, d0, d1, spawn, rear) {
+    a <- pt(d0); b <- pt(d1)
+    DBI::dbExecute(conn, sprintf(
+      "INSERT INTO pg_temp.bkt_streams VALUES (%d, %d, 1, 1, %s, 1000, 0.01,
+         '100'::ltree, '100'::ltree, NULL, 'TEST', 10, 1000,
+         ST_SetSRID(ST_MakeLine(ST_MakePoint(%.6f, %.6f),
+                                ST_MakePoint(%.6f, %.6f)), 3005))",
+      id, id, drm, a[1], a[2], b[1], b[2]))
+    DBI::dbExecute(conn, sprintf(
+      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, 'TEST', 'BT', TRUE, %s, %s,
+         FALSE, FALSE)", id, spawn, rear))
+  }
+  add(4, 0, 30000, 31000, "FALSE", "TRUE")
+  add(6, 1000, 0, 500, "FALSE", "FALSE")
+  add(5, 2000, 500, 1500, "TRUE", "FALSE")
+
+  # The fixture only tests what it claims if 6 is adjacent to a qualifying lake
+  # and 5 is not. Both are measured against every lake, not just the one above.
+  near <- function(id) DBI::dbGetQuery(conn, sprintf(
+    "SELECT EXISTS (
+       SELECT 1 FROM whse_basemapping.fwa_lakes_poly lp
+       WHERE lp.area_ha >= 10
+         AND ST_DWithin((SELECT geom FROM pg_temp.bkt_streams
+                         WHERE id_segment = %d), lp.geom, 2)) AS v", id))$v
+  skip_if(!near(6), "the boundary-anchored segment is not within 2 m of a lake")
+  skip_if(near(5) || near(4),
+          "this lake's shape puts the outer segments within 2 m of a lake too")
+  # And they must cluster together, or 6 cannot lend 5 anything.
+  adj <- DBI::dbGetQuery(conn, "
+    SELECT ST_DWithin(a.geom, b.geom, 1) AS v FROM pg_temp.bkt_streams a,
+      pg_temp.bkt_streams b WHERE a.id_segment = 5 AND b.id_segment = 6")$v
+  skip_if(!isTRUE(adj), "segments 5 and 6 are not adjacent")
+
+  .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE))
+  .frs_connected_waterbody(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    species = "BT", waterbody_poly = "whse_basemapping.fwa_lakes_poly",
+    waterbody_ha_min = 10, bridge_gradient = 0.05, distance_max = 1,
+    spawn_connected = NULL, lake_adjacent = TRUE, verbose = FALSE)
+
+  # 5 is 500 m out, so its own cluster never qualifies.
+  expect_false(.bkt_flags(conn, "spawning")[["5"]])
 })

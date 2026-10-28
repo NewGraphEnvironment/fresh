@@ -503,3 +503,35 @@ test_that("a 0.41.0 near-river table stops classify before any write (round 1)",
   expect_identical(DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
 })
+
+
+test_that("the per-species progress line counts only this job's groups", {
+  # frs_habitat_classify() WRITES the shared `to_habitat` that the connectivity
+  # passes read, and its own progress count was the eighth site of the same
+  # defect — missed when the seven in the reading passes were scoped, which is
+  # the "a fix lands in one of two callers that share a harness" shape. Asserted
+  # on the SQL rather than on a run, because reaching this line for real needs a
+  # classifiable streams table; a run-level check lives in
+  # test-frs_connectivity_wsg.R for the four passes that can be driven directly.
+  seen <- character(0)
+  mockery::stub(frs_habitat_classify, "DBI::dbGetQuery",
+    function(conn, sql, ...) {
+      seen <<- c(seen, sql)
+      if (grepl("DISTINCT watershed_group_code", sql)) {
+        return(data.frame(watershed_group_code = "TEST"))
+      }
+      data.frame(acc = 1L, spn = 1L, rr = 1L)
+    })
+  counts <- tryCatch({
+    local_mocked_bindings(.frs_db_execute = function(conn, sql) 0L)
+    frs_habitat_classify("mock", table = "working.streams",
+      to = "fresh.streams_habitat", species = "CO", gate = FALSE,
+      verbose = TRUE)
+    seen[grepl("FILTER (WHERE accessible)", seen, fixed = TRUE)]
+  }, error = function(e) seen[grepl("FILTER (WHERE accessible)", seen, fixed = TRUE)])
+
+  skip_if(length(counts) == 0,
+          "the classifier did not reach its progress count under mocking")
+  expect_match(counts[1], "watershed_group_code IN", fixed = TRUE)
+  expect_match(counts[1], "FROM working.streams s", fixed = TRUE)
+})

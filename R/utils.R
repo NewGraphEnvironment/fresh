@@ -43,8 +43,12 @@
 #' @return Character. ` AND watershed_group_code IN (SELECT ... )`.
 #' @noRd
 .frs_wsg_in <- function(table) {
+  # The inner column is qualified deliberately. Unqualified it resolves
+  # outward to the habitat row when `table` has no such column, which makes
+  # the subquery a correlated no-op: every row matches, the clause reads as
+  # applied, and the count is the whole table's again with no error raised.
   sprintf(" AND watershed_group_code IN (
-         SELECT watershed_group_code FROM %s)", table)
+         SELECT s.watershed_group_code FROM %s s)", table)
 }
 
 

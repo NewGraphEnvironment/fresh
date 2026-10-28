@@ -131,8 +131,9 @@ package sources, and `test-frs_connectivity_wsg.R` + `test-frs_bucket_connected.
 were run against it (`data-raw/`-style harness kept in the session scratchpad; the
 unmutated copy was confirmed 0 red / 0 skipped first, so a result means something).
 
-**15 of 19 sites are pinned by a named test. 4 are not, and each is defence in
-depth whose removal cannot change the final habitat state.**
+**First result: 15 of 19 sites pinned by a named test, 4 not.** The conclusion
+drawn from that — that the four were unobservable — was wrong; see the correction
+below, after which all 19 are pinned.
 
 | site | caught | by |
 |---|---|---|
@@ -155,54 +156,63 @@ depth whose removal cannot change the final habitat state.**
 | `connected_waterbody` spawn_upstream | no | — see below |
 | `connected_waterbody` subtractive UPDATE | yes | connected_waterbody never clears another group's … |
 | `connected_waterbody` additive UPDATE | yes | the additive spawn_connected step promotes no … |
-| the four verbose count sites (`.frs_wsg_in()` neutered) | yes | the verbose progress lines count this job's groups … (4 assertions red, one per site) |
+| the verbose count sites (`.frs_wsg_in()` neutered) | yes | the verbose progress lines count this job's groups … (4 assertions red) |
 
-### Why the four are unobservable, rather than untested
+### Correction: that claim was wrong, and three of the four were load-bearing
 
-Not "we did not get round to it" — no test can distinguish them, so a test
-asserting otherwise would be decoration.
+**What this section said first, and why it mattered.** It said the four sites the
+sweep could not catch were defence in depth whose removal "cannot change the
+final habitat state". Review round 2 disproved it with measured counterexamples,
+and the error is the dangerous kind: a sentence asserting there is nothing left
+to test is what licenses a later refactor to drop a predicate while the suite
+stays green. The code was correct throughout; only this write-up was wrong.
 
-- **The three clustering CTE joins** (`clustering` in upstream and downstream,
-  `tmp_clusters` in both). Dropping the predicate lets another group's habitat rows
-  into the clustering set. But the CTE takes `watershed_group_code` from the
-  **streams** side, so every row it carries is labelled with one of this job's
-  groups, and the final UPDATE matches that column — so a phantom row can only
-  ever be matched back to a row of this job's groups. The phantom's other effects
-  are nil: `ST_ClusterDBSCAN(geom, 1, 1)` with `minpoints = 1` is insensitive to
-  duplicate geometry, `cluster_minimums`' `DISTINCT ON (cluster_id)` picks the same
-  minimum from a set with duplicates, and a duplicated `c` row in the UPDATE's
-  `FROM` matches the same target row twice, which an UPDATE applies once.
-- **`connected_waterbody`'s `spawn_upstream` join.** `qual_tbl` is a keep-list of
-  **streams**, and a stream enters it on a stream-level predicate (`EXISTS` over
-  `rearing_segs`) plus "some habitat row for this species says `spawning`". So
-  dropping the group changes only *which* habitat row supplies that TRUE. It can
-  add a stream whose own group's row is `spawning = FALSE` — and the subtractive
-  UPDATE only touches rows where `spawning IS TRUE`, while the additive step reads
-  `lfid_tbl` (the Phase 1 trace), not `qual_tbl`. Final state identical either way.
+**The flawed step.** I reasoned that a phantom habitat row from another group is
+a *duplicate* of a row the CTE already holds, and duplicates change nothing
+(`minpoints = 1`, `DISTINCT ON` picks the same minimum, an UPDATE applies once).
+That holds only when the two groups **agree** on the flag — which is the axis
+every fixture in the file happened to hold fixed. When the other group says
+`label_cluster = TRUE` on an `id_segment` whose own group says `FALSE`, the CTE
+*gains* a segment: clusters merge, `cluster_minimums` moves, and this group's
+answer changes.
 
-Both predicates stay. They cost nothing, they are what the reader expects beside
-their siblings, and the reasoning above is contingent on `minpoints = 1` and on
-`qual_tbl` being a stream keep-list, either of which a later change could move.
+Reproduced before accepting it (`frs_cluster(direction = "both")`, one mainstem
+on a multi-label wscode so the `subpath` boost below is not involved, cap 500 m,
+minima at or above 1000 m against `confluence_m = 10`): shipped gives
+`TEST/2 rearing = FALSE`; with only the `tmp_clusters` predicate deleted,
+`TRUE`. The phantom drops the minimum from drm 2000 to drm 1000, from where the
+phase-3 trace does reach spawning inside the cap.
 
-## Which species actually reach `.frs_connected_waterbody()`
+The fourth site, `.frs_connected_waterbody()`'s `spawn_upstream` join, failed for
+a second reason. My argument reasoned only about the wrongly-added stream's own
+row, which is sound for `lake_adjacent = FALSE` — and `TRUE` is the default,
+where `clustered` / `cluster_geoms` / `valid_clusters` credit a whole cluster for
+touching a lake, so the added stream lends its adjacency to the rest of its
+cluster.
 
-Derived from the shipped artifacts, not from the issue or a reviewer's summary
-(`data-raw`-free probe, 2026-10-28):
+**All four now have their own test, and each is pinned:**
 
-```
-SK   requires_connected: yes | cluster_spawning: TRUE | rear L/W: L -> .frs_connected_waterbody()
-KO   requires_connected: yes | cluster_spawning: TRUE | rear L/W: L -> .frs_connected_waterbody()
-```
+| site | test |
+|---|---|
+| `cluster_both` tmp_clusters join | another group's rearing on an id this group calls FALSE does not move the cluster minimum |
+| `cluster_upstream` clustering join | the same holds for the upstream direction's clustering CTE |
+| `cluster_downstream` clustering join | the same holds for the downstream direction's clustering CTE |
+| `connected_waterbody` spawn_upstream | another group's spawning does not lend lake adjacency to this group's cluster |
 
-`inst/extdata/parameters_habitat_rules.yaml` carries `requires_connected` on a
-spawn rule for exactly SK and KO; `inst/extdata/parameters_fresh.csv` gives both
-`cluster_spawning = TRUE`; and both have a rear `waterbody_type: L` rule, which is
-what routes `.frs_run_connectivity()` to `.frs_connected_waterbody()` rather than
-the generic `frs_cluster()` + `.frs_distance_filter()` pair. So the pass whose
-subtractive UPDATE had no group scope at all is the one the shipped parameters
-reach.
+The upstream fixture turned on the same-blue-line measure rather than a trace
+distance, after a first attempt asserted the wrong thing: with
+`localcode_ltree = wscode_ltree`, which is how the helper builds segments, the
+8-arg `FWA_Upstream` takes its simple branch and ignores measures entirely, so a
+tributary counted as upstream of a position above its mouth. The lake fixture
+measures its own geometry before relying on it — a line 500 m out from one
+boundary vertex can sit back inside the polygon, which is how its first version
+quietly credited the segment it meant to exclude.
 
-The first probe written for this returned nothing, which read as "no species
-reaches it" — it looked for `y[[sp]]$rules$spawn`, but the raw YAML nests `spawn`
-and `rear` directly under the species; `rules` is the shape `frs_params()` builds.
-A probe is broken before the world is.
+**So the enumeration is 19 of 19, not 15 of 19.** Two predicates remain
+uncatchable by a behavioural test, and both are correct to keep for stated
+reasons rather than absent ones: `.frs_wsg_in()`'s inner column qualification
+(a `table` lacking the column would fail later anyway, so no path ships a wrong
+number — pinned by a text assertion in `test-utils.R` instead), and
+`frs_habitat_classify()`'s progress count (reaching it for real needs a
+classifiable streams table, so it is pinned on the SQL in
+`test-frs_habitat_classify.R`).

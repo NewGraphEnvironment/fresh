@@ -267,3 +267,15 @@ test_that(".frs_preds_by_model with no WSGs (empty table) returns cw", {
                           watershed_group_code = "ADMS", model = "mad"))),
     cw)
 })
+
+
+test_that(".frs_wsg_in qualifies its inner column", {
+  s <- .frs_wsg_in("working.streams")
+  expect_match(s, "AND watershed_group_code IN", fixed = TRUE)
+  # Qualified, so a `table` without the column errors instead of resolving the
+  # name outward to the habitat row — which would make the subquery a
+  # correlated no-op that matches every row and reads as applied (fresh#242).
+  expect_match(s, "SELECT s.watershed_group_code FROM working.streams s",
+               fixed = TRUE)
+  expect_false(grepl("SELECT watershed_group_code FROM", s, fixed = TRUE))
+})

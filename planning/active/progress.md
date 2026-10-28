@@ -139,3 +139,46 @@
   test with four failed assertions, one per call site.
   Two of the file's own wrappers hardcoded `verbose = FALSE` and so printed
   nothing; they take a `verbose` argument now.
+
+### Round 2 — a defect inside round 1's fix, and a conclusion of mine disproved
+
+Round 2 is why the loop does not stop at three. It found a defect **inside** the
+previous round's fix, which by `code-check.md`'s rule means only an enumeration
+ends the loop, not a quiet round.
+
+1. **Inside round 1's fix.** Round 1 scoped the seven count sites in the passes
+   that *read* the shared habitat table and missed the eighth, in
+   `frs_habitat_classify()` — the function that *writes* it. Textbook "a fix
+   lands in one of two callers that share a harness".
+2. **A conclusion of mine, disproved by measurement.** I had written that four
+   sites were defence in depth whose removal "cannot change the final habitat
+   state". Three were load-bearing. My reasoning assumed the phantom row from
+   another group is a *duplicate*; it is only a duplicate when the two groups
+   agree on the flag, which is the axis every fixture in the file happened to
+   hold fixed. Reproduced before accepting it: shipped `FALSE`, predicate
+   deleted `TRUE`. The fourth failed differently — my argument was sound for
+   `lake_adjacent = FALSE` and the default is `TRUE`, where a cluster is credited
+   for touching a lake, so the added stream lends its adjacency to its cluster.
+   That is the reassuring-direction error `planning.md` warns about: a sentence
+   saying there is nothing left to test is what licenses a later refactor to drop
+   a predicate while the suite stays green.
+3. **`.frs_wsg_in()`'s inner column was unqualified**, so it resolved outward to
+   the habitat row for a `table` without the column — a correlated no-op that
+   matches every row and reads as applied. One token.
+4. **Round 1's own mock fix was inert** (0 calls; both tests pass `species`), and
+   nothing anywhere called `frs_cluster(species = NULL)` — the one site where
+   silence means a whole pass skipped rather than a number misreported.
+
+All four addressed. Four new tests pin the four previously-uncatchable sites,
+each verified red with only its own predicate removed; two more pin the
+`.frs_wsg_in()` qualification and the classifier's count.
+
+Two fixtures were wrong before they were right, and both failed in the direction
+that looks like success:
+- The upstream one asserted the wrong thing, because with
+  `localcode_ltree = wscode_ltree` the 8-arg `FWA_Upstream` takes its simple
+  branch and ignores measures, so a tributary counts as upstream of a position
+  above its mouth. Rebuilt on the same-blue-line measure.
+- The lake one placed a segment 500 m out from a boundary vertex, which sat back
+  inside the polygon. It now measures its own geometry against every qualifying
+  lake and skips rather than assert something it has not established.
