@@ -79,18 +79,21 @@
 #'
 #' The answer is the same as the unprefiltered join's: the admitted set
 #' contains every feature either criterion can reach, whatever
-#' `include_equivalents` is. What changes is the plan. Unscoped, the
-#' planner probes the segments once per feature in the whole feature
-#' table, or on a province-wide segments table leaves the segment-driven
-#' plan altogether; scoped, it probes a small indexed table once per
-#' admitted feature (#272).
+#' `include_equivalents` is. What changes is the plan. Unscoped, the join
+#' order depends on the tables: against a large feature table the planner
+#' can probe the segments once per feature in the whole table, and with a
+#' province-wide segments table it can leave the segment-driven plan
+#' altogether. Scoped, it probes a small indexed table once per admitted
+#' feature (#272).
 #'
 #' **Session requirement.** A scoped call runs several statements that
-#' must reach one backend, and one of them creates a temp table. A
-#' read-only transaction, a hot standby, or a transaction-pooling
-#' connection pooler (pgbouncer `pool_mode = transaction`) cannot do that,
-#' and the call stops with an error naming the cause. Use a direct
-#' connection or session pooling. If the call is inside a transaction that
+#' must reach one backend, and one of them creates a temp table. In a
+#' read-only transaction or on a hot standby the call stops there, with an
+#' error naming the cause. A transaction-pooling connection pooler
+#' (pgbouncer `pool_mode = transaction`) can send the statements to
+#' different backends, so the walk fails because the temp table is not
+#' there, and the table can be left on the backend that made it. Use a
+#' direct connection or session pooling. If the call is inside a transaction that
 #' the walk aborts, the temp table's `DROP` fails too and the table lasts
 #' until that transaction is rolled back.
 #'
@@ -374,7 +377,7 @@ frs_network_features <- function(
 # (criterion 2, `wscode_a <@ wscode_b`). `= ANY (ARRAY(...))` lets each arm
 # use the feature table's own index; `IN (SELECT ...)` read the whole table
 # in link#261's measurements. Only the columns the walk reads are projected,
-# because the admitted set is materialized and a view may carry geometry.
+# because a feature view may carry geometry the walk never reads.
 .frs_walk_prefilter <- function(features, tmp, cols_features,
                                 features_wscode_col, segments_wscode_col) {
   sprintf(

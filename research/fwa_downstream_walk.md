@@ -39,11 +39,13 @@ a superset of every answer. `include_equivalents` and the tolerance change neith
 reach. On FWA's own codes the blue-line arm is redundant, because no FWA blue line carries two
 wscodes (0 rows in `fwa_stream_networks_sp`). It keeps the answer right for a feature table
 whose codes are missing or differ from the network's: `fwa_downstream()` accepts a feature on
-the segment's blue line with NULL codes. The ancestor arm matters only where an answer reaches
-a code that is not one of the AOI's own. The answer pairs only it admits (every 25th FWA
-segment as features) are 0 in CHWK, SAHD and UPET, 22 of 40,495 in SKGT, and 1.00 M of 1.05 M
-in UTRE. So a test that drops an arm needs a group and a feature table that reach it: the
-local live test uses SKGT, plus NULL-coded copies of SKGT segments.
+the segment's blue line with NULL codes. The wscode arm admits the AOI's own codes and their
+strict ancestors. The strict ancestors matter only where an answer reaches a code that is not
+one of the AOI's own. The answer pairs only they admit (a feature on neither an AOI blue line
+nor an AOI code; every 25th FWA segment as features, `include_equivalents = FALSE`) are 0 in
+CHWK, SAHD and UPET, 22 of 40,495 in SKGT, and 1.00 M of 1.05 M in UTRE. So a test that cuts
+an arm, or the wscode arm back to the AOI's own codes, needs a group and a feature table that
+reach it: the local live test uses SKGT, plus NULL-coded copies of SKGT segments.
 
 **Why the planner needs the segments in a small table.** With `segments` a province-wide
 table filtered by `aoi`, the GiST `@>` probe of the feature table is estimated at 77,961 rows
@@ -79,8 +81,10 @@ prefilter. Every walk returned the same sorted arrays in every form.
 
 **Open.**
 
-- **Upstream walks** are unprefiltered. `fwa_upstream()`'s reach is the mirror: the same blue
-  line, or a wscode equal to or below the segment's (`wscode_b <@ wscode_a`). It has not been measured.
+- **Upstream walks** are unprefiltered. `fwa_upstream()` always requires the feature's wscode to
+  equal or lie below the segment's (`wscode_b <@ wscode_a`); the blue-line test sits inside
+  that, not beside it. So its prefilter would be one arm, descendant-or-equal codes. It has not
+  been measured.
 - **`aoi = NULL` on a pre-scoped table** gets the unprefiltered walk. A caller that has already
   copied a group into a working table gets the scoped path by passing `aoi`. A prefilter with no
   temp table would help there, but on a province-wide table its subquery over 11 M rows would

@@ -130,18 +130,21 @@ ancestors, through the feature table's own indexes;
 
 The answer is the same as the unprefiltered join's: the admitted set
 contains every feature either criterion can reach, whatever
-\code{include_equivalents} is. What changes is the plan. Unscoped, the
-planner probes the segments once per feature in the whole feature
-table, or on a province-wide segments table leaves the segment-driven
-plan altogether; scoped, it probes a small indexed table once per
-admitted feature (#272).
+\code{include_equivalents} is. What changes is the plan. Unscoped, the join
+order depends on the tables: against a large feature table the planner
+can probe the segments once per feature in the whole table, and with a
+province-wide segments table it can leave the segment-driven plan
+altogether. Scoped, it probes a small indexed table once per admitted
+feature (#272).
 
 \strong{Session requirement.} A scoped call runs several statements that
-must reach one backend, and one of them creates a temp table. A
-read-only transaction, a hot standby, or a transaction-pooling
-connection pooler (pgbouncer \code{pool_mode = transaction}) cannot do that,
-and the call stops with an error naming the cause. Use a direct
-connection or session pooling. If the call is inside a transaction that
+must reach one backend, and one of them creates a temp table. In a
+read-only transaction or on a hot standby the call stops there, with an
+error naming the cause. A transaction-pooling connection pooler
+(pgbouncer \code{pool_mode = transaction}) can send the statements to
+different backends, so the walk fails because the temp table is not
+there, and the table can be left on the backend that made it. Use a
+direct connection or session pooling. If the call is inside a transaction that
 the walk aborts, the temp table's \code{DROP} fails too and the table lasts
 until that transaction is rolled back.
 

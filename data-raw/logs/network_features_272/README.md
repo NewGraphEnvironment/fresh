@@ -2,7 +2,7 @@
 
 Before/after timings of `frs_network_features(direction = "downstream", aoi = <group>)`
 for fresh#272, produced by `data-raw/network_features_prefilter.R` on 2026-10-28
-(19:40-20:57 UTC), PostgreSQL 17.5, the local `docker/` fwapg, with no other client
+(about 19:31-20:57 UTC; `measured_utc` is each run's end), PostgreSQL 17.5, the local `docker/` fwapg, with no other client
 backend active (`others_active` is 0 on every row).
 
 - **Shape:** `segments = fresh_default.streams` (province-wide, 11.3 M rows) with `aoi`, the
@@ -28,16 +28,16 @@ Seconds; `new` is the mean of its two runs, DDL included.
 
 | group (segments) | view | old | old_scoped | new | old / new |
 |---|---|---|---|---|---|
-| SALR (11,392) | CH | > 600 | 17.2 | 1.94 | > 309× |
+| SALR (11,392) | CH | > 600 | 17.2 | 1.94 | > 308× |
 | | BT | > 600 | 8.1 | 0.80 | > 746× |
 | | anthropogenic | 1.11 | | 0.32 | 3.4× |
-| LKEL (7,448) | CH | > 600 | 12.8 | 0.68 | > 888× |
+| LKEL (7,448) | CH | > 600 | 12.8 | 0.68 | > 887× |
 | | BT | > 600 | 7.3 | 0.34 | > 1,775× |
 | | anthropogenic | 0.85 | | 0.17 | 4.9× |
-| CHWK (14,347) | CH | > 600 | 96.4 | 3.16 | > 190× |
-| | BT | > 600 | 42.6 | 1.28 | > 470× |
+| CHWK (14,347) | CH | > 600 | 96.4 | 3.16 | > 189× |
+| | BT | > 600 | 42.6 | 1.28 | > 469× |
 | | anthropogenic | 1.19 | | 0.37 | 3.3× |
-| LSKE (77,496) | CH | > 600 | 65.9 | 8.35 | > 72× |
+| LSKE (77,496) | CH | > 600 | 65.9 | 8.35 | > 71× |
 | | BT | > 600 | 34.2 | 4.33 | > 138× |
 | | anthropogenic | 4.51 | | 1.74 | 2.6× |
 

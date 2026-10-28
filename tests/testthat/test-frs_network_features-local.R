@@ -11,10 +11,11 @@
 # the Fraser (wscode `100`), which has no segment in SKGT, is an ancestor of
 # an SKGT code. Some of its downstream features sit on a stream whose
 # code is neither one of SKGT's own nor on one of its blue lines: only the
-# prefilter's ancestor arm admits those (22 of 40,495 answer pairs with every
-# 25th FWA segment as features, the first part of the fixture below).
-# Removing that arm changed no answer pair in VICT, LKEL or UPET, so a test
-# there could not see it (measured 2026-10-28).
+# strict ancestors in the prefilter's wscode arm admit those (22 of 40,495
+# answer pairs at include_equivalents = FALSE and 22 of 40,769 at TRUE, with
+# every 25th FWA segment as features, the first part of the fixture below).
+# Cutting that arm back to the AOI's own codes changed no answer pair in
+# VICT, LKEL or UPET, so a test there could not see it (measured 2026-10-28).
 #
 # Features: every 25th FWA segment province-wide, plus a copy of every 7th
 # SKGT segment with its codes NULL and its id negated. fwa_downstream()
