@@ -16,13 +16,14 @@
 # (`wscode = "200"`), which is not a descendant of `100`.
 
 .cwb_run <- function(conn, species = "BT", distance_max = 3000,
-                     spawn_connected = NULL, lake_adjacent = FALSE) {
+                     spawn_connected = NULL, lake_adjacent = FALSE,
+                     verbose = FALSE) {
   .frs_connected_waterbody(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
     species = species,
     waterbody_poly = "whse_basemapping.fwa_lakes_poly",
     waterbody_ha_min = 1, bridge_gradient = 0.05,
     distance_max = distance_max, spawn_connected = spawn_connected,
-    lake_adjacent = lake_adjacent, verbose = FALSE)
+    lake_adjacent = lake_adjacent, verbose = verbose)
 }
 
 test_that("connected_waterbody never clears another group's spawning rows", {
@@ -211,10 +212,10 @@ test_that("cluster upstream leaves another group's rows alone and is not rescued
 # segment that must be strippable therefore sits on another blue line, is not
 # an ltree descendant of the rearing segment's wscode, and is far away.
 
-.dfl_run <- function(conn, max_distance = 1500) {
+.dfl_run <- function(conn, max_distance = 1500, verbose = FALSE) {
   .frs_distance_filter(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
     label_cluster = "spawning", label_connect = "rearing", species = "BT",
-    max_distance = max_distance, verbose = FALSE)
+    max_distance = max_distance, verbose = verbose)
 }
 
 .dfl_segs <- function() {
@@ -391,4 +392,66 @@ test_that("cluster downstream is not rescued by another group's connect rows", {
   own <- .bkt_flags(conn, "rearing")
   expect_true(own[[as.character(ids$a[2])]])
   expect_false(own[[as.character(ids$b[2])]])
+})
+
+
+# --- verbose counts ---
+#
+# Every test above passes verbose = FALSE, so none of them executes the
+# before/after count queries. Those are aggregates with no join to carry the
+# group, so they take `.frs_wsg_in()` instead; unscoped they report the whole
+# shared habitat table as the job's own progress. Four call sites, four separate
+# sprintf() argument lists, so all four are exercised here.
+
+test_that("the verbose progress lines count this job's groups, not the table's", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  say <- function(expr) paste(utils::capture.output(expr), collapse = " ")
+
+  # frs_cluster(): TEST has two rearing rows, one cluster valid and one not;
+  # OTHR adds three more rearing rows on colliding ids. Unscoped this reads
+  # "(4 rearing remaining)".
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 2000, spawn = TRUE),
+    .bkt_seg(2, 1000, rear = TRUE),
+    .bkt_seg(3, 1000, rear = TRUE, blk = 4L, wscode = "400", y = 20000)))
+  .bkt_habitat_add(conn, rbind(.bkt_seg(1, 0, rear = TRUE),
+                               .bkt_seg(2, 0, rear = TRUE),
+                               .bkt_seg(3, 0, rear = TRUE)))
+  expect_match(
+    say(frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+      label_cluster = "rearing", label_connect = "spawning", species = "BT",
+      direction = "upstream", confluence_m = 10, verbose = TRUE)),
+    "1 disconnected removed \\(1 rearing remaining", fixed = FALSE)
+
+  # .frs_distance_filter(): TEST has two spawning rows, one beyond the cap;
+  # OTHR adds two more. Unscoped this reads "(2 spawning remaining)".
+  .bkt_fixture(conn, .dfl_segs())
+  .bkt_habitat_add(conn, rbind(.bkt_seg(1, 0, spawn = TRUE),
+                               .bkt_seg(3, 0, spawn = TRUE)))
+  expect_match(say(.dfl_run(conn, verbose = TRUE)),
+               "1 beyond 1500m removed \\(1 spawning remaining")
+
+  # .frs_connected_waterbody(): TEST has two spawning rows, one stripped;
+  # OTHR adds one. Unscoped this reads "3 -> 2".
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 0, spawn = TRUE),
+    .bkt_seg(2, 1000, wbk = 11, rear = TRUE),
+    .bkt_seg(3, 0, spawn = TRUE, blk = 2L, wscode = "200", y = 5000)))
+  .bkt_habitat_add(conn, .bkt_seg(3, 0, spawn = TRUE))
+  expect_match(say(.cwb_run(conn, verbose = TRUE)),
+               "connected waterbody 2 -> 1")
+
+  # .frs_bucket_connected(): TEST has one lake row, disconnected; OTHR adds
+  # one. Unscoped this reads "2 -> 1". Its count had the same gap from #240.
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 1000, spawn = TRUE),
+    .bkt_seg(2, 0, wbk = 22, lake = TRUE, blk = 2L, wscode = "200", y = 5000)))
+  .bkt_habitat_add(conn, .bkt_seg(2, 0, lake = TRUE))
+  expect_match(
+    say(.frs_bucket_connected(conn, "pg_temp.bkt_streams",
+      "pg_temp.bkt_habitat", species = "BT", column = "lake_rearing",
+      distance_max = 1e6, verbose = TRUE)),
+    "lake_rearing connected to spawning within 1e\\+06 m: 1 -> 0")
 })

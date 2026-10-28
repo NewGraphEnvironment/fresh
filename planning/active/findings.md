@@ -155,6 +155,7 @@ depth whose removal cannot change the final habitat state.**
 | `connected_waterbody` spawn_upstream | no | — see below |
 | `connected_waterbody` subtractive UPDATE | yes | connected_waterbody never clears another group's … |
 | `connected_waterbody` additive UPDATE | yes | the additive spawn_connected step promotes no … |
+| the four verbose count sites (`.frs_wsg_in()` neutered) | yes | the verbose progress lines count this job's groups … (4 assertions red, one per site) |
 
 ### Why the four are unobservable, rather than untested
 

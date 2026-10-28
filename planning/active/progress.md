@@ -130,3 +130,12 @@
   - Note confirmed independently: the `OTHR3` assertion in the cluster-both test
     passes against pre-branch code too, because the old bug validated that
     cluster so the strip never reached the row. Already recorded above.
+- Caught in my own work, not by a reviewer: every test in the file passes
+  `verbose = FALSE`, so the newly scoped count queries were never executed by the
+  suite at all. Hand-ran all four with `verbose = TRUE` (no ambiguity error, and
+  the numbers are the job's own where unscoped they would read 4, 2, 3->2 and
+  2->1), then wrote the test that covers them, because verifying a path by hand
+  once is not coverage. Neutering `.frs_wsg_in()` to `""` in a copy reddens that
+  test with four failed assertions, one per call site.
+  Two of the file's own wrappers hardcoded `verbose = FALSE` and so printed
+  nothing; they take a `verbose` argument now.
