@@ -19,7 +19,7 @@ surveys, sediment-sample points, weather stations – anything with
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.44.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -126,7 +126,9 @@ Today only WSG codes (e.g. <code>"ADMS"</code>, <code>"BULK"</code>) are support
 filter <code>segments.watershed_group_code = aoi</code>. Polygon / ltree AOIs
 are forward-compat – they will route through <code>.frs_resolve_aoi()</code>
 when generalised. Default <code>NULL</code> processes every row in the
-segments table.</p></dd>
+segments table. With <code>direction = "downstream"</code>, an <code>aoi</code> also
+switches on the scoped walk, which needs a session that can create
+temp tables: see "Scoped downstream walks" below.</p></dd>
 
 
 <dt id="arg-include-equivalents">include_equivalents<a class="anchor" aria-label="anchor" href="#arg-include-equivalents"></a></dt>
@@ -166,7 +168,10 @@ following the same convention.</p></dd>
 <li><p><code>feature_ids</code> – an R list-column of character vectors (one
 vector per row). The vectors carry the feature IDs aggregated
 from the requested direction, ordered by
-<code>(wscode_col DESC, localcode_col DESC, downstream_route_measure DESC)</code> to mirror <code>bcfishpass.load_dnstr</code>. Segments with zero
+<code>(wscode_col DESC, localcode_col DESC, downstream_route_measure DESC, feature_id_col)</code>. The first three keys are
+<code>bcfishpass.load_dnstr</code>'s; the last breaks its ties (co-located
+features), so the order is a function of the data rather than the
+query plan when <code>feature_id_col</code> is unique. Segments with zero
 matches don't appear in the output (INNER JOIN). Postgres
 array literals are parsed to R character vectors via the
 internal <code>.frs_parse_pg_array()</code> helper – limited to
@@ -179,6 +184,46 @@ unquoted-element arrays (the common case for FWA-snapped IDs).</p></li>
 but generalises to either direction. The SQL pattern joins via
 <code>whse_basemapping.fwa_&lt;direction&gt;()</code> for cross-mainstem ltree
 comparison, then <code>array_agg</code>s feature IDs grouped by segment ID.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="scoped-downstream-walks">Scoped downstream walks<a class="anchor" aria-label="anchor" href="#scoped-downstream-walks"></a></h2>
+
+
+<p>With <code>direction = "downstream"</code> and an <code>aoi</code>, the walk is cut to what
+<code>fwa_downstream()</code> can return before it runs. A feature can only lie
+downstream of a segment when it is on the segment's blue line, or when
+its watershed code is an ancestor of, or equal to, the segment's
+(<code>fwa_downstream()</code>'s two criteria). The function therefore:</p><ol><li><p>copies the AOI's segments (the id, <code>blue_line_key</code>,
+<code>downstream_route_measure</code> and the two code columns) into a session
+temp table, with a btree index on <code>blue_line_key</code>, GiST indexes on
+both codes, and <code>ANALYZE</code>;</p></li>
+<li><p>admits only the features on one of those blue lines, or whose
+watershed code equals one of the segments' codes or one of their
+ancestors, through the feature table's own indexes;</p></li>
+<li><p>walks the temp table against the admitted features with the same
+<code>fwa_downstream()</code> predicate, and drops the temp table on exit.</p></li>
+</ol><p>The answer is the same as the unprefiltered join's: the admitted set
+contains every feature either criterion can reach, whatever
+<code>include_equivalents</code> is. What changes is the plan. Unscoped, the join
+order depends on the tables: against a large feature table the planner
+can probe the segments once per feature in the whole table, and with a
+province-wide segments table it can leave the segment-driven plan
+altogether. Scoped, it probes a small indexed table once per admitted
+feature (#272).</p>
+<p><strong>Session requirement.</strong> A scoped call runs several statements that
+must reach one backend, and one of them creates a temp table. In a
+read-only transaction or on a hot standby the call stops there, with an
+error naming the cause. A transaction-pooling connection pooler
+(pgbouncer <code>pool_mode = transaction</code>) can send the statements to
+different backends. The call then fails, either while building the table
+(the same error) or at the walk, because the temp table is not on the
+walk's backend, and the table can be left on the backend that made it.
+Use a direct connection or session pooling. If the call is inside a transaction that
+the walk aborts, the temp table's <code>DROP</code> fails too and the table lasts
+until that transaction is rolled back.</p>
+<p><code>aoi = NULL</code> and <code>direction = "upstream"</code> run the unprefiltered walk and
+create nothing. A caller holding a segments table already cut to one
+watershed group should still pass <code>aoi</code> to get the scoped walk.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.44.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,11 @@
       <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.45.0" id="fresh-0450">fresh 0.45.0<a class="anchor" aria-label="anchor" href="#fresh-0450"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/272" class="external-link">#272</a>. Relates to <a href="https://github.com/NewGraphEnvironment/fresh/issues/265" class="external-link">#265</a> and <a href="https://github.com/NewGraphEnvironment/link/issues/261" class="external-link">link#261</a>.</p>
+<p><strong><code>frs_network_features(direction = "downstream", aoi = )</code> walks only the features the AOI can reach.</strong> - A feature can be downstream of a segment only when it is on the segment’s blue line, or when its watershed code is an ancestor of, or equal to, the segment’s. These are <code>fwa_downstream()</code>’s two criteria. The function now copies the AOI’s segments into an indexed, analyzed session temp table, admits only the features that meet either criterion against it, and walks those. The answer is unchanged: every walk measured returned the same features per segment. - Before, the join order depended on the tables. Against a large feature table the planner could probe the AOI’s segments once for every feature in the table, and with a province-wide segments table it could leave the segment-driven plan altogether. With <code>fresh_default.streams</code> and link’s barrier views, the v0.44.0 SQL did not finish in 10 minutes on any CH or BT walk in SALR, LKEL, CHWK or LSKE. The new form took 0.34 to 8.4 s (mean of two runs), temp table included (0.07 to 0.7 s). The anthropogenic view went from 0.85-4.5 s to 0.17-1.7 s. Logs are in <code>data-raw/logs/network_features_272/</code>, from <code>data-raw/network_features_prefilter.R</code>. link#261 measured these walks as most of link’s recompute. - <strong>New session requirement.</strong> A scoped downstream call needs one backend and a session that can create temp tables, as <code><a href="../reference/frs_point_snap.html">frs_point_snap()</a></code> does. In a read-only transaction or on a hot standby it now stops with an error naming the cause. Under transaction pooling the call can fail, with the same error while building the table or at the walk, when a statement reaches a different backend from the one holding the temp table. <code>aoi = NULL</code> and <code>direction = "upstream"</code> are unchanged and create nothing. - Each segment’s <code>feature_ids</code> now ends its <code>ORDER BY</code> on the feature id in both directions. Ties are therefore ordered the same way on every run, where before they followed the plan. Within a tie the order can differ from <code>bcfishpass.load_dnstr</code>’s. - <code>research/fwa_downstream_walk.md</code>, “Prefiltering the feature side”, has the planner mechanism, the alternative that was rejected, and what is still open (upstream walks; <code>aoi = NULL</code> on a table already cut to one group).</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.44.0" id="fresh-0440">fresh 0.44.0<a class="anchor" aria-label="anchor" href="#fresh-0440"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/266" class="external-link">#266</a>. Relates to <a href="https://github.com/NewGraphEnvironment/fwapg/issues/41" class="external-link">fwapg#41</a> and <a href="https://github.com/NewGraphEnvironment/link/issues/383" class="external-link">link#383</a>.</p>
