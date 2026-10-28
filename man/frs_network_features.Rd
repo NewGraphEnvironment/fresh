@@ -51,7 +51,9 @@ Today only WSG codes (e.g. \code{"ADMS"}, \code{"BULK"}) are supported and
 filter \code{segments.watershed_group_code = aoi}. Polygon / ltree AOIs
 are forward-compat -- they will route through \code{.frs_resolve_aoi()}
 when generalised. Default \code{NULL} processes every row in the
-segments table.}
+segments table. With \code{direction = "downstream"}, an \code{aoi} also
+switches on the scoped walk, which needs a session that can create
+temp tables: see "Scoped downstream walks" below.}
 
 \item{include_equivalents}{Logical. When \code{TRUE}, treats segments
 at the same \verb{(blue_line_key, downstream_route_measure)} position
@@ -81,7 +83,10 @@ A tibble with two columns:
 \item \code{feature_ids} -- an R list-column of character vectors (one
 vector per row). The vectors carry the feature IDs aggregated
 from the requested direction, ordered by
-\verb{(wscode_col DESC, localcode_col DESC, downstream_route_measure DESC)} to mirror \code{bcfishpass.load_dnstr}. Segments with zero
+\verb{(wscode_col DESC, localcode_col DESC, downstream_route_measure DESC, feature_id_col)}. The first three keys are
+\code{bcfishpass.load_dnstr}'s; the last breaks its ties (co-located
+features), so the order is a function of the data rather than the
+query plan when \code{feature_id_col} is unique. Segments with zero
 matches don't appear in the output (INNER JOIN). Postgres
 array literals are parsed to R character vectors via the
 internal \code{.frs_parse_pg_array()} helper -- limited to
@@ -104,6 +109,51 @@ but generalises to either direction. The SQL pattern joins via
 \verb{whse_basemapping.fwa_<direction>()} for cross-mainstem ltree
 comparison, then \code{array_agg}s feature IDs grouped by segment ID.
 }
+\section{Scoped downstream walks}{
+
+With \code{direction = "downstream"} and an \code{aoi}, the walk is cut to what
+\code{fwa_downstream()} can return before it runs. A feature can only lie
+downstream of a segment when it is on the segment's blue line, or when
+its watershed code is an ancestor of, or equal to, the segment's
+(\code{fwa_downstream()}'s two criteria). The function therefore:
+\enumerate{
+\item copies the AOI's segments (the id, \code{blue_line_key},
+\code{downstream_route_measure} and the two code columns) into a session
+temp table, with a btree index on \code{blue_line_key}, GiST indexes on
+both codes, and \code{ANALYZE};
+\item admits only the features on one of those blue lines, or whose
+watershed code equals one of the segments' codes or one of their
+ancestors, through the feature table's own indexes;
+\item walks the temp table against the admitted features with the same
+\code{fwa_downstream()} predicate, and drops the temp table on exit.
+}
+
+The answer is the same as the unprefiltered join's: the admitted set
+contains every feature either criterion can reach, whatever
+\code{include_equivalents} is. What changes is the plan. Unscoped, the join
+order depends on the tables: against a large feature table the planner
+can probe the segments once per feature in the whole table, and with a
+province-wide segments table it can leave the segment-driven plan
+altogether. Scoped, it probes a small indexed table once per admitted
+feature (#272).
+
+\strong{Session requirement.} A scoped call runs several statements that
+must reach one backend, and one of them creates a temp table. In a
+read-only transaction or on a hot standby the call stops there, with an
+error naming the cause. A transaction-pooling connection pooler
+(pgbouncer \code{pool_mode = transaction}) can send the statements to
+different backends. The call then fails, either while building the table
+(the same error) or at the walk, because the temp table is not on the
+walk's backend, and the table can be left on the backend that made it.
+Use a direct connection or session pooling. If the call is inside a transaction that
+the walk aborts, the temp table's \code{DROP} fails too and the table lasts
+until that transaction is rolled back.
+
+\code{aoi = NULL} and \code{direction = "upstream"} run the unprefiltered walk and
+create nothing. A caller holding a segments table already cut to one
+watershed group should still pass \code{aoi} to get the scoped walk.
+}
+
 \examples{
 \dontrun{
 conn <- frs_db_conn()
