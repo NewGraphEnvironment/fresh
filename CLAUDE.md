@@ -1018,35 +1018,22 @@ drift::dft_map_interactive(classified, aoi = aoi)
 
 # CI Monitoring
 
-When this repo has GitHub Actions workflows, scan recent runs on session start. Catches failed pkgdown deploys, broken vignette builds, and stale citation regenerations that would otherwise linger until the user manually checks.
+When this repo has GitHub Actions workflows, scan recent runs on session start, so a failed deploy, vignette build or citation update does not linger until someone notices.
 
 ## On Session Start
 
 ```bash
 gh run list --limit 5 --json status,conclusion,name,createdAt,databaseId \
-  --jq '.[] | select(.conclusion == "failure")'
+  --jq '.[] | select(.conclusion == "failure" or .conclusion == "cancelled")'
 ```
+
+Keep a `cancelled` row only if its annotations report a timeout ("A timed-out run reads `cancelled`"); say timed out, not failed.
 
 If any failures since the last visit, surface to the user before starting other work:
 
 > Workflow `<name>` failed `<time>` ago (run `<id>`). Investigate with `gh run view <id> --log-failed`. Fix or proceed with current task?
 
-User decides; do not auto-fix.
-
-## Particular Failures Worth Naming
-
-- **pkgdown** — docs site on GitHub Pages broken
-- **R-CMD-check** — package may not install
-- **Vignette / build-vignettes** — vignette docs incomplete
-- **update-citation-cff** — CITATION.cff stale
-
-## Why This Matters
-
-Without this scan, post-merge workflow failures linger until someone (often the user) notices a stale docs site or a missing vignette. The session-start sweep catches them on the first re-entry into the repo.
-
-## Pairs with `/gh-pr-merge`
-
-The skill watches workflows triggered by a fresh merge in real time — that's the targeted catch. This convention is the backstop for failures that landed when no one was watching (merges via web UI, scheduled triggers, manually-triggered workflows).
+User decides; do not auto-fix. `/gh-pr-merge` watches a fresh merge's runs; this scan is the backstop for failures nobody watched (web-UI merges, schedules, dispatches).
 
 ## A green run does not mean the site is current
 
@@ -1096,7 +1083,7 @@ seconds after the merge.
 Order them: watch the merge's runs to completion, *then* push anything else.
 
 Where a push has already gone out and cancelled something, `/gh-pr-merge` step 10 has the
-reading: `cancelled`/`skipped` is `⊘ superseded`, not `✗ failed`, and the thing to confirm
+reading: `cancelled`/`skipped` is `⊘ superseded` unless its annotation reports a timeout, and the thing to confirm
 is that the newest **non-bot** SHA's run passed. Do not re-dispatch the cancelled one.
 
 *3 lines of evidence for this rule are in `conventions/ci-monitoring.md`.*
@@ -1136,15 +1123,18 @@ If it died in dependency setup, rerun once. If it dies the same way again it is 
 upstream CDN, and the honest move is to say so and stop — not to keep spending runs on
 something no change in the repo can fix.
 
-## A citation run failing "fetch first" beside a green twin lost a push race
-Before reading a red `Update CITATION.cff` as a broken release, find a green run of it on the same or a later SHA (not earlier), then confirm `git show origin/main:CITATION.cff` carries the released version and date.
+## A timed-out run reads `cancelled`
+Read a `cancelled` run's annotations before calling it superseded: its job ids from `gh run view <id> --json jobs --jq '.jobs[].databaseId'`, then `gh api repos/<o>/<r>/check-runs/<job id>/annotations`. A timeout says "The job has exceeded the maximum execution time", and its `--log-failed` is empty.
 
 *5 lines of evidence for this rule are in `conventions/ci-monitoring.md`.*
 
-## A hung setup step holds the concurrency group for six hours
-A run `in_progress` long past its usual duration, with a newer run of it `pending` behind, is a hang: confirm no step moved (`gh run view <id> --json jobs`), then `gh run cancel <id>`; the lasting fix is `timeout-minutes:`.
+## R workflows live in NewGraphEnvironment/flows
+Change a runner, timeout or step there and fast-forward `v1`; a workflow marked at its top as its own is changed in its repo. Re-run all jobs: re-run failed reuses the old copy.
 
-*4 lines of evidence for this rule are in `conventions/ci-monitoring.md`.*
+## A hung setup step holds the concurrency group for six hours
+A run `in_progress` long past its usual duration, with a newer run of it `pending` behind, is a hang: confirm no step moved (`gh run view <id> --json jobs`), then `gh run cancel <id>`; the lasting fix is `timeout-minutes:`. A slow `setup-r-dependencies` may be compiling (`ℹ Building <pkg>`, in the web UI while it runs); sources on `cran.rstudio.com` mean `code-check-r.md`, "pak Behavior".
+
+*9 lines of evidence for this rule are in `conventions/ci-monitoring.md`.*
 
 ## A job-level `concurrency` group must vary with the matrix, or the jobs cancel each other
 
@@ -3450,11 +3440,10 @@ EOF
 - `usethis::use_mit_license("New Graph Environment Ltd.")`; `Authors@R` as in `/citation-cff`
 - `usethis::use_testthat(edition = 3)`
 - `usethis::use_pkgdown()`
-- `usethis::use_github_action("pkgdown")`, then `timeout-minutes: 90` on its job
 - `usethis::use_directory("dev")` — reproducible setup script
 - `usethis::use_directory("data-raw")` — data generation scripts
 - Hex sticker: copy soul's `templates/make_hexsticker.R` to `data-raw/`
-- CI: copy soul's `templates/R-CMD-check.yaml` to `.github/workflows/` (one job, `ubuntu-latest`, `timeout-minutes: 45`)
+- CI: copy soul's `templates/R-CMD-check.yaml` and `templates/pkgdown.yaml` (callers of `NewGraphEnvironment/flows`) to `.github/workflows/`
 - Set GitHub Pages to serve from `gh-pages` branch
 
 ### dev/dev.R
