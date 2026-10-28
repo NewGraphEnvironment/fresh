@@ -234,3 +234,17 @@ assertions, since the search is what established them. `expect_gt()` replaces
 the `skip_if()` guarding the classifier count pin, for the same reason — a
 guard that fails toward skip turns a pin green the moment a real call lands
 upstream of it.
+
+### main moved under the branch, and had already shipped 0.45.0
+
+Caught by the pre-PR re-read of origin, which is exactly the case
+`feature-workflow.md` describes: the tell was a version bump nobody on this
+branch made. #272 (the `frs_network_features()` walk prefilter) merged and
+released v0.45.0 while this work was in flight.
+
+Not a duplicate attempt — different issue, different area, and `comm` over the
+two file lists shows no overlap in committed files. So the remedy is
+`git merge origin/main` rather than a rebase, because `progress.md` and the
+archive README cite this branch's commit SHAs and a rebase rewrites every one
+of them. Clean merge, no conflicts; the version lands at 0.46.0 and the NEWS
+entry sits above main's 0.45.0.
