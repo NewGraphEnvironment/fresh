@@ -253,3 +253,130 @@ test_that("distance_filter is not rescued by another group's connect rows", {
   expect_true(own[["2"]])
   expect_false(own[["3"]])
 })
+
+
+# --- frs_cluster(direction = "downstream") ---
+#
+# This one cannot run on an invented network. Its trace is
+# `whse_basemapping.fwa_downstreamtrace(blk, drm)`, which iterates the real
+# `fwa_stream_networks_sp`, and `has_connect` matches the traced
+# `linear_feature_id` against the working table — so with made-up blue line
+# keys the trace returns nothing, every cluster is stripped, and "the pass
+# keeps a connected cluster" could not fail. The fixture is therefore built
+# from real rows on two mainstem blue lines in different sub-basins, picked at
+# run time rather than hardcoded so it survives a different database.
+#
+# `bridge_gradient = 1` keeps real gradients out of play: the barrier check
+# invalidates a cluster whose connection is no nearer than the first steep
+# segment, which is a different behaviour under test.
+
+# Two mainstem blue lines with a handful of segments each, neither of them an
+# ltree ancestor of the other. That is the condition that matters: a downstream
+# trace follows the wscode hierarchy, so it can only meet the other stream if
+# that stream's wscode is an ancestor of this one's. Being siblings under one
+# sub-basin is fine. The "stripped" assertions below are what would catch a
+# pair that turned out to be related after all.
+.cds_pick <- function(conn) {
+  d <- DBI::dbGetQuery(conn, "
+    WITH g AS (
+      SELECT watershed_group_code AS w
+      FROM whse_basemapping.fwa_stream_networks_sp LIMIT 1),
+    cand AS (
+      SELECT blue_line_key, wscode_ltree
+      FROM whse_basemapping.fwa_stream_networks_sp, g
+      WHERE watershed_group_code = g.w
+        AND blue_line_key = watershed_key
+        AND wscode_ltree IS NOT NULL AND localcode_ltree IS NOT NULL
+        AND NOT wscode_ltree <@ '999'
+      GROUP BY 1, 2
+      HAVING count(*) BETWEEN 3 AND 8)
+    SELECT a.blue_line_key AS valid, b.blue_line_key AS invalid
+    FROM cand a
+    INNER JOIN cand b ON a.blue_line_key < b.blue_line_key
+      AND NOT a.wscode_ltree <@ b.wscode_ltree
+      AND NOT b.wscode_ltree <@ a.wscode_ltree
+    ORDER BY 1, 2
+    LIMIT 1")
+  if (nrow(d) == 0) return(NULL)
+  c(valid = d$valid[1], invalid = d$invalid[1])
+}
+
+# Copy both streams into the working table, then flag habitat so that the
+# `valid` stream carries label_connect on its lowest segment and label_cluster
+# just above it, while every segment of the `invalid` stream above its lowest
+# carries label_cluster and nothing carries label_connect.
+.cds_fixture <- function(conn, blks, species = "BT") {
+  .bkt_tables_create(conn)
+  DBI::dbExecute(conn, sprintf("
+    INSERT INTO pg_temp.bkt_streams
+    SELECT row_number() OVER (ORDER BY blue_line_key, downstream_route_measure),
+           linear_feature_id, blue_line_key, watershed_key,
+           downstream_route_measure, length_metre, gradient,
+           wscode_ltree, localcode_ltree, waterbody_key, 'TEST',
+           10, 1000, ST_Force2D(geom)
+    FROM whse_basemapping.fwa_stream_networks_sp
+    WHERE blue_line_key IN (%d, %d)",
+    blks[["valid"]], blks[["invalid"]]))
+  segs <- DBI::dbGetQuery(conn, "
+    SELECT id_segment, blue_line_key FROM pg_temp.bkt_streams
+    ORDER BY blue_line_key, downstream_route_measure")
+  a <- segs$id_segment[segs$blue_line_key == blks[["valid"]]]
+  b <- segs$id_segment[segs$blue_line_key == blks[["invalid"]]]
+  flag <- function(ids, col) {
+    if (length(ids) == 0) return(invisible(NULL))
+    DBI::dbExecute(conn, sprintf(
+      "UPDATE pg_temp.bkt_habitat SET %s = TRUE
+       WHERE species_code = '%s' AND id_segment IN (%s)",
+      col, species, paste(ids, collapse = ", ")))
+  }
+  for (i in segs$id_segment) {
+    DBI::dbExecute(conn, sprintf(
+      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, 'TEST', '%s', TRUE,
+         FALSE, FALSE, FALSE, FALSE)", i, species))
+  }
+  flag(a[1], "spawning")
+  flag(a[2], "rearing")
+  flag(b[-1], "rearing")
+  list(a = a, b = b)
+}
+
+.cds_run <- function(conn) {
+  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "rearing", label_connect = "spawning", species = "BT",
+    direction = "downstream", bridge_gradient = 1, bridge_distance = 1e6,
+    verbose = FALSE)
+}
+
+test_that("cluster downstream never clears another group's rows", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  blks <- .cds_pick(conn)
+  skip_if(is.null(blks), "no two suitable mainstem blue lines in this database")
+  ids <- .cds_fixture(conn, blks)
+  # OTHR reuses one of the invalid stream's clustered ids as rearing.
+  .bkt_habitat_add(conn, .bkt_seg(ids$b[2], 0, rear = TRUE))
+  .cds_run(conn)
+
+  own <- .bkt_flags(conn, "rearing")
+  expect_true(own[[as.character(ids$a[2])]])   # kept: spawning just downstream
+  expect_false(own[[as.character(ids$b[2])]])  # stripped: no spawning below
+  expect_true(.bkt_flags(conn, "rearing", wsg = "OTHR")[[as.character(ids$b[2])]])
+})
+
+test_that("cluster downstream is not rescued by another group's connect rows", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  blks <- .cds_pick(conn)
+  skip_if(is.null(blks), "no two suitable mainstem blue lines in this database")
+  ids <- .cds_fixture(conn, blks)
+  # OTHR calls the invalid stream's lowest segment spawning. That segment is
+  # on the trace from the cluster above it, so today has_connect finds it.
+  .bkt_habitat_add(conn, .bkt_seg(ids$b[1], 0, spawn = TRUE))
+  .cds_run(conn)
+
+  own <- .bkt_flags(conn, "rearing")
+  expect_true(own[[as.character(ids$a[2])]])
+  expect_false(own[[as.character(ids$b[2])]])
+})

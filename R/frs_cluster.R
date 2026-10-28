@@ -10,9 +10,15 @@
 #'
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #' @param table Character. Schema-qualified streams table with geometry
-#'   and ltree columns (from [frs_network_segment()]).
+#'   and ltree columns (from [frs_network_segment()]). Must carry
+#'   `watershed_group_code`.
 #' @param habitat Character. Schema-qualified habitat table with boolean
-#'   label columns (from [frs_habitat_classify()]).
+#'   label columns (from [frs_habitat_classify()]). Must carry
+#'   `watershed_group_code`: `id_segment` is unique only within a watershed
+#'   group, so every join matches both. A shared habitat table holding other
+#'   groups' rows is therefore safe — they are never read or cleared, and
+#'   `species = NULL` resolves only the species present in `table`'s groups
+#'   (fresh#242).
 #' @param label_cluster Character. Boolean column name in `habitat` to
 #'   cluster on. Default `"rearing"`.
 #' @param label_connect Character. Boolean column name in `habitat` that
@@ -125,10 +131,16 @@ frs_cluster <- function(conn, table, habitat,
   stopifnot(is.numeric(bridge_distance), length(bridge_distance) == 1)
   stopifnot(is.numeric(confluence_m), length(confluence_m) == 1)
 
-  # Resolve species list
+  # Resolve species list. Scoped to the watershed groups `table` holds: a
+  # shared `habitat` can carry species that only occur in another group, and
+  # each would otherwise cost a full pass that can match nothing.
   if (is.null(species)) {
     species <- DBI::dbGetQuery(conn, sprintf(
-      "SELECT DISTINCT species_code FROM %s", habitat
+      "SELECT DISTINCT h.species_code FROM %s h
+       WHERE EXISTS (
+         SELECT 1 FROM %s s
+         WHERE s.watershed_group_code = h.watershed_group_code)",
+      habitat, table
     ))$species_code
   }
 
@@ -286,6 +298,7 @@ frs_cluster <- function(conn, table, habitat,
     "WITH clustering AS (
        SELECT
          h.id_segment,
+         s.watershed_group_code,
          ST_ClusterDBSCAN(s.geom, 1, 1) OVER () AS cluster_id,
          s.wscode_ltree,
          s.localcode_ltree,
@@ -293,6 +306,7 @@ frs_cluster <- function(conn, table, habitat,
          s.downstream_route_measure
        FROM %s h
        INNER JOIN %s s ON h.id_segment = s.id_segment
+         AND h.watershed_group_code = s.watershed_group_code
        WHERE h.species_code = %s
          AND h.%s IS TRUE
      ),
@@ -322,6 +336,7 @@ frs_cluster <- function(conn, table, habitat,
          EXISTS (
            SELECT 1 FROM %s s
            INNER JOIN %s h2 ON s.id_segment = h2.id_segment
+             AND h2.watershed_group_code = s.watershed_group_code
            WHERE s.linear_feature_id = t.linear_feature_id
              AND h2.species_code = %s
              AND h2.%s IS TRUE
@@ -374,6 +389,7 @@ frs_cluster <- function(conn, table, habitat,
      SET %s = FALSE
      FROM clustering c
      WHERE h.id_segment = c.id_segment
+       AND h.watershed_group_code = c.watershed_group_code
        AND h.species_code = %s
        AND c.cluster_id NOT IN (SELECT cluster_id FROM valid_clusters)",
     habitat, table, sp_quoted, label_cluster,

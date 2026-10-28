@@ -166,16 +166,16 @@ and two SELECTs — so for a target row "phase 1" is exactly
 
 ### Phase 5 — `.frs_cluster_downstream()`, and `frs_cluster()`'s surface
 
-- [ ] Its fixture is built from real rows on one small `blue_line_key` of
+- [x] Its fixture is built from real rows on one small `blue_line_key` of
       `whse_basemapping.fwa_stream_networks_sp`, duplicated as TEST and OTHR,
       `skip_if()` on none: `fwa_downstreamtrace()` (`:330`) iterates the real
       network, so with synthetic `blue_line_key`s every cluster is stripped and
       the "keeps a connected cluster" half of the test would be vacuous.
-- [ ] Fix: `clustering` (`:291`), the `has_connect` EXISTS (`:320`, matching the
+- [x] Fix: `clustering` (`:291`), the `has_connect` EXISTS (`:320`, matching the
       streams row's group, not `cm`'s — `cm` has none), the UPDATE (`:372`).
-- [ ] `frs_cluster()`'s `species = NULL` resolution (`:130`) reads every group in
+- [x] `frs_cluster()`'s `species = NULL` resolution (`:130`) reads every group in
       the habitat table; scope it to the groups present in `table`.
-- [ ] Roxygen on `frs_cluster()`'s `@param table` / `@param habitat`: both must
+- [x] Roxygen on `frs_cluster()`'s `@param table` / `@param habitat`: both must
       carry `watershed_group_code`, and a shared habitat table holding other
       groups is safe. Same note on `.frs_distance_filter()` and
       `.frs_connected_waterbody()`, as `.frs_bucket_connected()` carries.

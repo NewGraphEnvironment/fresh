@@ -19,20 +19,10 @@
              cw = cw, edge = edge)
 }
 
-# Build pg_temp.bkt_streams + pg_temp.bkt_habitat from a segment spec.
-# `scale` shrinks the geometry but not length_metre: at 0.01 every segment is
-# within a few metres of every other, so a straight-line prefilter passes
-# everything and only the network-distance cap can decide.
-#
-# Habitat rows are written for `species` and for every code in
-# `species_other`. `spawning` and `rearing` are set only on `species`, so a
-# test can assert a pass left another species' habitat alone; the bucket flags
-# and `accessible` are set on both, which is what makes
-# "wetland filter leaves lake_rearing and other species alone" able to fail.
-# `wsg` names the group the rows belong to; .bkt_habitat_add() adds a second
-# group's rows on top.
-.bkt_fixture <- function(conn, segs, species = "BT", scale = 1,
-                         species_other = "CO", wsg = "TEST") {
+# Empty pg_temp.bkt_streams + pg_temp.bkt_habitat. One DDL, so a fixture built
+# from real FWA rows (test-frs_connectivity_wsg.R, where the trace reads the
+# real network) has the same table shape as a spec-built one.
+.bkt_tables_create <- function(conn) {
   for (t in c("pg_temp.bkt_streams", "pg_temp.bkt_habitat")) {
     DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
   }
@@ -51,6 +41,24 @@
       id_segment integer, watershed_group_code text, species_code text,
       accessible boolean, spawning boolean, rearing boolean,
       lake_rearing boolean, wetland_rearing boolean)")
+  invisible(conn)
+}
+
+# Build pg_temp.bkt_streams + pg_temp.bkt_habitat from a segment spec.
+# `scale` shrinks the geometry but not length_metre: at 0.01 every segment is
+# within a few metres of every other, so a straight-line prefilter passes
+# everything and only the network-distance cap can decide.
+#
+# Habitat rows are written for `species` and for every code in
+# `species_other`. `spawning` and `rearing` are set only on `species`, so a
+# test can assert a pass left another species' habitat alone; the bucket flags
+# and `accessible` are set on both, which is what makes
+# "wetland filter leaves lake_rearing and other species alone" able to fail.
+# `wsg` names the group the rows belong to; .bkt_habitat_add() adds a second
+# group's rows on top.
+.bkt_fixture <- function(conn, segs, species = "BT", scale = 1,
+                         species_other = "CO", wsg = "TEST") {
+  .bkt_tables_create(conn)
   for (i in seq_len(nrow(segs))) {
     r <- segs[i, ]
     DBI::dbExecute(conn, sprintf(

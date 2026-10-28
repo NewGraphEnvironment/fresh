@@ -73,3 +73,23 @@
   mask each other: where another group's row rescues a cluster, nothing is
   stripped, so "the other group's rows survived" passes for the wrong reason.
   The rescue case and the survival case therefore get separate fixtures.
+
+### Phase 5 — `.frs_cluster_downstream()` and `frs_cluster()`'s surface (done)
+
+- The fixture is built from real `fwa_stream_networks_sp` rows, discovered at
+  run time rather than hardcoded, because this pass traces the real network.
+- Two things went wrong on the way, both caught because a skip and a pass are
+  indistinguishable in a summary line:
+  1. The first discovery query required two streams with **different level-3
+     wscode prefixes**, and both tests skipped. The predicate was wrong, not the
+     database: what matters is that neither wscode is an ltree **ancestor** of
+     the other, since a downstream trace follows the wscode hierarchy. Siblings
+     under one sub-basin are exactly what the test wants. Rewritten as a
+     self-join on `NOT a.wscode_ltree <@ b.wscode_ltree` both ways.
+  2. Real FWA geometry is LineStringZM and the shared table is 2D, so the insert
+     raised `Geometry has Z dimension but column does not`. Fixed with
+     `ST_Force2D()` on insert rather than by widening the shared DDL, which the
+     synthetic fixtures depend on.
+- `bridge_gradient = 1` in these tests, so real gradients cannot invalidate a
+  cluster through the barrier check — a different behaviour, not the one here.
+- 79 pass, 0 skip across the three connectivity test files.
