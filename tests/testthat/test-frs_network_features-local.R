@@ -104,7 +104,7 @@ test_that("aoi-scoped downstream walk equals the unprefiltered join (SKGT)", {
     # features on the Fraser below SKGT (ancestor arm)
     all_ids <- unlist(ref_sets, use.names = FALSE)
     expect_true(any(startsWith(all_ids, "-")), info = info)
-    ancestor_only <- DBI::dbGetQuery(conn, sprintf("
+    ancestor_sql <- sprintf("
       WITH own AS (
         SELECT blue_line_key, wscode_ltree
         FROM whse_basemapping.fwa_stream_networks_sp
@@ -114,8 +114,9 @@ test_that("aoi-scoped downstream walk equals the unprefiltered join (SKGT)", {
         AND f.blue_line_key NOT IN (SELECT blue_line_key FROM own)
         AND f.wscode_ltree NOT IN (
           SELECT wscode_ltree FROM own WHERE wscode_ltree IS NOT NULL)",
-      features, paste(unique(all_ids), collapse = ",")))$n
-    expect_gt(ancestor_only, 0L)
+      features, paste(unique(all_ids), collapse = ",")
+    )
+    expect_gt(DBI::dbGetQuery(conn, ancestor_sql)$n, 0L)
 
     expect_length(seen[[length(seen)]], 1L)
     expect_length(nf_tmp_tables(conn), 0L)
