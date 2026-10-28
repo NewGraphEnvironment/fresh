@@ -183,13 +183,13 @@ each, because these are the parts of the plan most likely to be mis-remembered l
 
 ## Phase 3 — the sweep, before and after
 
-- [ ] `data-raw/point_snap_tie_sweep.R`, in the genre of `data-raw/point_snap_parity_check.R`:
+- [x] `data-raw/point_snap_tie_sweep.R`, in the genre of `data-raw/point_snap_parity_check.R`:
       header naming the issue, what is compared and a literal `Usage:` block;
       `pkgload::load_all()`; `commandArgs()` with validated defaults; scratch tables in `working.`
       dropped at the **start** as well as the end (`on.exit()` does not fire at a script's top
       level under `Rscript` — `point_snap_parity_check.R:46-49`); outputs to
       `data-raw/logs/indexpoint_266/`.
-- [ ] Connect to the local docker fwapg explicitly (`Sys.setenv()` / `FRESH_PG*`, never the
+- [x] Connect to the local docker fwapg explicitly (`Sys.setenv()` / `FRESH_PG*`, never the
       inherited `PG*`, which points at the shared instance). The reason the trial stays off the
       shared instance is **not** a lock — `DROP FUNCTION` takes `AccessExclusiveLock` on the
       function object, which another session's `SELECT fwa_indexpoint(…)` does not acquire. It is
@@ -197,20 +197,20 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       is installed there, so a rollback is not a full undo. Do not run
       `scripts/habitat/habitat_province.R` or `habitat_benchmark_island.R` during a sweep: both
       hardcode `localhost:5432`.
-- [ ] Migration files copied to `tempdir()` and md5'd **before any connection**, with the fwapg
+- [x] Migration files copied to `tempdir()` and md5'd **before any connection**, with the fwapg
       commit required as `^[0-9a-f]{7,40}$`, so a file rewritten mid-run cannot be credited with
       the counts.
-- [ ] Refuse to start when the database already has the rework
+- [x] Refuse to start when the database already has the rework
       (`pg_get_function_arguments('whse_basemapping.fwa_indexpoint'::regproc)` names
       `include_disconnected`) — there is no before to measure. Record the base: `exbc` still in
       `fwa_watershedatmeasure`, no `fwapg.db_version`.
-- [ ] **Three sweep states on three trial connections**, so attribution is measured, not inferred:
+- [x] **Three sweep states on three trial connections**, so attribution is measured, not inferred:
       base; `202610240132__indexpoint_tiebreak` alone; both migrations in filename order. Each
       trial runs inside a function whose **return** fires the rollback (a top-level
       `withr::defer(…, envir = globalenv())` never fires under `Rscript`), asserts
       `include_disconnected` is present before sweeping, and a fourth connection afterwards
       asserts the old signature is back.
-- [ ] Batch the per-measure calls: one set-returning query per chunk,
+- [x] Batch the per-measure calls: one set-returning query per chunk,
       `… FROM (VALUES …) v(blk, m) LEFT JOIN LATERAL whse_basemapping.fwa_locatealong(v.blk, v.m) w ON TRUE`.
       `LEFT JOIN LATERAL … ON TRUE` is **mandatory** — a plain `CROSS JOIN LATERAL` makes a miss
       vanish instead of counting it, and misses are the number the sweep exists to produce. Both
@@ -219,7 +219,7 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       statement_timeout` once per transaction, and on a chunk error re-run that chunk row by row
       under per-row savepoints. Stop the run if any captured message says
       `current transaction is aborted`.
-- [ ] Inputs, with sizes stated and a reproducible sampling rule (`ORDER BY md5(<id>::text) LIMIT n`):
+- [x] Inputs, with sizes stated and a reproducible sampling rule (`ORDER BY md5(<id>::text) LIMIT n`):
       all 19,905 PSCIS and 5,000 of `whse_fish.fiss_fish_obsrvtn_pnt_sp` through
       `frs_point_snap()` (tolerance 150, `num_features = 5`); `fwa_locatealong()` batched over
       every resulting position and over 20,000 measures sampled from `inst/extdata/crossings.csv`
@@ -229,12 +229,12 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       `crossings.csv`'s measures are bcfishpass's own fractional indexing, so label that part of
       the report as measuring the migration at the fwapg level: fresh never emits a fractional
       measure.
-- [ ] Count the three things the issue asks for: positions where `fwa_locatealong()` or
+- [x] Count the three things the issue asks for: positions where `fwa_locatealong()` or
       `fwa_watershedatmeasure()` returns nothing; points tied on two segments of one stream
       (measured once, on the base side — the migration cannot change the geometry); calls that
       error, by message. Count the two head cases separately (a whole-metre top, and a segment
       shorter than a metre).
-- [ ] Drift guard, in place of "reproduce the package's stored output" (no such stored output
+- [x] Drift guard, in place of "reproduce the package's stored output" (no such stored output
       exists — the parity numbers were a fresh-vs-link comparison and link is not installed):
       assert the database-population figures `research/fwa_point_snap.md` records, which are
       independent of fresh's tie rule — 4,907,441 segments; 208,189 `999.*` of which 37,416 have a
@@ -242,7 +242,7 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       shorter than a metre — and write an md5 of the base side's own sorted
       `(id, blue_line_key, measure)` output into the log, so this run and any later run are
       comparable byte for byte.
-- [ ] Tracked report (`.txt` + `_summary.csv`) in `data-raw/logs/indexpoint_266/`: a
+- [x] Tracked report (`.txt` + `_summary.csv`) in `data-raw/logs/indexpoint_266/`: a
       non-reproducible **header** (migration files, md5s, fwapg commit, "applied inside a
       transaction and rolled back", the base, elapsed times) and a reproducible **body** (the
       three-state count table, errors by message, ties, and the positions whose segment,
@@ -251,7 +251,7 @@ each, because these are the parts of the plan most likely to be mis-remembered l
 
 ## Phase 4 — live tests and the gate
 
-- [ ] `tests/testthat/helper-db.R`: a connector of its own — `frs_fwapg_conn()` reading
+- [x] `tests/testthat/helper-db.R`: a connector of its own — `frs_fwapg_conn()` reading
       `FRESH_PGHOST`/`PORT`/`DATABASE`/`USER`/`PASSWORD` with `localhost`/`5432`/`fwapg`/`postgres`
       defaults, ported from wet's `helper-fwapg.R` — so the trial never reaches the shared
       instance via `frs_db_conn()`. Then `frs_indexpoint_current(conn)` (the
@@ -264,27 +264,27 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       `tests/testthat`, so it must be absolute), and otherwise skips naming the missing migration.
       The helper owns the disconnect, and every `on.exit()` in a gated test uses `add = TRUE`: a
       bare `on.exit()` replaces the handler list and would discard the deferred rollback.
-- [ ] Pin 1, by construction rather than by what the sweep happens to catch: query for a
+- [x] Pin 1, by construction rather than by what the sweep happens to catch: query for a
       top-of-blue-line segment whose `upstream_route_measure` is an exact integer, then
       `frs_point_locate(conn, blk, us)` returns 0 rows before the tiebreak migration and 1 row
       under the trial — the new `fwa_locatealong` compares
       `round(s.upstream_route_measure::numeric, 4) >= round(v_measure::numeric, 4)`.
-- [ ] Pin 2: a river position near a segment's top where `frs_watershed_at_measure()` raises
+- [x] Pin 2: a river position near a segment's top where `frs_watershed_at_measure()` raises
       `line_interpolate_point: 2nd arg isn't within [0,1]` before the tiebreak migration and
       returns a polygon under the trial. The path is `fwa_watershedatmeasure` →
       `FWA_SliceWatershedAtPoint` (verified in the installed body), which the migration rewrites to
       clamp its slice fraction. Ids from the Phase 3 report; if the sweep finds none, construct one
       the same way as pin 1.
-- [ ] Pin 3, attributed to the **other** migration: a position with an upstream border crossing
+- [x] Pin 3, attributed to the **other** migration: a position with an upstream border crossing
       whose `frs_watershed_at_measure()` area changes when
       `202610131654__watershedatmeasure_drop_exbc` is applied. Skipped unless that migration is in
       `FRESH_FWAPG_TRIAL` too.
-- [ ] One test that **fails rather than skips** when `FRESH_FWAPG_CURRENT=true`: the
+- [x] One test that **fails rather than skips** when `FRESH_FWAPG_CURRENT=true`: the
       `if (!frs_fwapg_current_wanted()) skip(...)` guard **before** the connect, its own
       connection, no `skip_if_no_conn()`, no `local_fwapg_indexpoint()`, no trial — so an
       unreachable database errors and a stale one fails. Keep it away from any test that sets trial
       state. Verify by running it against this pre-migration database with the variable set: red.
-- [ ] **Amend** CLAUDE.md's existing "Testing on alternate hosts" section with the `FRESH_PG*`
+- [x] **Amend** CLAUDE.md's existing "Testing on alternate hosts" section with the `FRESH_PG*`
       connector, `FRESH_FWAPG_TRIAL` (absolute path) and `FRESH_FWAPG_CURRENT`.
 
 ## Phase 5 — research note and bookkeeping

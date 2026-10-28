@@ -1,0 +1,89 @@
+# fresh#266 sweep - header (not reproducible)
+run: 2026-10-28 00:07:29 PDT
+fresh: 0.43.0 (7e7d979)
+fwapg commit: b088b43
+migrations, applied inside a transaction and rolled back:
+  202610131654__watershedatmeasure_drop_exbc.sql  md5 a048f8e21eb65082729b62afc5b5b3f5
+  202610240132__indexpoint_tiebreak.sql  md5 98d84a339d18f1eb11a917c60f9012ad
+host: localhost:5432/fwapg
+base: fwa_indexpoint(point geometry, tolerance double precision DEFAULT 5000, num_features integer DEFAULT 1)
+base: exbc in fwa_watershedatmeasure = TRUE, fwapg.db_version = absent
+after the trials: unchanged (signature and exbc re-checked on a new connection)
+snap: 2 s; states: base 1082 s, tiebreak 959 s, both 913 s
+base-side output md5 (sorted src|id|rank|blk|m|locatealong): f0a5e96f60dd7a7af0eddc1e165faf48
+
+# fresh#266 sweep - body (a second run must be byte-identical from here)
+samples: all PSCIS, 5000 fish observation points, 20000 of crossings.csv,
+         all of falls.csv and wsg_outlet.csv,
+         200 sampled positions plus 800 of the 6,223 tied ones for the expensive
+         calls (the tie census above is exhaustive; only the watershed and
+         trace calls over the tied positions are sampled)
+         sampling rule: ORDER BY md5(<id>::text) LIMIT n
+
+## population (research/fwa_point_snap.md, fresh#247)
+                         figure recorded measured drift
+                       segments  4907441  4907441     0
+                placeholder_999   208189   208189     0
+ placeholder_999_with_localcode    37416    37416     0
+    candidates_fractional_start  2989828  2989828     0
+     candidates_under_one_metre      246      246     0
+              pscis_assessments    19905    19905     0
+        fish_observation_points   378971   378971     0
+
+## CSV measures swept
+        src     n
+  crossings 20000
+      falls  3294
+ wsg_outlet   246
+
+## ties, measured once on the base side (geometry, which no migration changes)
+   src tied_groups within_one_stream across_streams tied_points
+   obs         927               139            788         877
+ pscis        2536               301           2235        2415
+ whole_metre_top under_one_metre
+               0             246
+
+## three states
+    state positions locatealong_miss locatealong_error csv_measures
+     base     49725                0                 0        23540
+ tiebreak     49725                0                 0        23540
+     both     49725                0                 0        23540
+ csv_locatealong_miss csv_locatealong_error expensive_positions watershed_miss
+                   42                     0                 970             85
+                   38                     0                 970             86
+                   38                     0                 970             86
+ watershed_error trace_empty trace_error errors
+             294           2           0    294
+             293           2           0    293
+             293           2           0    293
+
+## errors, by message
+  base: 293 x Failed to fetch row : ERROR:  more than one row returned by a subquery used as an expression
+  base: 1 x Failed to fetch row : ERROR:  line_interpolate_point: 2nd arg isn't within [0,1]
+  tiebreak: 293 x Failed to fetch row : ERROR:  more than one row returned by a subquery used as an expression
+  both: 293 x Failed to fetch row : ERROR:  more than one row returned by a subquery used as an expression
+
+## answers that moved: 5
+    state                   call        src               id candidate_rank
+ tiebreak   fwa_locatealong(csv)  crossings crossings_108527             NA
+ tiebreak   fwa_locatealong(csv) wsg_outlet   wsg_outlet_129             NA
+ tiebreak   fwa_locatealong(csv)  crossings  crossings_72826             NA
+ tiebreak   fwa_locatealong(csv) wsg_outlet   wsg_outlet_147             NA
+ tiebreak fwa_watershedatmeasure       <NA>             <NA>             NA
+ blue_line_key         m   was   now
+     356355973  4494.620 FALSE  TRUE
+     356363393   322.567 FALSE  TRUE
+     360862508 10821.825 FALSE  TRUE
+     360880826  2100.018 FALSE  TRUE
+     359434058   159.000  <NA> FALSE
+
+## note on crossings.csv
+  its measures are bcfishpass's own fractional indexing; fresh never emits a
+  fractional measure, so that part measures the migration at the fwapg level
+  rather than on a fresh code path.
+
+## what this sweep does not pin
+  frs_cluster()'s downstream trace starts are always a segment's own
+  downstream_route_measure, inside its range under either rule, and its
+  CROSS JOIN LATERAL drops a zero-row trace silently - counted above as
+  trace_empty rather than pinned as a behaviour change.

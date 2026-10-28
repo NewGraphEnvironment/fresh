@@ -294,3 +294,58 @@ So the migration is measurable on fresh's inputs even at this size: two CSV meas
 the snap at this sample: 45 tied groups over 300 PSCIS and 27 over 200 observations — and most are
 **across** streams (39 of 45, 23 of 27), not within one, so the positional tie is the minority
 case. The full run replaces these numbers.
+
+## Why a measure at a stream's head could never be placed (measured 2026-10-27)
+
+The installed `fwa_locatealong()` compares bounds **rounded to 4 decimals**:
+
+```sql
+AND round(s.downstream_route_measure::numeric, 4) <= round(v_measure::numeric, 4)
+AND round(s.upstream_route_measure::numeric, 4)  >  round(v_measure::numeric, 4)
+```
+
+So a measure at a stream's top can never be placed — `round(us, 4) > round(us, 4)` is false by
+construction, whatever the range's openness. That is a crisper statement of the case than "the
+range is half-open", and it is checkable on any database with the same query whichever version of
+the function is installed, which is what the Phase 4 guard uses.
+
+**How common:** of 400 blue lines sampled by `ORDER BY md5(blue_line_key::text)`, their own top
+measure resolves on **2** before the migration and **218** after — 216 flip. The head case is the
+common case, not a rarity.
+
+**A precision limit in fresh, worth knowing.** `frs_point_locate()` and
+`frs_watershed_at_measure()` interpolate the measure with `sprintf("%s", m)`, which is
+`as.character()` and carries 15 significant digits. For **185 of those 400** streams that rounds
+the top measure *up*, outside even the closed range, so fresh cannot express that boundary exactly
+and does not benefit from the migration there. Not changed here — it is a separate decision
+(`%.17g` would round-trip) and `whole_metre_top = 0` means fresh's own clamped measures never land
+on a top anyway. The Phase 4 pin names a stream whose top survives the rounding.
+
+## The full sweep (2026-10-27, m4 local docker, ~47 min)
+
+49,725 snapped positions (all 19,905 PSCIS + 5,000 observation points at tolerance 150,
+`num_features = 5`), 23,540 CSV measures, 970 expensive positions.
+
+| state | locatealong misses (49,725 positions) | CSV locatealong misses (23,540) | watershed misses (970) | watershed errors |
+|---|---|---|---|---|
+| base | **0** | 42 | 85 | 294 |
+| tiebreak only | **0** | 38 | 86 | 293 |
+| both | **0** | 38 | 86 | 293 |
+
+- **Zero** of fresh's own 49,725 snapped positions fail to resolve, in any state. fresh's clamped
+  measure never lands on a stream's top (`whole_metre_top = 0`), so the head case the migration
+  fixes is not reachable through `frs_point_snap()` → `frs_point_locate()`. It is reachable when a
+  caller passes a segment's own upstream measure, which is what the Phase 4 pin does.
+- **4 CSV measures now resolve** that did not: 2 from `wsg_outlet.csv` (356363393 @ 322.567,
+  360880826 @ 2100.018) and 2 from `crossings.csv` (356355973 @ 4494.620, 360862508 @ 10821.825).
+- **1 position stops erroring**: 359434058 @ 159 — the `line_interpolate_point: 2nd arg isn't
+  within [0,1]` transition, which is the Phase 4 pin.
+- **Every change belongs to `202610240132__indexpoint_tiebreak`.** The `drop_exbc` migration moves
+  nothing on these paths.
+- **A pre-existing fwapg bug the migration does not fix:** 293 of 970 positions (30%) error with
+  `more than one row returned by a subquery used as an expression` in **all three** states. Worth
+  reporting upstream; it is also why the expensive calls are slow, since a failed chunk falls back
+  to running its positions one at a time.
+- **Ties, exhaustive on the base side:** 2,536 tied groups over the PSCIS positions (301 within one
+  stream, 2,235 across streams) and 927 over the observation sample (139 within, 788 across). So
+  only about **12%** of ties are the within-one-stream kind the positional rule is about.
