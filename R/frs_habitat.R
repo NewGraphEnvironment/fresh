@@ -1370,7 +1370,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   count_bucket <- function() {
     DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-       WHERE species_code = %s", column, habitat, sp_quoted))$n
+       WHERE species_code = %s%s", column, habitat, sp_quoted,
+      .frs_wsg_in(table)))$n
   }
   n_before <- if (verbose) count_bucket() else 0L
 
@@ -1517,8 +1518,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   if (verbose) {
     n_before <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-       WHERE species_code = %s",
-      label_cluster, habitat, sp_quoted))$n
+       WHERE species_code = %s%s",
+      label_cluster, habitat, sp_quoted, .frs_wsg_in(table)))$n
   }
 
   # Remove segments that are DOWNSTREAM of rearing AND beyond the
@@ -1575,8 +1576,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   if (verbose) {
     n_after <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-       WHERE species_code = %s",
-      label_cluster, habitat, sp_quoted))$n
+       WHERE species_code = %s%s",
+      label_cluster, habitat, sp_quoted, .frs_wsg_in(table)))$n
     cat("  ", species, ": ", n_before - n_after,
         " beyond ", max_distance, "m removed (",
         n_after, " ", label_cluster, " remaining)\n", sep = "")
@@ -1781,7 +1782,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   if (verbose) {
     n_before <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE spawning)::int AS n FROM %s
-       WHERE species_code = %s", habitat, sp_quoted))$n
+       WHERE species_code = %s%s", habitat, sp_quoted,
+      .frs_wsg_in(table)))$n
   }
 
   # Temp table for qualifying segment IDs from both phases
@@ -1957,7 +1959,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   if (verbose) {
     n_after <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE spawning)::int AS n FROM %s
-       WHERE species_code = %s", habitat, sp_quoted))$n
+       WHERE species_code = %s%s", habitat, sp_quoted,
+      .frs_wsg_in(table)))$n
     cat("  ", species, ": connected waterbody ",
         n_before, " -> ", n_after, "\n", sep = "")
   }

@@ -73,6 +73,9 @@ Every site where a habitat row is matched, read or written without a
 
 | Error | Resolution |
 |-------|------------|
+| `devtools::test()` reported a failure that a re-run could not reproduce | Two test runs were hitting the database at once — the mutation sweep's last round and a suite run started while it was still going. `test-frs_cluster.R:153` and `test-utils.R:33` create fixed table names in the shared `working` schema (`working.test_cluster_streams`, `working.test_idx_idem`), so concurrent runs drop each other's tables. Pre-existing; the new tests use `pg_temp` only, which is session-local. Don't run the suite beside anything else that touches the same database. |
+| `Geometry has Z dimension but column does not` inserting real FWA rows | Real `fwa_stream_networks_sp` geometry is LineStringZM; the shared fixture table is 2D. `ST_Force2D()` on insert, rather than widening the DDL the synthetic fixtures depend on. |
+| Both downstream tests skipped, which reads identically to passing | The run-time fixture discovery required two streams with different level-3 wscode prefixes, and no candidate pair qualified. Wrong predicate: what matters is that neither wscode is an ltree **ancestor** of the other. Siblings are fine. |
 
 ## `fwa_upstream()`'s 4-arg form admits equality
 
@@ -120,3 +123,62 @@ rather than in production — every cluster minimum in the fixtures sits at
 drm >= 1000 to keep the branch out of play. Not fixed here: out of scope for
 fresh#242, and worth its own look before anyone writes a fixture with
 single-label wscodes below the confluence tolerance.
+
+## Mutation table: which test catches which site
+
+Each site had the single-key join restored, one at a time, in a copy of the
+package sources, and `test-frs_connectivity_wsg.R` + `test-frs_bucket_connected.R`
+were run against it (`data-raw/`-style harness kept in the session scratchpad; the
+unmutated copy was confirmed 0 red / 0 skipped first, so a result means something).
+
+**15 of 19 sites are pinned by a named test. 4 are not, and each is defence in
+depth whose removal cannot change the final habitat state.**
+
+| site | caught | by |
+|---|---|---|
+| `cluster_upstream` clustering join | no | — see below |
+| `cluster_upstream` valid_clusters join | yes | cluster upstream … not rescued by them |
+| `cluster_upstream` UPDATE | yes | cluster upstream … not rescued by them |
+| `cluster_downstream` clustering join | no | — see below |
+| `cluster_downstream` has_connect | yes | cluster downstream is not rescued by … |
+| `cluster_downstream` UPDATE | yes | cluster downstream never clears … |
+| `cluster_both` tmp_clusters join | no | — see below |
+| `cluster_both` phase 2 join | yes | cluster both leaves another group's rows alone … |
+| `cluster_both` phase 3 LEFT JOIN | yes | another group's rows do not inflate the … distance |
+| `cluster_both` UPDATE | yes | cluster both leaves another group's rows alone … |
+| `cluster_both` phase-1 predicate `IS NOT TRUE` → `= FALSE` | yes | cluster both leaves another group's rows alone … |
+| `bucket_connected` hab_join (pre-existing, #240) | yes | another watershed group's rows sharing an id_segment … |
+| `distance_filter` outer UPDATE | yes | distance_filter never clears another group's rows |
+| `distance_filter` inner NOT EXISTS | yes | distance_filter is not rescued by … |
+| `connected_waterbody` origins_sql | yes | connected_waterbody takes no trace origin from … |
+| `connected_waterbody` rearing_segs | yes | connected_waterbody takes no trace origin from … |
+| `connected_waterbody` spawn_upstream | no | — see below |
+| `connected_waterbody` subtractive UPDATE | yes | connected_waterbody never clears another group's … |
+| `connected_waterbody` additive UPDATE | yes | the additive spawn_connected step promotes no … |
+
+### Why the four are unobservable, rather than untested
+
+Not "we did not get round to it" — no test can distinguish them, so a test
+asserting otherwise would be decoration.
+
+- **The three clustering CTE joins** (`clustering` in upstream and downstream,
+  `tmp_clusters` in both). Dropping the predicate lets another group's habitat rows
+  into the clustering set. But the CTE takes `watershed_group_code` from the
+  **streams** side, so every row it carries is labelled with one of this job's
+  groups, and the final UPDATE matches that column — so a phantom row can only
+  ever be matched back to a row of this job's groups. The phantom's other effects
+  are nil: `ST_ClusterDBSCAN(geom, 1, 1)` with `minpoints = 1` is insensitive to
+  duplicate geometry, `cluster_minimums`' `DISTINCT ON (cluster_id)` picks the same
+  minimum from a set with duplicates, and a duplicated `c` row in the UPDATE's
+  `FROM` matches the same target row twice, which an UPDATE applies once.
+- **`connected_waterbody`'s `spawn_upstream` join.** `qual_tbl` is a keep-list of
+  **streams**, and a stream enters it on a stream-level predicate (`EXISTS` over
+  `rearing_segs`) plus "some habitat row for this species says `spawning`". So
+  dropping the group changes only *which* habitat row supplies that TRUE. It can
+  add a stream whose own group's row is `spawning = FALSE` — and the subtractive
+  UPDATE only touches rows where `spawning IS TRUE`, while the additive step reads
+  `lfid_tbl` (the Phase 1 trace), not `qual_tbl`. Final state identical either way.
+
+Both predicates stay. They cost nothing, they are what the reader expects beside
+their siblings, and the reasoning above is contingent on `minpoints = 1` and on
+`qual_tbl` being a stream keep-list, either of which a later change could move.

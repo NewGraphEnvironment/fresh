@@ -276,11 +276,15 @@ test_that("distance_filter is not rescued by another group's connect rows", {
 # that stream's wscode is an ancestor of this one's. Being siblings under one
 # sub-basin is fine. The "stripped" assertions below are what would catch a
 # pair that turned out to be related after all.
+#
+# `ORDER BY` on the group pick as well as the pair: an unordered `LIMIT 1` takes
+# whatever row the scan reaches first, which moves with heap order, so a failure
+# could not be re-run against the pair that produced it.
 .cds_pick <- function(conn) {
   d <- DBI::dbGetQuery(conn, "
     WITH g AS (
-      SELECT watershed_group_code AS w
-      FROM whse_basemapping.fwa_stream_networks_sp LIMIT 1),
+      SELECT min(watershed_group_code) AS w
+      FROM whse_basemapping.fwa_stream_networks_sp),
     cand AS (
       SELECT blue_line_key, wscode_ltree
       FROM whse_basemapping.fwa_stream_networks_sp, g
@@ -290,21 +294,27 @@ test_that("distance_filter is not rescued by another group's connect rows", {
         AND NOT wscode_ltree <@ '999'
       GROUP BY 1, 2
       HAVING count(*) BETWEEN 3 AND 8)
-    SELECT a.blue_line_key AS valid, b.blue_line_key AS invalid
+    SELECT g.w AS wsg, a.blue_line_key AS valid, b.blue_line_key AS invalid
     FROM cand a
     INNER JOIN cand b ON a.blue_line_key < b.blue_line_key
       AND NOT a.wscode_ltree <@ b.wscode_ltree
       AND NOT b.wscode_ltree <@ a.wscode_ltree
-    ORDER BY 1, 2
+    CROSS JOIN g
+    ORDER BY 2, 3
     LIMIT 1")
   if (nrow(d) == 0) return(NULL)
-  c(valid = d$valid[1], invalid = d$invalid[1])
+  list(wsg = d$wsg[1], valid = d$valid[1], invalid = d$invalid[1])
 }
 
 # Copy both streams into the working table, then flag habitat so that the
 # `valid` stream carries label_connect on its lowest segment and label_cluster
 # just above it, while every segment of the `invalid` stream above its lowest
 # carries label_cluster and nothing carries label_connect.
+#
+# The insert repeats `.cds_pick()`'s own watershed-group and mainstem
+# predicates. Without them a blue line crossing a group boundary would
+# contribute segments the candidate query never counted, all labelled 'TEST' —
+# one population defined twice with different predicates.
 .cds_fixture <- function(conn, blks, species = "BT") {
   .bkt_tables_create(conn)
   DBI::dbExecute(conn, sprintf("
@@ -315,8 +325,10 @@ test_that("distance_filter is not rescued by another group's connect rows", {
            wscode_ltree, localcode_ltree, waterbody_key, 'TEST',
            10, 1000, ST_Force2D(geom)
     FROM whse_basemapping.fwa_stream_networks_sp
-    WHERE blue_line_key IN (%d, %d)",
-    blks[["valid"]], blks[["invalid"]]))
+    WHERE blue_line_key IN (%d, %d)
+      AND watershed_group_code = '%s'
+      AND blue_line_key = watershed_key",
+    blks[["valid"]], blks[["invalid"]], blks[["wsg"]]))
   segs <- DBI::dbGetQuery(conn, "
     SELECT id_segment, blue_line_key FROM pg_temp.bkt_streams
     ORDER BY blue_line_key, downstream_route_measure")

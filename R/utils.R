@@ -27,6 +27,27 @@
   getOption(paste0("fresh.", name), default = defaults[[name]])
 }
 
+#' SQL fragment restricting a habitat table to one working table's groups
+#'
+#' The connectivity passes read a `habitat` table that may hold several
+#' watershed groups (one shared `to_habitat`) while acting on only the groups
+#' in `table`. Their joins carry `watershed_group_code` (fresh#242); their
+#' before/after counts are aggregates with no join to carry, so they take this
+#' clause instead. Without it a per-job progress line reports the whole
+#' table's numbers as if they were the job's.
+#'
+#' Appended to a `WHERE` that already has a condition, and written for an
+#' unaliased `habitat`, which is how every count site spells it.
+#'
+#' @param table Character. Schema-qualified working streams table.
+#' @return Character. ` AND watershed_group_code IN (SELECT ... )`.
+#' @noRd
+.frs_wsg_in <- function(table) {
+  sprintf(" AND watershed_group_code IN (
+         SELECT watershed_group_code FROM %s)", table)
+}
+
+
 #' Quote a string value for safe SQL interpolation
 #'
 #' Escapes single quotes by doubling them (SQL standard) and wraps in single

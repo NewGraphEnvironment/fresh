@@ -151,8 +151,9 @@ frs_cluster <- function(conn, table, habitat,
     if (verbose) {
       n_before <- DBI::dbGetQuery(conn, sprintf(
         "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-         WHERE species_code = %s",
-        label_cluster, habitat, .frs_quote_string(sp)))$n
+         WHERE species_code = %s%s",
+        label_cluster, habitat, .frs_quote_string(sp),
+        .frs_wsg_in(table)))$n
     }
 
     if (direction == "both") {
@@ -173,8 +174,9 @@ frs_cluster <- function(conn, table, habitat,
     if (verbose) {
       n_after <- DBI::dbGetQuery(conn, sprintf(
         "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-         WHERE species_code = %s",
-        label_cluster, habitat, .frs_quote_string(sp)))$n
+         WHERE species_code = %s%s",
+        label_cluster, habitat, .frs_quote_string(sp),
+        .frs_wsg_in(table)))$n
       elapsed <- round((proc.time() - t0)["elapsed"], 1)
       cat("  ", sp, ": ", n_before - n_after, " disconnected removed (",
           n_after, " ", label_cluster, " remaining, ", elapsed, "s)\n",

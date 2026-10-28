@@ -93,3 +93,40 @@
 - `bridge_gradient = 1` in these tests, so real gradients cannot invalidate a
   cluster through the barrier check — a different behaviour, not the one here.
 - 79 pass, 0 skip across the three connectivity test files.
+
+### Phase 6 — mutation sweep and code-check round 1
+
+- Mutation sweep: 19 sites, 15 pinned by a named test, 4 unobservable by
+  construction. The table and the reasoning for the four are in `findings.md`.
+  The unmutated copy was verified 0 red / 0 skipped first, so the results mean
+  something.
+- Round 1 of `/code-check branch` returned three findings. Two fixed here, one
+  deferred, plus two of its notes:
+  1. **Fixed, and it changed a gate decision.** The new roxygen claimed other
+     groups' rows are "never read", which the functions' own verbose counts
+     disproved: they filter on `species_code` only, so a serial multi-WSG run
+     with a shared `to_habitat` printed the whole table's numbers as the job's
+     (measured by the reviewer: `2 disconnected removed (4 rearing remaining)`
+     where the job's group had 1). The plan had left the counts unscoped as
+     cosmetic — that was my call, not the owner's, and a wrong number printed to
+     the user is not cosmetic. All seven count sites now take one shared
+     `.frs_wsg_in()` clause, `.frs_bucket_connected()`'s included, so the claim is
+     true and the family does not drift.
+  2. **Fixed.** The downstream fixture picked its watershed group with an
+     unordered `LIMIT 1`, so a failure could not be re-run against the pair that
+     produced it, and `.cds_fixture()`'s insert dropped the group and mainstem
+     predicates `.cds_pick()` applied — one population defined twice. Both
+     closed.
+  3. **Deferred to the follow-up issue, verified first.** `frs_order_child()`
+     (exported) has the same defect: `R/frs_order_child.R:271` joins
+     `h.id_segment = s.id_segment` with no group and writes **additively**, so it
+     inflates a habitat set in a group the job never segmented. Same reason as
+     `frs_habitat_overlay()` — a separate exported function, not one of the four
+     connectivity passes, needing its own test.
+  - Note taken: `test-frs_cluster.R`'s mocks stubbed on
+    `grepl("DISTINCT species_code", ...)`, which no longer matches the scoped
+    query. Dead today (both tests pass `species`), fixed so it cannot rot into a
+    silently empty species list.
+  - Note confirmed independently: the `OTHR3` assertion in the cluster-both test
+    passes against pre-branch code too, because the old bug validated that
+    cluster so the strip never reached the row. Already recorded above.
