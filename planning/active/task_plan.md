@@ -218,8 +218,11 @@ Agent's calls, from the review:
 
 ## Owed at the end (reported, done after merge)
 
-- [ ] One follow-up issue for the same defect class outside the connectivity
-      passes, with three parts: the custom-AOI persist delete
+- [x] Filed as [#277](https://github.com/NewGraphEnvironment/fresh/issues/277)
+      during the run, so the PR can cite a number that exists. Four parts, not
+      three: round 1 of `/code-check` added the exported `frs_order_child()`,
+      whose additive UPDATE joins `id_segment` alone. The others: the custom-AOI
+      persist delete
       (`DELETE FROM <to_streams> WHERE id_segment IN (SELECT id_segment FROM
       <streams_tbl>)`, `R/frs_habitat.R:515` and `:675` — data loss from a
       persisted table); the exported `frs_habitat_overlay()`'s bridged join

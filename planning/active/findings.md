@@ -183,3 +183,26 @@ asserting otherwise would be decoration.
 Both predicates stay. They cost nothing, they are what the reader expects beside
 their siblings, and the reasoning above is contingent on `minpoints = 1` and on
 `qual_tbl` being a stream keep-list, either of which a later change could move.
+
+## Which species actually reach `.frs_connected_waterbody()`
+
+Derived from the shipped artifacts, not from the issue or a reviewer's summary
+(`data-raw`-free probe, 2026-10-28):
+
+```
+SK   requires_connected: yes | cluster_spawning: TRUE | rear L/W: L -> .frs_connected_waterbody()
+KO   requires_connected: yes | cluster_spawning: TRUE | rear L/W: L -> .frs_connected_waterbody()
+```
+
+`inst/extdata/parameters_habitat_rules.yaml` carries `requires_connected` on a
+spawn rule for exactly SK and KO; `inst/extdata/parameters_fresh.csv` gives both
+`cluster_spawning = TRUE`; and both have a rear `waterbody_type: L` rule, which is
+what routes `.frs_run_connectivity()` to `.frs_connected_waterbody()` rather than
+the generic `frs_cluster()` + `.frs_distance_filter()` pair. So the pass whose
+subtractive UPDATE had no group scope at all is the one the shipped parameters
+reach.
+
+The first probe written for this returned nothing, which read as "no species
+reaches it" — it looked for `y[[sp]]$rules$spawn`, but the raw YAML nests `spawn`
+and `rear` directly under the species; `rules` is the shape `frs_params()` builds.
+A probe is broken before the world is.
