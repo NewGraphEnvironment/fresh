@@ -142,6 +142,30 @@ analyzed like a feature table): new 1.7 s, plain 2.3 s, same digest
 (`74bb945034718735fed79a0f7294e38f`, 535 segments, 980 pairs). The live test uses that.
 It also showed `CREATE TEMP TABLE pg_temp.<name>` is accepted on PostgreSQL 17.5.
 
+### Which arm a fixture can see (mutation runs, same day)
+
+Removing each part of the new SQL in turn, against the live test:
+
+| mutation | VICT | LKEL | UPET | SKGT |
+|---|---|---|---|---|
+| no blue-line arm (`OR false`) | passed | 6 fail | 6 fail | 6 fail |
+| no ancestor arm (self code only) | passed | passed | passed | 2 fail |
+| no `DROP` | 3 fail | – | – | 3 fail |
+
+- The blue-line arm is redundant on FWA's own codes: **no FWA blue line carries two wscodes**
+  (counted over `fwa_stream_networks_sp`, 0 rows), so the self-code arm already admits every
+  feature on an AOI blue line. It matters for a feature table whose codes are missing or differ
+  from the network's: `fwa_downstream()` returns a feature on the segment's blue line downstream
+  of it with NULL codes (`fwa_downstream(1, 100, '100.1', '100.1', 1, 50, NULL, NULL, false, 1)`
+  is true). The fixture adds NULL-coded copies of every 7th AOI segment to reach it.
+- The ancestor arm matters only when an ancestor code is not also one of the AOI's own codes
+  and the answer reaches a feature on it. LKEL contains Skeena main-stem segments (`400`);
+  UPET has one ancestor outside (`200.692231`) but no answer pair on it. Answer pairs only
+  that arm admits, every 25th segment as features: CHWK 0, SAHD 0, UPET 0, SKGT 22 of 40,495,
+  GUIC 344,635 of 381,522, LPRO 153,072 of 217,443, MUSK 1.27 M of 1.31 M, UTRE 1.00 M of 1.05 M.
+- The live test therefore uses **SKGT** (6,935 segments; reaches the Fraser, `100`, which has no
+  SKGT segment): 6 s for both `include_equivalents` values and their plain-join references.
+
 ## Errors Encountered
 
 | Error | Resolution |

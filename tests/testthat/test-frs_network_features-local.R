@@ -6,18 +6,33 @@
 # fwa_downstream() can return. These tests compare that path with the plain,
 # unprefiltered join on real FWA data, and check the temp table is gone after.
 
-# Every 25th FWA segment, province-wide, indexed like a feature table. The
-# full stream network as `features` is the densest feature table possible:
-# for VICT the prefilter admits 210 k segments and the walk takes about 43 s
-# (the plain join about 93 s), measured 2026-10-28. The sample keeps the walk
-# to a few seconds and still spans the province.
+# The AOI is SKGT. Its streams reach the Fraser (wscode `100`), which has no
+# segment in SKGT, so some of its downstream features sit on a stream whose
+# code is neither one of SKGT's own nor on one of its blue lines: only the
+# prefilter's ancestor arm admits those (22 of 40,495 pairs with the fixture
+# below). Removing that arm changed no answer pair in VICT, LKEL or UPET,
+# so a test there could not see it (measured 2026-10-28).
+#
+# Features: every 25th FWA segment province-wide, plus a copy of every 7th
+# SKGT segment with its codes NULL and its id negated. fwa_downstream()
+# returns a feature on the segment's own blue line without reading the
+# feature's codes, so only the prefilter's blue-line arm admits those: in
+# FWA itself no blue line carries two wscodes, and without the copies that
+# arm would be untested. The whole network as `features` would be the
+# densest table possible; for VICT the prefilter admits 210 k segments and
+# the walk takes about 43 s (the plain join about 93 s), measured 2026-10-28.
 nf_local_features <- function(conn) {
   DBI::dbExecute(conn, "
     CREATE TEMP TABLE nf_features AS
     SELECT linear_feature_id, blue_line_key, downstream_route_measure,
            wscode_ltree, localcode_ltree
     FROM whse_basemapping.fwa_stream_networks_sp
-    WHERE linear_feature_id % 25 = 0")
+    WHERE linear_feature_id % 25 = 0
+    UNION ALL
+    SELECT -linear_feature_id, blue_line_key, downstream_route_measure,
+           NULL::ltree, NULL::ltree
+    FROM whse_basemapping.fwa_stream_networks_sp
+    WHERE watershed_group_code = 'SKGT' AND linear_feature_id % 7 = 0")
   DBI::dbExecute(conn, "CREATE INDEX ON nf_features (blue_line_key)")
   DBI::dbExecute(conn, "CREATE INDEX ON nf_features USING gist (wscode_ltree)")
   DBI::dbExecute(conn, "CREATE INDEX ON nf_features USING gist (localcode_ltree)")
@@ -36,7 +51,7 @@ nf_tmp_tables <- function(conn) {
       AND c.relname LIKE 'frs\\_tmp\\_%'")$relname
 }
 
-test_that("aoi-scoped downstream walk equals the unprefiltered join (VICT)", {
+test_that("aoi-scoped downstream walk equals the unprefiltered join (SKGT)", {
   conn <- local_fwapg()
   features <- nf_local_features(conn)
   temp_schema <- DBI::dbGetQuery(conn, "SELECT pg_my_temp_schema()::int AS o")$o
@@ -59,7 +74,7 @@ test_that("aoi-scoped downstream walk equals the unprefiltered join (VICT)", {
       segment_id_col      = "linear_feature_id",
       feature_id_col      = "linear_feature_id",
       direction           = "downstream",
-      aoi                 = "VICT",
+      aoi                 = "SKGT",
       include_equivalents = ie
     )
     ref <- DBI::dbGetQuery(conn, sprintf("
@@ -72,7 +87,7 @@ test_that("aoi-scoped downstream walk equals the unprefiltered join (VICT)", {
         b.blue_line_key, b.downstream_route_measure,
         b.wscode_ltree, b.localcode_ltree,
         %s, 1)
-      WHERE a.watershed_group_code = 'VICT'
+      WHERE a.watershed_group_code = 'SKGT'
       GROUP BY a.linear_feature_id", features, if (ie) "true" else "false"))
 
     info <- sprintf("include_equivalents = %s", ie)
@@ -85,6 +100,22 @@ test_that("aoi-scoped downstream walk equals the unprefiltered join (VICT)", {
     names(ours_sets) <- ours_ids
     names(ref_sets) <- ref$id
     expect_identical(ours_sets[ref$id], ref_sets, info = info)
+    # the fixture reaches both arms: NULL-coded features (blue-line arm) and
+    # features on the Fraser below SKGT (ancestor arm)
+    all_ids <- unlist(ref_sets, use.names = FALSE)
+    expect_true(any(startsWith(all_ids, "-")), info = info)
+    ancestor_only <- DBI::dbGetQuery(conn, sprintf("
+      WITH own AS (
+        SELECT blue_line_key, wscode_ltree
+        FROM whse_basemapping.fwa_stream_networks_sp
+        WHERE watershed_group_code = 'SKGT')
+      SELECT count(*)::int AS n FROM %s f
+      WHERE f.linear_feature_id = ANY ('{%s}'::bigint[])
+        AND f.blue_line_key NOT IN (SELECT blue_line_key FROM own)
+        AND f.wscode_ltree NOT IN (
+          SELECT wscode_ltree FROM own WHERE wscode_ltree IS NOT NULL)",
+      features, paste(unique(all_ids), collapse = ",")))$n
+    expect_gt(ancestor_only, 0L)
 
     expect_length(seen[[length(seen)]], 1L)
     expect_length(nf_tmp_tables(conn), 0L)
