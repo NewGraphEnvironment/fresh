@@ -4,10 +4,15 @@
 # join has to match `watershed_group_code` too, and every UPDATE has to be
 # confined to the groups present in `table` (fresh#242).
 #
-# Each test asserts in both directions: the other group's colliding rows are
-# untouched, and the other group's flags neither rescue nor condemn this
-# group's. Each also asserts an expected keep AND an expected strip on this
-# group, so neither a no-op nor a strip-everything mutant passes.
+# Each test asserts that the other group's colliding rows are untouched, or
+# that its flags neither rescue nor condemn this group's, or both.
+#
+# Where a block asserts an expected keep AND an expected strip on this group,
+# neither a no-op nor a strip-everything mutant passes it. Not every block can:
+# the four that pin a clustering CTE turn on one segment's outcome, and so does
+# the lake one, because the mechanism each isolates is a single cluster boundary
+# moving. The keep-and-strip pairs live in the four blocks above them, which
+# share their fixtures. Do not read the weaker blocks as covering a no-op.
 #
 # The fixture is tests/testthat/helper-synthetic.R. Segments with
 # `wscode = "100"` are all mutually "upstream" under the 4-arg
@@ -526,27 +531,30 @@ test_that("species = NULL resolves only the species in this job's groups", {
   skip_if_no_conn()
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
-  # Nothing anywhere calls frs_cluster(species = NULL), and silence there is
-  # the one case where a whole pass is skipped rather than misreported: an
-  # empty species vector runs the `for` body zero times, so every disconnected
-  # cluster is kept and no count says so.
+  # Asserted on the progress lines, not on the flags. Once every pass is
+  # group-scoped, a species that exists only in another group matches nothing
+  # and writes nothing, so the final state is identical whether or not the
+  # resolution is scoped — the first version of this test could not fail, which
+  # review round 3 measured. What the scoping changes is which species are
+  # processed at all, and the visible trace of that is one line per species.
   segs <- rbind(.bkt_seg(1, 2000, spawn = TRUE),
                 .bkt_seg(2, 1000, rear = TRUE),
                 .bkt_seg(3, 1000, rear = TRUE, blk = 4L, wscode = "400",
                          y = 20000))
   .bkt_fixture(conn, segs, species_other = character(0))
-  # A species that exists only in the other group must not be resolved, and
-  # must not be touched.
   DBI::dbExecute(conn, "INSERT INTO pg_temp.bkt_habitat VALUES
     (2, 'OTHR', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
-  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
-    label_cluster = "rearing", label_connect = "spawning", species = NULL,
-    direction = "upstream", confluence_m = 10, verbose = FALSE)
+  out <- paste(utils::capture.output(
+    frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+      label_cluster = "rearing", label_connect = "spawning", species = NULL,
+      direction = "upstream", confluence_m = 10, verbose = TRUE)),
+    collapse = " ")
 
+  expect_match(out, "BT:", fixed = TRUE)          # in this job's group
+  expect_false(grepl("CH:", out, fixed = TRUE))   # only in the other group
   own <- .bkt_flags(conn, "rearing")
-  expect_true(own[["2"]])    # BT was resolved and its valid cluster kept
-  expect_false(own[["3"]])   # BT was resolved and its invalid cluster stripped
-  # CH exists only in OTHR: never resolved, never written
+  expect_true(own[["2"]])    # and BT really was processed: kept
+  expect_false(own[["3"]])   # and stripped
   expect_true(DBI::dbGetQuery(conn, "SELECT rearing FROM pg_temp.bkt_habitat
     WHERE species_code = 'CH' AND watershed_group_code = 'OTHR'")$rearing)
 })
@@ -583,13 +591,20 @@ test_that("the same holds for the downstream direction's clustering CTE", {
     "SELECT length_metre FROM pg_temp.bkt_streams WHERE id_segment = %d",
     b[2]))$length_metre
   skip_if(!length(cap) || !is.finite(cap) || cap <= 0, "no usable segment length")
+  # The gradient threshold comes from the data, not a constant. At a fixed
+  # `bridge_gradient = 1` a real segment of gradient >= 1 would tie
+  # `nearest_barrier` with `nearest_connect`, invalidating the cluster under
+  # the defect as well — so the assertion would have held for the wrong reason.
+  gmax <- DBI::dbGetQuery(conn,
+    "SELECT max(gradient) AS g FROM pg_temp.bkt_streams")$g
+  bg <- if (length(gmax) && is.finite(gmax)) gmax + 1 else 1
   # OTHR calls the second segment rearing. Without the group on the clustering
   # CTE it joins TEST's cluster, dropping the minimum one segment and putting
   # the connection within reach.
   .bkt_habitat_add(conn, .bkt_seg(b[2], 0, rear = TRUE))
   frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
     label_cluster = "rearing", label_connect = "spawning", species = "BT",
-    direction = "downstream", bridge_gradient = 1, bridge_distance = cap,
+    direction = "downstream", bridge_gradient = bg, bridge_distance = cap,
     verbose = FALSE)
 
   expect_false(.bkt_flags(conn, "rearing")[[as.character(b[3])]])
@@ -611,18 +626,42 @@ test_that("another group's spawning does not lend lake adjacency to this group's
   # boundary vertex, and is then CHECKED rather than assumed: a line 500 m east
   # of one vertex can sit back inside the polygon, which is how the first
   # version of this fixture quietly credited the segment it meant to exclude.
+  # Search for a lake whose shape makes the construction work, rather than
+  # taking the first and skipping when it does not: the inner segment has to
+  # land within 2 m of a qualifying lake and the outer two outside every one of
+  # them, and a radial line from a concave lake can re-enter it.
   lk <- DBI::dbGetQuery(conn, "
-    WITH l AS (
-      SELECT geom FROM whse_basemapping.fwa_lakes_poly
-      WHERE area_ha >= 10 ORDER BY waterbody_key LIMIT 1),
-    p AS (
+    WITH cand AS (
       SELECT ST_StartPoint(ST_ExteriorRing(ST_GeometryN(geom, 1))) AS b,
-             ST_Centroid(geom) AS c FROM l)
-    SELECT ST_X(b) AS bx, ST_Y(b) AS by,
-           (ST_X(b) - ST_X(c)) / NULLIF(ST_Distance(b, c), 0) AS ux,
-           (ST_Y(b) - ST_Y(c)) / NULLIF(ST_Distance(b, c), 0) AS uy
-    FROM p")
-  skip_if(nrow(lk) == 0 || is.na(lk$ux), "no usable FWA lake of 10 ha or more")
+             ST_Centroid(geom) AS c
+      FROM whse_basemapping.fwa_lakes_poly
+      WHERE area_ha >= 10 ORDER BY waterbody_key LIMIT 40),
+    u AS (
+      SELECT ST_X(b) AS bx, ST_Y(b) AS by,
+             (ST_X(b) - ST_X(c)) / NULLIF(ST_Distance(b, c), 0) AS ux,
+             (ST_Y(b) - ST_Y(c)) / NULLIF(ST_Distance(b, c), 0) AS uy
+      FROM cand WHERE ST_Distance(b, c) > 0),
+    lines AS (
+      SELECT u.*,
+        ST_SetSRID(ST_MakeLine(
+          ST_MakePoint(bx, by), ST_MakePoint(bx + ux * 500, by + uy * 500)), 3005) AS inner_l,
+        ST_SetSRID(ST_MakeLine(
+          ST_MakePoint(bx + ux * 500, by + uy * 500),
+          ST_MakePoint(bx + ux * 1500, by + uy * 1500)), 3005) AS outer_l,
+        ST_SetSRID(ST_MakeLine(
+          ST_MakePoint(bx + ux * 30000, by + uy * 30000),
+          ST_MakePoint(bx + ux * 31000, by + uy * 31000)), 3005) AS far_l
+      FROM u)
+    SELECT bx, by, ux, uy FROM lines
+    WHERE EXISTS (SELECT 1 FROM whse_basemapping.fwa_lakes_poly lp
+                  WHERE lp.area_ha >= 10 AND ST_DWithin(inner_l, lp.geom, 2))
+      AND NOT EXISTS (SELECT 1 FROM whse_basemapping.fwa_lakes_poly lp
+                      WHERE lp.area_ha >= 10 AND ST_DWithin(outer_l, lp.geom, 2))
+      AND NOT EXISTS (SELECT 1 FROM whse_basemapping.fwa_lakes_poly lp
+                      WHERE lp.area_ha >= 10 AND ST_DWithin(far_l, lp.geom, 2))
+    LIMIT 1")
+  skip_if(nrow(lk) == 0,
+          "no FWA lake of 10 ha or more whose shape admits this construction")
 
   .bkt_tables_create(conn)
   # Three segments on one wscode, so each is upstream of the others. Geometry
@@ -651,20 +690,21 @@ test_that("another group's spawning does not lend lake adjacency to this group's
 
   # The fixture only tests what it claims if 6 is adjacent to a qualifying lake
   # and 5 is not. Both are measured against every lake, not just the one above.
+  # Asserted, not skipped: the search above chose this lake precisely because
+  # these hold, so a disagreement here means the search and the build differ.
   near <- function(id) DBI::dbGetQuery(conn, sprintf(
     "SELECT EXISTS (
        SELECT 1 FROM whse_basemapping.fwa_lakes_poly lp
        WHERE lp.area_ha >= 10
          AND ST_DWithin((SELECT geom FROM pg_temp.bkt_streams
                          WHERE id_segment = %d), lp.geom, 2)) AS v", id))$v
-  skip_if(!near(6), "the boundary-anchored segment is not within 2 m of a lake")
-  skip_if(near(5) || near(4),
-          "this lake's shape puts the outer segments within 2 m of a lake too")
-  # And they must cluster together, or 6 cannot lend 5 anything.
+  expect_true(near(6))     # within 2 m, so it can lend adjacency
+  expect_false(near(5))    # outside, so its own cluster cannot qualify
+  expect_false(near(4))
   adj <- DBI::dbGetQuery(conn, "
     SELECT ST_DWithin(a.geom, b.geom, 1) AS v FROM pg_temp.bkt_streams a,
       pg_temp.bkt_streams b WHERE a.id_segment = 5 AND b.id_segment = 6")$v
-  skip_if(!isTRUE(adj), "segments 5 and 6 are not adjacent")
+  expect_true(isTRUE(adj))   # or 6 cannot lend 5 anything
 
   .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE))
   .frs_connected_waterbody(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",

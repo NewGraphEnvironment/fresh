@@ -94,9 +94,11 @@ conn <- frs_db_conn()
 
 # After frs_network_segment() + frs_habitat_classify():
 DBI::dbGetQuery(conn, "
-  SELECT count(*) FILTER (WHERE rearing) AS rearing_before
+  SELECT watershed_group_code,
+         count(*) FILTER (WHERE rearing) AS rearing_before
   FROM fresh.streams_habitat
-  WHERE species_code = 'CO'")
+  WHERE species_code = 'CO'
+  GROUP BY watershed_group_code")
 #>   rearing_before
 #> 1             33
 

@@ -45,7 +45,10 @@
 #'   direction = "downstream",
 #'   to = "working.crossings_dnstr")
 #'
-#' # Query: segments with confirmed barriers downstream
+#' # Query: segments with confirmed barriers downstream. The output carries
+#' # `id_segment` and no `watershed_group_code`, so this join is safe only
+#' # while `segments` holds one watershed group: `id_segment` is unique only
+#' # within a group (fresh#218, fresh#277).
 #' DBI::dbGetQuery(conn, "
 #'   SELECT s.id_segment, i.features_dnstr
 #'   FROM fresh.streams s

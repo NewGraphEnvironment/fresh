@@ -95,19 +95,21 @@
 #'
 #' # 3. Classify habitat — see frs_habitat_classify() for details.
 #' #    Writes to fresh.streams_habitat (long format, no geometry).
-#' #    id_segment links back to fresh.streams for mapping.
+#' #    (id_segment, watershed_group_code) links back to fresh.streams for
+#' #    mapping — id_segment is unique only within a group (fresh#218).
 #' frs_habitat_classify(conn,
 #'   table = "fresh.streams",
 #'   to = "fresh.streams_habitat",
 #'   species = c("CO", "BT", "ST"))
 #'
-#' # Check results
+#' # Check results, per watershed group: the table accumulates one job per
+#' # group, so a total over the whole table is not one job's result.
 #' DBI::dbGetQuery(conn, "
-#'   SELECT species_code,
+#'   SELECT watershed_group_code, species_code,
 #'          count(*) FILTER (WHERE accessible) as accessible,
 #'          count(*) FILTER (WHERE spawning) as spawning
 #'   FROM fresh.streams_habitat
-#'   GROUP BY species_code")
+#'   GROUP BY watershed_group_code, species_code")
 #'
 #' DBI::dbDisconnect(conn)
 #' }

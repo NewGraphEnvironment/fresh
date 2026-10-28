@@ -101,21 +101,28 @@
 #'   to = "fresh.streams_habitat",
 #'   species = c("CO", "BT", "ST"))
 #'
-#' # Query results — one table, all species, no geometry
+#' # Query results — one table, all species, no geometry. Group by the
+#' # watershed group too: the table accumulates one job per group, so a
+#' # total over the whole table is not one job's result.
 #' DBI::dbGetQuery(conn, "
-#'   SELECT species_code,
+#'   SELECT watershed_group_code, species_code,
 #'          count(*) FILTER (WHERE accessible) as accessible,
 #'          count(*) FILTER (WHERE spawning) as spawning,
 #'          count(*) FILTER (WHERE rearing) as rearing
 #'   FROM fresh.streams_habitat
-#'   GROUP BY species_code")
+#'   GROUP BY watershed_group_code, species_code")
 #'
-#' # Join geometry back for mapping — id_segment links the two tables
+#' # Join geometry back for mapping. `id_segment` is unique only WITHIN a
+#' # watershed group, so the key is (id_segment, watershed_group_code) and
+#' # both tables carry it — joining on id_segment alone multiplies rows by
+#' # the number of groups sharing a value (fresh#218).
 #' DBI::dbExecute(conn, "
 #'   CREATE OR REPLACE VIEW fresh.streams_co_vw AS
 #'   SELECT s.*, h.accessible, h.spawning, h.rearing, h.lake_rearing, h.wetland_rearing
 #'   FROM fresh.streams s
-#'   JOIN fresh.streams_habitat h ON s.id_segment = h.id_segment
+#'   JOIN fresh.streams_habitat h
+#'     ON s.id_segment = h.id_segment
+#'    AND s.watershed_group_code = h.watershed_group_code
 #'   WHERE h.species_code = 'CO'")
 #'
 #' # Re-running is safe — existing rows for these species are replaced.

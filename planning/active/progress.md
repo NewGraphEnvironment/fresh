@@ -182,3 +182,55 @@ that looks like success:
 - The lake one placed a segment 500 m out from a boundary vertex, which sat back
   inside the polygon. It now measures its own geometry against every qualifying
   lake and skips rather than assert something it has not established.
+
+### Round 3 — the mechanism, and the axis no round could reach
+
+Round 3 was asked for the mechanism rather than more instances, and named it:
+**every earlier finding came from an enumeration bounded by the shape of the
+fix instead of the shape of the invariant, with the boundary re-forming around
+each new fix.** One fact — the habitat key is `(id_segment,
+watershed_group_code)` — and the class kept recurring one axis over:
+
+| axis | boundary drawn | what sat outside | found by |
+|---|---|---|---|
+| statement kind | joins | aggregates with nothing to join | round 1 |
+| function role | readers of the table | the writer's own count | round 2 |
+| predicate placement | the clause is present | its inner column resolving outward | round 2 |
+| fixture axis | two groups, colliding ids | the two groups **disagreeing** | round 2 |
+| artifact kind | code | prose and examples that teach the join | round 3 |
+
+Its finding is a real bug in published documentation:
+`frs_habitat_classify()`'s runnable example built a view joining
+`fresh.streams` to `fresh.streams_habitat` `ON s.id_segment = h.id_segment`,
+five lines above its own "Run more WSGs later and both tables accumulate" —
+the exact defect `#218` measured at 187 segments across 22 groups, shipped as
+the recommended recipe. Fixed, with three example `count(*)` queries that
+totalled a shared table as one job's result and two prose claims that
+`id_segment` links the tables.
+
+Sweeping by artifact kind rather than by the three sites named found a fourth:
+`frs_feature_index()`'s output carries `id_segment` and no group column at all,
+so its example cannot join on both. A schema gap, not a query — caveated here,
+added to #277, which is retitled since its scope moved.
+
+Two of this branch's own tests were weaker than claimed, both verified:
+- `species = NULL` **could not fail** if the scoping were reverted. Once every
+  pass is group-scoped an extra species matches nothing and writes nothing, so
+  the end state is identical. Rewritten onto the progress lines, where the
+  difference shows, and verified red with the scoping reverted.
+- The downstream-CTE test's `bridge_gradient = 1` would tie `nearest_barrier`
+  with `nearest_connect` on a real segment that steep, invalidating the cluster
+  under the defect too. The threshold now comes from the data.
+
+And the test file's header claimed every block asserts a keep AND a strip,
+false for 6 of 16 — the same false-universal error as the "unobservable" claim,
+in the same file. Corrected to say what is there and which blocks carry the
+pairs.
+
+The lake test's four data-dependent `skip_if()`s are down to one: it searches
+40 candidate lakes for a shape that admits the construction instead of taking
+the first and skipping, and the three per-segment geometry premises are now
+assertions, since the search is what established them. `expect_gt()` replaces
+the `skip_if()` guarding the classifier count pin, for the same reason — a
+guard that fails toward skip turns a pin green the moment a real call lands
+upstream of it.

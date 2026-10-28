@@ -530,8 +530,9 @@ test_that("the per-species progress line counts only this job's groups", {
     seen[grepl("FILTER (WHERE accessible)", seen, fixed = TRUE)]
   }, error = function(e) seen[grepl("FILTER (WHERE accessible)", seen, fixed = TRUE)])
 
-  skip_if(length(counts) == 0,
-          "the classifier did not reach its progress count under mocking")
+  # Loud, not a skip: a guard that fails toward skip would turn this pin green
+  # the moment a real DB call is added upstream of the count.
+  expect_gt(length(counts), 0)
   expect_match(counts[1], "watershed_group_code IN", fixed = TRUE)
   expect_match(counts[1], "FROM working.streams s", fixed = TRUE)
 })
