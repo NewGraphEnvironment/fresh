@@ -55,7 +55,7 @@ filter (SALR anthropogenic: 14.8 M rows removed). With the streams network as fe
 it does not finish in 3 minutes. What works is what link measured in link#261 and
 `lnk_access()` does in production: the AOI's segments in a session temp table, with a btree
 on `blue_line_key`, GiST on both codes, and `ANALYZE`. The planner then reads the admitted
-features once and probes the small table per feature. The temp table costs 0.07-0.14 s for
+features once and probes the small table per feature. The temp table costs 0.07-0.15 s for
 7-14 k segments and 0.7 s for 77 k.
 
 A read-only alternative was tried and rejected: a per-segment prefilter fenced in a

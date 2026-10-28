@@ -163,7 +163,8 @@ Removing each part of the new SQL in turn, against the live test:
   UPET has one ancestor outside (`200.692231`) but no answer pair on it. Answer pairs only
   that arm admits, every 25th segment as features: CHWK 0, SAHD 0, UPET 0, SKGT 22 of 40,495,
   GUIC 344,635 of 381,522, LPRO 153,072 of 217,443, MUSK 1.27 M of 1.31 M, UTRE 1.00 M of 1.05 M.
-- The live test therefore uses **SKGT** (6,935 segments; reaches the Fraser, `100`, which has no
+- The live test therefore uses **SKGT** (6,935 segments; one of them, a 30 m connector, `linear_feature_id` 868144510, is coded
+  `100.111269`, so its ancestor `100`, the Fraser, has no
   SKGT segment): 6 s for both `include_equivalents` values and their plain-join references.
 
 ## Phase 3 measurement, 2026-10-28 (19:40-20:57 UTC)
@@ -179,7 +180,7 @@ no other client backend active; log and table in `data-raw/logs/network_features
 - **Against link's shape** (`old_scoped`: the same old SQL on an indexed temp copy of the
   group): 7.3-96.4 s, so the new form is 7.9× (LSKE) to 33× (CHWK BT) faster still. That
   isolates the prefilter's share, since both have the scoped table.
-- **DDL:** 0.07-0.14 s for 7-14 k segments, 0.7 s for LSKE's 77,496.
+- **DDL:** 0.07-0.15 s for 7-14 k segments, 0.7 s for LSKE's 77,496.
 - **Answers:** `d_set` agrees across every form of all 12 walks. `d_order` differs between
   `old_scoped` and `new` on SALR CH and CHWK CH/BT, the tie order the new `ORDER BY` key
   now fixes.

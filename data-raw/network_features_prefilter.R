@@ -19,7 +19,8 @@
 #
 # Runs are interleaved old, new, new, old per walk. Each statement has a
 # 10-minute timeout; a timed-out run is recorded (seconds NA, timed_out TRUE)
-# and the second old run is skipped once the first has timed out. A censored
+# and the second old run is skipped once the first has timed out (written with
+# timed_out NA, since it never ran). A censored
 # old form takes its digest from the same SQL with `segments` replaced by an
 # indexed, analyzed temp copy of the group (the shape link measured), so every
 # walk still has an oracle.
@@ -195,7 +196,7 @@ for (aoi in wsgs) {
     for (rep in 1:4) {
       form <- if (rep %in% c(1L, 4L)) "old" else "new"
       if (form == "old" && rep == 4L && old_censored) {
-        emit(wsg = aoi, features = v, form = form, rep = rep, timed_out = TRUE,
+        emit(wsg = aoi, features = v, form = form, rep = rep, timed_out = NA,
              seconds = NA, d_set = "skipped: first old run timed out",
              others_active = others(), measured_utc = now())
         next

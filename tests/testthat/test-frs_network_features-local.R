@@ -6,8 +6,10 @@
 # fwa_downstream() can return. These tests compare that path with the plain,
 # unprefiltered join on real FWA data, and check the temp table is gone after.
 
-# The AOI is SKGT. Its streams reach the Fraser (wscode `100`), which has no
-# segment in SKGT, so some of its downstream features sit on a stream whose
+# The AOI is SKGT. Its streams are on the Skagit (`970`) or placeholders, but one, a
+# 30 m connector (linear_feature_id 868144510), is coded `100.111269`, so
+# the Fraser (wscode `100`), which has no segment in SKGT, is an ancestor of
+# an SKGT code. Some of its downstream features sit on a stream whose
 # code is neither one of SKGT's own nor on one of its blue lines: only the
 # prefilter's ancestor arm admits those (22 of 40,495 pairs with the fixture
 # below). Removing that arm changed no answer pair in VICT, LKEL or UPET,

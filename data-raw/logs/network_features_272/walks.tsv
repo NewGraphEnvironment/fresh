@@ -2,12 +2,12 @@ wsg	features	form	rep	segments_out	ddl_seconds	walk_seconds	seconds	timed_out	d_
 SALR	barriers_ch_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T19:40:56Z
 SALR	barriers_ch_access	new	2	1343	0.109	1.867	1.976	FALSE	b4d1d7de1f9d38c8c3f9f2380f10863f	124ce29267bc8676d22c05c693b3182d	0	2026-10-28T19:40:58Z
 SALR	barriers_ch_access	new	3	1343	0.106	1.803	1.909	FALSE	b4d1d7de1f9d38c8c3f9f2380f10863f	124ce29267bc8676d22c05c693b3182d	0	2026-10-28T19:41:00Z
-SALR	barriers_ch_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T19:41:00Z
+SALR	barriers_ch_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T19:41:00Z
 SALR	barriers_ch_access	old_scoped	0	1343	NA	17.186	17.186	FALSE	09ff3c5432dcda98f7eb1cda55c6bc22	124ce29267bc8676d22c05c693b3182d	0	2026-10-28T19:41:17Z
 SALR	barriers_bt_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T19:51:17Z
 SALR	barriers_bt_access	new	2	448	0.101	0.699	0.8	FALSE	f8c4921e6dd3cc511d1280d0f53fab4e	39490a4a482529b243c763f9efd1e0f1	0	2026-10-28T19:51:18Z
 SALR	barriers_bt_access	new	3	448	0.101	0.707	0.808	FALSE	f8c4921e6dd3cc511d1280d0f53fab4e	39490a4a482529b243c763f9efd1e0f1	0	2026-10-28T19:51:19Z
-SALR	barriers_bt_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T19:51:19Z
+SALR	barriers_bt_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T19:51:19Z
 SALR	barriers_bt_access	old_scoped	0	448	NA	8.066	8.066	FALSE	f8c4921e6dd3cc511d1280d0f53fab4e	39490a4a482529b243c763f9efd1e0f1	0	2026-10-28T19:51:27Z
 SALR	barriers_anthropogenic_unified	old	1	6183	NA	1.099	1.099	FALSE	8c78e12e465ea90227fcb4e4b8f32979	1ce93d0bf1c5c958af276f952fa1fa51	0	2026-10-28T19:51:28Z
 SALR	barriers_anthropogenic_unified	new	2	6183	0.104	0.222	0.326	FALSE	8c78e12e465ea90227fcb4e4b8f32979	1ce93d0bf1c5c958af276f952fa1fa51	0	2026-10-28T19:51:29Z
@@ -16,12 +16,12 @@ SALR	barriers_anthropogenic_unified	old	4	6183	NA	1.112	1.112	FALSE	8c78e12e465e
 LKEL	barriers_ch_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T20:01:30Z
 LKEL	barriers_ch_access	new	2	6072	0.078	0.673	0.751	FALSE	00097fa8346f8eb4d4687113461d03c9	402791f0fbd1b9f4d5aed5a35252550f	0	2026-10-28T20:01:31Z
 LKEL	barriers_ch_access	new	3	6072	0.076	0.525	0.601	FALSE	00097fa8346f8eb4d4687113461d03c9	402791f0fbd1b9f4d5aed5a35252550f	0	2026-10-28T20:01:31Z
-LKEL	barriers_ch_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T20:01:31Z
+LKEL	barriers_ch_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T20:01:31Z
 LKEL	barriers_ch_access	old_scoped	0	6072	NA	12.756	12.756	FALSE	00097fa8346f8eb4d4687113461d03c9	402791f0fbd1b9f4d5aed5a35252550f	0	2026-10-28T20:01:44Z
 LKEL	barriers_bt_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T20:11:44Z
 LKEL	barriers_bt_access	new	2	5244	0.073	0.268	0.341	FALSE	bd9e53d1d7026f81dccc77973762072f	98423e48c9e81f14287a5d344193c884	0	2026-10-28T20:11:45Z
 LKEL	barriers_bt_access	new	3	5244	0.073	0.262	0.335	FALSE	bd9e53d1d7026f81dccc77973762072f	98423e48c9e81f14287a5d344193c884	0	2026-10-28T20:11:45Z
-LKEL	barriers_bt_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T20:11:45Z
+LKEL	barriers_bt_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T20:11:45Z
 LKEL	barriers_bt_access	old_scoped	0	5244	NA	7.273	7.273	FALSE	bd9e53d1d7026f81dccc77973762072f	98423e48c9e81f14287a5d344193c884	0	2026-10-28T20:11:52Z
 LKEL	barriers_anthropogenic_unified	old	1	6351	NA	0.854	0.854	FALSE	4ed6661ce17bbc45f04e06a9f20c1a11	7436b775241802a44750350fa09733a6	0	2026-10-28T20:11:53Z
 LKEL	barriers_anthropogenic_unified	new	2	6351	0.072	0.1	0.172	FALSE	4ed6661ce17bbc45f04e06a9f20c1a11	7436b775241802a44750350fa09733a6	0	2026-10-28T20:11:53Z
@@ -30,12 +30,12 @@ LKEL	barriers_anthropogenic_unified	old	4	6351	NA	0.847	0.847	FALSE	4ed6661ce17b
 CHWK	barriers_ch_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T20:21:55Z
 CHWK	barriers_ch_access	new	2	11301	0.146	3.2	3.346	FALSE	f8ae4683685bedf9bb97fec7fe846bd7	ec24624d0a5c0435b027ed15b0282d8e	0	2026-10-28T20:21:58Z
 CHWK	barriers_ch_access	new	3	11301	0.137	2.844	2.981	FALSE	f8ae4683685bedf9bb97fec7fe846bd7	ec24624d0a5c0435b027ed15b0282d8e	0	2026-10-28T20:22:01Z
-CHWK	barriers_ch_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T20:22:01Z
+CHWK	barriers_ch_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T20:22:01Z
 CHWK	barriers_ch_access	old_scoped	0	11301	NA	96.391	96.391	FALSE	fbd73ff4b744d4e08c84409bf109c986	ec24624d0a5c0435b027ed15b0282d8e	0	2026-10-28T20:23:37Z
 CHWK	barriers_bt_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T20:33:37Z
 CHWK	barriers_bt_access	new	2	10092	0.135	1.144	1.279	FALSE	0c6dc7cdb214b4267a6f8c8be40b33bc	e0c223133dc4eef2316f9b0f8096e798	0	2026-10-28T20:33:39Z
 CHWK	barriers_bt_access	new	3	10092	0.135	1.141	1.276	FALSE	0c6dc7cdb214b4267a6f8c8be40b33bc	e0c223133dc4eef2316f9b0f8096e798	0	2026-10-28T20:33:40Z
-CHWK	barriers_bt_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T20:33:40Z
+CHWK	barriers_bt_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T20:33:40Z
 CHWK	barriers_bt_access	old_scoped	0	10092	NA	42.594	42.594	FALSE	d7dc86094ec3cbe5624034202510c305	e0c223133dc4eef2316f9b0f8096e798	0	2026-10-28T20:34:23Z
 CHWK	barriers_anthropogenic_unified	old	1	10349	NA	1.202	1.202	FALSE	1cbbca12ab8761bfdb13aeb41067d498	7c43b3f77947e3915392f950ff066360	0	2026-10-28T20:34:24Z
 CHWK	barriers_anthropogenic_unified	new	2	10349	0.141	0.237	0.378	FALSE	1cbbca12ab8761bfdb13aeb41067d498	7c43b3f77947e3915392f950ff066360	0	2026-10-28T20:34:24Z
@@ -44,12 +44,12 @@ CHWK	barriers_anthropogenic_unified	old	4	10349	NA	1.184	1.184	FALSE	1cbbca12ab8
 LSKE	barriers_ch_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T20:44:26Z
 LSKE	barriers_ch_access	new	2	65897	0.723	7.849	8.572	FALSE	1ddb78bc91de0fe5d9dc5f442ca8465f	0fe0f70a8b7ab15858f05fc5af2c09a5	0	2026-10-28T20:44:35Z
 LSKE	barriers_ch_access	new	3	65897	0.679	7.458	8.137	FALSE	1ddb78bc91de0fe5d9dc5f442ca8465f	0fe0f70a8b7ab15858f05fc5af2c09a5	0	2026-10-28T20:44:43Z
-LSKE	barriers_ch_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T20:44:43Z
+LSKE	barriers_ch_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T20:44:43Z
 LSKE	barriers_ch_access	old_scoped	0	65897	NA	65.914	65.914	FALSE	1ddb78bc91de0fe5d9dc5f442ca8465f	0fe0f70a8b7ab15858f05fc5af2c09a5	0	2026-10-28T20:45:50Z
 LSKE	barriers_bt_access	old	1	NA	NA	NA	NA	TRUE	NA	NA	0	2026-10-28T20:55:50Z
 LSKE	barriers_bt_access	new	2	55730	0.665	3.818	4.483	FALSE	6a07d9cf827d73da34eff17cc39c155a	7b6f8f50ef04ef5f6b49e656e42e8c40	0	2026-10-28T20:55:54Z
 LSKE	barriers_bt_access	new	3	55730	0.681	3.502	4.183	FALSE	6a07d9cf827d73da34eff17cc39c155a	7b6f8f50ef04ef5f6b49e656e42e8c40	0	2026-10-28T20:55:58Z
-LSKE	barriers_bt_access	old	4	NA	NA	NA	NA	TRUE	NA	skipped: first old run timed out	0	2026-10-28T20:55:58Z
+LSKE	barriers_bt_access	old	4	NA	NA	NA	NA	NA	NA	skipped: first old run timed out	0	2026-10-28T20:55:58Z
 LSKE	barriers_bt_access	old_scoped	0	55730	NA	34.203	34.203	FALSE	6a07d9cf827d73da34eff17cc39c155a	7b6f8f50ef04ef5f6b49e656e42e8c40	0	2026-10-28T20:56:34Z
 LSKE	barriers_anthropogenic_unified	old	1	20060	NA	4.495	4.495	FALSE	86cc10d1cbcdebde2db3e98b3f748a8e	e75137e3498fd958387ffffd0c60c348	0	2026-10-28T20:56:38Z
 LSKE	barriers_anthropogenic_unified	new	2	20060	0.69	1.049	1.739	FALSE	86cc10d1cbcdebde2db3e98b3f748a8e	e75137e3498fd958387ffffd0c60c348	0	2026-10-28T20:56:40Z

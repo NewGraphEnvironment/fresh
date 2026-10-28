@@ -14,7 +14,9 @@ backend active (`others_active` is 0 on every row).
   of the group (the shape link measured in link#261). It runs only when `old` timed out, so
   that every walk still has an oracle digest.
 - **Order:** old, new, new, old per walk. Each statement has a 10-minute cap. When the first
-  `old` run times out, the second is skipped (`d_set` reads `skipped: …`).
+  `old` run times out, the second is skipped: `d_set` reads `skipped: …` and `timed_out` is
+  `NA`, so the 8 `TRUE` rows are the 8 runs that timed out. (The script first wrote `TRUE` on
+  the skipped rows; those 8 cells were corrected by hand to what the fixed script writes.)
 - **Digests:** link's `digest_sql`. `d_order` hashes each array in its returned order;
   `d_set` hashes the array sorted. `d_set` agrees across every form of every walk (12 of 12).
   `d_order` differs where the old SQL left ties to the plan (SALR CH, CHWK CH and BT
@@ -39,7 +41,7 @@ Seconds; `new` is the mean of its two runs, DDL included.
 | | BT | > 600 | 34.2 | 4.33 | > 138× |
 | | anthropogenic | 4.51 | | 1.74 | 2.6× |
 
-The temp table costs 0.07-0.14 s for the three smaller groups and 0.7 s for LSKE. On the
+The temp table costs 0.07-0.15 s for the three smaller groups and 0.7 s for LSKE. On the
 large views the old SQL never finished on the province-wide table, and the
 `old_scoped` column (the scoped table without the prefilter) is 7.9× (LSKE) to 33×
 (CHWK) slower than the new form.
