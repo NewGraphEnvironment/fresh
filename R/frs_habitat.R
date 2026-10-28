@@ -1723,6 +1723,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' Subtractive: sets `spawning = FALSE` for segments not found in either
 #' phase, preserving threshold classification from `frs_habitat_classify()`.
 #'
+#' `habitat` may hold other watershed groups' rows (a shared `to_habitat`):
+#' every join matches `watershed_group_code` too, and the subtractive and
+#' additive UPDATEs are confined to the groups present in `table`, so other
+#' groups are never read or written (fresh#242).
+#'
 #' @param conn DBI connection.
 #' @param table Character. Schema-qualified streams table.
 #' @param habitat Character. Schema-qualified habitat table.
@@ -1793,6 +1798,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        s2.wscode_ltree, s2.localcode_ltree
      FROM %s s2
      INNER JOIN %s hr ON s2.id_segment = hr.id_segment
+       AND hr.watershed_group_code = s2.watershed_group_code
      WHERE hr.species_code = %s AND hr.rearing IS TRUE
      ORDER BY s2.waterbody_key, s2.wscode_ltree, s2.localcode_ltree,
              s2.downstream_route_measure",
@@ -1824,12 +1830,14 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
               s2.blue_line_key, s2.downstream_route_measure
        FROM %s s2
        INNER JOIN %s hr ON s2.id_segment = hr.id_segment
+         AND hr.watershed_group_code = s2.watershed_group_code
        WHERE hr.species_code = %s AND hr.rearing IS TRUE
      ),
      spawn_upstream AS (
        SELECT s3.id_segment, s3.geom
        FROM %s s3
        INNER JOIN %s hs ON s3.id_segment = hs.id_segment
+         AND hs.watershed_group_code = s3.watershed_group_code
        WHERE hs.species_code = %s AND hs.spawning IS TRUE
          AND EXISTS (
            SELECT 1 FROM rearing_segs r
@@ -1879,12 +1887,23 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       qual_tbl, rearing_spawn_ctes))
   }
 
-  # Subtractive: remove spawning NOT found in either phase
+  # Subtractive: remove spawning NOT found in either phase. Joining `table`
+  # on both keys is what confines the clear to the groups this job segmented:
+  # without it the statement names no group at all, so on a shared `habitat`
+  # it cleared the species' spawning in every other group in the table — no
+  # id_segment collision required (fresh#242). `NOT EXISTS` on id_segment
+  # alone is exact once `h` is pinned to a row of `table`, since id_segment is
+  # unique there; it drops `NOT IN`'s fail-open behaviour on a NULL id, which
+  # qual_tbl cannot hold (every id in it comes from `table`).
   .frs_db_execute(conn, sprintf(
-    "UPDATE %s SET spawning = FALSE
-     WHERE species_code = %s AND spawning IS TRUE
-       AND id_segment NOT IN (SELECT id_segment FROM %s)",
-    habitat, sp_quoted, qual_tbl))
+    "UPDATE %s h SET spawning = FALSE
+     FROM %s s
+     WHERE h.id_segment = s.id_segment
+       AND h.watershed_group_code = s.watershed_group_code
+       AND h.species_code = %s AND h.spawning IS TRUE
+       AND NOT EXISTS (
+         SELECT 1 FROM %s q WHERE q.id_segment = h.id_segment)",
+    habitat, table, sp_quoted, qual_tbl))
 
   # Phase 3: Additive — promote accessible segments in the downstream
   # trace that meet spawn_connected thresholds but failed standard
@@ -1917,6 +1936,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
       "UPDATE %s h SET spawning = TRUE
        FROM %s s
        WHERE h.id_segment = s.id_segment
+         AND h.watershed_group_code = s.watershed_group_code
          AND h.species_code = %s
          AND h.accessible IS TRUE
          AND h.spawning IS FALSE

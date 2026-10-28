@@ -123,21 +123,21 @@ and two SELECTs — so for a target row "phase 1" is exactly
 
 ### Phase 2 — `.frs_connected_waterbody()` (live, highest severity)
 
-- [ ] Test (`lake_adjacent = FALSE`), red first: TEST lake lines with spawning
+- [x] Test (`lake_adjacent = FALSE`), red first: TEST lake lines with spawning
       downstream inside `distance_max` keep it, spawning on a sibling tributary
       does not; OTHR rows with `spawning = TRUE` survive — today wiped with no
       collision needed — and an OTHR `rearing = TRUE` collision creates no false
       Phase-1 origin.
-- [ ] Fix, one commit: the `origins_sql` join (`:1795`), the `rearing_segs` and
+- [x] Fix, one commit: the `origins_sql` join (`:1795`), the `rearing_segs` and
       `spawn_upstream` joins (`:1826`, `:1832`), and the subtractive UPDATE
       (`:1884`) rewritten as `FROM <table> s` on both keys plus `NOT EXISTS`
       against `qual_tbl`. Commit notes that `NOT IN` → `NOT EXISTS` drops a
       fail-open NULL escape that nothing relies on (`qual_tbl` is fed only from
       `table`).
-- [ ] Test + fix for the Phase 3 additive UPDATE (`:1919`), separate commit: an
+- [x] Test + fix for the Phase 3 additive UPDATE (`:1919`), separate commit: an
       OTHR row with `accessible = TRUE, spawning = FALSE` colliding on a traced
       `id_segment` must not be promoted.
-- [ ] Note the gap: Phase 2's `lake_adjacent = TRUE` cluster gate needs a real
+- [x] Note the gap: Phase 2's `lake_adjacent = TRUE` cluster gate needs a real
       lake polygon within 2 m, so a synthetic fixture leaves `valid_clusters`
       empty and that branch untested. Pure column-carrying once the table above
       is respected; recorded in `findings.md`, not papered over.

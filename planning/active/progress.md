@@ -23,3 +23,26 @@
   Gating the buckets by species instead would have made
   "wetland filter leaves lake_rearing and other species alone" unable to fail.
 - `test-frs_bucket_connected.R`: 26 pass, 0 fail, 0 skip — unchanged.
+
+### Phase 2 — `.frs_connected_waterbody()` (done)
+
+- `tests/testthat/test-frs_connectivity_wsg.R`: three tests, all red first, and
+  red on exactly the cross-group assertions — the within-TEST keep/strip
+  assertions passed before the fix, which is how the fixture is known to reach
+  the code paths rather than no-op.
+- Fixed: `origins_sql`, `rearing_segs` and `spawn_upstream` joins; the
+  subtractive UPDATE rewritten with `FROM <table> s` on both keys; the Phase 3
+  additive UPDATE.
+- Landed as one commit rather than the planned two: the additive and subtractive
+  fixes share one test file and one roxygen note, so splitting them would have
+  left a commit whose tests do not pass.
+- Settled a fixture question by probing rather than reading docs:
+  `fwa_upstream(a, a, b, b)` is TRUE whenever `b <@ a`, **equality included**
+  (`pg_get_functiondef`, and a truth-table query). So every `wscode = "100"`
+  segment counts as upstream of every other, and a segment that must be
+  strippable has to sit on a separate river (`wscode = "200"`).
+- Gap recorded, not papered over: Phase 2 with `lake_adjacent = TRUE` needs a
+  real lake polygon within 2 m of the cluster, so on a synthetic network
+  `valid_clusters` is always empty and that branch is untested. Once the
+  do-not-touch table in `task_plan.md` is respected the change there is pure
+  join-predicate work, but the test does not cover it.

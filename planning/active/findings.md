@@ -73,3 +73,17 @@ Every site where a habitat row is matched, read or written without a
 
 | Error | Resolution |
 |-------|------------|
+
+## `fwa_upstream()`'s 4-arg form admits equality
+
+`fwa_upstream(wscode_a, localcode_a, wscode_b, localcode_b)` with
+`wscode == localcode` on both sides reduces to `wscode_b <@ wscode_a`, which is
+TRUE when the two are equal (`whse_basemapping.fwa_upstream`, 4-arg, read with
+`pg_get_functiondef`; confirmed by a truth-table query, 2026-10-28).
+
+Consequence for the fixtures: every segment the helper builds on one `wscode`
+counts as upstream of every other on that code, because the helper sets
+`localcode_ltree = wscode_ltree`. A segment that must be **strippable** by
+`spawn_upstream` therefore has to sit on a separate river (`wscode = "200"`),
+which is not a descendant of `"100"`. A fixture that relied on downstream
+position alone within one wscode would have been unable to fail.
