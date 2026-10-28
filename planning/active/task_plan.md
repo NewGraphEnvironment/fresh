@@ -158,10 +158,10 @@ and two SELECTs — so for a target row "phase 1" is exactly
 
 ### Phase 4 — `.frs_cluster_upstream()` and `.frs_distance_filter()`
 
-- [ ] `.frs_cluster_upstream()`: test, then `clustering` carries
+- [x] `.frs_cluster_upstream()`: test, then `clustering` carries
       `s.watershed_group_code` (`:209`), the `valid_clusters` join (`:233`), the
       UPDATE (`:253`).
-- [ ] `.frs_distance_filter()`: test, then the outer UPDATE (`:1532`) and the
+- [x] `.frs_distance_filter()`: test, then the outer UPDATE (`:1532`) and the
       inner `NOT EXISTS` join (`:1537`).
 
 ### Phase 5 — `.frs_cluster_downstream()`, and `frs_cluster()`'s surface

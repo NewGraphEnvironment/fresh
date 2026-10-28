@@ -65,3 +65,11 @@
   minimum below `confluence_m` can be validated by spawning on an unrelated
   river. Every cluster minimum in the fixture sits at drm >= 1000 for that
   reason.
+
+### Phase 4 — `.frs_cluster_upstream()` and `.frs_distance_filter()` (done)
+
+- Three tests, four red assertions before the fix.
+- Each pass needed **two** fixtures rather than one, because the two directions
+  mask each other: where another group's row rescues a cluster, nothing is
+  stripped, so "the other group's rows survived" passes for the wrong reason.
+  The rescue case and the survival case therefore get separate fixtures.

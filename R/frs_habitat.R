@@ -1500,6 +1500,10 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' same-stream distance. Cross-BLK distance uses ltree-based
 #' network traversal.
 #'
+#' `habitat` may hold other watershed groups' rows (a shared `to_habitat`):
+#' both joins match `watershed_group_code` too, so another group's rows are
+#' never cleared and never satisfy the connection test (fresh#242).
+#'
 #' @noRd
 .frs_distance_filter <- function(conn, table, habitat,
                                  label_cluster, label_connect,
@@ -1530,11 +1534,13 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     "UPDATE %s h SET %s = FALSE
      FROM %s s
      WHERE h.id_segment = s.id_segment
+       AND h.watershed_group_code = s.watershed_group_code
        AND h.species_code = %s
        AND h.%s IS TRUE
        AND NOT EXISTS (
          SELECT 1 FROM %s r
          INNER JOIN %s hr ON r.id_segment = hr.id_segment
+           AND hr.watershed_group_code = r.watershed_group_code
          WHERE hr.species_code = %s
            AND hr.%s IS TRUE
            AND (

@@ -200,6 +200,7 @@ frs_cluster <- function(conn, table, habitat,
     "WITH clustering AS (
        SELECT
          h.id_segment,
+         s.watershed_group_code,
          ST_ClusterDBSCAN(s.geom, 1, 1) OVER () AS cluster_id,
          s.wscode_ltree,
          s.localcode_ltree,
@@ -207,6 +208,7 @@ frs_cluster <- function(conn, table, habitat,
          s.downstream_route_measure
        FROM %s h
        INNER JOIN %s s ON h.id_segment = s.id_segment
+         AND h.watershed_group_code = s.watershed_group_code
        WHERE h.species_code = %s
          AND h.%s IS TRUE
      ),
@@ -231,6 +233,7 @@ frs_cluster <- function(conn, table, habitat,
        INNER JOIN %s h2 ON h2.species_code = %s
          AND h2.%s IS TRUE
        INNER JOIN %s st ON h2.id_segment = st.id_segment
+         AND h2.watershed_group_code = st.watershed_group_code
        WHERE
          FWA_Upstream(
            cm.blue_line_key, cm.downstream_route_measure,
@@ -251,6 +254,7 @@ frs_cluster <- function(conn, table, habitat,
      SET %s = FALSE
      FROM clustering c
      WHERE h.id_segment = c.id_segment
+       AND h.watershed_group_code = c.watershed_group_code
        AND h.species_code = %s
        AND c.cluster_id NOT IN (SELECT cluster_id FROM valid_clusters)",
     habitat, table, sp_quoted, label_cluster,

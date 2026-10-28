@@ -167,3 +167,89 @@ test_that("another group's rows do not inflate the downstream trace distance", {
 
   expect_true(.bkt_flags(conn, "rearing")[["4"]])
 })
+
+
+# --- frs_cluster(direction = "upstream") ---
+#
+# No phase-1 protection here: upstream mode strips an on-spawning segment in an
+# invalid cluster like any other. Cluster D exists so one assertion is decisive
+# on its own — cluster C is rescued by the decoy under the current code, which
+# masks whether its rows would have been cleared.
+
+test_that("cluster upstream leaves another group's rows alone and is not rescued by them", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  segs <- rbind(
+    .bkt_seg(1, 2000, spawn = TRUE),
+    .bkt_seg(2, 1000, rear = TRUE),
+    .bkt_seg(3, 1000, rear = TRUE, blk = 3L, wscode = "300", y = 10000),
+    .bkt_seg(4, 2000, blk = 3L, wscode = "300", y = 10000),
+    .bkt_seg(5, 1000, rear = TRUE, blk = 4L, wscode = "400", y = 20000))
+  .bkt_fixture(conn, segs)
+  # id 4 as spawning: stream 4 is upstream of cluster C, so today it validates
+  # that cluster. id 5 as rearing: cluster D is invalid either way, so this is
+  # the row the strip reaches today.
+  .bkt_habitat_add(conn, rbind(.bkt_seg(4, 2000, spawn = TRUE),
+                               .bkt_seg(5, 1000, rear = TRUE)))
+  frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "rearing", label_connect = "spawning", species = "BT",
+    direction = "upstream", confluence_m = 10, verbose = FALSE)
+
+  own <- .bkt_flags(conn, "rearing")
+  expect_true(own[["2"]])    # valid: spawning upstream on the same blue line
+  expect_false(own[["3"]])   # invalid, and not rescued by OTHR's spawning row
+  expect_false(own[["5"]])   # invalid
+  expect_true(.bkt_flags(conn, "rearing", wsg = "OTHR")[["5"]])
+})
+
+
+# --- .frs_distance_filter() ---
+#
+# Keeps a `spawning` segment when some `rearing` segment is upstream of it on
+# the same blue line at any distance, or within `max_distance` otherwise. A
+# segment that must be strippable therefore sits on another blue line, is not
+# an ltree descendant of the rearing segment's wscode, and is far away.
+
+.dfl_run <- function(conn, max_distance = 1500) {
+  .frs_distance_filter(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    label_cluster = "spawning", label_connect = "rearing", species = "BT",
+    max_distance = max_distance, verbose = FALSE)
+}
+
+.dfl_segs <- function() {
+  rbind(.bkt_seg(1, 1000, rear = TRUE),
+        .bkt_seg(2, 2000, spawn = TRUE),
+        .bkt_seg(3, 0, spawn = TRUE, blk = 2L, wscode = "200", y = 50000))
+}
+
+test_that("distance_filter never clears another group's rows", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .bkt_fixture(conn, .dfl_segs())
+  .bkt_habitat_add(conn, .bkt_seg(3, 0, spawn = TRUE))
+  .dfl_run(conn)
+
+  own <- .bkt_flags(conn, "spawning")
+  expect_true(own[["2"]])    # kept: rearing below it on the same blue line
+  expect_false(own[["3"]])   # stripped: 50 km away on another blue line
+  expect_true(.bkt_flags(conn, "spawning", wsg = "OTHR")[["3"]])
+})
+
+test_that("distance_filter is not rescued by another group's connect rows", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Stream 4 lies 1000 m from segment 3, inside max_distance, but is rearing
+  # only in OTHR.
+  segs <- rbind(.dfl_segs(),
+                .bkt_seg(4, 2000, blk = 3L, wscode = "300", y = 50000))
+  .bkt_fixture(conn, segs)
+  .bkt_habitat_add(conn, .bkt_seg(4, 2000, rear = TRUE))
+  .dfl_run(conn)
+
+  own <- .bkt_flags(conn, "spawning")
+  expect_true(own[["2"]])
+  expect_false(own[["3"]])
+})
