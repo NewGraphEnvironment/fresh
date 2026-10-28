@@ -1,0 +1,4 @@
+"state","positions","locatealong_miss","locatealong_error","csv_measures","csv_locatealong_miss","csv_locatealong_error","expensive_positions","watershed_miss","watershed_error","trace_empty","trace_error","errors"
+"base",49725,0,0,23540,42,0,970,85,294,2,0,294
+"tiebreak",49725,0,0,23540,38,0,970,86,293,2,0,293
+"both",49725,0,0,23540,38,0,970,86,293,2,0,293

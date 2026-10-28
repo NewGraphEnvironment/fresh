@@ -1,0 +1,6 @@
+"state","call","src","id","candidate_rank","blue_line_key","m","was","now"
+"tiebreak","fwa_locatealong(csv)","crossings","crossings_108527",NA,356355973,4494.61997946051,"FALSE","TRUE"
+"tiebreak","fwa_locatealong(csv)","wsg_outlet","wsg_outlet_129",NA,356363393,322.567,"FALSE","TRUE"
+"tiebreak","fwa_locatealong(csv)","crossings","crossings_72826",NA,360862508,10821.8246201562,"FALSE","TRUE"
+"tiebreak","fwa_locatealong(csv)","wsg_outlet","wsg_outlet_147",NA,360880826,2100.018,"FALSE","TRUE"
+"tiebreak","fwa_watershedatmeasure",NA,NA,NA,359434058,159,NA,"FALSE"

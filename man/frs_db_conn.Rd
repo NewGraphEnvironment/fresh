@@ -67,6 +67,7 @@ DBI::dbDisconnect(conn)
 }
 \seealso{
 Other database: 
-\code{\link{frs_db_query}()}
+\code{\link{frs_db_query}()},
+\code{\link{frs_migration_trial}()}
 }
 \concept{database}

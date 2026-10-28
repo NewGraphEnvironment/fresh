@@ -153,6 +153,44 @@ helper file). It skips whenever that connection can't be made, so a set
 `PG_PASS_SHARE` with the server unreachable skips instead of erroring. Any new
 live test against a non-default DB should gate the same way.
 
+### Tests against a pending fwapg migration (`FRESH_PG*`, #266)
+
+A second group of env vars, independent of `PG*`, names a **local** fwapg:
+`FRESH_PGHOST` / `FRESH_PGPORT` / `FRESH_PGDATABASE` / `FRESH_PGUSER` /
+`FRESH_PGPASSWORD`, defaulting to the `docker/` container
+(`localhost:5432/fwapg`, `postgres`/`postgres`). `frs_fwapg_conn()` and
+`local_fwapg()` in `tests/testthat/helper-db.R` use them. These tests must not
+reach the shared instance `PG*` names: a trial DROPs and recreates fwapg's
+functions inside its transaction, a `COMMIT` slipping through would migrate a
+shared database for everyone, and `dblink` is installed there, so a rollback is
+not a full undo.
+
+`frs_migration_trial(conn, files)` applies pending migration files inside one
+transaction and rolls them back when the calling frame returns, so tests can run
+against a migration no database has yet:
+
+```bash
+# absolute paths — testthat runs from tests/testthat. Several files are
+# separated by .Platform$path.sep (":" here) and applied in the order given.
+M=~/Projects/repo/fwapg/db/migrations
+export FRESH_FWAPG_TRIAL="$M/202610131654__watershedatmeasure_drop_exbc.sql:$M/202610240132__indexpoint_tiebreak.sql"
+Rscript -e 'devtools::test(filter = "frs_fwapg_gate")'
+```
+
+Without `FRESH_FWAPG_TRIAL` the gated tests **skip**, naming the migration.
+`FRESH_FWAPG_CURRENT=true` says the database should already have it: then a
+stale one does not skip — the assertions run and fail, and so does the gate test
+in `test-frs_fwapg_gate.R`, which reads committed state on its own direct
+connection (never a trial's) so neither an unreachable database nor a
+rolled-back trial can turn the suite green.
+
+**One trial at a time per database.** A migration's DDL takes
+`AccessExclusiveLock` on every function it replaces, held for the whole of the
+trial's frame, so two trials on one database block each other.
+`frs_migration_trial()` sets `SET LOCAL lock_timeout = '60s'`, which turns that
+into `canceling statement due to lock timeout` rather than a hang — don't run
+the gated tests and `data-raw/point_snap_tie_sweep.R` at the same time.
+
 ## Naming Conventions
 
 ### Generated column names
@@ -210,7 +248,10 @@ Small durable technical reference for internal behavior worth remembering.
 - One lateral KNN query per dataset (`.frs_point_snap_sql()`). Data frame / `sf` points reach the DB as a session temp table (`.frs_db_write_temp()`), so a call needs one backend throughout (not pgbouncer transaction pooling).
 - Candidates are per **segment**, not per `blue_line_key` (unlike fwapg's `fwa_indexpoint()`): `num_features = 5` can list two segments of one stream. link's PSCIS scoring relies on that.
 - The placeholder guard is `wscode_ltree <@ '999'` (every `999.*` code). link's `lnk_points_snap()` excludes only `= '999'`, so it can snap to 37,416 placeholder segments fresh cannot (11 of 19,905 PSCIS at 150 m).
-- The measure is `CEIL(GREATEST(ds, FLOOR(LEAST(us, m))))` (bcfishpass): rounded down, but never below the segment's start rounded up. So a point equidistant from two segments at a vertex can land 1 m apart depending on the tie-break (`linear_feature_id`), and on a segment shorter than a metre the measure can sit just past its upstream end.
+- The measure is `CEIL(GREATEST(ds, FLOOR(LEAST(us, m))))` (bcfishpass): rounded down, but never below the segment's start rounded up. So a point equidistant from two segments at a vertex lands 1 m apart depending on which wins the tie, and on a segment shorter than a metre the measure can sit just past its upstream end.
+- An exact distance tie goes to the **higher** `downstream_route_measure` — the segment starting at the shared vertex, which is the one a measure there falls on, since measures resolve `[downstream, upstream)` — then to the lower `linear_feature_id` (#266). This is fwapg's rule (NewGraphEnvironment/fwapg#41), so fresh and `fwa_indexpoint()` agree on which segment a tie belongs to. Before #266 it was the lowest `linear_feature_id` alone, which has nothing to do with position.
+- The tie is ordered on the **raw** measure, carried out of the lateral as `measure_raw` and ordered on at all three sites (the lateral's KNN pick, the `candidate_rank` window, the final `ORDER BY`). It cannot be ordered on the clamped measure the caller gets: two segments sharing a vertex on a whole metre clamp to the same value, which would fall through to `linear_feature_id` and reinstate the old rule. `measure_raw` is not in the outer `SELECT`, so no new column reaches the caller.
+- Within one stream the rule is positional. A tie **across** two blue lines compares measures from different streams — deterministic, but no more positional than the lowest-id rule was; fwapg avoids it by leading on `blue_line_key`, which fresh cannot do without breaking nearest-first ordering.
 
 ### Waterbody area floors (`.frs_rule_ha_min()`)
 

@@ -8,7 +8,16 @@
 #' cost one snap query, not 10,000.
 #'
 #' Candidates are network segments within `tolerance` of the point,
-#' nearest first (ties broken by `linear_feature_id`). Placeholder
+#' nearest first. An exact distance tie — a point whose nearest point on
+#' two segments is the vertex they share — goes to the segment with the
+#' **higher** `downstream_route_measure`, the one starting at that vertex,
+#' because measures resolve `[downstream, upstream)`; `linear_feature_id`
+#' breaks what is still tied. This is fwapg's rule
+#' (NewGraphEnvironment/fwapg#41), so `frs_point_snap()` and
+#' `fwa_indexpoint()` agree on which segment a tie belongs to. The
+#' comparison is on the raw measure, not the whole-metre one below.
+#' Within one stream it is positional; a tie across two different blue
+#' lines is merely deterministic. Placeholder
 #' (`999.*`) and unmapped (NULL local code) segments are never candidates;
 #' `exclude_edge_types` drops more. The measure is a whole metre, following
 #' bcfishpass (`04_pscis.sql`): the position rounded down, but never below
@@ -376,10 +385,17 @@ frs_point_snap <- function(
 #' Build the bulk snap query
 #'
 #' One lateral KNN per point against the network table: candidates within
-#' `tolerance`, nearest first, ties broken by segment id. The whole-metre
-#' measure uses the bcfishpass `04_pscis.sql` formula.
+#' `tolerance`, nearest first, an exact distance tie going to the higher
+#' raw `measure_ds_col` and then to the lower segment id (fwapg's rule).
+#' The whole-metre measure uses the bcfishpass `04_pscis.sql` formula, and
+#' cannot be the ordering key: two segments sharing a vertex on a whole
+#' metre clamp to the same value, which would fall through to the segment
+#' id and reinstate the old rule. So the raw measure is carried out of the
+#' lateral as `measure_raw` and ordered on at all three sites; the outer
+#' `SELECT` does not list it, so no new column reaches the caller.
 #' `candidate_rank` is numbered outside the lateral so the index-ordered
-#' nearest-neighbour scan stays intact.
+#' nearest-neighbour scan stays intact — the tie key is a `Presorted Key`
+#' incremental sort over it, not a replacement for it.
 #'
 #' @param pts_sql Character. A `SELECT` yielding `id`, `geom` (Point,
 #'   EPSG:3005) and, when `has_hint`, `hint` (blue_line_key or NULL).
@@ -416,7 +432,8 @@ frs_point_snap <- function(
   rank_sql <- if (num_features > 1) {
     paste0(
       "  row_number() OVER (PARTITION BY c.id ",
-      "ORDER BY c.distance_to_stream, c.linear_feature_id) AS candidate_rank,\n")
+      "ORDER BY c.distance_to_stream, c.measure_raw DESC, ",
+      "c.linear_feature_id) AS candidate_rank,\n")
   } else {
     ""
   }
@@ -435,6 +452,7 @@ frs_point_snap <- function(
       "        (ST_LineLocatePoint(s.geom, ST_ClosestPoint(s.geom, p.geom))\n",
       "          * s.length_metre) + s.%s\n",
       "      )))) AS downstream_route_measure,\n",
+      "      s.%s AS measure_raw,\n",
       "      s.watershed_group_code,\n",
       "      s.%s AS wscode_ltree,\n",
       "      s.%s AS localcode_ltree,\n",
@@ -443,7 +461,7 @@ frs_point_snap <- function(
       "      ST_ClosestPoint(s.geom, p.geom) AS geom\n",
       "    FROM %s s\n",
       "    WHERE %s\n",
-      "    ORDER BY s.geom <-> p.geom, s.%s\n",
+      "    ORDER BY s.geom <-> p.geom, s.%s DESC, s.%s\n",
       "    LIMIT %d\n",
       "  ) s\n",
       ")\n",
@@ -460,14 +478,15 @@ frs_point_snap <- function(
       "%s",
       "  c.geom\n",
       "FROM c\n",
-      "ORDER BY c.id, c.distance_to_stream, c.linear_feature_id"
+      "ORDER BY c.id, c.distance_to_stream, c.measure_raw DESC, ",
+      "c.linear_feature_id"
     ),
     pts_sql,
-    col_seg, col_blk, col_ds, col_us, col_ds,
+    col_seg, col_blk, col_ds, col_us, col_ds, col_ds,
     .frs_opt("wscode_col"), .frs_opt("localcode_col"),
     .frs_opt("tbl_network"),
     paste(where_parts, collapse = "\n      AND "),
-    col_seg,
+    col_ds, col_seg,
     as.integer(num_features),
     col_id,
     rank_sql
