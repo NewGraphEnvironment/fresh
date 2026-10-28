@@ -86,8 +86,9 @@ test_that("a quoted identifier is code, not a place to hide a COMMIT", {
   # inside "..." PostgreSQL treats ' -- /* and $ as ordinary characters, so a
   # lexer without that token class blanks real SQL and lets a top-level COMMIT
   # through — the one failure direction that matters here
-  refuse <- function(x) expect_error(fresh:::.frs_migration_trial_sql(x),
-                                     "controls its own transaction")
+  refuse <- function(x) {
+    expect_error(fresh:::.frs_migration_trial_sql(x), "controls its own transaction")
+  }
   refuse('ALTER TABLE t RENAME TO "x--y"; COMMIT;')
   refuse(paste("COMMENT ON COLUMN t.\"a's\" IS 'x';", "COMMIT;",
                "COMMENT ON COLUMN t.\"b's\" IS 'z';", sep = "\n"))

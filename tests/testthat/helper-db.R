@@ -55,3 +55,59 @@ local_fwapg <- function(env = parent.frame()) {
   withr::defer(DBI::dbDisconnect(conn), envir = env)
   conn
 }
+
+# Does this database's fwa_indexpoint() have fwapg#41's rework? The reworked
+# one is the one with the include_disconnected filter. '…'::regproc THROWS
+# when the function is absent or ambiguous, so the skip path catches that — an
+# error there would be a test error, not a skip. The gate test in
+# test-frs_fwapg_gate.R deliberately does not catch it.
+frs_indexpoint_current <- function(conn) {
+  a <- tryCatch(
+    DBI::dbGetQuery(conn,
+      "SELECT pg_get_function_arguments('whse_basemapping.fwa_indexpoint'::regproc) AS a")$a,
+    error = function(e) NA_character_)
+  isTRUE(any(grepl("include_disconnected", a)))
+}
+
+# FRESH_FWAPG_CURRENT=true (or 1) says this database should already have the
+# rework. Then a stale one does not skip: the assertions run and fail, and so
+# does the gate test, which reads committed state on its own connection.
+frs_fwapg_current_wanted <- function() {
+  tolower(Sys.getenv("FRESH_FWAPG_CURRENT")) %in% c("true", "1")
+}
+
+# FRESH_FWAPG_TRIAL names the migration file(s) to apply inside a transaction
+# rolled back when the test ends, so the tests below can run against a
+# migration no database has yet. Several files are separated by
+# .Platform$path.sep, applied in the order given.
+frs_fwapg_trial_files <- function() {
+  v <- Sys.getenv("FRESH_FWAPG_TRIAL")
+  if (!nzchar(v)) {
+    return(character())
+  }
+  strsplit(v, .Platform$path.sep, fixed = TRUE)[[1]]
+}
+
+# A connection whose fwa_indexpoint() has the rework, or a skip naming the
+# migration that is missing.
+local_fwapg_indexpoint <- function(env = parent.frame()) {
+  conn <- local_fwapg(env)
+  files <- frs_fwapg_trial_files()
+  if (length(files)) {
+    # testthat runs from tests/testthat, so a relative path names another file
+    absent <- files[!file.exists(files)]
+    if (length(absent)) {
+      stop("FRESH_FWAPG_TRIAL names no such file: ", paste(absent, collapse = ", "),
+           " (give an absolute path)")
+    }
+    # `env` passed through, or the rollback fires before the test body runs —
+    # and before the disconnect local_fwapg() deferred, since defer() prepends
+    frs_migration_trial(conn, files, env = env)
+  }
+  if (!frs_indexpoint_current(conn) && !frs_fwapg_current_wanted()) {
+    testthat::skip(paste(
+      "fwapg's fwa_indexpoint() predates migration 202610240132__indexpoint_tiebreak",
+      "(NewGraphEnvironment/fwapg#41); set FRESH_FWAPG_TRIAL to trial it"))
+  }
+  conn
+}
