@@ -108,37 +108,37 @@ each, because these are the parts of the plan most likely to be mis-remembered l
 
 ## Phase 1 — `frs_migration_trial()`: the rolled-back migration trial
 
-- [ ] `tests/testthat/test-frs_migration_trial.R` first, ported from wet's 90-line file: the own
+- [x] `tests/testthat/test-frs_migration_trial.R` first, ported from wet's 90-line file: the own
       `BEGIN;`/`COMMIT;` pair blanked as a pair with **line numbers preserved**; a plpgsql body's
       bare `BEGIN`/`END` and `END IF;` left alone; and the refusal list — transaction control split
       by a line break, by a `--` comment, by a `/* */` comment, after a `\r`, an unterminated
       `COMMIT` at end of input, a 40-dash comment run and a 20-block-comment run (the PCRE
       match-limit cases), each refusal naming the line; plus `dblink_exec`,
       `COPY ... FROM PROGRAM`, `setval`, `pg_background_launch`.
-- [ ] `R/frs_migration_trial.R`: exported `frs_migration_trial(conn, files, env = parent.frame())`
+- [x] `R/frs_migration_trial.R`: exported `frs_migration_trial(conn, files, env = parent.frame())`
       and internal `.frs_migration_trial_sql(sql)`. Port wet's possessive/atomic comment grammar
       and keyword set (`BEGIN`, `START TRANSACTION`, `COMMIT`, `END`, `ROLLBACK`, `ABORT`,
       `PREPARE TRANSACTION` with their option trailers), `\z` rather than `$` under `(?im)`, and
       **a `gregexpr()` warning treated as a refusal** (a regex that gave up has not looked).
-- [ ] `files` is a vector: one `DBI::dbBegin()`, each file stripped and applied in order with
+- [x] `files` is a vector: one `DBI::dbBegin()`, each file stripped and applied in order with
       `DBI::dbExecute(conn, body, immediate = TRUE)` — `immediate` is load-bearing, since RPostgres
       otherwise prepares the statement and a prepared statement cannot carry multiple commands
       (these bodies are 1,369 and 895 lines with `$$` / `$function$` quoting). One
       `withr::defer(DBI::dbRollback(conn), envir = env)`. Record `pg_current_xact_id()` before and
       compare with `pg_current_xact_id_if_assigned()` after **each** file; equal passes, NULL/NA
       (a commit opened a fresh unassigned transaction) and a different id both refuse.
-- [ ] `DBI::dbBegin()` fails on a connection already in a transaction: say so in the roxygen, and
+- [x] `DBI::dbBegin()` fails on a connection already in a transaction: say so in the roxygen, and
       check it in both callers (Phase 3's script and Phase 4's helper).
-- [ ] Promote `withr` from `Suggests` to `Imports`. The function is exported and link will call it
+- [x] Promote `withr` from `Suggests` to `Imports`. The function is exported and link will call it
       from an installed package, where a suggested dependency is not guaranteed; link has `withr`
       in `Suggests` only.
-- [ ] roxygen with a `\dontrun{}` example — fresh's actual style for DB-dependent exports
+- [x] roxygen with a `\dontrun{}` example — fresh's actual style for DB-dependent exports
       (`R/frs_point_locate.R:16-22`); there is no `@examplesIf` anywhere in `R/`, and R-CMD-check
       runs examples on every PR. Document the limits: a rollback does not undo work committed on
       another connection (`dblink` is installed on the shared fwapg), `COPY ... PROGRAM`,
       `setval()`/`nextval()`, or files written server side; and that a refusal after file *n* ran
       is undone by the already-registered deferred rollback, not by the refusal.
-- [ ] Two live tests: a table a trial creates is visible on the trial's connection, invisible on a
+- [x] Two live tests: a table a trial creates is visible on the trial's connection, invisible on a
       second connection, and gone on both after the frame exits; and a migration with a mid-file
       `COMMIT;` is refused **before anything runs** (`to_regclass` still NA).
 

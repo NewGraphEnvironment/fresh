@@ -26,6 +26,7 @@ Imports:
     DBI,
     RPostgres,
     sf,
+    withr,
     yaml
 Suggests:
     bit64,
@@ -37,8 +38,7 @@ Suggests:
     tibble,
     mockery,
     testthat (>= 3.0.0),
-    tmap (>= 4.0),
-    withr
+    tmap (>= 4.0)
 Config/DOI: 10.5281/zenodo.23524744
 Config/testthat/edition: 3
 Remotes:

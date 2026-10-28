@@ -29,3 +29,29 @@ skip_if_no_conn <- function(connect = frs_db_conn) {
     testthat::skip(paste("DB connection failed:", err))
   }
 }
+
+# A connection to a local fwapg, or a skip. `FRESH_PG*` env vars, defaulting to
+# the `docker/` container, because these tests must not reach the shared
+# instance the `PG*` vars name: a trial DROPs and recreates fwapg's functions
+# inside its transaction, and a rollback there is not a full undo (`dblink` is
+# installed on the shared host). Never on CI: they need the database.
+frs_fwapg_conn <- function() {
+  DBI::dbConnect(
+    RPostgres::Postgres(),
+    host = Sys.getenv("FRESH_PGHOST", "localhost"),
+    port = as.integer(Sys.getenv("FRESH_PGPORT", "5432")),
+    dbname = Sys.getenv("FRESH_PGDATABASE", "fwapg"),
+    user = Sys.getenv("FRESH_PGUSER", "postgres"),
+    password = Sys.getenv("FRESH_PGPASSWORD", "postgres")
+  )
+}
+
+local_fwapg <- function(env = parent.frame()) {
+  testthat::skip_on_ci()
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("RPostgres")
+  conn <- tryCatch(frs_fwapg_conn(), error = function(e) NULL)
+  if (is.null(conn)) testthat::skip("no local fwapg database")
+  withr::defer(DBI::dbDisconnect(conn), envir = env)
+  conn
+}
