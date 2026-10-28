@@ -254,3 +254,30 @@ Outside this branch, unscoped, and all four in
 habitat table's absent unique index.
 
 Nothing else in `R/` reads a habitat table.
+
+## Final enumeration: 19 of 19 sites pinned
+
+Re-run over the finished tree, each site mutated alone, baseline confirmed
+green and skip-free first:
+
+```
+sites with no test catching them: 0 of 19
+```
+
+Every `watershed_group_code` predicate in the four connectivity passes, plus
+`.frs_bucket_connected()`'s from #240 and the `IS NOT TRUE` phase-1 predicate,
+is individually caught by a named test. Four more mutations outside that list
+were run by hand and each reddens its own test: the `.frs_wsg_in()` clause
+neutered to `""` (4 assertions), its inner column unqualified, the classifier's
+count unscoped, and `frs_cluster()`'s species resolution unscoped.
+
+This is what ends the review loop. Round 2 found a defect inside round 1's fix,
+and `code-check.md` says that from then on only an enumeration terminates — not
+a quiet round, and not a reviewer saying it has converged. There are
+enumerations on all five axes the rounds exposed: statement kind (23
+`FILTER (WHERE` hits in `R/`, 9 over a habitat table, all scoped), function role
+(every function whose signature names a habitat table), predicate placement
+(all 8 `.frs_wsg_in()` sites checked for arity, placement and the leading
+space), fixture axis (the table above), and artifact kind (every `.R`, `.Rmd`,
+`.md` and `.Rd` sweep for an `id_segment` join, which found one the review had
+not).
