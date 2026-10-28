@@ -253,6 +253,11 @@ Small durable technical reference for internal behavior worth remembering.
 - The tie is ordered on the **raw** measure, carried out of the lateral as `measure_raw` and ordered on at all three sites (the lateral's KNN pick, the `candidate_rank` window, the final `ORDER BY`). It cannot be ordered on the clamped measure the caller gets: two segments sharing a vertex on a whole metre clamp to the same value, which would fall through to `linear_feature_id` and reinstate the old rule. `measure_raw` is not in the outer `SELECT`, so no new column reaches the caller.
 - Within one stream the rule is positional. A tie **across** two blue lines compares measures from different streams — deterministic, but no more positional than the lowest-id rule was; fwapg avoids it by leading on `blue_line_key`, which fresh cannot do without breaking nearest-first ordering.
 
+### Network features (`frs_network_features()`)
+
+- `direction = "downstream"` with an `aoi` copies the AOI's segments into a session temp table (btree on `blue_line_key`, GiST on both codes, `ANALYZE`) and prefilters the features to those on one of its blue lines or whose wscode is an ancestor of, or equal to, a segment's: the whole of `fwa_downstream()`'s reach (#272). The call needs one backend and a session that can create temp tables, as `frs_point_snap()` does. `aoi = NULL` and `"upstream"` are the unprefiltered walk.
+- On FWA's own codes the blue-line arm is redundant (no blue line carries two wscodes); it keeps a feature table with missing or different codes correct. A test that drops an arm needs a group and features that reach it: `research/fwa_downstream_walk.md`, "Prefiltering the feature side".
+
 ### Waterbody area floors (`.frs_rule_ha_min()`)
 
 - A `waterbody_type` rule's area floor is read **only** through `.frs_rule_ha_min()` (`lake_ha_min` on L, `wetland_ha_min` on W). The rule compiler, the lake / wetland bucket predicates and the waterbody-connected spawning floor all call it. Two readers drifting is what #237 was.
