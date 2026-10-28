@@ -216,3 +216,41 @@ number — pinned by a text assertion in `test-utils.R` instead), and
 `frs_habitat_classify()`'s progress count (reaching it for real needs a
 classifiable streams table, so it is pinned on the SQL in
 `test-frs_habitat_classify.R`).
+
+## Enumeration: every statement in `R/` that reads a habitat table
+
+Walked from the source — `grep` for each function whose signature names a
+habitat table, then every `FROM %s` / `UPDATE %s` / `count(*) FILTER` /
+`SELECT DISTINCT` in those files — rather than recalled. This is what ends the
+review loop: not a reviewer saying it is complete, but a list whose every member
+has a verdict.
+
+| file | statement | scoped |
+|---|---|---|
+| `frs_cluster.R:139` | `species = NULL` resolution | yes, `EXISTS` on `table` |
+| `frs_cluster.R:153`, `:176` | before / after counts | yes, `.frs_wsg_in()` |
+| `frs_cluster.R:223`, `:245`, `:267` | upstream clustering, valid_clusters, UPDATE | yes |
+| `frs_cluster.R:309`, `:339`, `:390` | downstream clustering, has_connect, UPDATE | yes |
+| `frs_cluster.R:467`, `:487`, `:549`, `:604` | both: tmp_clusters, phase 2, phase 3, UPDATE | yes |
+| `frs_habitat.R:1372` | bucket count | yes, `.frs_wsg_in()` |
+| `frs_habitat.R:1476` | bucket hab_join | yes (#240) |
+| `frs_habitat.R:1519`, `:1577` | distance_filter counts | yes, `.frs_wsg_in()` |
+| `frs_habitat.R:1538`, `:1544` | distance_filter UPDATE, NOT EXISTS | yes |
+| `frs_habitat.R:1783`, `:1959` | connected_waterbody counts | yes, `.frs_wsg_in()` |
+| `frs_habitat.R:1809`, `:1841`, `:1848` | origins_sql, rearing_segs, spawn_upstream | yes |
+| `frs_habitat.R:1910`, `:1947` | subtractive and additive UPDATEs | yes |
+| `frs_habitat_classify.R:245` | per-WSG DELETE | yes, already was |
+| `frs_habitat_classify.R:398` | per-species progress count | yes, `.frs_wsg_in()` |
+
+Checked and **not** in this class, so correctly unscoped:
+`frs_habitat_classify.R:164` reads the streams table, not habitat; `:322` counts
+a per-threshold temp table derived from `table`; `:502` counts the
+caller-supplied `barrier_overrides`.
+
+Outside this branch, unscoped, and all four in
+[#277](https://github.com/NewGraphEnvironment/fresh/issues/277):
+`frs_habitat_overlay.R:251`, `frs_order_child.R:271` (and its own count at
+`:291`), `frs_habitat.R:515` and `:675` (the custom-AOI persist DELETE), and the
+habitat table's absent unique index.
+
+Nothing else in `R/` reads a habitat table.
