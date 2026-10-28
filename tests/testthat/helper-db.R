@@ -72,8 +72,21 @@ frs_indexpoint_current <- function(conn) {
 # FRESH_FWAPG_CURRENT=true (or 1) says this database should already have the
 # rework. Then a stale one does not skip: the assertions run and fail, and so
 # does the gate test, which reads committed state on its own connection.
+# A value this does not recognise must not read as "not set": everything else
+# here is built so a stale database cannot hide, and this is the one input that
+# would turn the gate off quietly. A trailing space is easy to acquire from a
+# Makefile variable or a YAML `env:` block.
 frs_fwapg_current_wanted <- function() {
-  tolower(Sys.getenv("FRESH_FWAPG_CURRENT")) %in% c("true", "1")
+  v <- tolower(trimws(Sys.getenv("FRESH_FWAPG_CURRENT")))
+  if (v %in% c("true", "1", "yes", "y", "t", "on")) {
+    return(TRUE)
+  }
+  if (!v %in% c("", "false", "0", "no", "n", "f", "off")) {
+    stop("FRESH_FWAPG_CURRENT is set to ", sQuote(Sys.getenv("FRESH_FWAPG_CURRENT")),
+         ", which is neither true nor false: refusing to guess, because guessing ",
+         "false would let a stale database skip instead of fail")
+  }
+  FALSE
 }
 
 # FRESH_FWAPG_TRIAL names the migration file(s) to apply inside a transaction

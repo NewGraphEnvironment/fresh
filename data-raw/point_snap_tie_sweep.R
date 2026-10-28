@@ -665,7 +665,11 @@ body <- c(
   "  trace_empty rather than pinned as a behaviour change."
 )
 writeLines(c(header, body), file.path(dir_out, "sweep.txt"))
-utils::write.csv(summary, file.path(dir_out, "sweep_summary.csv"), row.names = FALSE)
+# `secs` is left out here for the same reason it is left out of the body: it is
+# tracked, and two runs over identical inputs would differ on it. The header
+# carries the elapsed times.
+utils::write.csv(summary[, setdiff(names(summary), "secs")],
+                 file.path(dir_out, "sweep_summary.csv"), row.names = FALSE)
 utils::write.csv(moved, file.path(dir_out, "sweep_changed.csv"), row.names = FALSE)
 all_errors <- do.call(rbind, lapply(states, function(s) {
   if (!nrow(s$errors)) {

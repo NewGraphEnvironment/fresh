@@ -289,7 +289,7 @@ each, because these are the parts of the plan most likely to be mis-remembered l
 
 ## Phase 5 — research note and bookkeeping
 
-- [ ] Revise `research/fwa_point_snap.md`: the `distance ties` row becomes the new rule for both
+- [x] Revise `research/fwa_point_snap.md`: the `distance ties` row becomes the new rule for both
       fwapg and fresh (link's stays until link#383); stamp the two passages that measured the old
       rule — the "22 equidistant ties" parity bullet and the closing "resolves 1 m apart depending
       on which segment wins the tie" — as measured against fresh 0.40.0 and link 0.50.0, since
@@ -298,8 +298,8 @@ each, because these are the parts of the plan most likely to be mis-remembered l
       that cost Phase 4 two pins: `fwa_watershedatmeasure` has no top bound, and `frs_cluster()`'s
       trace starts are segment lower bounds). Provenance line in house style: date, issue, script,
       log dir, migration filenames + md5s, fwapg commit.
-- [ ] Refresh the `research/README.md` index row.
-- [ ] `devtools::document()`, `lintr::lint_package()`, `devtools::test()` (grepped in one call).
+- [x] Refresh the `research/README.md` index row.
+- [x] `devtools::document()`, `lintr::lint_package()`, `devtools::test()` (grepped in one call).
 - [ ] `NEWS.md` entry and `DESCRIPTION` version bump as the **final** commit of the branch.
 
 ## Owed at the end (reported, done after merge)

@@ -13,7 +13,10 @@
 # does. The second pin is the one position of 970 that the sweep found
 # erroring before the migration and not after.
 
-# The exact top of a blue line, derived rather than retyped, and sent exactly
+# The exact top of a blue line among the segments fresh would snap to — this
+# chooses the measure, so fresh's guards belong here; proving the red side over
+# the population fwa_locatealong() actually scans is skip_unless_head_case()'s
+# job. Derived rather than retyped, and sent exactly
 # as frs_point_locate() sends it: sprintf("%s", m), which is as.character() and
 # so carries 15 significant digits. That rounding matters at a boundary — for
 # 185 of 400 sampled streams it rounds the top UP, outside even the closed
@@ -36,6 +39,15 @@ blk_top <- function(conn, blk) {
 # round(us, 4)` is false by construction, whatever the range's openness. That
 # predicate selecting nothing is the red side, and it is the same query on any
 # database, whichever version of the function is installed.
+#
+# It is scanned over EVERY segment of the blue line, with none of fresh's
+# candidate guards, because fwa_locatealong() has none either — its only
+# predicate is on blue_line_key and the two rounded measures. Carrying the
+# guards here would have modelled a narrower population than the function
+# scans: measured over 20,000 blue lines, 109 of them have an unguarded
+# segment (a 1425 connector, a NULL local code, a `999.*` code) whose range
+# holds the guarded maximum, so the guard would pass while the pre-rework
+# function resolves the measure and the pin goes green on a stale database.
 skip_unless_head_case <- function(conn, blk, m) {
   n <- DBI::dbGetQuery(conn, sprintf(
     "SELECT count(*) FILTER (
@@ -44,11 +56,9 @@ skip_unless_head_case <- function(conn, blk, m) {
             count(*) FILTER (
               WHERE round(downstream_route_measure::numeric, 4) <= round(%1$s::numeric, 4)
                 AND round(upstream_route_measure::numeric, 4) >= round(%1$s::numeric, 4)) AS closed,
-            round(max(upstream_route_measure)::numeric, 4) = round(%1$s::numeric, 4) AS at_top
+            round(max(upstream_route_measure)::numeric, 4) >= round(%1$s::numeric, 4) AS at_top
      FROM whse_basemapping.fwa_stream_networks_sp
-     WHERE blue_line_key = %2$d
-       AND localcode_ltree IS NOT NULL AND NOT wscode_ltree <@ '999'
-       AND edge_type <> 1425", sprintf("%s", m), blk))
+     WHERE blue_line_key = %2$d", sprintf("%s", m), blk))
   skip_if_not(isTRUE(n$at_top) && n$old_rule == 0L && n$closed >= 1L,
               sprintf("blue line %d at %s is not a head case on this database", blk,
                       sprintf("%s", m)))
