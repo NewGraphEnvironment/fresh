@@ -11,7 +11,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/NewGraphEnvironment/fresh/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/NewGraphEnvironment/fresh/blob/v0.46.0/inst/CITATION)
 
 Irvine A (2026). *fresh: Freshwater Referenced Spatial Hydrology*. New
 Graph Environment Ltd.
