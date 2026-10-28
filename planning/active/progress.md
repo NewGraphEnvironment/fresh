@@ -11,3 +11,15 @@
 - Created branch `242-connectivity-passes-join-a-shared-habita` off main
 - Scaffolded PWF baseline from issue #242 with approved phases
 - Next: Phase 1 — move the synthetic fixture to `helper-synthetic.R`
+
+### Phase 1 — synthetic fixture shared (done)
+
+- `tests/testthat/helper-synthetic.R`: `.bkt_seg()` gains `gradient`, `rear`,
+  `access`, `cw`, `edge`; `.bkt_fixture()` gains `wsg` and `species_other` and
+  writes `channel_width` / `edge_type`; new `.bkt_habitat_add()` inserts a second
+  group's colliding habitat rows; `.bkt_flags()` takes `wsg`.
+- The flag gating is preserved exactly: `spawning` and `rearing` only on the
+  fixture's own species, `accessible` and the two bucket flags on every species.
+  Gating the buckets by species instead would have made
+  "wetland filter leaves lake_rearing and other species alone" unable to fail.
+- `test-frs_bucket_connected.R`: 26 pass, 0 fail, 0 skip — unchanged.

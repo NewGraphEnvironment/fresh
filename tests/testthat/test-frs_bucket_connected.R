@@ -3,66 +3,8 @@
 # they need a connection with the fwapg functions (FWA_Downstream) but no
 # FWA rows, except the predicate test, which reads one real lake polygon.
 
-# Build pg_temp streams + habitat tables from a segment spec. Each row is a
-# 1000 m segment on a straight line: `drm` is its downstream route measure,
-# its geometry runs x = drm .. drm + len at y = `y`, so straight-line and
-# network distance agree along one blue_line_key. `scale` shrinks the
-# geometry but not length_metre: at 0.01 every segment is within a few
-# metres of every other, so the straight-line prefilter passes everything
-# and only the network-distance cap can decide.
-.bkt_fixture <- function(conn, segs, species = "BT", scale = 1) {
-  for (t in c("pg_temp.bkt_streams", "pg_temp.bkt_habitat")) {
-    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
-  }
-  DBI::dbExecute(conn, "
-    CREATE TEMP TABLE bkt_streams (
-      id_segment integer, linear_feature_id bigint,
-      blue_line_key integer, watershed_key integer,
-      downstream_route_measure double precision,
-      length_metre double precision, gradient double precision,
-      wscode_ltree ltree, localcode_ltree ltree,
-      waterbody_key integer, watershed_group_code text,
-      geom geometry(LineString, 3005))")
-  DBI::dbExecute(conn, "
-    CREATE TEMP TABLE bkt_habitat (
-      id_segment integer, watershed_group_code text, species_code text,
-      accessible boolean, spawning boolean, rearing boolean,
-      lake_rearing boolean, wetland_rearing boolean)")
-  for (i in seq_len(nrow(segs))) {
-    r <- segs[i, ]
-    DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_streams VALUES (%d, %d, %d, %d, %s, %s, 0.01,
-         '%s'::ltree, '%s'::ltree, %s, 'TEST',
-         ST_SetSRID(ST_MakeLine(ST_MakePoint(%s, %s), ST_MakePoint(%s, %s)), 3005))",
-      r$id, r$id, r$blk, r$blk, r$drm, r$len, r$wscode, r$wscode,
-      if (is.na(r$wbk)) "NULL" else r$wbk,
-      (r$x0 + r$drm) * scale, r$y * scale,
-      (r$x0 + r$drm + r$len) * scale, r$y * scale))
-    for (sp in unique(c(species, "CO"))) {
-      own <- sp == species
-      DBI::dbExecute(conn, sprintf(
-        "INSERT INTO pg_temp.bkt_habitat VALUES (%d, 'TEST', '%s', TRUE,
-           %s, FALSE, %s, %s)",
-        r$id, sp, own && r$spawn, r$lake, r$wet))
-    }
-  }
-}
-
-# Segment spec helper: one row per segment
-.bkt_seg <- function(id, drm, wbk = NA, spawn = FALSE, lake = FALSE,
-                     wet = FALSE, blk = 1L, wscode = "100", y = 0,
-                     len = 1000, x0 = 0) {
-  data.frame(id = id, drm = drm, wbk = wbk, spawn = spawn, lake = lake,
-             wet = wet, blk = blk, wscode = wscode, y = y, len = len,
-             x0 = x0)
-}
-
-.bkt_flags <- function(conn, column = "lake_rearing", species = "BT") {
-  d <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT id_segment, %s AS flag FROM pg_temp.bkt_habitat
-     WHERE species_code = '%s' ORDER BY id_segment", column, species))
-  stats::setNames(d$flag, d$id_segment)
-}
+# The fixture (.bkt_fixture / .bkt_seg / .bkt_flags) is in
+# tests/testthat/helper-synthetic.R, shared with test-frs_connectivity_wsg.R.
 
 .bkt_run <- function(conn, distance_max, column = "lake_rearing") {
   .frs_bucket_connected(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",

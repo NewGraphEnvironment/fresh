@@ -111,15 +111,15 @@ and two SELECTs — so for a target row "phase 1" is exactly
 
 ### Phase 1 — Share the synthetic fixture
 
-- [ ] Move `.bkt_fixture()` / `.bkt_seg()` / `.bkt_flags()` from
+- [x] Move `.bkt_fixture()` / `.bkt_seg()` / `.bkt_flags()` from
       `tests/testthat/test-frs_bucket_connected.R` to
       `tests/testthat/helper-synthetic.R` (testthat gives each test file its own
       environment, so a new file cannot see them where they are).
-- [ ] Add what the new tests need, all defaulted so
+- [x] Add what the new tests need, all defaulted so
       `test-frs_bucket_connected.R` behaves identically: per-row `gradient`,
       per-row `watershed_group_code`, `channel_width`, `edge_type`, and a helper
       to insert a second group's habitat rows.
-- [ ] `test-frs_bucket_connected.R` still green.
+- [x] `test-frs_bucket_connected.R` still green.
 
 ### Phase 2 — `.frs_connected_waterbody()` (live, highest severity)
 
