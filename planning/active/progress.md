@@ -21,3 +21,4 @@ the owner says to resume.
 
 - Resumed under the run-to-PR mandate; branch current with origin/main, issue body unchanged since planning, CI green
 - Phase 1: 26 mocked assertions + one local live test fail on the unchanged function (28 failures, 81 passes); the live equivalence assertions pass, so the reference join agrees with the current SQL
+- Phase 2: scoped walk implemented; `devtools::test(filter = "network_features")` 0 fail / 121 pass, including the local VICT comparison (both `include_equivalents`) and the bcfishpass ADMS byte-identity test on the new path. The error on a failed DDL names a missing `segments` column as a second cause, since that fails at the same statement

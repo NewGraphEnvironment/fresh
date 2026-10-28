@@ -39,8 +39,8 @@ nf_tmp_tables <- function(conn) {
 test_that("aoi-scoped downstream walk equals the unprefiltered join (VICT)", {
   conn <- local_fwapg()
   features <- nf_local_features(conn)
-  expect_false(identical(
-    DBI::dbGetQuery(conn, "SELECT pg_my_temp_schema()::int AS o")$o, 0L))
+  temp_schema <- DBI::dbGetQuery(conn, "SELECT pg_my_temp_schema()::int AS o")$o
+  expect_false(identical(temp_schema, 0L))
 
   # The walk runs through frs_db_query(): look for the temp table there, so
   # the "gone afterwards" check below is not vacuous.

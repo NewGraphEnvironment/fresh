@@ -474,16 +474,19 @@ test_that("downstream + aoi walks the temp table against prefiltered features", 
   q <- rec$query
   expect_match(q, sprintf("FROM %s a\\s+INNER JOIN \\(", gsub(".", "\\.", tmp, fixed = TRUE)))
   # only the five columns the walk reads, so a view's geom is not materialized
-  expect_match(q, paste0(
+  projection <- paste0(
     "SELECT f.id, f.blue_line_key, f.downstream_route_measure, ",
-    "f.wscode_ltree, f.localcode_ltree\\s+FROM fresh.crossings f"))
+    "f.wscode_ltree, f.localcode_ltree\\s+FROM fresh.crossings f"
+  )
+  expect_match(q, projection)
   expect_match(q, "f.wscode_ltree = ANY (ARRAY(", fixed = TRUE)
   expect_match(q, sprintf("SELECT DISTINCT subpath(s.wscode_ltree, 0, k) FROM %s s", tmp),
                fixed = TRUE)
   expect_match(q, "generate_series(1, nlevel(s.wscode_ltree)) k", fixed = TRUE)
-  expect_match(q, sprintf(
-    "OR f.blue_line_key = ANY (ARRAY(SELECT DISTINCT s.blue_line_key FROM %s s))", tmp),
-    fixed = TRUE)
+  blk_arm <- sprintf(
+    "OR f.blue_line_key = ANY (ARRAY(SELECT DISTINCT s.blue_line_key FROM %s s))", tmp
+  )
+  expect_match(q, blk_arm, fixed = TRUE)
   expect_match(q, "\\) b ON\\s+whse_basemapping\\.fwa_downstream\\(")
   expect_no_match(q, "fresh\\.streams")
 })
@@ -645,9 +648,11 @@ test_that("ORDER BY ends in the feature id in both directions", {
         direction = dir,
         aoi = aoi
       )
-      expect_match(rec$query, paste0(
+      tail_keys <- paste0(
         "b\\.downstream_route_measure DESC,\\s+",
-        "b\\.modelled_crossing_id\\s+\\) d"))
+        "b\\.modelled_crossing_id\\s+\\) d"
+      )
+      expect_match(rec$query, tail_keys)
     }
   }
 })
