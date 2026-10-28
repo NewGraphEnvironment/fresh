@@ -31,7 +31,8 @@ frame.
 ## See also
 
 Other database:
-[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
+[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md),
+[`frs_migration_trial()`](https://newgraphenvironment.github.io/fresh/reference/frs_migration_trial.md)
 
 ## Examples
 

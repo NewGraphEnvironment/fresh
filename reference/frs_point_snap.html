@@ -17,7 +17,7 @@ cost one snap query, not 10,000."><meta property="og:image" content="https://new
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.43.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.44.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -169,7 +169,16 @@ the snapped point <code>geom</code>. With <code>to</code>, <code>conn</code> inv
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Candidates are network segments within <code>tolerance</code> of the point,
-nearest first (ties broken by <code>linear_feature_id</code>). Placeholder
+nearest first. An exact distance tie — a point whose nearest point on
+two segments is the vertex they share — goes to the segment with the
+<strong>higher</strong> <code>downstream_route_measure</code>, the one starting at that vertex,
+because measures resolve <code>[downstream, upstream)</code>; <code>linear_feature_id</code>
+breaks what is still tied. This is fwapg's rule
+(NewGraphEnvironment/fwapg#41), so <code>frs_point_snap()</code> and
+<code>fwa_indexpoint()</code> agree on which segment a tie belongs to. The
+comparison is on the raw measure, not the whole-metre one below.
+Within one stream it is positional; a tie across two different blue
+lines is merely deterministic. Placeholder
 (<code>999.*</code>) and unmapped (NULL local code) segments are never candidates;
 <code>exclude_edge_types</code> drops more. The measure is a whole metre, following
 bcfishpass (<code>04_pscis.sql</code>): the position rounded down, but never below

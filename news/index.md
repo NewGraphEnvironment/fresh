@@ -1,5 +1,96 @@
 # Changelog
 
+## fresh 0.44.0
+
+Closes [\#266](https://github.com/NewGraphEnvironment/fresh/issues/266).
+Relates to
+[fwapg#41](https://github.com/NewGraphEnvironment/fwapg/issues/41) and
+[link#383](https://github.com/NewGraphEnvironment/link/issues/383).
+
+**[`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
+breaks an exact distance tie on position, not on the lowest segment
+id.** - A tie is a point whose nearest point on two segments is the
+vertex they share — common, since any point in the wedge outside a bend
+is one. It now goes to the segment with the higher
+`downstream_route_measure`: the one *starting* at that vertex, which is
+the one a measure there falls on, because measures resolve
+`[downstream, upstream)`. `linear_feature_id` breaks what is still tied.
+This is fwapg’s rule, so
+[`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
+and `fwa_indexpoint()` now agree on which segment a tie belongs to, and
+therefore on its local code — which differs between the two whenever a
+tributary joins at the vertex. - Three ordering sites carry it, not the
+two the issue named. The lateral’s own `ORDER BY ... LIMIT` is the
+load-bearing one: it decides which candidates survive, and is the only
+one that matters at `num_features = 1`. - The key is the **raw**
+measure, carried out of the lateral as an internal `measure_raw`. The
+emitted measure is clamped to a whole metre, and two segments sharing a
+vertex on a whole metre clamp to the same value, which would fall
+through to `linear_feature_id` and reinstate the old rule. No new column
+reaches the caller, and `EXPLAIN` confirms the GiST KNN index-ordered
+scan survives the extra key. - Within one stream the rule is positional;
+a tie across two blue lines is only deterministic. Of 3,463 ties counted
+over 49,725 snapped positions, 440 are within one stream.
+
+**[`frs_migration_trial()`](https://newgraphenvironment.github.io/fresh/reference/frs_migration_trial.md)
+applies pending migrations inside a transaction it rolls back.** -
+`frs_migration_trial(conn, files, env)` applies the files in one
+transaction and defers
+[`DBI::dbRollback()`](https://dbi.r-dbi.org/reference/transactions.html)
+to `env`’s exit, so a pending fwapg migration can be measured, or tests
+run against it, without migrating a database anyone else uses. A
+migration’s own `BEGIN;`/`COMMIT;` pair is stripped with line numbers
+preserved, and any other transaction control — or any call a rollback
+does not undo — is refused before anything runs. - The screen is a small
+SQL lexer: comments, string literals, quoted identifiers and
+dollar-quoted bodies are blanked to spaces with line breaks kept, so
+transaction control is looked for only where the server would execute
+it. A plpgsql body’s own `BEGIN` / `END;` is therefore not mistaken for
+one, which matters because fwapg’s `db/schema.sql` writes bare `END;`
+seven times. An unterminated region is a refusal rather than a guess. -
+`env = globalenv()` is refused: there the rollback would be deferred to
+the end of the session, holding the migration’s `AccessExclusiveLock`s
+unannounced. `withr` moves from Suggests to Imports.
+
+**What fwapg#41 changes on fresh, measured before and after.** -
+`data-raw/point_snap_tie_sweep.R` runs fresh’s inputs through three
+states — base, the tiebreak migration alone, and both pending migrations
+— with each trial rolled back. Logs in `data-raw/logs/indexpoint_266/`;
+the report’s body is reproducible, its header is not. **No database is
+migrated**: that waits on fwapg#41 / smnorris/fwapg#201. - All 49,725 of
+fresh’s own snapped positions resolve in every state. fresh clamps its
+measure to a whole metre and no candidate segment has an integer
+`upstream_route_measure`, so the head case the migration fixes is not
+reachable through
+[`frs_point_snap()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_snap.md)
+→
+[`frs_point_locate()`](https://newgraphenvironment.github.io/fresh/reference/frs_point_locate.md).
+It is reachable when a caller passes a segment’s own upstream measure. -
+What does move: four of 23,540 measures from `crossings.csv` and
+`wsg_outlet.csv` now resolve (named exactly in `sweep_changed.csv`), and
+one position stops raising
+`line_interpolate_point: 2nd arg isn't within [0,1]`. Every change
+belongs to the tiebreak migration. What does not move: 293 of 970
+positions error identically in all three states with
+`more than one row returned by a subquery used as an expression`, a
+pre-existing fwapg defect. - `research/fwa_point_snap.md` carries the
+numbers and the reasoning, including why a measure at a stream’s head
+could never be placed: the old `fwa_locatealong()` compares bounds
+rounded to 4 decimals, so `round(us, 4) > round(us, 4)` is false by
+construction.
+
+**Live tests that gate on the database without hiding a stale one.** -
+`tests/testthat/test-frs_fwapg_gate.R` pins both changes. They skip,
+naming the migration, on a database that predates it;
+`FRESH_FWAPG_TRIAL` trials it so they run anyway; and
+`FRESH_FWAPG_CURRENT=true` says the database should already be current,
+in which case a stale one fails instead of skipping — including one test
+that reads committed state on its own direct connection, so neither an
+unreachable database nor a rolled-back trial can turn the suite green. -
+`tests/testthat/helper-db.R` gains `frs_fwapg_conn()` on `FRESH_PG*`
+with the `docker/` defaults. These tests must not reach the shared
+instance `PG*` names. See CLAUDE.md, “Testing on alternate hosts”.
+
 ## fresh 0.43.0
 
 Closes [\#269](https://github.com/NewGraphEnvironment/fresh/issues/269).

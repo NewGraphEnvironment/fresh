@@ -72,7 +72,8 @@ not be paired with a standard host.
 ## See also
 
 Other database:
-[`frs_db_query()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_query.md)
+[`frs_db_query()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_query.md),
+[`frs_migration_trial()`](https://newgraphenvironment.github.io/fresh/reference/frs_migration_trial.md)
 
 ## Examples
 

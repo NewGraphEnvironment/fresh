@@ -123,14 +123,23 @@ candidate: the id column, `linear_feature_id`, `blue_line_key`,
 ## Details
 
 Candidates are network segments within `tolerance` of the point, nearest
-first (ties broken by `linear_feature_id`). Placeholder (`999.*`) and
-unmapped (NULL local code) segments are never candidates;
-`exclude_edge_types` drops more. The measure is a whole metre, following
-bcfishpass (`04_pscis.sql`): the position rounded down, but never below
-the segment's start rounded up, so a point in a segment's first
-fractional metre (or on a segment shorter than a metre) gets that
-rounded-up start. To score and pick among several candidates per point,
-write them to a table (`num_features > 1`, `to = `) and pass it to
+first. An exact distance tie — a point whose nearest point on two
+segments is the vertex they share — goes to the segment with the
+**higher** `downstream_route_measure`, the one starting at that vertex,
+because measures resolve `[downstream, upstream)`; `linear_feature_id`
+breaks what is still tied. This is fwapg's rule
+(NewGraphEnvironment/fwapg#41), so `frs_point_snap()` and
+`fwa_indexpoint()` agree on which segment a tie belongs to. The
+comparison is on the raw measure, not the whole-metre one below. Within
+one stream it is positional; a tie across two different blue lines is
+merely deterministic. Placeholder (`999.*`) and unmapped (NULL local
+code) segments are never candidates; `exclude_edge_types` drops more.
+The measure is a whole metre, following bcfishpass (`04_pscis.sql`): the
+position rounded down, but never below the segment's start rounded up,
+so a point in a segment's first fractional metre (or on a segment
+shorter than a metre) gets that rounded-up start. To score and pick
+among several candidates per point, write them to a table
+(`num_features > 1`, `to = `) and pass it to
 [`frs_candidates_pick()`](https://newgraphenvironment.github.io/fresh/reference/frs_candidates_pick.md).
 
 The network table and its column names come from the `fresh.*` options
