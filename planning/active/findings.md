@@ -166,6 +166,24 @@ Removing each part of the new SQL in turn, against the live test:
 - The live test therefore uses **SKGT** (6,935 segments; reaches the Fraser, `100`, which has no
   SKGT segment): 6 s for both `include_equivalents` values and their plain-join references.
 
+## Phase 3 measurement, 2026-10-28 (19:40-20:57 UTC)
+
+`data-raw/network_features_prefilter.R SALR LKEL CHWK LSKE` on the local Docker fwapg,
+no other client backend active; log and table in `data-raw/logs/network_features_272/`.
+56 rows: 4 groups × 3 views × 4 runs, plus 8 `old_scoped` oracle runs.
+
+- **The old SQL timed out (> 600 s) on every CH and BT walk** in all four groups on the
+  province-wide `fresh_default.streams` + `aoi` shape. The new form took 0.34-8.35 s
+  (DDL included), so > 72× (LSKE CH) to > 1,775× (LKEL BT).
+- **Anthropogenic view (0.5 M rows):** old 0.85-4.51 s, new 0.17-1.74 s, 2.6-4.9×.
+- **Against link's shape** (`old_scoped`: the same old SQL on an indexed temp copy of the
+  group): 7.3-96.4 s, so the new form is 7.9× (LSKE) to 33× (CHWK BT) faster still. That
+  isolates the prefilter's share, since both have the scoped table.
+- **DDL:** 0.07-0.14 s for 7-14 k segments, 0.7 s for LSKE's 77,496.
+- **Answers:** `d_set` agrees across every form of all 12 walks. `d_order` differs between
+  `old_scoped` and `new` on SALR CH and CHWK CH/BT, the tie order the new `ORDER BY` key
+  now fixes.
+
 ## Errors Encountered
 
 | Error | Resolution |
