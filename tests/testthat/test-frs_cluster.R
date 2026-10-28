@@ -69,7 +69,7 @@ test_that("upstream SQL includes FWA_Upstream and confluence check", {
   )
 
   mockery::stub(frs_cluster, "DBI::dbGetQuery", function(conn, sql) {
-    if (grepl("DISTINCT species_code", sql)) {
+    if (grepl("DISTINCT h.species_code", sql, fixed = TRUE)) {
       return(data.frame(species_code = "CO", stringsAsFactors = FALSE))
     }
     data.frame(n = 10L)
@@ -98,7 +98,7 @@ test_that("downstream SQL includes fwa_downstreamtrace and gradient bridge", {
   )
 
   mockery::stub(frs_cluster, "DBI::dbGetQuery", function(conn, sql) {
-    if (grepl("DISTINCT species_code", sql)) {
+    if (grepl("DISTINCT h.species_code", sql, fixed = TRUE)) {
       return(data.frame(species_code = "CO", stringsAsFactors = FALSE))
     }
     data.frame(n = 10L)

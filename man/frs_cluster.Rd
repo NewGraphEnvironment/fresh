@@ -22,10 +22,16 @@ frs_cluster(
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object (from \code{\link[=frs_db_conn]{frs_db_conn()}}).}
 
 \item{table}{Character. Schema-qualified streams table with geometry
-and ltree columns (from \code{\link[=frs_network_segment]{frs_network_segment()}}).}
+and ltree columns (from \code{\link[=frs_network_segment]{frs_network_segment()}}). Must carry
+\code{watershed_group_code}.}
 
 \item{habitat}{Character. Schema-qualified habitat table with boolean
-label columns (from \code{\link[=frs_habitat_classify]{frs_habitat_classify()}}).}
+label columns (from \code{\link[=frs_habitat_classify]{frs_habitat_classify()}}). Must carry
+\code{watershed_group_code}: \code{id_segment} is unique only within a watershed
+group, so every join matches both. A shared habitat table holding other
+groups' rows is therefore safe — they are never read or cleared, and
+\code{species = NULL} resolves only the species present in \code{table}'s groups
+(fresh#242).}
 
 \item{label_cluster}{Character. Boolean column name in \code{habitat} to
 cluster on. Default \code{"rearing"}.}
@@ -88,9 +94,11 @@ conn <- frs_db_conn()
 
 # After frs_network_segment() + frs_habitat_classify():
 DBI::dbGetQuery(conn, "
-  SELECT count(*) FILTER (WHERE rearing) AS rearing_before
+  SELECT watershed_group_code,
+         count(*) FILTER (WHERE rearing) AS rearing_before
   FROM fresh.streams_habitat
-  WHERE species_code = 'CO'")
+  WHERE species_code = 'CO'
+  GROUP BY watershed_group_code")
 #>   rearing_before
 #> 1             33
 
