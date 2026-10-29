@@ -115,7 +115,7 @@ and probes the temp table's indexes, which is #272's plan.
 SETN's CH walk (180,313 segments with a barrier downstream) takes 41 s through
 `result = "exists"` and 50 s through the arrays, end to end, which includes the arrays'
 transfer and R parse. Across SALR, CHWK, LFRA and SETN, the exists mode is 1.00× to 1.24×
-faster end to end, rising with the number of segments reached. In SETN CH the join makes
+faster end to end, rising from group to group with the segments reached. In SETN CH the join makes
 the 4,829,028 pairs in 37.9 s of the array walk's 45.3 s (`EXPLAIN ANALYZE`), and the sort
 of the pairs spills 538,912 kB to disk, which is link#394's 4.83 M pairs and 526 MiB. The
 spill is real, but it is the smaller part. link#394's second lever, walking each distinct

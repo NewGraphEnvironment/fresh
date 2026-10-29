@@ -49,14 +49,14 @@ Relates to NewGraphEnvironment/link#394 (lever 1) and NewGraphEnvironment/link#3
 - **O1:** the script captures the function's own SQL (`exists`) and calls it (`fn_*`).
 - **O2:** checked: the ids SQL from this branch is identical to v0.46.0's on all four paths (downstream/upstream x aoi NULL/ADMS), temp-table name normalised (scratch `o2_check.R`, 2026-10-29).
 
-## Measurement: which form, and what it saves (2026-10-29, 00:35-01:26 UTC)
+## Measurement: which form, and what it saves (2026-10-29, 00:35-01:58 UTC; revised after code-check rounds 1-2)
 
 Local fwapg, link's `fresh_default` natural barrier views (CH, BT, ST access), `include_equivalents = TRUE`, script `data-raw/network_features_exists.R`, log `data-raw/logs/network_features_exists_281/` (README has the table).
 
-- **Choice: the join form (`SELECT DISTINCT a.id ... INNER JOIN ... ON fwa_downstream(...)`).** Correlated EXISTS against the prefiltered features: 1.1x (SALR) to 13x (LFRA BT) slower than the array walk (CHWK CH plan: nested-loop semi-join, ~5,200 materialized features tested per segment, no index; 11.4 s vs 2.8 s). EXISTS against the unprefiltered view: > 300 s on CHWK CH (both runs capped) vs 2.8 s.
-- **Saving, end to end through the function:** 1.00x SALR, 1.08-1.11x CHWK, 1.18-1.22x LFRA, 1.22-1.24x SETN (CH 50.2 s -> 40.6 s). SQL alone: up to 1.17x. The join itself is most of the cost in both forms.
-- **The issue's premise held only in part.** "The time is in the output" was true of what the exists mode removes (array_agg, sort, transfer, R parse), but here that is at most ~20% of a SETN walk end to end (round 1: the SQL-level `ids` digest let the planner drop the arrays; re-timed as `ids_arrays`). The SETN array walk took about 50 s end to end, not >10 min: link's cancelled probe predates or differs from this setup (not investigated). Sort spill in SETN not checked: another client began walking the same database at ~01:26 UTC, so the EXPLAIN was not run.
-- Every walk's digests agree across all forms (12 of 12 walks, 156 + 4 rows). Two rows ran beside one other client backend (SETN CH fn_exists rep 3, SETN BT fn_ids rep 4); neither stands apart from its pair.
+- **Choice: the join form (`SELECT DISTINCT a.id ... INNER JOIN ... ON fwa_downstream(...)`).** Correlated EXISTS against the prefiltered features: 1.1x (SALR) to 15x (LFRA BT) slower than the join, same batch (CHWK CH plan: nested-loop semi-join, ~5,200 materialized features tested per segment, no index; 11.4 s vs 2.8 s under EXPLAIN ANALYZE, 6.1 vs 2.6 s timed). EXISTS against the unprefiltered view: > 300 s on CHWK CH (both runs capped) vs 2.8 s.
+- **Saving, end to end through the function:** 1.00x SALR, 1.08-1.11x CHWK, 1.18-1.22x LFRA, 1.22-1.24x SETN (CH 50.2 s -> 40.6 s). SQL alone, arrays built (batch 4): 0.99x-1.18x. The join itself is most of the cost in both forms (SETN CH: 37.9 s of 45.3 s).
+- **The issue's premise held only in part.** "The time is in the output" was true of what the exists mode removes (array_agg, sort, transfer, R parse), but here that is at most ~20% of a SETN walk end to end (round 1: the SQL-level `ids` digest let the planner drop the arrays; re-timed as `ids_arrays`). The SETN array walk took about 50 s end to end, not >10 min: link's cancelled probe predates or differs from this setup (not investigated). Sort spill in SETN: checked in batch 4 (01:58 UTC, after another client had held the DB from ~01:26): external merge, 538,912 kB, 4,829,028 pairs, = link#394's figures.
+- Every walk's digests agree across all forms (12 of 12 walks, 208 rows). Two rows ran beside one other client backend (SETN CH fn_exists rep 3, SETN BT fn_ids rep 4); neither stands apart from its pair.
 - Commit 341a34b's message says EXISTS was "2-13x slower"; SALR's is 1.1x. Immutable; the NEWS and README carry the measured range.
 
 ## Code-check round 1 (review-round1.md), disposition — 2026-10-29
