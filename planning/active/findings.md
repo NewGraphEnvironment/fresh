@@ -75,6 +75,15 @@ Mechanism named by the reviewer: a check that reads only what two derivations sh
 - **prose, real:** script header said NF281_VIEWS/FORMS/TIMEOUT_MS keep a run out of the log (only NF281_OUT does); README "30-minute cap, nothing hit" ignored batch 3's 5-minute cap (a sentence written in round 1's fix). Both fixed.
 - **caveat, taken:** "no (segment, feature) pair is sorted" depends on the planner choosing a hash for DISTINCT; NEWS and roxygen now say the walk has no `ORDER BY`.
 
+## Code-check round 4 (review-round4.md), disposition — 2026-10-29 — loop ended by enumeration
+
+Round 4 enumerated 61 pairs where one fact is derived twice or a check compares two things (code/code, code/test oracle, tsv/prose, roxygen/Rd, script header/behaviour, NEWS/research/log README, issue body/code); 3 failed, all prose:
+- README table SALR ST `fn_ids` 1.33 -> 1.32 (mean 1.3245, double-rounded). After the fix, all 84 cells recomputed from walks.tsv by script (`cells.R`, scratch): 0 differ.
+- task_plan Verification said "non-empty ids"; now the array mode's rows.
+- Issue #281 body still said `lengths > 0` and "to decide in the plan": body edited (decided shape, row-set semantics, the open question marked resolved, a Result section).
+- Coverage gap (no defect): a fixed `a.id_segment` projection in the exists SQL passed the mocked file. Added an assertion with `segment_id_col = "linear_feature_id"`; the mutation now turns 1 of 37 blocks red.
+Non-independent agreements listed and accepted by design: "ids same as default", the exists/ids join identity (shared by construction), the prefilter oracle built from the same helper.
+
 ## Errors Encountered
 
 | Error | Resolution |

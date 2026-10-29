@@ -711,6 +711,10 @@ test_that("result = \"exists\" builds no arrays and sorts no pairs", {
       expect_no_match(q, "array_agg|ORDER BY|GROUP BY")
       # one row per distinct segment id, as the array walk's GROUP BY gives
       expect_match(q, "SELECT DISTINCT\\s+a\\.id_segment\\b")
+      # and the caller's id column, not the default
+      q2 <- nf_sql(result = "exists", aoi = aoi, direction = dir,
+                   segment_id_col = "linear_feature_id")$query
+      expect_match(q2, "SELECT DISTINCT\\s+a\\.linear_feature_id\\b")
       expect_match(q, sprintf("whse_basemapping\\.fwa_%s\\(", dir))
       expect_match(q, "true, 1|false, 1")
     }

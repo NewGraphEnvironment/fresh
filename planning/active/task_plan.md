@@ -83,12 +83,12 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean (once over the branch with `/code-check branch`)
+- [x] Tests pass
+- [x] `/code-check` clean (once over the branch with `/code-check branch`)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 Verification: the mocked tests pin the SQL shape; the SKGT local test pins exists == array
-mode's non-empty ids on real FWA data through both prefilter arms; the Phase 4 run pins it on
+mode's rows (its segment set, NULL-id features included) on real FWA data through both prefilter arms; the Phase 4 run pins it on
 link's real barrier views in four groups, with times, SETN being the group that should move.
 
