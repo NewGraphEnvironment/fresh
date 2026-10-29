@@ -31,6 +31,24 @@ Relates to NewGraphEnvironment/link#394 (lever 1) and NewGraphEnvironment/link#3
 - **Before any timing:** check `pg_stat_activity` for other active client backends; the cancelled probe ran beside another session's query.
 
 
+## Plan review (review-plan.md), disposition — 2026-10-29
+
+- **B1 (aoi_filter is a full WHERE clause):** moot for the form that ships: the DISTINCT join takes `aoi_filter` after the join exactly as the array walk does. The hand-written EXISTS candidate in the script is on the scoped path only (no aoi_filter there).
+- **B2 (NULL feature ids):** decided: exists returns the array walk's *row set* (what link reads, `id %in% result$id`), so a segment whose only features have NULL ids is a row in both, with an empty array under ids. Not `lengths > 0`. The script's oracle digests that row set; roxygen says so; the live test has an all-NULL-id feature table.
+- **G1 (zero-row data.frame):** `rep(TRUE, nrow(res))`; the mocked zero-row test now returns a data.frame, and goes red with `res$has_features <- TRUE` (checked).
+- **G2 (repeated segment ids):** live test adds SKGT segments with every 5th repeated; exists must return each id once, as GROUP BY does.
+- **G3 (NULL segment ids):** DISTINCT gives one NA row, as the array walk's GROUP BY does. Not tested; no FWA segment table has NULL ids.
+- **G4:** upstream live case is required (in the test). `aoi = NULL` downstream has no live case (province-wide walk); its composition is pinned by the mocked tests.
+- **G5 (SETN oracle if ids times out):** 30 min timeout; if the ids form is censored, report that and compare candidates with each other only — said in the log README.
+- **G6:** `result` is the last argument; invalid value tested.
+- **G7:** description paragraph added for the exists mode.
+- **A1:** the ids digest hashes only the id column (no unnest), but production also pays transfer + R parse: script gains `fn_ids` / `fn_exists` forms that time the function end to end (Phase 4).
+- **A2:** form chosen on the scoped path; on `aoi = NULL` / upstream the DISTINCT form is the array walk's own join minus the aggregation, so it does no more work there.
+- **A3:** report SETN as measured, no threshold claimed.
+- **A4:** acknowledged: equality does not check the prefilter (#272 did).
+- **O1:** the script captures the function's own SQL (`exists`) and calls it (`fn_*`).
+- **O2:** checked: the ids SQL from this branch is identical to v0.46.0's on all four paths (downstream/upstream x aoi NULL/ADMS), temp-table name normalised (scratch `o2_check.R`, 2026-10-29).
+
 ## Errors Encountered
 
 | Error | Resolution |

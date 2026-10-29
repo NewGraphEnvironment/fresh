@@ -12,6 +12,10 @@
 #   distinct_sql SELECT DISTINCT a.id FROM tmp a INNER JOIN <features> b ON ...
 #   exists       what frs_network_features(result = "exists") sends (captured),
 #                once the function has the mode
+#   fn_ids       frs_network_features() itself, end to end, as link calls it:
+#   fn_exists    its own temp table, the walk, the transfer, and (for ids) the
+#                R parse of every array; digested in the database from the
+#                ids it returns
 #
 # Each form is digested to the set of segment ids it returns: count and md5 of
 # the ids in order. For `ids` that is the segments with a row in the array
@@ -32,7 +36,8 @@
 # Usage (from the fresh repo root):
 #   Rscript data-raw/network_features_exists.R [WSG ...]
 #   Rscript data-raw/network_features_exists.R SALR CHWK LFRA
-#   NF281_FORMS=ids,exists Rscript data-raw/network_features_exists.R SETN
+#   NF281_FORMS=ids,distinct_sql Rscript data-raw/network_features_exists.R SETN
+#   NF281_FORMS=fn_ids,fn_exists Rscript data-raw/network_features_exists.R SALR
 # NF281_VIEWS, NF281_FORMS, NF281_OUT and NF281_TIMEOUT_MS narrow a smoke run
 # and keep it out of the log. NF281_EXPLAIN=1 writes EXPLAIN (ANALYZE, BUFFERS)
 # of each non-ids form to <out>/plans/ instead of timing.
@@ -50,8 +55,9 @@ env_list <- function(name, default) {
 views <- env_list("NF281_VIEWS", c("barriers_ch_access", "barriers_bt_access",
                                    "barriers_st_access"))
 forms <- env_list("NF281_FORMS", c("ids", "exists_sql", "distinct_sql"))
-stopifnot(forms[1] == "ids", all(forms %in% c("ids", "exists_sql",
-                                              "distinct_sql", "exists")))
+stopifnot(forms[1] %in% c("ids", "fn_ids"),
+          all(forms %in% c("ids", "exists_sql", "distinct_sql", "exists",
+                           "fn_ids", "fn_exists")))
 explain <- identical(Sys.getenv("NF281_EXPLAIN"), "1")
 sch <- "fresh_default"
 timeout_ms <- as.integer(Sys.getenv("NF281_TIMEOUT_MS", "1800000"))
@@ -155,6 +161,35 @@ digest_sql <- function(sql) {
           FROM (", sql, ") x")
 }
 
+# The function end to end, its returned ids digested like digest_sql's.
+timed_fn <- function(form, view, aoi) {
+  t0 <- Sys.time()
+  res <- tryCatch(
+    frs_network_features(
+      conn, segments = paste0(sch, ".streams"), features = paste0(sch, ".", view),
+      segment_id_col = "id_segment", feature_id_col = id_col(view),
+      direction = "downstream", aoi = aoi, include_equivalents = TRUE,
+      result = sub("^fn_", "", form)
+    ),
+    error = function(e) {
+      if (grepl("statement timeout", conditionMessage(e))) return(NULL)
+      stop(e)
+    }
+  )
+  secs <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  if (is.null(res)) {
+    return(list(n = NA_integer_, d_ids = NA_character_, secs = NA_real_,
+                timed_out = TRUE))
+  }
+  ids <- sort(as.numeric(res$id_segment))
+  stopifnot(!anyNA(ids))
+  d <- q(sprintf("SELECT md5(%s) AS d",
+                 DBI::dbQuoteString(conn, paste(format(ids, scientific = FALSE,
+                                                       trim = TRUE),
+                                                collapse = ","))))$d
+  list(n = length(ids), d_ids = d, secs = round(secs, 3), timed_out = FALSE)
+}
+
 # Run a digest; a statement timeout is a censored run, anything else stops.
 timed_digest <- function(sql) {
   t0 <- Sys.time()
@@ -197,7 +232,7 @@ for (aoi in wsgs) {
                   "wscode_ltree", "localcode_ltree")
   for (v in views) {
     if (explain) {
-      for (form in setdiff(forms, "ids")) {
+      for (form in setdiff(forms, c("ids", "fn_ids", "fn_exists"))) {
         js <- q(paste("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)",
                       walk_sql(form, v, aoi, tmp)))[[1]]
         writeLines(js, file.path(out_dir, "plans",
@@ -209,14 +244,19 @@ for (aoi in wsgs) {
     ids_censored <- FALSE
     for (rep in seq_along(order_runs)) {
       form <- order_runs[rep]
-      if (form == "ids" && rep == length(order_runs) && ids_censored) {
+      is_ids <- form %in% c("ids", "fn_ids")
+      if (is_ids && rep == length(order_runs) && ids_censored) {
         emit(wsg = aoi, features = v, form = form, rep = rep, timed_out = NA,
              seconds = NA, d_ids = "skipped: first ids run timed out",
              others_active = others(), measured_utc = now())
         next
       }
-      r <- timed_digest(walk_sql(form, v, aoi, tmp))
-      if (form == "ids" && r$timed_out) ids_censored <- TRUE
+      r <- if (startsWith(form, "fn_")) {
+        timed_fn(form, v, aoi)
+      } else {
+        timed_digest(walk_sql(form, v, aoi, tmp))
+      }
+      if (is_ids && r$timed_out) ids_censored <- TRUE
       emit(wsg = aoi, features = v, form = form, rep = rep,
            segments_out = r$n, seconds = r$secs, timed_out = r$timed_out,
            d_ids = r$d_ids, others_active = others(), measured_utc = now())

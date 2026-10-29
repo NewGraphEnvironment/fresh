@@ -30,15 +30,16 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
   `EXISTS` over a segments table with a repeated id would otherwise return it twice).
 
 ## Phase 1: Measure the two candidate forms
-- [ ] `data-raw/network_features_exists.R`, modelled on `data-raw/network_features_prefilter.R`:
+- [x] `data-raw/network_features_exists.R`, modelled on `data-raw/network_features_prefilter.R`:
       local fwapg via `FRESH_PG*`, refuses to start when another client backend is active,
       builds the scoped walk with the package's own `.frs_walk_scope()` / `.frs_walk_prefilter()`,
       and runs three SQL texts on the same temp table: the array mode as sent, `EXISTS`,
       `SELECT DISTINCT` over the join
-- [ ] Views `barriers_ch_access`, `barriers_bt_access`, `barriers_st_access` (the three natural
+- [x] Views `barriers_ch_access`, `barriers_bt_access`, `barriers_st_access` (the three natural
       shapes); `include_equivalents = TRUE`, as link calls it; runs interleaved per walk
-- [ ] Oracle: the set of ids with a non-empty array, as an md5 of the sorted ids, must equal
-      each candidate's
+- [x] Oracle: the array walk's row set (the segments it returns, as link reads them), as a
+      count and an md5 of the sorted ids, must equal each candidate's (review B2: not
+      `lengths > 0`, which drops segments whose only features have NULL ids)
 - [ ] SALR, CHWK, LFRA first; SETN only after, with a 30 min statement timeout and timed-out
       runs written as censored (the array form alone ran past 10 min there)
 - [ ] Log to `data-raw/logs/network_features_exists_281/` (tsv + README); `EXPLAIN (ANALYZE,
@@ -54,7 +55,8 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
       unchanged (byte-identical to the current composition)
 - [ ] `tests/testthat/test-frs_network_features-local.R` (SKGT fixture, `nf_local_features()`):
       exists ids equal the array mode's ids for both `include_equivalents`, the temp table is
-      gone afterwards; plus one upstream case if it runs in a few seconds
+      gone afterwards; one upstream case (required, review G4); a repeated-id segments table
+      and an all-NULL-id features table (review G2, B2)
 - [ ] Restore-the-bug check: drop the prefilter from the exists path, and drop the dedupe;
       confirm a test goes red for each (in a scratch copy, then restore)
 
@@ -62,12 +64,13 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
 - [ ] Add `result = c("ids", "exists")` to `frs_network_features()`; branch only the final
       `SELECT`: the scope, prefilter, predicate and `aoi` filter are shared
 - [ ] roxygen: `@param result`, the `@return` for exists, an example; note that its ids equal
-      `lengths(feature_ids) > 0` of the array mode; `devtools::document()`
+      the array mode's rows (review B2); `devtools::document()`
 - [ ] Tests pass (`devtools::test()` with the grep pattern), `lintr::lint_package()` clean
 
 ## Phase 4: Verify on real groups and record
 - [ ] Re-run the Phase 1 script against the shipped function (ids vs exists) on SALR, CHWK,
-      LFRA, SETN: identical sets, and the times
+      LFRA, SETN: identical sets, and the times, including end to end through the function
+      (`fn_ids` / `fn_exists`: transfer and R parse, review A1)
 - [ ] Add a section to `research/fwa_downstream_walk.md` (what an existence walk costs against
       the array walk, and which form, with the log prefix); update `research/README.md`'s row
 - [ ] NEWS 0.47.0 entry and `DESCRIPTION` bump as the branch's last commit
