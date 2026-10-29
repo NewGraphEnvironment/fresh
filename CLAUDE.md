@@ -257,6 +257,7 @@ Small durable technical reference for internal behavior worth remembering.
 
 - `direction = "downstream"` with an `aoi` copies the AOI's segments into a session temp table (btree on `blue_line_key`, GiST on both codes, `ANALYZE`) and prefilters the features to those on one of its blue lines or whose wscode is an ancestor of, or equal to, a segment's: the whole of `fwa_downstream()`'s reach (#272). The call needs one backend and a session that can create temp tables, as `frs_point_snap()` does. `aoi = NULL` and `"upstream"` are the unprefiltered walk.
 - On FWA's own codes the blue-line arm is redundant (no blue line carries two wscodes); it keeps a feature table with missing or different codes correct. A test that drops an arm needs a group and features that reach it: `research/fwa_downstream_walk.md`, "Prefiltering the feature side".
+- `result = "exists"` (#281) is the array walk's own join reduced to `SELECT DISTINCT` segment ids. Both results take their FROM, predicate and `aoi` filter from one string, `walk_from`, so the exists mode cannot drift from the array walk; a test pins the two texts equal. Its rows are the array walk's rows, so a segment whose only features have NULL ids counts. A correlated `EXISTS` was 1.1-15x slower: it drives from the segments, against a materialized feature list (`research/fwa_downstream_walk.md`, "Existence walks").
 
 ### Waterbody area floors (`.frs_rule_ha_min()`)
 
