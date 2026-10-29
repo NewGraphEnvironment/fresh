@@ -55,13 +55,21 @@ Local fwapg, link's `fresh_default` natural barrier views (CH, BT, ST access), `
 
 - **Choice: the join form (`SELECT DISTINCT a.id ... INNER JOIN ... ON fwa_downstream(...)`).** Correlated EXISTS against the prefiltered features: 1.1x (SALR) to 13x (LFRA BT) slower than the array walk (CHWK CH plan: nested-loop semi-join, ~5,200 materialized features tested per segment, no index; 11.4 s vs 2.8 s). EXISTS against the unprefiltered view: > 300 s on CHWK CH (both runs capped) vs 2.8 s.
 - **Saving, end to end through the function:** 1.00x SALR, 1.08-1.11x CHWK, 1.18-1.22x LFRA, 1.22-1.24x SETN (CH 50.2 s -> 40.6 s). SQL alone: up to 1.17x. The join itself is most of the cost in both forms.
-- **The issue's premise held only in part.** "The time is in the output" was true of what the exists mode removes (array_agg, sort, transfer, R parse), but here that is at most ~19% of a SETN walk. The SETN array walk took 47-50 s, not >10 min: link's cancelled probe predates or differs from this setup (not investigated). Sort spill in SETN not checked: another client began walking the same database at ~01:26 UTC, so the EXPLAIN was not run.
+- **The issue's premise held only in part.** "The time is in the output" was true of what the exists mode removes (array_agg, sort, transfer, R parse), but here that is at most ~20% of a SETN walk end to end (round 1: the SQL-level `ids` digest let the planner drop the arrays; re-timed as `ids_arrays`). The SETN array walk took about 50 s end to end, not >10 min: link's cancelled probe predates or differs from this setup (not investigated). Sort spill in SETN not checked: another client began walking the same database at ~01:26 UTC, so the EXPLAIN was not run.
 - Every walk's digests agree across all forms (12 of 12 walks, 156 + 4 rows). Two rows ran beside one other client backend (SETN CH fn_exists rep 3, SETN BT fn_ids rep 4); neither stands apart from its pair.
 - Commit 341a34b's message says EXISTS was "2-13x slower"; SALR's is 1.1x. Immutable; the NEWS and README carry the measured range.
+
+## Code-check round 1 (review-round1.md), disposition — 2026-10-29
+
+- **fragile, real (confirmed by `EXPLAIN (VERBOSE)`: `Output: a.id_segment, NULL::text[]`):** the SQL-level `ids` digest read only the ids, so the planner dropped `array_agg`. Fixed: new `ids_arrays` form digests with `sum(cardinality(feature_ids))` (also records `n_pairs`); re-timed all four groups as batch 4 (01:49-01:58 UTC, others_active 0 throughout). Old `ids` rows kept, labelled. Same-batch SQL ratio 0.99x-1.18x; up to 15% saved (SETN CH 45.0 -> 38.3 s).
+- **SETN spill now checked (batch 4 EXPLAIN):** 4,829,028 pairs; sort external merge 538,912 kB (= link#394's 4.83 M / 526 MiB); join 37.9 s of 45.3 s.
+- **prose, real:** "mean of two runs" mixed batches -> table rebuilt from one batch per column group; "within 0.1 s" -> dropped; "19%" -> 20%; research 11.4 vs 2.8 s now labelled `EXPLAIN ANALYZE`, timed 6.1 vs 2.6 s given. EXISTS range restated against the join, same batch: 1.1x-15x.
+- The waiter's first launch raced the other client (idle at 01:48:45, refused at start); relaunched with a retry on a refusal before any timing.
 
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
 | `REFUSE: another client backend is active` (01:26 UTC, SETN EXPLAIN) | another client was running array walks on the same DB; spill check dropped rather than add load to it |
+| `REFUSE` after two idle checks (01:48 UTC): the other client reconnected between the waiter's check and the script's | waiter retries when the script refuses before timing anything |
 | `'\\s' is an unrecognized escape` in an `Rscript -e` probe | dropped the regexp from the probe |

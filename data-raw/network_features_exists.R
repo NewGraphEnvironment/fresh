@@ -7,7 +7,12 @@
 # .frs_walk_prefilter(), and the fwa_downstream() predicate with
 # include_equivalents = TRUE, as link calls it. Forms:
 #
-#   ids          the array walk, as frs_network_features() sends it (captured)
+#   ids          the array walk, as frs_network_features() sends it (captured).
+#                Its digest reads only the ids, so the planner replaces the
+#                unread array_agg with NULL: this times the join, the sort
+#                and the GROUP BY, not the arrays (code-check round 1)
+#   ids_arrays   the same SQL, digested with sum(cardinality(feature_ids)),
+#                which makes the arrays be built; also counts the pairs
 #   exists_sql   SELECT DISTINCT a.id FROM tmp a WHERE EXISTS (<feature> b ...)
 #   distinct_sql SELECT DISTINCT a.id FROM tmp a INNER JOIN <features> b ON ...
 #   exists_base_sql  exists_sql against the feature view itself, unprefiltered,
@@ -44,6 +49,7 @@
 # NF281_VIEWS, NF281_FORMS, NF281_OUT and NF281_TIMEOUT_MS narrow a smoke run
 # and keep it out of the log. NF281_EXPLAIN=1 writes EXPLAIN (ANALYZE, BUFFERS)
 # of each SQL form to <out>/plans/ instead of timing.
+# NF281_ALLOW_OTHERS=1 skips the idle-database refusal, for a smoke run only.
 # Writes data-raw/logs/network_features_exists_281/walks.tsv (appended).
 
 pkgload::load_all(".", quiet = TRUE)
@@ -58,8 +64,8 @@ env_list <- function(name, default) {
 views <- env_list("NF281_VIEWS", c("barriers_ch_access", "barriers_bt_access",
                                    "barriers_st_access"))
 forms <- env_list("NF281_FORMS", c("ids", "exists_sql", "distinct_sql"))
-stopifnot(forms[1] %in% c("ids", "fn_ids"),
-          all(forms %in% c("ids", "exists_sql", "distinct_sql",
+stopifnot(forms[1] %in% c("ids", "ids_arrays", "fn_ids"),
+          all(forms %in% c("ids", "ids_arrays", "exists_sql", "distinct_sql",
                            "exists_base_sql", "exists", "fn_ids", "fn_exists")))
 explain <- identical(Sys.getenv("NF281_EXPLAIN"), "1")
 sch <- "fresh_default"
@@ -95,7 +101,9 @@ others <- function() {
      WHERE datname = current_database() AND state <> 'idle'
        AND pid <> pg_backend_pid() AND backend_type = 'client backend'")$n
 }
-if (others() > 0L) stop("REFUSE: another client backend is active", call. = FALSE)
+if (others() > 0L && !identical(Sys.getenv("NF281_ALLOW_OTHERS"), "1")) {
+  stop("REFUSE: another client backend is active", call. = FALSE)
+}
 
 cols_segments <- c("id_segment", "blue_line_key", "downstream_route_measure",
                    "wscode_ltree", "localcode_ltree")
@@ -153,16 +161,18 @@ candidate_sql <- function(form, view, tmp) {
 
 walk_sql <- function(form, view, aoi, tmp) {
   switch(form,
-    ids = captured_sql(view, aoi, tmp),
+    ids = ,
+    ids_arrays = captured_sql(view, aoi, tmp),
     exists = captured_sql(view, aoi, tmp, result = "exists"),
     candidate_sql(form, view, tmp)
   )
 }
 
-digest_sql <- function(sql) {
+digest_sql <- function(sql, pairs = FALSE) {
   paste0("SELECT count(*)::int AS n,
-            md5(string_agg(id_segment::text, ',' ORDER BY id_segment)) AS d_ids
-          FROM (", sql, ") x")
+            md5(string_agg(id_segment::text, ',' ORDER BY id_segment)) AS d_ids",
+         if (pairs) ", sum(cardinality(feature_ids))::bigint AS n_pairs" else "",
+         " FROM (", sql, ") x")
 }
 
 # The function end to end, its returned ids digested like digest_sql's.
@@ -195,9 +205,9 @@ timed_fn <- function(form, view, aoi) {
 }
 
 # Run a digest; a statement timeout is a censored run, anything else stops.
-timed_digest <- function(sql) {
+timed_digest <- function(sql, pairs = FALSE) {
   t0 <- Sys.time()
-  d <- tryCatch(q(digest_sql(sql)), error = function(e) {
+  d <- tryCatch(q(digest_sql(sql, pairs)), error = function(e) {
     if (grepl("statement timeout", conditionMessage(e))) return(NULL)
     stop(e)
   })
@@ -206,12 +216,13 @@ timed_digest <- function(sql) {
     return(list(n = NA_integer_, d_ids = NA_character_, secs = NA_real_,
                 timed_out = TRUE))
   }
-  list(n = d$n, d_ids = d$d_ids, secs = round(secs, 3), timed_out = FALSE)
+  list(n = d$n, d_ids = d$d_ids, secs = round(secs, 3), timed_out = FALSE,
+       n_pairs = if (pairs) d$n_pairs else NA)
 }
 
 tsv <- file.path(out_dir, "walks.tsv")
 cols <- c("wsg", "features", "form", "rep", "segments_out", "seconds",
-          "timed_out", "d_ids", "others_active", "measured_utc")
+          "timed_out", "d_ids", "others_active", "measured_utc", "n_pairs")
 if (!explain && !file.exists(tsv)) {
   cat(paste(cols, collapse = "\t"), "\n", sep = "", file = tsv)
 }
@@ -248,7 +259,7 @@ for (aoi in wsgs) {
     ids_censored <- FALSE
     for (rep in seq_along(order_runs)) {
       form <- order_runs[rep]
-      is_ids <- form %in% c("ids", "fn_ids")
+      is_ids <- form %in% c("ids", "ids_arrays", "fn_ids")
       if (is_ids && rep == length(order_runs) && ids_censored) {
         emit(wsg = aoi, features = v, form = form, rep = rep, timed_out = NA,
              seconds = NA, d_ids = "skipped: first ids run timed out",
@@ -258,12 +269,13 @@ for (aoi in wsgs) {
       r <- if (startsWith(form, "fn_")) {
         timed_fn(form, v, aoi)
       } else {
-        timed_digest(walk_sql(form, v, aoi, tmp))
+        timed_digest(walk_sql(form, v, aoi, tmp), pairs = form == "ids_arrays")
       }
       if (is_ids && r$timed_out) ids_censored <- TRUE
       emit(wsg = aoi, features = v, form = form, rep = rep,
            segments_out = r$n, seconds = r$secs, timed_out = r$timed_out,
-           d_ids = r$d_ids, others_active = others(), measured_utc = now())
+           d_ids = r$d_ids, others_active = others(), measured_utc = now(),
+           n_pairs = r$n_pairs)
     }
   }
   x(sprintf("DROP TABLE IF EXISTS %s", tmp))

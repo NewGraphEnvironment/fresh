@@ -104,19 +104,26 @@ empty array there.
 **The join form, not a correlated `EXISTS`.** `EXISTS` can stop at the first match per
 segment, but it must drive from the segments. Against the prefiltered features, a derived
 table, Postgres runs it as a nested-loop semi-join over the materialized feature list. In
-CHWK CH that is about 5,200 rows tested per segment, with no index: 11.4 s against 2.8 s for
-the join, and 1.1× (SALR) to 13× (LFRA) slower than the array walk across three groups.
-Against the feature view itself, unprefiltered, so each segment could probe the view's own
-indexes, it did not finish in 5 minutes in CHWK, where the arrays take 2.8 s. The join drives from the admitted features and probes the
-temp table's indexes, which is #272's plan.
+CHWK CH that is about 5,200 rows tested per segment, with no index (11.4 s under
+`EXPLAIN ANALYZE`, against 2.8 s for the join; 6.1 s against 2.6 s timed). Across SALR, CHWK
+and LFRA it is 1.1× (SALR) to 15× (LFRA) slower than the join. Against the feature view
+itself, unprefiltered, so each segment could probe the view's own indexes, it did not finish
+in 5 minutes in CHWK, where the join takes 2.6 s. The join drives from the admitted features
+and probes the temp table's indexes, which is #272's plan.
 
 **What it saves is small, because the join is the cost.** On link's natural barrier views,
-SETN's CH walk (180,313 segments with a barrier downstream) takes 40 s as a join and 47 s as
-arrays. End to end, through the function, which adds the transfer and R parse of the arrays,
-it takes 41 s and 50 s. Across SALR, CHWK, LFRA and SETN, the exists mode is 1.00× to 1.24×
-faster end to end, rising with the number of segments reached. A caller that
-walks the same feature set several times (link#394's second lever) gains more from walking
-it once than from this.
+SETN's CH walk (180,313 segments with a barrier downstream) takes 41 s through
+`result = "exists"` and 50 s through the arrays, end to end, which includes the arrays'
+transfer and R parse. Across SALR, CHWK, LFRA and SETN, the exists mode is 1.00× to 1.24×
+faster end to end, rising with the number of segments reached. In SETN CH the join makes
+the 4,829,028 pairs in 37.9 s of the array walk's 45.3 s (`EXPLAIN ANALYZE`), and the sort
+of the pairs spills 538,912 kB to disk, which is link#394's 4.83 M pairs and 526 MiB. The
+spill is real, but it is the smaller part. link#394's second lever, walking each distinct
+feature set once, removes whole walks rather than part of each.
+
+A digest that reads only a subquery's id column times the walk without its arrays, because
+Postgres replaces an unread `array_agg` output with `NULL`. To time the arrays, read them
+(`sum(cardinality(feature_ids))`).
 
 ## GEOS
 
