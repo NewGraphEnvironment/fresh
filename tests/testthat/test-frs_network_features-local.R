@@ -126,3 +126,69 @@ test_that("aoi-scoped downstream walk equals the unprefiltered join (SKGT)", {
     expect_length(nf_tmp_tables(conn), 0L)
   }
 })
+
+# #281: result = "exists" returns the segments the array walk returns, on the
+# same fixture, so through both prefilter arms; and drops its temp table.
+# Two more tables make the forms distinguishable where the plain fixture
+# cannot: SKGT's segments with every 5th repeated (the array walk's GROUP BY
+# returns each id once, so must exists), and features whose ids are all NULL
+# (the array walk keeps those segments, with an empty array; so must exists).
+test_that("result = \"exists\" returns the array walk's segments (SKGT)", {
+  conn <- local_fwapg()
+  features <- nf_local_features(conn)
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE nf_segments_dup AS
+    SELECT linear_feature_id, blue_line_key, downstream_route_measure,
+           wscode_ltree, localcode_ltree, watershed_group_code
+    FROM whse_basemapping.fwa_stream_networks_sp
+    WHERE watershed_group_code = 'SKGT'
+    UNION ALL
+    SELECT linear_feature_id, blue_line_key, downstream_route_measure,
+           wscode_ltree, localcode_ltree, watershed_group_code
+    FROM whse_basemapping.fwa_stream_networks_sp
+    WHERE watershed_group_code = 'SKGT' AND linear_feature_id % 5 = 0")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE nf_features_null_id AS
+    SELECT NULL::bigint AS linear_feature_id, blue_line_key,
+           downstream_route_measure, wscode_ltree, localcode_ltree
+    FROM whse_basemapping.fwa_stream_networks_sp
+    WHERE watershed_group_code = 'SKGT' AND linear_feature_id % 7 = 0")
+
+  walk <- function(result, direction, ie, segments, features) {
+    frs_network_features(
+      conn,
+      segments            = segments,
+      features            = features,
+      segment_id_col      = "linear_feature_id",
+      feature_id_col      = "linear_feature_id",
+      direction           = direction,
+      aoi                 = "SKGT",
+      include_equivalents = ie,
+      result              = result
+    )
+  }
+  fwa <- "whse_basemapping.fwa_stream_networks_sp"
+  cases <- list(
+    list("downstream", FALSE, fwa, features),
+    list("downstream", TRUE, fwa, features),
+    list("upstream", FALSE, fwa, features),
+    list("downstream", TRUE, "pg_temp.nf_segments_dup", features),
+    list("downstream", TRUE, fwa, "pg_temp.nf_features_null_id")
+  )
+  for (cs in cases) {
+    ids <- walk("ids", cs[[1]], cs[[2]], cs[[3]], cs[[4]])
+    ex <- walk("exists", cs[[1]], cs[[2]], cs[[3]], cs[[4]])
+    info <- sprintf("%s, include_equivalents = %s, %s, %s",
+                    cs[[1]], cs[[2]], cs[[3]], cs[[4]])
+    expect_gt(nrow(ids), 0L)
+    expect_named(ex, c("linear_feature_id", "has_features"))
+    expect_true(all(ex$has_features), info = info)
+    expect_equal(anyDuplicated(ex$linear_feature_id), 0L, info = info)
+    expect_identical(sort(as.character(ex$linear_feature_id)),
+                     sort(as.character(ids$linear_feature_id)), info = info)
+    expect_length(nf_tmp_tables(conn), 0L)
+    if (cs[[4]] == "pg_temp.nf_features_null_id") {
+      expect_true(all(lengths(ids$feature_ids) == 0L), info = info)
+    }
+  }
+})

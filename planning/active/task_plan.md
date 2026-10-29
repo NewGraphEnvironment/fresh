@@ -47,17 +47,17 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
 - [ ] Record the choice and its numbers in `findings.md`
 
 ## Phase 2: Tests (written to fail first)
-- [ ] `tests/testthat/test-frs_network_features.R` (mocked, `mock_nf_db()`): `result` is
+- [x] `tests/testthat/test-frs_network_features.R` (mocked, `mock_nf_db()`): `result` is
       validated by `match.arg`; `"exists"` sends no `array_agg` and no `ORDER BY`; the scoped
       downstream path still builds the temp table and walks the prefiltered features; the
       unscoped `aoi` filter and `direction = "upstream"` compose; the result has columns
       `<segment_id_col>` and logical `has_features`, also with zero rows; `"ids"` SQL is
       unchanged (byte-identical to the current composition)
-- [ ] `tests/testthat/test-frs_network_features-local.R` (SKGT fixture, `nf_local_features()`):
+- [x] `tests/testthat/test-frs_network_features-local.R` (SKGT fixture, `nf_local_features()`):
       exists ids equal the array mode's ids for both `include_equivalents`, the temp table is
       gone afterwards; one upstream case (required, review G4); a repeated-id segments table
       and an all-NULL-id features table (review G2, B2)
-- [ ] Restore-the-bug check: drop the prefilter from the exists path, and drop the dedupe;
+- [x] Restore-the-bug check: drop the prefilter from the exists path, and drop the dedupe;
       confirm a test goes red for each (in a scratch copy, then restore)
 
 ## Phase 3: Implement
