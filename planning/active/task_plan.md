@@ -61,9 +61,9 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
       confirm a test goes red for each (in a scratch copy, then restore)
 
 ## Phase 3: Implement
-- [ ] Add `result = c("ids", "exists")` to `frs_network_features()`; branch only the final
+- [x] Add `result = c("ids", "exists")` to `frs_network_features()`; branch only the final
       `SELECT`: the scope, prefilter, predicate and `aoi` filter are shared
-- [ ] roxygen: `@param result`, the `@return` for exists, an example; note that its ids equal
+- [x] roxygen: `@param result`, the `@return` for exists, an example; note that its ids equal
       the array mode's rows (review B2); `devtools::document()`
 - [ ] Tests pass (`devtools::test()` with the grep pattern), `lintr::lint_package()` clean
 

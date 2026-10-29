@@ -15,6 +15,10 @@
 #' `whse_basemapping.fwa_<direction>()` for cross-mainstem ltree
 #' comparison, then `array_agg`s feature IDs grouped by segment ID.
 #'
+#' With `result = "exists"` the same walk answers only whether each segment
+#' has any such feature, returning the segments that do without building
+#' their arrays (#281).
+#'
 #' @param conn A [DBI::DBIConnection-class] object pointing at fwapg.
 #' @param segments Character. Schema-qualified segments table. Must
 #'   have `<segment_id_col>`, `blue_line_key`,
@@ -59,6 +63,14 @@
 #'   following the same convention.
 #' @param features_localcode_col Character. Local-code column on
 #'   `features`. Default `"localcode_ltree"`. See `features_wscode_col`.
+#' @param result Character. `"ids"` (default) returns each segment's array
+#'   of feature IDs. `"exists"` returns only whether a segment has any
+#'   feature at the requested position, without building the arrays: the
+#'   same walk (predicate, `aoi`, scoped downstream path) reduced to the
+#'   distinct segment IDs it reaches, so no array is aggregated and no
+#'   (segment, feature) pair is sorted. Its segments are exactly the rows
+#'   `"ids"` returns. Use it when the arrays would only be tested for
+#'   presence (`id %in% result$id`).
 #'
 #' @section Scoped downstream walks:
 #' With `direction = "downstream"` and an `aoi`, the walk is cut to what
@@ -102,7 +114,7 @@
 #' create nothing. A caller holding a segments table already cut to one
 #' watershed group should still pass `aoi` to get the scoped walk.
 #'
-#' @return A tibble with two columns:
+#' @return With `result = "ids"`, a tibble with two columns:
 #'   - `<segment_id_col>` -- matches the input column name on segments.
 #'   - `feature_ids` -- an R list-column of character vectors (one
 #'     vector per row). The vectors carry the feature IDs aggregated
@@ -174,6 +186,20 @@
 #' lengths(obs_per_segment$feature_ids)        # per-segment counts
 #' obs_per_segment$feature_ids[[1]]            # character vector
 #'
+#' # Only whether any barrier lies downstream: the segments of the first
+#' # call, without building their arrays
+#' has_dnstr <- frs_network_features(
+#'   conn,
+#'   segments       = "bcfishpass.streams",
+#'   features       = "bcfishpass.barriers_pscis",
+#'   segment_id_col = "segmented_stream_id",
+#'   feature_id_col = "barriers_pscis_id",
+#'   direction      = "downstream",
+#'   aoi            = "ADMS",
+#'   result         = "exists"
+#' )
+#' setequal(has_dnstr$segmented_stream_id, dnstr_barriers$segmented_stream_id)
+#'
 #' DBI::dbDisconnect(conn)
 #' }
 frs_network_features <- function(
@@ -188,7 +214,8 @@ frs_network_features <- function(
     segments_wscode_col = "wscode_ltree",
     segments_localcode_col = "localcode_ltree",
     features_wscode_col = "wscode_ltree",
-    features_localcode_col = "localcode_ltree") {
+    features_localcode_col = "localcode_ltree",
+    result = c("ids", "exists")) {
 
   if (missing(direction)) {
     stop("`direction` is required (no default). ",
@@ -196,6 +223,7 @@ frs_network_features <- function(
          call. = FALSE)
   }
   direction <- match.arg(direction, c("downstream", "upstream"))
+  result <- match.arg(result)
 
   if (missing(feature_id_col) ||
         !is.character(feature_id_col) ||
@@ -272,6 +300,32 @@ frs_network_features <- function(
                                          segments_wscode_col)
   } else if (!is.null(aoi)) {
     aoi_filter <- sprintf("WHERE a.watershed_group_code = '%s'", aoi)
+  }
+
+  if (result == "exists") {
+    # The same join, reduced to the distinct segment ids it reaches (#281).
+    # Measured against a correlated EXISTS, which drives from the segments
+    # and was the slower form; see research/fwa_downstream_walk.md.
+    sql <- sprintf("
+      SELECT DISTINCT a.%1$s
+      FROM %2$s a
+      INNER JOIN %3$s b ON
+        %4$s(
+          a.blue_line_key, a.downstream_route_measure,
+          a.%7$s, a.%8$s,
+          b.blue_line_key, b.downstream_route_measure,
+          b.%9$s, b.%10$s,
+          %5$s, 1
+        )
+      %6$s",
+      segment_id_col, from_segments, from_features, fwa_predicate, ie_arg,
+      aoi_filter, segments_wscode_col, segments_localcode_col,
+      features_wscode_col, features_localcode_col
+    )
+    res <- frs_db_query(conn, sql)
+    names(res)[1] <- segment_id_col
+    res$has_features <- rep(TRUE, nrow(res))
+    return(res)
   }
 
   # SQL pattern mirrors bcfishpass.load_dnstr:
