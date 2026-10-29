@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.46.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.47.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.46.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.47.0" id="fresh-0470">fresh 0.47.0<a class="anchor" aria-label="anchor" href="#fresh-0470"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/281" class="external-link">#281</a>. Relates to <a href="https://github.com/NewGraphEnvironment/link/issues/394" class="external-link">link#394</a>.</p>
+<p><strong><code>frs_network_features(result = "exists")</code> returns the segments that have any feature downstream (or upstream), without building the arrays.</strong> - The result is one row per segment that has at least one feature, with <code>&lt;segment_id_col&gt;</code> and a logical <code>has_features</code> that is always <code>TRUE</code>. Segments with none are left out, as with the arrays, so a caller testing <code>id %in% result$id</code> gets the same answer by adding one argument. A segment whose only features have NULL ids is a row in both forms. - It runs the array walk’s own join on the same predicate, <code>aoi</code> filter and <a href="https://github.com/NewGraphEnvironment/fresh/issues/272" class="external-link">#272</a> scoped downstream path, and reduces it to <code>SELECT DISTINCT</code> segment ids. Nothing is aggregated into an array and the walk has no <code>ORDER BY</code>. <code>result = "ids"</code>, the default, sends the same SQL as 0.46.0. - On link’s natural barrier views it is 1.00× (SALR) to 1.24× (SETN) faster end to end. The saving in seconds grows with the number of segments reached: in SETN, CH takes 41 s rather than 50 s. Most of the time is the join, which both forms run. A correlated <code>EXISTS</code> was 1.1× to 15× slower than the join, because it has to drive from the segments. Logs are in <code>data-raw/logs/network_features_exists_281/</code>, from <code>data-raw/network_features_exists.R</code>. <code>research/fwa_downstream_walk.md</code>, “Existence walks”, has the plans.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.46.0" id="fresh-0460">fresh 0.46.0<a class="anchor" aria-label="anchor" href="#fresh-0460"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/242" class="external-link">#242</a>. Follows <a href="https://github.com/NewGraphEnvironment/fresh/issues/240" class="external-link">#240</a>.</p>

@@ -24,7 +24,8 @@ frs_network_features(
   segments_wscode_col = "wscode_ltree",
   segments_localcode_col = "localcode_ltree",
   features_wscode_col = "wscode_ltree",
-  features_localcode_col = "localcode_ltree"
+  features_localcode_col = "localcode_ltree",
+  result = c("ids", "exists")
 )
 ```
 
@@ -109,9 +110,20 @@ frs_network_features(
   Character. Local-code column on `features`. Default
   `"localcode_ltree"`. See `features_wscode_col`.
 
+- result:
+
+  Character. `"ids"` (default) returns each segment's array of feature
+  IDs. `"exists"` returns only whether a segment has any feature at the
+  requested position, without building the arrays: the same walk
+  (predicate, `aoi`, scoped downstream path) reduced to the distinct
+  segment IDs it reaches, so no array is aggregated and the walk has no
+  `ORDER BY`. Its segments are exactly the rows `"ids"` returns. Use it
+  when the arrays would only be tested for presence
+  (`id %in% result$id`).
+
 ## Value
 
-A tibble with two columns:
+With `result = "ids"`, a data frame with two columns:
 
 - `<segment_id_col>` – matches the input column name on segments.
 
@@ -127,6 +139,13 @@ A tibble with two columns:
   `.frs_parse_pg_array()` helper – limited to unquoted-element arrays
   (the common case for FWA-snapped IDs).
 
+With `result = "exists"`, a data frame with one row per distinct
+`<segment_id_col>` that has at least one feature at the requested
+position, and a logical `has_features` that is `TRUE` on every row.
+Segments with none don't appear, as with `"ids"`. A feature counts
+whatever its ID, so a segment whose only features have a NULL ID is a
+row in both forms (an empty array under `"ids"`).
+
 ## Details
 
 Mirrors `bcfishpass.load_dnstr_chunked` in
@@ -134,6 +153,10 @@ Mirrors `bcfishpass.load_dnstr_chunked` in
 generalises to either direction. The SQL pattern joins via
 `whse_basemapping.fwa_<direction>()` for cross-mainstem ltree
 comparison, then `array_agg`s feature IDs grouped by segment ID.
+
+With `result = "exists"` the same walk answers only whether each segment
+has any such feature, returning the segments that do without building
+their arrays (#281).
 
 ## Scoped downstream walks
 
@@ -240,6 +263,20 @@ obs_per_segment <- frs_network_features(
 # feature_ids is a list-column of character vectors:
 lengths(obs_per_segment$feature_ids)        # per-segment counts
 obs_per_segment$feature_ids[[1]]            # character vector
+
+# Only whether any barrier lies downstream: the segments of the first
+# call, without building their arrays
+has_dnstr <- frs_network_features(
+  conn,
+  segments       = "bcfishpass.streams",
+  features       = "bcfishpass.barriers_pscis",
+  segment_id_col = "segmented_stream_id",
+  feature_id_col = "barriers_pscis_id",
+  direction      = "downstream",
+  aoi            = "ADMS",
+  result         = "exists"
+)
+setequal(has_dnstr$segmented_stream_id, dnstr_barriers$segmented_stream_id)
 
 DBI::dbDisconnect(conn)
 } # }

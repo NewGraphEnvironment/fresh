@@ -19,7 +19,7 @@ surveys, sediment-sample points, weather stations – anything with
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.46.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.47.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,7 @@ surveys, sediment-sample points, weather stations – anything with
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Per-Segment Arrays of Features Relative to a Stream Network</h1>
-      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.46.0/R/frs_network_features.R" class="external-link"><code>R/frs_network_features.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/R/frs_network_features.R" class="external-link"><code>R/frs_network_features.R</code></a></small>
       <div class="d-none name"><code>frs_network_features.Rd</code></div>
     </div>
 
@@ -74,7 +74,8 @@ surveys, sediment-sample points, weather stations – anything with
 <span>  segments_wscode_col <span class="op">=</span> <span class="st">"wscode_ltree"</span>,</span>
 <span>  segments_localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span>,</span>
 <span>  features_wscode_col <span class="op">=</span> <span class="st">"wscode_ltree"</span>,</span>
-<span>  features_localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span></span>
+<span>  features_localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span>,</span>
+<span>  result <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ids"</span>, <span class="st">"exists"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -161,10 +162,21 @@ following the same convention.</p></dd>
 <dd><p>Character. Local-code column on
 <code>features</code>. Default <code>"localcode_ltree"</code>. See <code>features_wscode_col</code>.</p></dd>
 
+
+<dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
+<dd><p>Character. <code>"ids"</code> (default) returns each segment's array
+of feature IDs. <code>"exists"</code> returns only whether a segment has any
+feature at the requested position, without building the arrays: the
+same walk (predicate, <code>aoi</code>, scoped downstream path) reduced to the
+distinct segment IDs it reaches, so no array is aggregated and the
+walk has no <code>ORDER BY</code>. Its segments are exactly the rows
+<code>"ids"</code> returns. Use it when the arrays would only be tested for
+presence (<code>id %in% result$id</code>).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble with two columns:</p><ul><li><p><code>&lt;segment_id_col&gt;</code> – matches the input column name on segments.</p></li>
+    <p>With <code>result = "ids"</code>, a data frame with two columns:</p><ul><li><p><code>&lt;segment_id_col&gt;</code> – matches the input column name on segments.</p></li>
 <li><p><code>feature_ids</code> – an R list-column of character vectors (one
 vector per row). The vectors carry the feature IDs aggregated
 from the requested direction, ordered by
@@ -176,7 +188,13 @@ matches don't appear in the output (INNER JOIN). Postgres
 array literals are parsed to R character vectors via the
 internal <code>.frs_parse_pg_array()</code> helper – limited to
 unquoted-element arrays (the common case for FWA-snapped IDs).</p></li>
-</ul></div>
+</ul><p>With <code>result = "exists"</code>, a data frame with one row per distinct
+<code>&lt;segment_id_col&gt;</code> that has at least one feature at the requested
+position, and a logical <code>has_features</code> that is <code>TRUE</code> on every row.
+Segments with none don't appear, as with <code>"ids"</code>. A feature counts
+whatever its ID, so a segment whose only features have a NULL ID is a
+row in both forms (an empty array under <code>"ids"</code>).</p>
+    </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Mirrors <code>bcfishpass.load_dnstr_chunked</code> in
@@ -184,6 +202,9 @@ unquoted-element arrays (the common case for FWA-snapped IDs).</p></li>
 but generalises to either direction. The SQL pattern joins via
 <code>whse_basemapping.fwa_&lt;direction&gt;()</code> for cross-mainstem ltree
 comparison, then <code>array_agg</code>s feature IDs grouped by segment ID.</p>
+<p>With <code>result = "exists"</code> the same walk answers only whether each segment
+has any such feature, returning the segments that do without building
+their arrays (#281).</p>
     </div>
     <div class="section level2">
     <h2 id="scoped-downstream-walks">Scoped downstream walks<a class="anchor" aria-label="anchor" href="#scoped-downstream-walks"></a></h2>
@@ -285,6 +306,20 @@ watershed group should still pass <code>aoi</code> to get the scoped walk.</p>
 <span class="r-in"><span><span class="co"># feature_ids is a list-column of character vectors:</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/lengths.html" class="external-link">lengths</a></span><span class="op">(</span><span class="va">obs_per_segment</span><span class="op">$</span><span class="va">feature_ids</span><span class="op">)</span>        <span class="co"># per-segment counts</span></span></span>
 <span class="r-in"><span><span class="va">obs_per_segment</span><span class="op">$</span><span class="va">feature_ids</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>            <span class="co"># character vector</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Only whether any barrier lies downstream: the segments of the first</span></span></span>
+<span class="r-in"><span><span class="co"># call, without building their arrays</span></span></span>
+<span class="r-in"><span><span class="va">has_dnstr</span> <span class="op">&lt;-</span> <span class="fu">frs_network_features</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">conn</span>,</span></span>
+<span class="r-in"><span>  segments       <span class="op">=</span> <span class="st">"bcfishpass.streams"</span>,</span></span>
+<span class="r-in"><span>  features       <span class="op">=</span> <span class="st">"bcfishpass.barriers_pscis"</span>,</span></span>
+<span class="r-in"><span>  segment_id_col <span class="op">=</span> <span class="st">"segmented_stream_id"</span>,</span></span>
+<span class="r-in"><span>  feature_id_col <span class="op">=</span> <span class="st">"barriers_pscis_id"</span>,</span></span>
+<span class="r-in"><span>  direction      <span class="op">=</span> <span class="st">"downstream"</span>,</span></span>
+<span class="r-in"><span>  aoi            <span class="op">=</span> <span class="st">"ADMS"</span>,</span></span>
+<span class="r-in"><span>  result         <span class="op">=</span> <span class="st">"exists"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">setequal</a></span><span class="op">(</span><span class="va">has_dnstr</span><span class="op">$</span><span class="va">segmented_stream_id</span>, <span class="va">dnstr_barriers</span><span class="op">$</span><span class="va">segmented_stream_id</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
