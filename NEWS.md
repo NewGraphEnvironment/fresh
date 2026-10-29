@@ -4,7 +4,7 @@ Closes [#281](https://github.com/NewGraphEnvironment/fresh/issues/281). Relates 
 
 **`frs_network_features(result = "exists")` returns the segments that have any feature downstream (or upstream), without building the arrays.**
 - The result is one row per segment that has at least one feature, with `<segment_id_col>` and a logical `has_features` that is always `TRUE`. Segments with none are left out, as with the arrays, so a caller testing `id %in% result$id` gets the same answer by adding one argument. A segment whose only features have NULL ids is a row in both forms.
-- It runs the array walk's own join on the same predicate, `aoi` filter and #272 scoped downstream path, and reduces it to `SELECT DISTINCT` segment ids. Nothing is aggregated into an array and no (segment, feature) pair is sorted. `result = "ids"`, the default, sends the same SQL as 0.46.0.
+- It runs the array walk's own join on the same predicate, `aoi` filter and #272 scoped downstream path, and reduces it to `SELECT DISTINCT` segment ids. Nothing is aggregated into an array and the walk has no `ORDER BY`. `result = "ids"`, the default, sends the same SQL as 0.46.0.
 - On link's natural barrier views it is 1.00× (SALR) to 1.24× (SETN) faster end to end. The saving in seconds grows with the number of segments reached: in SETN, CH takes 41 s rather than 50 s. Most of the time is the join, which both forms run. A correlated `EXISTS` was 1.1× to 15× slower than the join, because it has to drive from the segments. Logs are in `data-raw/logs/network_features_exists_281/`, from `data-raw/network_features_exists.R`. `research/fwa_downstream_walk.md`, "Existence walks", has the plans.
 
 # fresh 0.46.0

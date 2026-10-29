@@ -770,3 +770,39 @@ test_that("result = \"exists\" returns the id column and a logical has_features"
     expect_identical(out$has_features, rep(TRUE, length(ids)))
   }
 })
+
+test_that("result = \"exists\" walks the array walk's own join and filter", {
+  # Round 3 of #281's review: a second hand-written predicate could wire
+  # include_equivalents or the code columns differently and still contain
+  # every fragment the tests above look for.
+  walk_from <- function(q) {
+    regmatches(q, regexpr("FROM [^\n]+ a\n[\\s\\S]*?(?=\\s+ORDER BY|\\s*$)", q,
+                          perl = TRUE))
+  }
+  for (dir in c("downstream", "upstream")) {
+    for (aoi in list(NULL, "ADMS")) {
+      for (ie in c(FALSE, TRUE)) {
+        args <- list(aoi = aoi, direction = dir, include_equivalents = ie,
+                     segments_wscode_col = "seg_ws",
+                     segments_localcode_col = "seg_lc",
+                     features_wscode_col = "ft_ws",
+                     features_localcode_col = "ft_lc")
+        ids <- do.call(nf_sql, args)$query
+        ex <- do.call(nf_sql, c(args, result = "exists"))$query
+        info <- sprintf("%s, aoi = %s, include_equivalents = %s",
+                        dir, if (is.null(aoi)) "NULL" else aoi, ie)
+        w <- walk_from(ids)
+        expect_length(w, 1L)
+        expect_identical(walk_from(ex), w, info = info)
+        expect_match(w, sprintf("%s, 1\n", if (ie) "true" else "false"),
+                     fixed = TRUE)
+        expect_match(w, paste0(
+          "a.blue_line_key, a.downstream_route_measure,\\s+",
+          "a.seg_ws, a.seg_lc,\\s+",
+          "b.blue_line_key, b.downstream_route_measure,\\s+",
+          "b.ft_ws, b.ft_lc,"
+        ))
+      }
+    }
+  }
+})

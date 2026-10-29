@@ -81,13 +81,13 @@ following the same convention.}
 of feature IDs. \code{"exists"} returns only whether a segment has any
 feature at the requested position, without building the arrays: the
 same walk (predicate, \code{aoi}, scoped downstream path) reduced to the
-distinct segment IDs it reaches, so no array is aggregated and no
-(segment, feature) pair is sorted. Its segments are exactly the rows
+distinct segment IDs it reaches, so no array is aggregated and the
+walk has no \verb{ORDER BY}. Its segments are exactly the rows
 \code{"ids"} returns. Use it when the arrays would only be tested for
 presence (\code{id \%in\% result$id}).}
 }
 \value{
-With \code{result = "ids"}, a tibble with two columns:
+With \code{result = "ids"}, a data frame with two columns:
 \itemize{
 \item \verb{<segment_id_col>} -- matches the input column name on segments.
 \item \code{feature_ids} -- an R list-column of character vectors (one
@@ -102,6 +102,13 @@ array literals are parsed to R character vectors via the
 internal \code{.frs_parse_pg_array()} helper -- limited to
 unquoted-element arrays (the common case for FWA-snapped IDs).
 }
+
+With \code{result = "exists"}, a data frame with one row per distinct
+\verb{<segment_id_col>} that has at least one feature at the requested
+position, and a logical \code{has_features} that is \code{TRUE} on every row.
+Segments with none don't appear, as with \code{"ids"}. A feature counts
+whatever its ID, so a segment whose only features have a NULL ID is a
+row in both forms (an empty array under \code{"ids"}).
 }
 \description{
 For each row in a segments table, return an array of feature IDs

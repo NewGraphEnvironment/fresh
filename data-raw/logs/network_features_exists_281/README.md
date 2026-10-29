@@ -32,7 +32,8 @@ PostgreSQL 17.5.
   3. 01:16-01:26 `ids`, `exists_base_sql` on CHWK CH (5-minute cap).
   4. 01:49-01:58 `ids_arrays`, `exists` on all four, then EXPLAIN of `ids_arrays` on SETN CH.
 
-  The statement cap was 30 minutes, which nothing hit.
+  The statement cap was 30 minutes in batches 1, 2 and 4, which nothing hit, and 5 minutes in
+  batch 3, which both `exists_base_sql` runs hit.
 - **Digest:** `d_ids` is the md5 of the comma-joined sorted segment ids a form returns. For
   the array forms that is the segments with a row in the array result, which is what link
   reads (`id %in% result$id`). `fn_*` digests the ids returned to R, with the same md5

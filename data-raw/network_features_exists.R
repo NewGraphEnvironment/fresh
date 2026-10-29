@@ -46,8 +46,9 @@
 #   Rscript data-raw/network_features_exists.R SALR CHWK LFRA
 #   NF281_FORMS=ids,distinct_sql Rscript data-raw/network_features_exists.R SETN
 #   NF281_FORMS=fn_ids,fn_exists Rscript data-raw/network_features_exists.R SALR
-# NF281_VIEWS, NF281_FORMS, NF281_OUT and NF281_TIMEOUT_MS narrow a smoke run
-# and keep it out of the log. NF281_EXPLAIN=1 writes EXPLAIN (ANALYZE, BUFFERS)
+# NF281_VIEWS, NF281_FORMS and NF281_TIMEOUT_MS narrow a run, which still
+# appends to walks.tsv; NF281_OUT writes it elsewhere, to keep a smoke run out
+# of the log. NF281_EXPLAIN=1 writes EXPLAIN (ANALYZE, BUFFERS)
 # of each SQL form to <out>/plans/ instead of timing.
 # NF281_ALLOW_OTHERS=1 skips the idle-database refusal, for a smoke run only.
 # Writes data-raw/logs/network_features_exists_281/walks.tsv (appended).

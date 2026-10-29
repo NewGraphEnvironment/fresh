@@ -67,8 +67,8 @@
 #'   of feature IDs. `"exists"` returns only whether a segment has any
 #'   feature at the requested position, without building the arrays: the
 #'   same walk (predicate, `aoi`, scoped downstream path) reduced to the
-#'   distinct segment IDs it reaches, so no array is aggregated and no
-#'   (segment, feature) pair is sorted. Its segments are exactly the rows
+#'   distinct segment IDs it reaches, so no array is aggregated and the
+#'   walk has no `ORDER BY`. Its segments are exactly the rows
 #'   `"ids"` returns. Use it when the arrays would only be tested for
 #'   presence (`id %in% result$id`).
 #'
@@ -114,7 +114,7 @@
 #' create nothing. A caller holding a segments table already cut to one
 #' watershed group should still pass `aoi` to get the scoped walk.
 #'
-#' @return With `result = "ids"`, a tibble with two columns:
+#' @return With `result = "ids"`, a data frame with two columns:
 #'   - `<segment_id_col>` -- matches the input column name on segments.
 #'   - `feature_ids` -- an R list-column of character vectors (one
 #'     vector per row). The vectors carry the feature IDs aggregated
@@ -128,6 +128,13 @@
 #'     array literals are parsed to R character vectors via the
 #'     internal `.frs_parse_pg_array()` helper -- limited to
 #'     unquoted-element arrays (the common case for FWA-snapped IDs).
+#'
+#'   With `result = "exists"`, a data frame with one row per distinct
+#'   `<segment_id_col>` that has at least one feature at the requested
+#'   position, and a logical `has_features` that is `TRUE` on every row.
+#'   Segments with none don't appear, as with `"ids"`. A feature counts
+#'   whatever its ID, so a segment whose only features have a NULL ID is a
+#'   row in both forms (an empty array under `"ids"`).
 #'
 #' @family network
 #'
@@ -302,26 +309,30 @@ frs_network_features <- function(
     aoi_filter <- sprintf("WHERE a.watershed_group_code = '%s'", aoi)
   }
 
+  # The walk's FROM, join predicate and filter, written once for both
+  # results so the exists mode cannot drift from the array walk (#281).
+  walk_from <- sprintf("FROM %1$s a
+      INNER JOIN %2$s b ON
+        %3$s(
+          a.blue_line_key, a.downstream_route_measure,
+          a.%6$s, a.%7$s,
+          b.blue_line_key, b.downstream_route_measure,
+          b.%8$s, b.%9$s,
+          %4$s, 1
+        )
+      %5$s",
+    from_segments, from_features, fwa_predicate, ie_arg, aoi_filter,
+    segments_wscode_col, segments_localcode_col,
+    features_wscode_col, features_localcode_col
+  )
+
   if (result == "exists") {
     # The same join, reduced to the distinct segment ids it reaches (#281).
     # Measured against a correlated EXISTS, which drives from the segments
     # and was the slower form; see research/fwa_downstream_walk.md.
     sql <- sprintf("
-      SELECT DISTINCT a.%1$s
-      FROM %2$s a
-      INNER JOIN %3$s b ON
-        %4$s(
-          a.blue_line_key, a.downstream_route_measure,
-          a.%7$s, a.%8$s,
-          b.blue_line_key, b.downstream_route_measure,
-          b.%9$s, b.%10$s,
-          %5$s, 1
-        )
-      %6$s",
-      segment_id_col, from_segments, from_features, fwa_predicate, ie_arg,
-      aoi_filter, segments_wscode_col, segments_localcode_col,
-      features_wscode_col, features_localcode_col
-    )
+      SELECT DISTINCT a.%s
+      %s", segment_id_col, walk_from)
     res <- frs_db_query(conn, sql)
     names(res)[1] <- segment_id_col
     res$has_features <- rep(TRUE, nrow(res))
@@ -347,19 +358,10 @@ frs_network_features <- function(
       SELECT
         a.%1$s,
         b.%2$s AS feature_id
-      FROM %3$s a
-      INNER JOIN %4$s b ON
-        %5$s(
-          a.blue_line_key, a.downstream_route_measure,
-          a.%8$s, a.%9$s,
-          b.blue_line_key, b.downstream_route_measure,
-          b.%10$s, b.%11$s,
-          %6$s, 1
-        )
-      %7$s
+      %3$s
       ORDER BY a.%1$s,
-               b.%10$s DESC,
-               b.%11$s DESC,
+               b.%4$s DESC,
+               b.%5$s DESC,
                b.downstream_route_measure DESC,
                b.%2$s
     ) d
@@ -369,13 +371,7 @@ frs_network_features <- function(
     sql_fmt,
     segment_id_col,
     feature_id_col,
-    from_segments,
-    from_features,
-    fwa_predicate,
-    ie_arg,
-    aoi_filter,
-    segments_wscode_col,
-    segments_localcode_col,
+    walk_from,
     features_wscode_col,
     features_localcode_col
   )

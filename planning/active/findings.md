@@ -66,10 +66,20 @@ Local fwapg, link's `fresh_default` natural barrier views (CH, BT, ST access), `
 - **prose, real:** "mean of two runs" mixed batches -> table rebuilt from one batch per column group; "within 0.1 s" -> dropped; "19%" -> 20%; research 11.4 vs 2.8 s now labelled `EXPLAIN ANALYZE`, timed 6.1 vs 2.6 s given. EXISTS range restated against the join, same batch: 1.1x-15x.
 - The waiter's first launch raced the other client (idle at 01:48:45, refused at start); relaunched with a retry on a refusal before any timing.
 
+## Code-check round 3 (review-round3.md), disposition — 2026-10-29
+
+Mechanism named by the reviewer: a check that reads only what two derivations share agrees whatever the differing part does (the id-only digest; prose figures as a second hand derivation of walks.tsv; the exists mode's second hand-written copy of the predicate).
+
+- **fragile, real:** the exists SQL carried its own copy of the `fwa_<dir>()` call; four mutations to it (ie hard-coded false, segment code columns swapped, a/b blocks swapped, feature side reading segment columns) left the mocked file green. Fixed: `walk_from` (FROM, predicate, aoi filter) is built once and used by both results; ids SQL re-checked byte-identical to v0.46.0 on four paths. New mocked test asserts the exists walk's FROM..filter text equals the ids walk's for both directions x aoi NULL/ADMS x include_equivalents, with non-default code columns. Mutations m1-m4 on `walk_from` and m5 (exists reverting to its own predicate with ie false) each turn the mocked file red (2, 4, 2, 4, 1 of 37 blocks).
+- **prose, real (my bug):** the `@return` paragraph for exists never landed: an unasserted `str.replace` in the first implementation edit missed on indentation. Added; `\value` now documents `has_features`; "tibble" -> "data frame" (`sf::st_read()` returns one).
+- **prose, real:** script header said NF281_VIEWS/FORMS/TIMEOUT_MS keep a run out of the log (only NF281_OUT does); README "30-minute cap, nothing hit" ignored batch 3's 5-minute cap (a sentence written in round 1's fix). Both fixed.
+- **caveat, taken:** "no (segment, feature) pair is sorted" depends on the planner choosing a hash for DISTINCT; NEWS and roxygen now say the walk has no `ORDER BY`.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
 | `REFUSE: another client backend is active` (01:26 UTC, SETN EXPLAIN) | another client was running array walks on the same DB; spill check dropped rather than add load to it |
 | `REFUSE` after two idle checks (01:48 UTC): the other client reconnected between the waiter's check and the script's | waiter retries when the script refuses before timing anything |
+| A Python `str.replace` edit silently missed (indentation) and the `@return` paragraph never landed | every later scripted edit asserts `count(old) == 1` |
 | `'\\s' is an unrecognized escape` in an `Rscript -e` probe | dropped the regexp from the probe |
