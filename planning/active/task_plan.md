@@ -73,7 +73,7 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
       (`fn_ids` / `fn_exists`: transfer and R parse, review A1)
 - [x] Add a section to `research/fwa_downstream_walk.md` (what an existence walk costs against
       the array walk, and which form, with the log prefix); update `research/README.md`'s row
-- [ ] NEWS 0.47.0 entry and `DESCRIPTION` bump as the branch's last commit
+- [x] NEWS 0.47.0 entry and `DESCRIPTION` bump as the branch's last commit
 
 ## Owed at the end (reported, done after merge)
 
