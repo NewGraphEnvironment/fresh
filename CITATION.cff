@@ -8,7 +8,7 @@ message: If you use fresh, please cite it by its DOI, 10.5281/zenodo.23524744.
 type: software
 license: MIT
 title: 'fresh: Freshwater Referenced Spatial Hydrology'
-version: 0.46.0
+version: 0.47.0
 doi: 10.5281/zenodo.23524744
 abstract: Stream network-aware spatial operations via direct SQL against fwapg. Segment
   networks at break points, classify habitat by species, aggregate upstream features,
@@ -28,8 +28,8 @@ preferred-citation:
     email: al@newgraphenvironment.com
     orcid: https://orcid.org/0000-0002-3495-2128
     affiliation: New Graph Environment Ltd.
-  version: 0.46.0
-  date-released: '2026-10-28'
+  version: 0.47.0
+  date-released: '2026-10-29'
   url: https://newgraphenvironment.github.io/fresh/
   repository-code: https://github.com/NewGraphEnvironment/fresh
   license: MIT
@@ -39,7 +39,7 @@ preferred-citation:
     name: New Graph Environment Ltd.
 repository-code: https://github.com/NewGraphEnvironment/fresh
 url: https://newgraphenvironment.github.io/fresh/
-date-released: '2026-10-28'
+date-released: '2026-10-29'
 contact:
 - family-names: Irvine
   given-names: Allan
