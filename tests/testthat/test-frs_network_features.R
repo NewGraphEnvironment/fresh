@@ -657,3 +657,156 @@ test_that("ORDER BY ends in the feature id in both directions", {
     }
   }
 })
+
+## #281: result = "exists" ------------------------------------------------
+
+# The walk with the scoped path's random temp-table name replaced by a fixed
+# one, so two calls' SQL can be compared.
+nf_sql <- function(..., aoi = NULL, direction = "downstream") {
+  rec <- mock_nf_db()
+  frs_network_features(
+    conn = "mock",
+    segments = "fresh.streams",
+    features = "fresh.crossings",
+    feature_id_col = "modelled_crossing_id",
+    direction = direction,
+    aoi = aoi,
+    ...
+  )
+  q <- rec$query
+  tmp <- nf_tmp_name(rec)
+  if (length(tmp)) q <- gsub(tmp, "pg_temp.TMP", q, fixed = TRUE)
+  list(query = q, exec = rec$exec, tmp = tmp)
+}
+
+test_that("`result` must be one of ids/exists", {
+  expect_error(
+    frs_network_features(
+      conn = "mock",
+      segments = "fresh.streams",
+      features = "fresh.crossings",
+      feature_id_col = "id",
+      direction = "downstream",
+      result = "count"
+    ),
+    "should be one of"
+  )
+})
+
+test_that("result = \"ids\" sends the same walk as the default", {
+  for (dir in c("downstream", "upstream")) {
+    for (aoi in list(NULL, "ADMS")) {
+      expect_identical(
+        nf_sql(aoi = aoi, direction = dir)$query,
+        nf_sql(result = "ids", aoi = aoi, direction = dir)$query
+      )
+    }
+  }
+})
+
+test_that("result = \"exists\" builds no arrays and sorts no pairs", {
+  for (dir in c("downstream", "upstream")) {
+    for (aoi in list(NULL, "ADMS")) {
+      q <- nf_sql(result = "exists", aoi = aoi, direction = dir)$query
+      expect_no_match(q, "array_agg|ORDER BY|GROUP BY")
+      # one row per distinct segment id, as the array walk's GROUP BY gives
+      expect_match(q, "SELECT DISTINCT\\s+a\\.id_segment\\b")
+      # and the caller's id column, not the default
+      q2 <- nf_sql(result = "exists", aoi = aoi, direction = dir,
+                   segment_id_col = "linear_feature_id")$query
+      expect_match(q2, "SELECT DISTINCT\\s+a\\.linear_feature_id\\b")
+      expect_match(q, sprintf("whse_basemapping\\.fwa_%s\\(", dir))
+      expect_match(q, "true, 1|false, 1")
+    }
+  }
+})
+
+test_that("result = \"exists\" keeps the scoped walk: temp table and prefilter", {
+  ids <- nf_sql(aoi = "ADMS")
+  ex <- nf_sql(result = "exists", aoi = "ADMS")
+  # the same DDL, and the same DROP last
+  norm <- function(x) gsub(x$tmp, "pg_temp.TMP", x$exec, fixed = TRUE)
+  expect_identical(norm(ex), norm(ids))
+  expect_identical(ex$exec[length(ex$exec)], sprintf("DROP TABLE IF EXISTS %s", ex$tmp))
+  # the walk reads the temp table and the prefiltered features, never the
+  # base tables directly
+  expect_match(ex$query, "FROM pg_temp\\.TMP a")
+  prefilter <- .frs_walk_prefilter(
+    "fresh.crossings", "pg_temp.TMP",
+    c("modelled_crossing_id", "blue_line_key", "downstream_route_measure",
+      "wscode_ltree", "localcode_ltree"),
+    "wscode_ltree", "wscode_ltree"
+  )
+  expect_true(grepl(prefilter, ex$query, fixed = TRUE))
+  expect_no_match(ex$query, "fresh\\.streams")
+})
+
+test_that("result = \"exists\" without the scoped walk filters on aoi and creates nothing", {
+  for (dir in c("downstream", "upstream")) {
+    ex <- nf_sql(result = "exists", aoi = NULL, direction = dir)
+    expect_length(ex$exec, 0L)
+    expect_match(ex$query, "FROM fresh\\.streams a")
+    expect_no_match(ex$query, "watershed_group_code|subpath|frs_tmp_")
+  }
+  ex <- nf_sql(result = "exists", aoi = "ADMS", direction = "upstream")
+  expect_length(ex$exec, 0L)
+  expect_match(ex$query, "a\\.watershed_group_code = 'ADMS'")
+  expect_no_match(ex$query, "subpath|frs_tmp_")
+})
+
+test_that("result = \"exists\" returns the id column and a logical has_features", {
+  for (ids in list(c("s1", "s2"), character(0))) {
+    # a data.frame, as sf::st_read() returns: `d$x <- TRUE` on a zero-row
+    # data.frame errors where a tibble would recycle
+    mock_nf_db(query_fn = function(sql) data.frame(segment_id = ids))
+    out <- frs_network_features(
+      conn = "mock",
+      segments = "fresh.streams",
+      features = "fresh.crossings",
+      segment_id_col = "linear_feature_id",
+      feature_id_col = "id",
+      direction = "downstream",
+      result = "exists"
+    )
+    expect_named(out, c("linear_feature_id", "has_features"))
+    expect_identical(out$linear_feature_id, ids)
+    expect_type(out$has_features, "logical")
+    expect_identical(out$has_features, rep(TRUE, length(ids)))
+  }
+})
+
+test_that("result = \"exists\" walks the array walk's own join and filter", {
+  # Round 3 of #281's review: a second hand-written predicate could wire
+  # include_equivalents or the code columns differently and still contain
+  # every fragment the tests above look for.
+  walk_from <- function(q) {
+    regmatches(q, regexpr("FROM [^\n]+ a\n[\\s\\S]*?(?=\\s+ORDER BY|\\s*$)", q,
+                          perl = TRUE))
+  }
+  for (dir in c("downstream", "upstream")) {
+    for (aoi in list(NULL, "ADMS")) {
+      for (ie in c(FALSE, TRUE)) {
+        args <- list(aoi = aoi, direction = dir, include_equivalents = ie,
+                     segments_wscode_col = "seg_ws",
+                     segments_localcode_col = "seg_lc",
+                     features_wscode_col = "ft_ws",
+                     features_localcode_col = "ft_lc")
+        ids <- do.call(nf_sql, args)$query
+        ex <- do.call(nf_sql, c(args, result = "exists"))$query
+        info <- sprintf("%s, aoi = %s, include_equivalents = %s",
+                        dir, if (is.null(aoi)) "NULL" else aoi, ie)
+        w <- walk_from(ids)
+        expect_length(w, 1L)
+        expect_identical(walk_from(ex), w, info = info)
+        expect_match(w, sprintf("%s, 1\n", if (ie) "true" else "false"),
+                     fixed = TRUE)
+        expect_match(w, paste0(
+          "a.blue_line_key, a.downstream_route_measure,\\s+",
+          "a.seg_ws, a.seg_lc,\\s+",
+          "b.blue_line_key, b.downstream_route_measure,\\s+",
+          "b.ft_ws, b.ft_lc,"
+        ))
+      }
+    }
+  }
+})
