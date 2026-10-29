@@ -85,8 +85,8 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
 
 - [x] Tests pass
 - [x] `/code-check` clean (once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 Verification: the mocked tests pin the SQL shape; the SKGT local test pins exists == array
 mode's rows (its segment set, NULL-id features included) on real FWA data through both prefilter arms; the Phase 4 run pins it on
