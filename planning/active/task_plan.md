@@ -40,11 +40,11 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
 - [x] Oracle: the array walk's row set (the segments it returns, as link reads them), as a
       count and an md5 of the sorted ids, must equal each candidate's (review B2: not
       `lengths > 0`, which drops segments whose only features have NULL ids)
-- [ ] SALR, CHWK, LFRA first; SETN only after, with a 30 min statement timeout and timed-out
+- [x] SALR, CHWK, LFRA first; SETN only after, with a 30 min statement timeout and timed-out
       runs written as censored (the array form alone ran past 10 min there)
-- [ ] Log to `data-raw/logs/network_features_exists_281/` (tsv + README); `EXPLAIN (ANALYZE,
+- [x] Log to `data-raw/logs/network_features_exists_281/` (tsv + README); `EXPLAIN (ANALYZE,
       BUFFERS)` of each candidate on one group, to see which plan the semi-join gets
-- [ ] Record the choice and its numbers in `findings.md`
+- [x] Record the choice and its numbers in `findings.md`
 
 ## Phase 2: Tests (written to fail first)
 - [x] `tests/testthat/test-frs_network_features.R` (mocked, `mock_nf_db()`): `result` is
@@ -65,13 +65,13 @@ views, so every measurement runs locally, as #272's did (`data-raw/network_featu
       `SELECT`: the scope, prefilter, predicate and `aoi` filter are shared
 - [x] roxygen: `@param result`, the `@return` for exists, an example; note that its ids equal
       the array mode's rows (review B2); `devtools::document()`
-- [ ] Tests pass (`devtools::test()` with the grep pattern), `lintr::lint_package()` clean
+- [x] Tests pass (`devtools::test()` with the grep pattern), `lintr::lint_package()` clean
 
 ## Phase 4: Verify on real groups and record
-- [ ] Re-run the Phase 1 script against the shipped function (ids vs exists) on SALR, CHWK,
+- [x] Re-run the Phase 1 script against the shipped function (ids vs exists) on SALR, CHWK,
       LFRA, SETN: identical sets, and the times, including end to end through the function
       (`fn_ids` / `fn_exists`: transfer and R parse, review A1)
-- [ ] Add a section to `research/fwa_downstream_walk.md` (what an existence walk costs against
+- [x] Add a section to `research/fwa_downstream_walk.md` (what an existence walk costs against
       the array walk, and which form, with the log prefix); update `research/README.md`'s row
 - [ ] NEWS 0.47.0 entry and `DESCRIPTION` bump as the branch's last commit
 

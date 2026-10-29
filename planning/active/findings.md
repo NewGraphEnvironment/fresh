@@ -49,7 +49,19 @@ Relates to NewGraphEnvironment/link#394 (lever 1) and NewGraphEnvironment/link#3
 - **O1:** the script captures the function's own SQL (`exists`) and calls it (`fn_*`).
 - **O2:** checked: the ids SQL from this branch is identical to v0.46.0's on all four paths (downstream/upstream x aoi NULL/ADMS), temp-table name normalised (scratch `o2_check.R`, 2026-10-29).
 
+## Measurement: which form, and what it saves (2026-10-29, 00:35-01:26 UTC)
+
+Local fwapg, link's `fresh_default` natural barrier views (CH, BT, ST access), `include_equivalents = TRUE`, script `data-raw/network_features_exists.R`, log `data-raw/logs/network_features_exists_281/` (README has the table).
+
+- **Choice: the join form (`SELECT DISTINCT a.id ... INNER JOIN ... ON fwa_downstream(...)`).** Correlated EXISTS against the prefiltered features: 1.1x (SALR) to 13x (LFRA BT) slower than the array walk (CHWK CH plan: nested-loop semi-join, ~5,200 materialized features tested per segment, no index; 11.4 s vs 2.8 s). EXISTS against the unprefiltered view: > 300 s on CHWK CH (both runs capped) vs 2.8 s.
+- **Saving, end to end through the function:** 1.00x SALR, 1.08-1.11x CHWK, 1.18-1.22x LFRA, 1.22-1.24x SETN (CH 50.2 s -> 40.6 s). SQL alone: up to 1.17x. The join itself is most of the cost in both forms.
+- **The issue's premise held only in part.** "The time is in the output" was true of what the exists mode removes (array_agg, sort, transfer, R parse), but here that is at most ~19% of a SETN walk. The SETN array walk took 47-50 s, not >10 min: link's cancelled probe predates or differs from this setup (not investigated). Sort spill in SETN not checked: another client began walking the same database at ~01:26 UTC, so the EXPLAIN was not run.
+- Every walk's digests agree across all forms (12 of 12 walks, 156 + 4 rows). Two rows ran beside one other client backend (SETN CH fn_exists rep 3, SETN BT fn_ids rep 4); neither stands apart from its pair.
+- Commit 341a34b's message says EXISTS was "2-13x slower"; SALR's is 1.1x. Immutable; the NEWS and README carry the measured range.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| `REFUSE: another client backend is active` (01:26 UTC, SETN EXPLAIN) | another client was running array walks on the same DB; spill check dropped rather than add load to it |
+| `'\\s' is an unrecognized escape` in an `Rscript -e` probe | dropped the regexp from the probe |

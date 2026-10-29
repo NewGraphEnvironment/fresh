@@ -43,7 +43,7 @@
 #   NF281_FORMS=fn_ids,fn_exists Rscript data-raw/network_features_exists.R SALR
 # NF281_VIEWS, NF281_FORMS, NF281_OUT and NF281_TIMEOUT_MS narrow a smoke run
 # and keep it out of the log. NF281_EXPLAIN=1 writes EXPLAIN (ANALYZE, BUFFERS)
-# of each non-ids form to <out>/plans/ instead of timing.
+# of each SQL form to <out>/plans/ instead of timing.
 # Writes data-raw/logs/network_features_exists_281/walks.tsv (appended).
 
 pkgload::load_all(".", quiet = TRUE)
@@ -236,7 +236,7 @@ for (aoi in wsgs) {
                   "wscode_ltree", "localcode_ltree")
   for (v in views) {
     if (explain) {
-      for (form in setdiff(forms, c("ids", "fn_ids", "fn_exists"))) {
+      for (form in setdiff(forms, c("fn_ids", "fn_exists"))) {
         js <- q(paste("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)",
                       walk_sql(form, v, aoi, tmp)))[[1]]
         writeLines(js, file.path(out_dir, "plans",
