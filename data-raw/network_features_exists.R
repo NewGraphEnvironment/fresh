@@ -10,6 +10,9 @@
 #   ids          the array walk, as frs_network_features() sends it (captured)
 #   exists_sql   SELECT DISTINCT a.id FROM tmp a WHERE EXISTS (<feature> b ...)
 #   distinct_sql SELECT DISTINCT a.id FROM tmp a INNER JOIN <features> b ON ...
+#   exists_base_sql  exists_sql against the feature view itself, unprefiltered,
+#                so each segment can probe the view's own indexes and stop at
+#                its first match
 #   exists       what frs_network_features(result = "exists") sends (captured),
 #                once the function has the mode
 #   fn_ids       frs_network_features() itself, end to end, as link calls it:
@@ -56,8 +59,8 @@ views <- env_list("NF281_VIEWS", c("barriers_ch_access", "barriers_bt_access",
                                    "barriers_st_access"))
 forms <- env_list("NF281_FORMS", c("ids", "exists_sql", "distinct_sql"))
 stopifnot(forms[1] %in% c("ids", "fn_ids"),
-          all(forms %in% c("ids", "exists_sql", "distinct_sql", "exists",
-                           "fn_ids", "fn_exists")))
+          all(forms %in% c("ids", "exists_sql", "distinct_sql",
+                           "exists_base_sql", "exists", "fn_ids", "fn_exists")))
 explain <- identical(Sys.getenv("NF281_EXPLAIN"), "1")
 sch <- "fresh_default"
 timeout_ms <- as.integer(Sys.getenv("NF281_TIMEOUT_MS", "1800000"))
@@ -138,7 +141,8 @@ candidate_sql <- function(form, view, tmp) {
       b.blue_line_key, b.downstream_route_measure,
       b.wscode_ltree, b.localcode_ltree,
       true, 1)"
-  if (form == "exists_sql") {
+  if (form == "exists_base_sql") feats <- paste0(sch, ".", view)
+  if (form %in% c("exists_sql", "exists_base_sql")) {
     sprintf("SELECT DISTINCT a.id_segment FROM %s a
              WHERE EXISTS (SELECT 1 FROM %s b WHERE %s)", tmp, feats, pred)
   } else {
