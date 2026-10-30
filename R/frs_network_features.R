@@ -70,7 +70,12 @@
 #'   distinct segment IDs it reaches, so no array is aggregated and the
 #'   walk has no `ORDER BY`. Its segments are exactly the rows
 #'   `"ids"` returns. Use it when the arrays would only be tested for
-#'   presence (`id %in% result$id`).
+#'   presence (`id %in% result$id`). `"distinct"` returns each segment's
+#'   feature IDs once each, sorted by the ID, from the same walk: the
+#'   answer to which kinds of feature lie up or downstream when
+#'   `feature_id_col` names a kind (a species code, say). Only distinct
+#'   pairs leave the server, so it stays cheap where every feature is
+#'   reached by many segments (#284).
 #'
 #' @section Scoped downstream walks:
 #' With `direction = "downstream"` and an `aoi`, the walk is cut to what
@@ -135,6 +140,11 @@
 #'   Segments with none don't appear, as with `"ids"`. A feature counts
 #'   whatever its ID, so a segment whose only features have a NULL ID is a
 #'   row in both forms (an empty array under `"ids"`).
+#'
+#'   With `result = "distinct"`, the same two columns as `"ids"` and the same
+#'   rows, with each segment's IDs once each, sorted by the ID (in its SQL
+#'   type's order, so numerically for a numeric ID): the set `unique()`
+#'   would give of the `"ids"` vector.
 #'
 #' @family network
 #'
@@ -222,7 +232,7 @@ frs_network_features <- function(
     segments_localcode_col = "localcode_ltree",
     features_wscode_col = "wscode_ltree",
     features_localcode_col = "localcode_ltree",
-    result = c("ids", "exists")) {
+    result = c("ids", "exists", "distinct")) {
 
   if (missing(direction)) {
     stop("`direction` is required (no default). ",
@@ -325,6 +335,23 @@ frs_network_features <- function(
     segments_wscode_col, segments_localcode_col,
     features_wscode_col, features_localcode_col
   )
+
+  if (result == "distinct") {
+    # The same join, each segment's ids aggregated once each (#284). No
+    # ordered subquery: the array is sorted by the id itself, so the order is
+    # a function of the data.
+    sql <- sprintf("
+      SELECT
+        a.%1$s,
+        array_agg(DISTINCT b.%2$s ORDER BY b.%2$s)
+          FILTER (WHERE b.%2$s IS NOT NULL) AS feature_ids
+      %3$s
+      GROUP BY a.%1$s", segment_id_col, feature_id_col, walk_from)
+    res <- frs_db_query(conn, sql)
+    names(res)[1] <- segment_id_col
+    res$feature_ids <- lapply(res$feature_ids, .frs_parse_pg_array)
+    return(res)
+  }
 
   if (result == "exists") {
     # The same join, reduced to the distinct segment ids it reaches (#281).

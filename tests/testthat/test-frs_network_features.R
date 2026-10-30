@@ -679,7 +679,7 @@ nf_sql <- function(..., aoi = NULL, direction = "downstream") {
   list(query = q, exec = rec$exec, tmp = tmp)
 }
 
-test_that("`result` must be one of ids/exists", {
+test_that("`result` must be one of ids/exists/distinct", {
   expect_error(
     frs_network_features(
       conn = "mock",
@@ -809,4 +809,63 @@ test_that("result = \"exists\" walks the array walk's own join and filter", {
       }
     }
   }
+})
+
+
+## #284: result = "distinct" ----------------------------------------------
+
+test_that("result = \"distinct\" aggregates each id once, sorted, with no ordered subquery", {
+  for (dir in c("downstream", "upstream")) {
+    for (aoi in list(NULL, "ADMS")) {
+      q <- nf_sql(result = "distinct", aoi = aoi, direction = dir)$query
+      expect_match(q, "array_agg\\(DISTINCT b\\.modelled_crossing_id ORDER BY b\\.modelled_crossing_id\\)")
+      expect_match(q, "FILTER \\(WHERE b\\.modelled_crossing_id IS NOT NULL\\)")
+      expect_match(q, "GROUP BY a\\.id_segment\\s*$")
+      # no per-pair sort: the array's order is the id's
+      expect_no_match(q, "\\) d\\b|wscode_ltree DESC")
+    }
+  }
+})
+
+test_that("result = \"distinct\" walks the array walk's own join, filter and scoped path", {
+  walk_from <- function(q) {
+    regmatches(q, regexpr("FROM [^\n]+ a\n[\\s\\S]*?(?=\\s+ORDER BY|\\s+GROUP BY|\\s*$)", q,
+                          perl = TRUE))
+  }
+  for (dir in c("downstream", "upstream")) {
+    for (aoi in list(NULL, "ADMS")) {
+      for (ie in c(FALSE, TRUE)) {
+        args <- list(aoi = aoi, direction = dir, include_equivalents = ie,
+                     segments_wscode_col = "seg_ws",
+                     segments_localcode_col = "seg_lc",
+                     features_wscode_col = "ft_ws",
+                     features_localcode_col = "ft_lc")
+        ids <- do.call(nf_sql, args)
+        di <- do.call(nf_sql, c(args, result = "distinct"))
+        info <- sprintf("%s, aoi = %s, include_equivalents = %s",
+                        dir, if (is.null(aoi)) "NULL" else aoi, ie)
+        w <- walk_from(ids$query)
+        expect_length(w, 1L)
+        expect_identical(walk_from(di$query), w, info = info)
+        # the same temp-table DDL and DROP on the scoped path
+        norm <- function(x) {
+          if (length(x$tmp)) gsub(x$tmp, "pg_temp.TMP", x$exec, fixed = TRUE) else x$exec
+        }
+        expect_identical(norm(di), norm(ids), info = info)
+      }
+    }
+  }
+})
+
+test_that("result = \"distinct\" returns the id column and a list-column of ids", {
+  mock_nf_db(query_fn = function(sql) {
+    tibble::tibble(segment_id = c("s1", "s2"), feature_ids = c("{BT,CO}", NA))
+  })
+  out <- frs_network_features(
+    conn = "mock", segments = "fresh.streams", features = "fresh.obs",
+    segment_id_col = "linear_feature_id", feature_id_col = "species_code",
+    direction = "upstream", result = "distinct"
+  )
+  expect_named(out, c("linear_feature_id", "feature_ids"))
+  expect_identical(out$feature_ids, list(c("BT", "CO"), character(0)))
 })
