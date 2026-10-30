@@ -88,8 +88,10 @@ presence (\code{id \%in\% result$id}). \code{"distinct"} returns each segment's
 feature IDs once each, sorted by the ID, from the same walk: the
 answer to which kinds of feature lie up or downstream when
 \code{feature_id_col} names a kind (a species code, say). Only distinct
-pairs leave the server, so it stays cheap where every feature is
-reached by many segments (#284).}
+pairs leave the server, so it stays cheap where a segment reaches many
+features that share an ID (a main stem below thousands of records of a
+few species); with a unique \code{feature_id_col} it returns as much as
+\code{"ids"} (#284).}
 }
 \value{
 With \code{result = "ids"}, a data frame with two columns:

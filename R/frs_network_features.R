@@ -74,8 +74,10 @@
 #'   feature IDs once each, sorted by the ID, from the same walk: the
 #'   answer to which kinds of feature lie up or downstream when
 #'   `feature_id_col` names a kind (a species code, say). Only distinct
-#'   pairs leave the server, so it stays cheap where every feature is
-#'   reached by many segments (#284).
+#'   pairs leave the server, so it stays cheap where a segment reaches many
+#'   features that share an ID (a main stem below thousands of records of a
+#'   few species); with a unique `feature_id_col` it returns as much as
+#'   `"ids"` (#284).
 #'
 #' @section Scoped downstream walks:
 #' With `direction = "downstream"` and an `aoi`, the walk is cut to what
