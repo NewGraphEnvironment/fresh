@@ -222,11 +222,11 @@ test_that("result = \"distinct\" returns unique() of the array walk's ids (SKGT)
     expect_named(di, names(ids))
     expect_identical(sort(as.character(di$linear_feature_id)),
                      sort(as.character(ids$linear_feature_id)), info = info)
-    want <- lapply(ids$feature_ids, function(x) {
-      as.character(sort(unique(as.numeric(x))))
-    })
+    # Compared as numbers: as.character() of a double prints a key ending in
+    # zeros as "3.6e+08", which the array's text never does.
+    want <- lapply(ids$feature_ids, function(x) sort(unique(as.numeric(x))))
     names(want) <- as.character(ids$linear_feature_id)
-    got <- di$feature_ids
+    got <- lapply(di$feature_ids, as.numeric)
     names(got) <- as.character(di$linear_feature_id)
     expect_identical(got[names(want)], want, info = info)
     # some segment must have repeated ids, or the fixture shows nothing
