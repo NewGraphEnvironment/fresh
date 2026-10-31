@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.49.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.50.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.50.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.50.0" id="fresh-0500">fresh 0.50.0<a class="anchor" aria-label="anchor" href="#fresh-0500"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/274" class="external-link">#274</a>.</p>
+<p><strong>Route measures reach the SQL exactly.</strong> - <code><a href="../reference/frs_point_locate.html">frs_point_locate()</a></code> writes its measure at 17 significant digits. It wrote 15, which for a stream’s top can name a point past the last segment’s end, and then <code>fwa_locatealong()</code> returned no row. - <code><a href="../reference/frs_network.html">frs_network()</a></code>, <code><a href="../reference/frs_network_upstream.html">frs_network_upstream()</a></code>, <code><a href="../reference/frs_network_downstream.html">frs_network_downstream()</a></code>, <code><a href="../reference/frs_network_prune.html">frs_network_prune()</a></code> and <code><a href="../reference/frs_waterbody_network.html">frs_waterbody_network()</a></code> find the segment a measure falls on (<code>downstream_route_measure &lt;= m</code>) with the measure at full precision too, so a measure at a segment’s own start no longer risks picking the segment before. - These functions now stop with <code>&lt;arg&gt; must be a single finite number</code> when a measure is <code>NA</code>, infinite or not length 1. Before, the value reached the database and failed there. - <code><a href="../reference/frs_wsg_drainage.html">frs_wsg_drainage()</a></code> still writes outlet measures at 15 digits. <code>fwa_downstream()</code> gives the same answer at either precision, and the bundled outlet table has at most 10.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.49.0" id="fresh-0490">fresh 0.49.0<a class="anchor" aria-label="anchor" href="#fresh-0490"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/286" class="external-link">#286</a>. Relates to <a href="https://github.com/NewGraphEnvironment/wet/issues/155" class="external-link">wet#155</a>.</p>
