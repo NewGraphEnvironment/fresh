@@ -93,7 +93,7 @@ Mechanism choices (mine, stated):
       code-check-r rule on reader results
 
 ## Phase 5: Wrap-up
-- [ ] NEWS.md entry; `lintr::lint_package()`; `pkgdown::check_pkgdown()`; full `devtools::test()`
+- [ ] NEWS.md entry (written by `/gh-pr-merge` at release, as for 0.48.0; the `limit` change goes in the PR body for it); `lintr` on changed files; `pkgdown::check_pkgdown()`; full `devtools::test()`
 - [ ] `/code-check branch`
 
 ## Owed at the end

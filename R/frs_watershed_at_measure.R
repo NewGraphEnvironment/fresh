@@ -92,8 +92,10 @@ frs_watershed_at_measure <- function(
   }
 
   if (!is.null(simplify_m)) {
-    return(.frs_watershed_simplified(conn, blue_line_key,
-      downstream_route_measure, upstream_measure, upstream_blk, simplify_m))
+    return(.frs_watershed_simplified(
+      conn, blue_line_key, downstream_route_measure,
+      upstream_measure, upstream_blk, simplify_m
+    ))
   }
 
   ws_down <- frs_db_query(conn,
@@ -151,12 +153,14 @@ frs_watershed_at_measure <- function(
 
   up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
 
-  ws <- frs_db_query(conn, sprintf(paste(
+  sql <- paste(
     "SELECT ST_Intersects(d.geom, u.geom) AS intersects,",
     "%s AS geom",
     "FROM whse_basemapping.fwa_watershedatmeasure(%s, %s) d,",
-    "whse_basemapping.fwa_watershedatmeasure(%s, %s) u"),
-    simplify("ST_Difference(d.geom, u.geom)"),
+    "whse_basemapping.fwa_watershedatmeasure(%s, %s) u"
+  )
+  ws <- frs_db_query(conn, sprintf(
+    sql, simplify("ST_Difference(d.geom, u.geom)"),
     blue_line_key, downstream_route_measure, up_blk, upstream_measure
   ))
 
