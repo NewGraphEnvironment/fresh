@@ -25,10 +25,12 @@ frs_point_locate <- function(
     blue_line_key,
     downstream_route_measure
 ) {
+  # The measure at 17 significant digits: `%s` keeps 15, which can name a
+  # position past a stream's top, outside every segment's range (#274)
   sql <- sprintf(
-    "SELECT * FROM whse_basemapping.fwa_locatealong(%s, %s)",
+    "SELECT * FROM whse_basemapping.fwa_locatealong(%d, %s)",
     as.integer(blue_line_key),
-    downstream_route_measure
+    .frs_sql_exact(downstream_route_measure, "downstream_route_measure")
   )
   frs_db_query(conn, sql)
 }

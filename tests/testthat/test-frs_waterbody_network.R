@@ -59,3 +59,16 @@ test_that("frs_waterbody_network rejects invalid direction", {
     "arg"
   )
 })
+
+test_that("frs_waterbody_network sends the measure at full precision", {
+  # %s keeps 15 significant digits, which can pick the segment before the
+  # one a measure starts (#274). This value needs all 17.
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+  frs_waterbody_network("mock", blue_line_key = 360873822,
+    downstream_route_measure = 1234567.8912345678)
+  expect_identical(sql_measure_picks(sql_sent), "1234567.8912345679")
+})

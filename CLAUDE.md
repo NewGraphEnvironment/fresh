@@ -259,6 +259,12 @@ Small durable technical reference for internal behavior worth remembering.
 - On FWA's own codes the blue-line arm is redundant (no blue line carries two wscodes); it keeps a feature table with missing or different codes correct. A test that drops an arm needs a group and features that reach it: `research/fwa_downstream_walk.md`, "Prefiltering the feature side".
 - `result = "exists"` (#281) is the array walk's own join reduced to `SELECT DISTINCT` segment ids. Both results take their FROM, predicate and `aoi` filter from one string, `walk_from`, so the exists mode cannot drift from the array walk; a test pins the two texts equal. Its rows are the array walk's rows, so a segment whose only features have NULL ids counts. A correlated `EXISTS` was 1.1-15x slower: it drives from the segments, against a materialized feature list (`research/fwa_downstream_walk.md`, "Existence walks").
 
+### Numbers in SQL text (`.frs_sql_exact()`, `.frs_sql_num()`)
+
+- A route measure written into SQL as a **position** goes through `.frs_sql_exact()` (`%.17g`), and a blue line key through `%d` on `as.integer()`. `%s` on a double keeps 15 significant digits, which can name a point past a segment's end or below its start, and writes a round key as `3.56e+08` (#274, #286).
+- A rule threshold or distance goes through `.frs_sql_num()` (10 digits); it is compared against, never resolved to a segment.
+- To find every site, parse rather than grep: the SQL builders are multi-line `paste0()` templates with their `sprintf()` arguments in a block at the end, so a grep for `sprintf` and `measure` on one line missed 14 of them (#274).
+
 ### Waterbody area floors (`.frs_rule_ha_min()`)
 
 - A `waterbody_type` rule's area floor is read **only** through `.frs_rule_ha_min()` (`lake_ha_min` on L, `wetland_ha_min` on W). The rule compiler, the lake / wetland bucket predicates and the waterbody-connected spawning floor all call it. Two readers drifting is what #237 was.

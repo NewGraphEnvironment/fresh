@@ -93,7 +93,7 @@ frs_network_upstream <- function(
     wscode_col, localcode_col,
     table,
     as.integer(blue_line_key),
-    downstream_route_measure,
+    .frs_sql_exact(downstream_route_measure, "downstream_route_measure"),
     select_cols,
     table,
     wscode_col, localcode_col,

@@ -634,3 +634,32 @@ test_that("frs_network to= writes table and matches sf return", {
   expect_equal(nrow(sf_result), nrow(db_result))
   expect_true("linear_feature_id" %in% names(db_result))
 })
+
+test_that("frs_network sends every measure at full precision", {
+  # %s keeps 15 significant digits, which can pick the segment before the
+  # one a measure starts (#274). Both values need all 17. Each table kind
+  # takes its own SQL builder, and upstream_blk adds the upstream check.
+  m <- 1234567.8912345678
+  um <- 2345678.9123456789
+  exact <- c(.frs_sql_exact(m), .frs_sql_exact(um))
+  expect_identical(exact[1], "1234567.8912345679")
+  for (tbl in list(streams = "whse_basemapping.fwa_stream_networks_sp",
+                   crossings = "bcfishpass.crossings",
+                   lakes = "whse_basemapping.fwa_lakes_poly")) {
+    for (up in list(NULL, um)) {
+      sqls <- character(0)
+      local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+        sqls <<- c(sqls, sql)
+        if (grepl("is_upstream", sql)) data.frame(is_upstream = TRUE) else
+          data.frame()
+      })
+      frs_network("mock", 360873822, m, upstream_measure = up,
+        upstream_blk = if (is.null(up)) NULL else 360886221,
+        tables = list(t = tbl))
+      picks <- sql_measure_picks(sqls)
+      expect_identical(picks, if (is.null(up)) exact[1] else
+        rep(exact, length.out = length(picks)))
+      expect_gt(length(picks), 0)
+    }
+  }
+})
