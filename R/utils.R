@@ -978,11 +978,10 @@
   if (is.list(aoi)) {
     # blk + measure → watershed delineation
     if (!is.null(aoi$blk) && !is.null(aoi$measure)) {
-      blk <- as.integer(aoi$blk)
-      measure <- as.numeric(aoi$measure)
       return(sprintf(
-        "ST_Intersects(%s%s, (SELECT ST_Union(geom) FROM whse_basemapping.fwa_watershedatmeasure(%d, %s)))",
-        prefix, geom_col, blk, measure
+        "ST_Intersects(%s%s, (SELECT ST_Union(geom) FROM %s))",
+        prefix, geom_col,
+        .frs_watershedatmeasure_sql(aoi$blk, as.numeric(aoi$measure))
       ))
     }
 

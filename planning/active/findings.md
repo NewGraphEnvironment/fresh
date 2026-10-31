@@ -79,6 +79,10 @@ changed functions, after 2026-10-31 fixes (`git diff 08b19b7...HEAD -- R/ | grep
 | `order_by` | `.frs_order_by()` | identifier regex | safe |
 | `aoi` sf | `.frs_resolve_aoi()` | `st_as_text(digits = 15)` | safe: session-independent; same ids as the DB polygon over 3 watersheds (round 1) |
 | geometry column | `.frs_geom_select()` | constant `"geom"` | safe |
+| `aoi` list blk+measure | `.frs_resolve_aoi()` | was `%d` key, `%s` of `as.numeric()` measure (15 digits, exponent form); now `.frs_watershedatmeasure_sql()` | fixed after round 4: 88 FWA upstream measures cross the next segment's start at 15 digits. `grep -n "fwa_watershedatmeasure(" R/*.R` now finds one builder |
+| `aoi` list table+id | `.frs_resolve_aoi()` | `.frs_quote_string()` for character, `as.character()` for numeric id; table/id_col validated identifiers | safe against an integer id column; a text id column errors loudly |
+| `aoi` character (WSG codes) | `.frs_resolve_aoi()` | `.frs_quote_string()`; partition table/column validated | safe (envelope prefilter, documented) |
+| fetcher `table`, `cols` | fetchers | `.frs_validate_identifier()` | safe |
 | unchanged lines in the fetchers: `limit`, `stream_order_min`, `blue_line_key` | `as.integer()`; `watershed_group_code` `.frs_quote_string()`; `bbox` `%s` (envelope, unchanged from main) | — | safe / out of scope |
 
 R's own parser is not correctly rounded for 17-digit text (2000 random doubles: Postgres 2000 exact,
