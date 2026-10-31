@@ -1,3 +1,11 @@
+# fresh 0.48.0
+
+Closes [#284](https://github.com/NewGraphEnvironment/fresh/issues/284). Relates to [link#401](https://github.com/NewGraphEnvironment/link/issues/401).
+
+**`frs_network_features(result = "distinct")` returns, per segment, the feature IDs upstream or downstream once each, so a caller can ask which kinds of feature lie there.**
+- With `feature_id_col` naming a kind (a species code), each segment gets the set of kinds, sorted by the ID in its type's order, in the same list-column shape as `result = "ids"`. It runs the array walk's own join, predicate, `aoi` filter and scoped downstream path, aggregating `array_agg(DISTINCT … ORDER BY …)` with no ordered subquery. `result = "ids"` and `"exists"` send the same SQL as 0.47.0.
+- Over every watershed group's fish records it costs less than an `"ids"` walk over one group's own: LFRA 65 → 37 to 39 s, BULK 21 → 8 s, SETN 47 → 44 to 46 s (m1, twice each). One existence walk per species cost 3 to 7 times more. Evidence is in link's `data-raw/logs/obs_province_401/`.
+
 # fresh 0.47.0
 
 Closes [#281](https://github.com/NewGraphEnvironment/fresh/issues/281). Relates to [link#394](https://github.com/NewGraphEnvironment/link/issues/394).
