@@ -137,7 +137,7 @@ frs_watershed_at_measure <- function(
                                       simplify_m) {
   simplify <- function(g) {
     sprintf("ST_Normalize(ST_SimplifyPreserveTopology(%s, %s))", g,
-            .frs_sql_num(simplify_m))
+            .frs_sql_num(as.double(simplify_m)))
   }
 
   if (is.null(upstream_measure)) {
@@ -170,10 +170,13 @@ frs_watershed_at_measure <- function(
 
 #' The `fwa_watershedatmeasure()` call for one point
 #'
-#' The key goes in as an integer and the measure through `.frs_sql_num()`.
-#' `sprintf("%s")` on a double writes `3.56e+08` for blue line key 356000000,
-#' which Postgres reads as numeric and matches to no `fwa_watershedatmeasure()`
-#' signature.
+#' The key goes in as an integer: `sprintf("%s")` on a double writes
+#' `3.56e+08` for blue line key 356000000, which Postgres reads as numeric
+#' and matches to no `fwa_watershedatmeasure()` signature. The measure goes
+#' in at `%.17g`, which round-trips a double exactly: fwapg picks the segment
+#' with `downstream_route_measure <= measure`, so a segment's own start
+#' rounded to fewer digits (`.frs_sql_num()` keeps 10) can fall below it and
+#' select the segment before.
 #'
 #' @param blk Numeric blue line key.
 #' @param measure Numeric route measure.
@@ -181,5 +184,5 @@ frs_watershed_at_measure <- function(
 #' @noRd
 .frs_watershedatmeasure_sql <- function(blk, measure) {
   sprintf("whse_basemapping.fwa_watershedatmeasure(%d, %s)",
-          as.integer(blk), .frs_sql_num(measure))
+          as.integer(blk), sprintf("%.17g", as.double(measure)))
 }

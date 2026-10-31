@@ -98,3 +98,23 @@ test_that("simplified watershed and subbasin are identical on repeat", {
   # Simplified at 50 m, the area moves by well under 1%
   expect_lt(abs(as.numeric(sf::st_area(ws1) / sf::st_area(raw)) - 1), 0.01)
 })
+
+test_that("a watershed at a segment's own start measure is found", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  # 2415.57257727526 rounds to 2415.572577 at 10 digits, below this
+  # segment's start, and fwapg then returns nothing
+  seg <- DBI::dbGetQuery(conn, paste(
+    "SELECT downstream_route_measure AS m",
+    "FROM whse_basemapping.fwa_stream_networks_sp",
+    "WHERE blue_line_key = 360609038",
+    "AND downstream_route_measure BETWEEN 2415 AND 2416"))
+  skip_if(nrow(seg) != 1, "test segment not in this FWA")
+  for (simplify_m in list(NULL, 25)) {
+    ws <- frs_watershed_at_measure(conn, 360609038, seg$m,
+                                   simplify_m = simplify_m)
+    expect_equal(nrow(ws), 1)
+  }
+})

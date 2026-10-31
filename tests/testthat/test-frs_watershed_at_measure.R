@@ -308,3 +308,20 @@ test_that("frs_watershed_at_measure writes a round key and measure in full", {
     expect_no_match(all_sql, "e+", fixed = TRUE)
   }
 })
+
+test_that("frs_watershed_at_measure writes a measure at full precision", {
+  # A segment's own downstream_route_measure rounded to 10 digits can fall
+  # below it, and fwapg then picks the segment before (#286 review round 3)
+  m <- 2415.57257727526
+  for (simplify_m in list(NULL, 25)) {
+    sqls <- character(0)
+    local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+      sqls <<- c(sqls, sql)
+      unit_square_sf()
+    })
+    frs_watershed_at_measure("mock", 360609038, m, simplify_m = simplify_m)
+    sent <- regmatches(sqls, regexpr("(?<=360609038, )[^)]+", sqls,
+                                     perl = TRUE))
+    expect_identical(as.numeric(sent), m)
+  }
+})

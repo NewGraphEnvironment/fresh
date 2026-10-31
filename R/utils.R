@@ -760,7 +760,7 @@
                  geom_col), call. = FALSE)
   }
   expr <- sprintf("ST_SimplifyPreserveTopology(%s, %s)", geom_col,
-                  .frs_sql_num(simplify_m))
+                  .frs_sql_num(as.double(simplify_m)))
   if (normalize) expr <- sprintf("ST_Normalize(%s)", expr)
   cols[cols == geom_col] <- paste(expr, "AS", geom_col)
   paste(cols, collapse = ", ")
