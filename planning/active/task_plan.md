@@ -51,10 +51,10 @@ Approved by the user at the plan gate, 2026-10-31.
 
 ## Phase 3: Re-run the full sweep
 
-- [ ] Commit first. Run a frozen copy from the repo root
+- [x] Commit first. Run a frozen copy from the repo root
       (`cp` to scratch, `Rscript <copy> b088b43 <both migrations>`), in the
       background with a completion waiter, and not alongside the gated tests
-- [ ] Check the header: md5s match, "after the trials: unchanged". Commit the logs
+- [x] Check the header: md5s match, "after the trials: unchanged". Commit the logs
 
 ## Phase 4: Revise the record
 

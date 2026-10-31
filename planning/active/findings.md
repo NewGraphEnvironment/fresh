@@ -49,3 +49,22 @@ The snapped positions are clamped to whole metres, which `format()` writes exact
 - A2/A3: the head case has its own table (body) and `sweep_tops.csv` (one row per line);
   `summary` and `moved` keep the shape earlier runs had.
 - G3: measures are written unquoted, so whole-metre rows do not churn.
+
+## Full run, 2026-10-31 (20:45:55 -> 21:48:37 UTC; states 1323 / 1263 / 1161 s)
+
+- Header: migration md5s match the 2026-10-27 run; rollback confirmed; base-side md5
+  `f0a5e96f60dd7a7af0eddc1e165faf48` reproduces, so the 49,725 positions are identical.
+- Unchanged: positions 0 misses every state; expensive 85 -> 86 watershed misses, 294 ->
+  293 errors; 2 empty traces; `sweep_errors.csv` byte-identical.
+- CSV locatealong misses: base 42 -> **36**, tiebreak / both 38 -> **31**. Net change from
+  the migration is now 5, not 4.
+- Newly moved: `crossings.csv` 356312469 @ 957.70485427024903. It is exactly the top of
+  segment 702605415 (us 957.7048542702494), with the next segment starting at
+  957.705341846863, a 0.5 mm gap: an interior head case. At 7 digits it went out
+  rounded into the gap and missed in every state. Checked by hand on base: 0 rows.
+- Head case (400 lines, own top over every segment): 0 -> 383 resolve; over the 341 whose
+  top is a candidate segment's, 0 -> 327. 17 / 14 still miss after the migration.
+- `head_blk` 360447231: guarded and unguarded tops equal (1528.8506958829107), so the
+  gate pin is unaffected.
+- `sweep_summary.csv`'s old header ended in CRLF; R writes LF, so that line diffs with
+  identical text.
