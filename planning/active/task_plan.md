@@ -93,16 +93,16 @@ Mechanism choices (mine, stated):
       code-check-r rule on reader results
 
 ## Phase 5: Wrap-up
-- [ ] NEWS.md entry (written by `/gh-pr-merge` at release, as for 0.48.0; the `limit` change goes in the PR body for it); `lintr` on changed files; `pkgdown::check_pkgdown()`; full `devtools::test()`
-- [ ] `/code-check branch`
+- [x] NEWS.md entry (written by `/gh-pr-merge` at release, as for 0.48.0; the `limit` change goes in the PR body for it); `lintr` on changed files; `pkgdown::check_pkgdown()`; full `devtools::test()`
+- [x] `/code-check branch`
 
 ## Owed at the end
 - [ ] Comment on wet#155 that the fetchers are ready (our repo, after merge)
 
 ## Validation
-- [ ] Tests pass
-- [ ] `/code-check` clean (once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean (once over the branch with `/code-check branch`)
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 Verification: mocked tests pin the SQL shape; restore each defect (drop ORDER BY, drop Normalize,

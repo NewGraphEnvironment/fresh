@@ -37,9 +37,9 @@ Relates to #30 (drop Z/M by default, which a caller drawing maps also wants). Ne
 ## Line churn check (user's gate question), 2026-10-31
 
 Script: one-off probe comparing `sf::st_as_binary()` row for row (local fwapg on two connections, and
-local vs the shared bcfishpass instance). Local PostGIS GEOS 3.9.0; shared GEOS 3.10.2.
+local vs a second fwapg database). Local PostGIS GEOS 3.9.0; second database GEOS 3.10.2.
 
-| layer | WSG | simplify_m | rows | WKB differ local x2 | WKB differ local vs shared |
+| layer | WSG | simplify_m | rows | WKB differ local x2 | WKB differ local vs second database |
 |---|---|---|---|---|---|
 | streams | BULK | 25 | 30,046 | 0 | 0 |
 | streams | BULK | 100 | 30,046 | 0 | 0 |
