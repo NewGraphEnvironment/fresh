@@ -1,6 +1,6 @@
 # Task: point_snap_tie_sweep.R rounds its measures through format(), so its counts are of rounded measures (#289)
 
-`data-raw/point_snap_tie_sweep.R` built its `VALUES` list with `format(d$m, scientific = FALSE)` (lines 334-336), called once over the whole frame. `format()` uses one number of decimals for the whole vector, chosen so that every element shows 7 significant digits. For the 23,540 CSV measures that is 11 decimals, which moved 12,260 of them by up to 5e-12 m, so the sweep did not send the measures it read:
+`data-raw/point_snap_tie_sweep.R` built its `VALUES` list with `format(d$m, scientific = FALSE)` (lines 334-336), called once over the whole frame. `format()` uses one number of decimals for the whole vector, set by the element that needs the most decimals to show 7 significant digits; every other element shows more. For the 23,540 CSV measures that is 11 decimals, which moved 12,260 of them by up to 5e-12 m, so the sweep did not send the measures it read:
 
 ```r
 format(c(1528.8506958829107, 4494.61997946051), scientific = FALSE)
@@ -10,7 +10,7 @@ format(c(1528.8506958829107, 4494.61997946051), scientific = FALSE)
 
 *Corrected 2026-10-31: this body first said 7 significant digits, which is what `format()` gives on one short vector, not on the sweep's. The code review on the fix measured 11 decimals.*
 
-The counts in `research/fwa_point_snap.md` from that sweep therefore describe rounded measures. That covers the CSV misses, the "4 CSV measures now resolve" list and the per-state tables. Since #274, `frs_point_locate()` and the network traversals send route measures at 17 significant digits (`.frs_sql_exact()`), so these counts are not about what fresh sends.
+The counts in `research/fwa_point_snap.md` from that sweep therefore describe rounded measures. That covers the CSV misses in the per-state table and the "4 CSV measures now resolve" list. Since #274, `frs_point_locate()` and the network traversals send route measures at 17 significant digits (`.frs_sql_exact()`), so these counts are not about what fresh sends.
 
 The snapped positions are clamped to whole metres, which `format()` writes exactly, so they are unaffected. The CSV measures and the 400-stream head-case sample are the ones in question.
 
@@ -78,8 +78,8 @@ Approved by the user at the plan gate, 2026-10-31.
 
 ## Validation
 
-- [ ] Tests pass (`devtools::test()`, not run during the sweep)
-- [ ] `/code-check` clean (once over the branch with `/code-check branch`)
+- [x] Tests pass (`devtools::test()`, not run during the sweep)
+- [x] `/code-check` clean (once over the branch with `/code-check branch`)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

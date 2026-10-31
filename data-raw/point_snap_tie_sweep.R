@@ -39,11 +39,12 @@
 # in the body.
 #
 # Measures reach SQL at 17 significant digits (.frs_sql_exact()) and keys
-# through %d, as on fresh's own code paths since #274; the two CSVs of
+# through %d, as frs_point_locate() and the network traversals send them
+# since #274 (frs_wsg_drainage() does not); the two CSVs of
 # positions carry each measure as that same text. Runs before #289 sent
 # measures through one format() call over the whole frame, which shares one
-# decimal count across it: 11 decimals for the CSV measures, so they went out
-# rounded at about 1e-11 m.
+# decimal count across it: 11 decimals for the CSV measures, which moved
+# 12,260 of 23,540 by up to 5e-12 m.
 
 pkgload::load_all(".", quiet = TRUE)
 
@@ -382,10 +383,11 @@ DBI::dbDisconnect(conn)
 # chunk is re-run row by row under per-row savepoints, so one bad position does
 # not lose the rest of them.
 chunked <- function(con, d, call_sql, chunk = 2000L, label = "") {
-  # The measure goes through .frs_sql_exact() (%.17g), as frs_point_locate() and
-  # the network traversals send one since #274, and the key through %d. format() shares one decimal
-  # count across the whole vector, so it rounds most measures (#289). The text
-  # is returned as `sent`, so sent_exact() checks what actually went out.
+  # The measure goes through .frs_sql_exact() (%.17g), as frs_point_locate()
+  # and the network traversals send one since #274, and the key through %d.
+  # format() shares one decimal count across the whole vector, so it rounded
+  # about half the CSV measures (#289). The text is returned as `sent`, so
+  # sent_exact() checks what actually went out.
   m_sent <- vapply(d$m, .frs_sql_exact, character(1), label = "m")
   vals <- sprintf("(%d,%d,%s)", seq_len(nrow(d)), as.integer(d$blue_line_key), m_sent)
   out <- vector("list", max(1L, ceiling(length(vals) / chunk)))

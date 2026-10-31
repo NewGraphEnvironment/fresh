@@ -89,3 +89,17 @@ is #266's "2 before". `format(957.70485427024903)` is `957.7049`, in the 0.5 mm 
   (format() restored in chunked()) stops: "3840 of 3840 rows joined and 1332 differ".
   Real script passes the smoke run. The committed full-run logs stand: the fix moves the
   check, not the text sent.
+
+## Code-check round 3: mechanism and enumeration (2026-10-31, review-round3.md)
+
+Mechanism: claims about a population or about fwapg's behaviour taken from something other
+than the population or fwapg (one short vector, decimal text, a reviewer's wording, an
+issue's headline). Round 3 enumerated 56 numeric / quantified claims in the changed prose;
+5 did not hold and were fixed. Each replacement re-measured here:
+- 400 tops at 15 digits: 188 above the stream's end, 182 below, 30 exact (psql,
+  `extra_float_digits = 0`, over sweep_tops.csv's own text).
+- `957.70485427025` parses 6.821e-13 m above segment 702605415's top (psql). The note no
+  longer asserts why the migrated function misses it ("in the gap" was round 1's
+  unrun explanation); it states only that it lies past the segment's last measure.
+- "rounded about half the CSV measures": 12,260 of 23,540, measured with psql's parse.
+- `frs_wsg_drainage()` writes via `dbQuoteLiteral()` (R/frs_wsg_drainage.R:101).

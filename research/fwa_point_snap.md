@@ -6,7 +6,7 @@ Source: measured 2026-10-07 on fwapg (`whse_basemapping`, 4,907,441 segments in 
 
 Revised 2026-10-27 for fresh#266 (the tie rule, and what NewGraphEnvironment/fwapg#41 changes on fresh). That sweep is `data-raw/point_snap_tie_sweep.R`, logs in `data-raw/logs/indexpoint_266/`, run on the local docker fwapg (`docker/`, 4,907,441 segments, `exbc` still in `fwa_watershedatmeasure`, no `fwapg.db_version`) with the migrations applied inside a rolled-back transaction. Migration files and their md5s, the fwapg commit, and the elapsed times are in the log's header; the counts are in its body, which a second run reproduces byte for byte.
 
-Revised 2026-10-31 for fresh#274: `frs_point_locate()` and the network traversals' segment picks send the measure at 17 significant digits. Before, `frs_point_locate()` wrote 15 (`sprintf("%s", m)`), which can round a stream's top *up*, past its last segment's end, so the head case below was not reachable through it.
+Revised 2026-10-31 for fresh#274: `frs_point_locate()` and the network traversals' segment picks send the measure at 17 significant digits. Before, `frs_point_locate()` wrote 15 (`sprintf("%s", m)`), which can round a stream's top *up*, past its last segment's end: of the 400 sampled tops below, 188 go out above the stream's end at 15 digits, 182 below it, and 30 exactly (PostgreSQL's parse, `extra_float_digits = 0`).
 
 Revised 2026-10-31 for fresh#289: the sweep sent its measures through one `format()` call over the whole frame, which shares one decimal count across the vector: 11 decimals for the CSV measures, which moved 12,260 of the 23,540 by up to 5e-12 m, so its CSV counts were of those rounded measures. It now sends `.frs_sql_exact()` text, as fresh does, and each state checks in SQL that the text parses back to the stored double. The re-run is the one below. Only the CSV-measure counts moved; the snapped positions, all whole metres, reproduce byte for byte. The head case is now scripted into the sweep rather than an unrecorded query.
 
@@ -39,7 +39,7 @@ on the local docker fwapg, in three states so each change is attributed rather t
 migrated.** 49,725 snapped positions (all 19,905 PSCIS assessments plus 5,000 fish observation
 points, tolerance 150, `num_features = 5`), 23,540 measures from `crossings.csv` / `falls.csv` /
 `wsg_outlet.csv`, 970 positions for the expensive calls, and 400 blue lines each sent at its own
-top. Every measure is sent at 17 significant digits (fresh#289; the 2026-10-27 run rounded them to 11 decimals).
+top. Every measure is sent at 17 significant digits (fresh#289; the 2026-10-27 run rounded the CSV measures to 11 decimals and had no tops).
 
 | state | `fwa_locatealong()` misses, 49,725 snapped positions | misses, 23,540 CSV measures | `fwa_watershedatmeasure()` misses, 970 | its errors |
 |---|---|---|---|---|
@@ -75,8 +75,9 @@ one the migration fixes (below).
   head case inside a stream. It lies 3.4e-13 m below the top of segment 702605415
   (957.70485427024937; the CSV holds that top written at 15 significant digits), which the old
   4-decimal comparison cannot place, and the next segment starts 0.5 mm higher, at
-  957.705341846863. Rounded to 11 decimals it went out as `957.70485427025`, 6.3e-13 m *above*
-  that top and so in the gap, missed in every state, and the 2026-10-27 run did not see it move.
+  957.705341846863. Rounded to 11 decimals it went out as `957.70485427025`, which PostgreSQL
+  parses 6.8e-13 m *above* that top, past the segment's last measure; it missed in every state,
+  and the 2026-10-27 run did not see it move.
 - **One position stops erroring**: 359434058 @ 159, which raised
   `line_interpolate_point: 2nd arg isn't within [0,1]`. The error comes through
   `fwa_upstreambordercrossings`, which the tiebreak migration rewrites;
