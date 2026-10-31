@@ -75,7 +75,7 @@ surveys, sediment-sample points, weather stations – anything with
 <span>  segments_localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span>,</span>
 <span>  features_wscode_col <span class="op">=</span> <span class="st">"wscode_ltree"</span>,</span>
 <span>  features_localcode_col <span class="op">=</span> <span class="st">"localcode_ltree"</span>,</span>
-<span>  result <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ids"</span>, <span class="st">"exists"</span><span class="op">)</span></span>
+<span>  result <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ids"</span>, <span class="st">"exists"</span>, <span class="st">"distinct"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -171,7 +171,14 @@ same walk (predicate, <code>aoi</code>, scoped downstream path) reduced to the
 distinct segment IDs it reaches, so no array is aggregated and the
 walk has no <code>ORDER BY</code>. Its segments are exactly the rows
 <code>"ids"</code> returns. Use it when the arrays would only be tested for
-presence (<code>id %in% result$id</code>).</p></dd>
+presence (<code>id %in% result$id</code>). <code>"distinct"</code> returns each segment's
+feature IDs once each, sorted by the ID, from the same walk: the
+answer to which kinds of feature lie up or downstream when
+<code>feature_id_col</code> names a kind (a species code, say). Only distinct
+pairs leave the server, so it stays cheap where a segment reaches many
+features that share an ID (a main stem below thousands of records of a
+few species); with a unique <code>feature_id_col</code> it returns as much as
+<code>"ids"</code> (#284).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -194,6 +201,10 @@ position, and a logical <code>has_features</code> that is <code>TRUE</code> on e
 Segments with none don't appear, as with <code>"ids"</code>. A feature counts
 whatever its ID, so a segment whose only features have a NULL ID is a
 row in both forms (an empty array under <code>"ids"</code>).</p>
+<p>With <code>result = "distinct"</code>, the same two columns as <code>"ids"</code> and the same
+rows, with each segment's IDs once each, sorted by the ID (in its SQL
+type's order, so numerically for a numeric ID): the set <code><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique()</a></code>
+would give of the <code>"ids"</code> vector.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

@@ -25,7 +25,7 @@ frs_network_features(
   segments_localcode_col = "localcode_ltree",
   features_wscode_col = "wscode_ltree",
   features_localcode_col = "localcode_ltree",
-  result = c("ids", "exists")
+  result = c("ids", "exists", "distinct")
 )
 ```
 
@@ -119,7 +119,13 @@ frs_network_features(
   segment IDs it reaches, so no array is aggregated and the walk has no
   `ORDER BY`. Its segments are exactly the rows `"ids"` returns. Use it
   when the arrays would only be tested for presence
-  (`id %in% result$id`).
+  (`id %in% result$id`). `"distinct"` returns each segment's feature IDs
+  once each, sorted by the ID, from the same walk: the answer to which
+  kinds of feature lie up or downstream when `feature_id_col` names a
+  kind (a species code, say). Only distinct pairs leave the server, so
+  it stays cheap where a segment reaches many features that share an ID
+  (a main stem below thousands of records of a few species); with a
+  unique `feature_id_col` it returns as much as `"ids"` (#284).
 
 ## Value
 
@@ -145,6 +151,12 @@ position, and a logical `has_features` that is `TRUE` on every row.
 Segments with none don't appear, as with `"ids"`. A feature counts
 whatever its ID, so a segment whose only features have a NULL ID is a
 row in both forms (an empty array under `"ids"`).
+
+With `result = "distinct"`, the same two columns as `"ids"` and the same
+rows, with each segment's IDs once each, sorted by the ID (in its SQL
+type's order, so numerically for a numeric ID): the set
+[`unique()`](https://rdrr.io/r/base/unique.html) would give of the
+`"ids"` vector.
 
 ## Details
 
