@@ -1,6 +1,6 @@
 Package: fresh
 Title: Freshwater Referenced Spatial Hydrology
-Version: 0.50.0
+Version: 0.50.1
 Date: 2026-10-31
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),

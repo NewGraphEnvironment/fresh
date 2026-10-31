@@ -1,3 +1,12 @@
+# fresh 0.50.1
+
+Closes [#289](https://github.com/NewGraphEnvironment/fresh/issues/289). No change to the package's functions.
+
+**The tie sweep sends its measures exactly.**
+- `data-raw/point_snap_tie_sweep.R` sends each measure at 17 significant digits (`.frs_sql_exact()`), and in each state checks that the database stores what it was sent. It used one `format()` call over the whole frame, which rounded the CSV measures to 11 decimals.
+- Re-run against the same migrations, CSV `fwa_locatealong()` misses are 36 before the tiebreak migration and 31 after, and five measures now resolve. 0.44.0's "four of 23,540 measures now resolve" was measured on the rounded measures.
+- The head case is now part of the sweep: of 400 blue lines, none resolve their own top measure before the migration and 383 after (`sweep_tops.csv`). `research/fwa_point_snap.md` carries the numbers.
+
 # fresh 0.50.0
 
 Closes [#274](https://github.com/NewGraphEnvironment/fresh/issues/274).
