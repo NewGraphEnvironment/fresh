@@ -28,14 +28,14 @@ Approved by the user at the plan gate, 2026-10-31.
 
 ## Phase 1: Send exact measures
 
-- [ ] `chunked()`: keys via `sprintf("%d", as.integer(blk))`, measures via
+- [x] `chunked()`: keys via `sprintf("%d", as.integer(blk))`, measures via
       `vapply(m, .frs_sql_exact, character(1))`
-- [ ] Guard: read `m` back from `working.tie266_measures_all`, join it on `id`, and
+- [x] Guard: read `m` back from `working.tie266_measures_all`, join it on `id`, and
       `stopifnot(identical(...))` against the R doubles, so a lossy write cannot
       pass silently
-- [ ] Write `m` to `sweep_changed.csv` and `sweep_errors.csv` as `%.17g` text, so
+- [x] Write `m` to `sweep_changed.csv` and `sweep_errors.csv` as `%.17g` text, so
       the CSVs carry exactly what was sent
-- [ ] Update the header comment (usage, outputs) to match
+- [x] Update the header comment (usage, outputs) to match
 
 ## Phase 2: Script the head-case sample
 

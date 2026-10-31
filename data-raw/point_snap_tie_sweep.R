@@ -32,9 +32,15 @@
 # indexpoint tiebreak, since the "tiebreak alone" state applies only that one.
 #
 # Writes data-raw/logs/indexpoint_266/sweep.txt (a non-reproducible header
-# then a reproducible body), sweep_summary.csv (the three-state count table)
-# and sweep_changed.csv (every position whose answer moved, with the state
-# that moved it). A second run must be byte-identical in the body.
+# then a reproducible body), sweep_summary.csv (the three-state count table),
+# sweep_changed.csv (every position whose answer moved, with the state that
+# moved it) and sweep_errors.csv (every call that raised). A second run must be
+# byte-identical in the body.
+#
+# Measures reach SQL at 17 significant digits (.frs_sql_exact()) and keys
+# through %d, as on fresh's own code paths since #274; the two CSVs of
+# positions carry each measure as that same text. Runs before #289 sent
+# measures through format(), at 7 significant digits.
 
 pkgload::load_all(".", quiet = TRUE)
 
@@ -274,6 +280,17 @@ all_measures <- rbind(csv_measures("crossings.csv", "crossings"),
                       csv_measures("wsg_outlet.csv", "wsg_outlet"))
 DBI::dbWriteTable(conn, DBI::Id(schema = "working", table = "tie266_measures_all"),
                   all_measures, overwrite = TRUE)
+# Read back and compared bit for bit: the sweep sends what it reads from this
+# table, so a write that rounded the measures would put #289 back unseen.
+back <- DBI::dbGetQuery(conn,
+  "SELECT id, blue_line_key, m FROM working.tie266_measures_all")
+back <- back[match(all_measures$id, back$id), ]
+if (anyNA(back$id) || !identical(as.double(back$m), all_measures$m) ||
+      !identical(as.double(back$blue_line_key), all_measures$blue_line_key)) {
+  stop("working.tie266_measures_all does not read back the measures written to ",
+       "it bit for bit, so the sweep would not send the CSVs' own measures",
+       call. = FALSE)
+}
 # the sample is taken in SQL, by the stated rule, so it is reproducible and
 # does not cost 533,291 round trips
 invisible(DBI::dbExecute(conn, sprintf(
@@ -331,9 +348,13 @@ DBI::dbDisconnect(conn)
 # chunk is re-run row by row under per-row savepoints, so one bad position does
 # not lose the rest of them.
 chunked <- function(con, d, call_sql, chunk = 2000L, label = "") {
-  vals <- sprintf("(%d,%s,%s)", seq_len(nrow(d)),
-                  format(d$blue_line_key, scientific = FALSE),
-                  format(d$m, scientific = FALSE))
+  # The measure goes through .frs_sql_exact() (%.17g), as every fresh code path
+  # sends one since #274, and the key through %d. format() would write the
+  # measures at 7 significant digits with one decimal count for the whole
+  # vector, so the sweep would measure rounded positions (#289).
+  vals <- sprintf("(%d,%d,%s)", seq_len(nrow(d)),
+                  as.integer(d$blue_line_key),
+                  vapply(d$m, .frs_sql_exact, character(1), label = "m"))
   out <- vector("list", max(1L, ceiling(length(vals) / chunk)))
   # kept as rows, not as tab-joined text: strsplit() drops a trailing empty
   # field, so an empty conditionMessage() would make the 4th field missing and
@@ -670,7 +691,13 @@ writeLines(c(header, body), file.path(dir_out, "sweep.txt"))
 # carries the elapsed times.
 utils::write.csv(summary[, setdiff(names(summary), "secs")],
                  file.path(dir_out, "sweep_summary.csv"), row.names = FALSE)
-utils::write.csv(moved, file.path(dir_out, "sweep_changed.csv"), row.names = FALSE)
+# write.csv() writes a double at 15 significant digits, so each measure is
+# written as the %.17g text the sweep sent, and the file carries it exactly
+exact_m <- function(d) {
+  d$m <- vapply(d$m, .frs_sql_exact, character(1), label = "m")
+  d
+}
+utils::write.csv(exact_m(moved), file.path(dir_out, "sweep_changed.csv"), row.names = FALSE)
 all_errors <- do.call(rbind, lapply(states, function(s) {
   if (!nrow(s$errors)) {
     return(NULL)
@@ -686,7 +713,8 @@ if (is.null(all_errors)) {
                            blue_line_key = numeric(), m = numeric(),
                            message = character(), stringsAsFactors = FALSE)
 }
-utils::write.csv(all_errors, file.path(dir_out, "sweep_errors.csv"), row.names = FALSE)
+utils::write.csv(exact_m(all_errors), file.path(dir_out, "sweep_errors.csv"),
+                 row.names = FALSE)
 message("wrote ", file.path(dir_out, "sweep.txt"))
 
 conn <- fwapg_conn()
