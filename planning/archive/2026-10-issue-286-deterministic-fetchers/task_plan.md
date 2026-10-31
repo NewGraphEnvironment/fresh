@@ -103,7 +103,7 @@ Mechanism choices (mine, stated):
 - [x] Tests pass
 - [x] `/code-check` clean (once over the branch with `/code-check branch`)
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
 
 Verification: mocked tests pin the SQL shape; restore each defect (drop ORDER BY, drop Normalize,
 revert aoi) and confirm a test goes red; live `identical()` + `is.unsorted()` tests against local
