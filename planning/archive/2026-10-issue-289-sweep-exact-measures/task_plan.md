@@ -73,15 +73,15 @@ Approved by the user at the plan gate, 2026-10-31.
 
 ## Owed at the end (reported, done after merge)
 
-- [ ] None expected. If the head-case count changes the gate test's premise
+- [x] None expected. If the head-case count changes the gate test's premise
       (`head_blk` 360447231 no longer a head case), file it rather than fold it in
 
 ## Validation
 
 - [x] Tests pass (`devtools::test()`, not run during the sweep)
 - [x] `/code-check` clean (once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 Verification: the round-trip guard proves that what is sent is what was read.
 `git diff data-raw/logs/indexpoint_266/` shows exactly which counts moved: the
