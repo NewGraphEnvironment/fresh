@@ -71,9 +71,16 @@ Mechanism choices (mine, stated):
       examples show `aoi` + `simplify_m`; `devtools::document()`
 
 ## Phase 3: Watershed
-- [ ] `frs_watershed_at_measure(simplify_m = NULL)`: two paths as decided above
-- [ ] Mocked tests: default path SQL unchanged and still two calls; simplify single-point SQL; simplify
+- [x] `frs_watershed_at_measure(simplify_m = NULL)`: two paths as decided above
+- [x] Mocked tests: default path SQL unchanged and still two calls; simplify single-point SQL; simplify
       subbasin is one call carrying ST_Difference + intersects flag, and errors when the flag is FALSE
+
+## Plan review fixes (review-286.md, folded in 2026-10-31)
+- [x] `.frs_resolve_aoi()` sends WKT at `digits = 15` (was `getOption("digits")`, rounding Albers x to the metre)
+- [x] `order_by` takes a vector; new fetch args moved after `limit`; `area_ha_min` through `.frs_sql_num()`
+- [x] fetcher `aoi` docs: needs a CRS; WSG form is an envelope prefilter
+- [x] simplified subbasin drops an empty difference, matching `sf::st_difference()`
+- [x] line churn check moved ahead (see findings.md): streams 0 WKB differences across GEOS 3.9/3.10
 
 ## Phase 4: Live determinism tests + line churn check
 - [ ] Live tests (skip without DB): lakes, wetlands, streams and watershed each fetched twice with

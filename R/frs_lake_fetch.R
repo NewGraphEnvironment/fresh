@@ -22,10 +22,12 @@
 #'   BC Albers (EPSG:3005). Matches on envelope overlap (`&&`), so a lake
 #'   whose envelope touches the box is returned even when the lake does
 #'   not; use `aoi` for exact intersection. Default `NULL`.
-#' @param aoi Area of interest. An `sf`/`sfc` polygon (any CRS; transformed to
-#'   EPSG:3005) filters with `ST_Intersects()`. For WKT, pass
-#'   `sf::st_as_sfc(wkt, crs = 3005)`. Also accepts the other forms of
-#'   [frs_extract()]'s `aoi`. Default `NULL`.
+#' @param aoi Area of interest. An `sf`/`sfc` polygon (transformed to
+#'   EPSG:3005, so it must carry a CRS) filters with `ST_Intersects()`. For
+#'   WKT, pass `sf::st_as_sfc(wkt, crs = 3005)`. Also accepts the other forms
+#'   of [frs_extract()]'s `aoi`; its character form (watershed group codes) is
+#'   an envelope prefilter, so use `watershed_group_code` to select groups.
+#'   Default `NULL`.
 #' @param simplify_m Numeric. Simplification tolerance in metres, applied in
 #'   the database. Drops M coordinates. Default `NULL` (full resolution).
 #' @param area_ha_min Numeric. Minimum lake area in hectares. Default `NULL`.
@@ -33,9 +35,11 @@
 #'   `"whse_basemapping.fwa_lakes_poly"`.
 #' @param cols Character vector of column names to select. Default includes
 #'   the most commonly used FWA lake attributes.
-#' @param order_by Character. Column to order rows by. Default
+#' @param order_by Character vector. Columns to order rows by. Default
 #'   `"waterbody_poly_id"`, the FWA table's unique key; give another table's
-#'   unique key when `table` is changed, or `NULL` for no `ORDER BY`.
+#'   unique key (one or more columns) when `table` is changed, or `NULL` for
+#'   no `ORDER BY`. With `limit`, the first `limit` rows in this order are
+#'   returned.
 #' @param limit Integer. Maximum rows to return. Default `NULL` (no limit).
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
@@ -62,16 +66,16 @@ frs_lake_fetch <- function(
     watershed_group_code = NULL,
     blue_line_key = NULL,
     bbox = NULL,
-    aoi = NULL,
     area_ha_min = NULL,
     table = "whse_basemapping.fwa_lakes_poly",
     cols = c(
       "waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
       "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"
     ),
+    limit = NULL,
+    aoi = NULL,
     simplify_m = NULL,
-    order_by = "waterbody_poly_id",
-    limit = NULL
+    order_by = "waterbody_poly_id"
 ) {
   .frs_validate_identifier(table, "table")
   for (col in cols) .frs_validate_identifier(col, "column")
@@ -83,7 +87,7 @@ frs_lake_fetch <- function(
     aoi = aoi,
     conn = conn,
     extra = if (!is.null(area_ha_min)) {
-      paste0("area_ha >= ", area_ha_min)
+      paste0("area_ha >= ", .frs_sql_num(area_ha_min))
     }
   )
 

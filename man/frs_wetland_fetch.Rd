@@ -9,14 +9,14 @@ frs_wetland_fetch(
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
-  aoi = NULL,
   area_ha_min = NULL,
   table = "whse_basemapping.fwa_wetlands_poly",
   cols = c("waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
     "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"),
+  limit = NULL,
+  aoi = NULL,
   simplify_m = NULL,
-  order_by = "waterbody_poly_id",
-  limit = NULL
+  order_by = "waterbody_poly_id"
 )
 }
 \arguments{
@@ -33,11 +33,6 @@ BC Albers (EPSG:3005). Matches on envelope overlap (\code{&&}), so a wetland
 whose envelope touches the box is returned even when the wetland does
 not; use \code{aoi} for exact intersection. Default \code{NULL}.}
 
-\item{aoi}{Area of interest. An \code{sf}/\code{sfc} polygon (any CRS; transformed to
-EPSG:3005) filters with \code{ST_Intersects()}. For WKT, pass
-\code{sf::st_as_sfc(wkt, crs = 3005)}. Also accepts the other forms of
-\code{\link[=frs_extract]{frs_extract()}}'s \code{aoi}. Default \code{NULL}.}
-
 \item{area_ha_min}{Numeric. Minimum wetland area in hectares. Default \code{NULL}.}
 
 \item{table}{Character. Fully qualified table name. Default
@@ -46,14 +41,23 @@ EPSG:3005) filters with \code{ST_Intersects()}. For WKT, pass
 \item{cols}{Character vector of column names to select. Default includes
 the most commonly used FWA wetland attributes.}
 
+\item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
+
+\item{aoi}{Area of interest. An \code{sf}/\code{sfc} polygon (transformed to
+EPSG:3005, so it must carry a CRS) filters with \code{ST_Intersects()}. For
+WKT, pass \code{sf::st_as_sfc(wkt, crs = 3005)}. Also accepts the other forms
+of \code{\link[=frs_extract]{frs_extract()}}'s \code{aoi}; its character form (watershed group codes) is
+an envelope prefilter, so use \code{watershed_group_code} to select groups.
+Default \code{NULL}.}
+
 \item{simplify_m}{Numeric. Simplification tolerance in metres, applied in
 the database. Drops M coordinates. Default \code{NULL} (full resolution).}
 
-\item{order_by}{Character. Column to order rows by. Default
+\item{order_by}{Character vector. Columns to order rows by. Default
 \code{"waterbody_poly_id"}, the FWA table's unique key; give another table's
-unique key when \code{table} is changed, or \code{NULL} for no \verb{ORDER BY}.}
-
-\item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
+unique key (one or more columns) when \code{table} is changed, or \code{NULL} for
+no \verb{ORDER BY}. With \code{limit}, the first \code{limit} rows in this order are
+returned.}
 }
 \value{
 An \code{sf} data frame of wetland polygons.

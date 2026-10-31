@@ -9,7 +9,6 @@ frs_stream_fetch(
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
-  aoi = NULL,
   stream_order_min = NULL,
   table = "whse_basemapping.fwa_stream_networks_sp",
   cols = c("linear_feature_id", "blue_line_key", "waterbody_key", "edge_type",
@@ -17,9 +16,10 @@ frs_stream_fetch(
     "downstream_route_measure", "upstream_route_measure", "length_metre",
     "watershed_group_code", "wscode_ltree", "localcode_ltree", "geom"),
   include_all = FALSE,
+  limit = NULL,
+  aoi = NULL,
   simplify_m = NULL,
-  order_by = "linear_feature_id",
-  limit = NULL
+  order_by = "linear_feature_id"
 )
 }
 \arguments{
@@ -36,11 +36,6 @@ BC Albers (EPSG:3005). Matches on envelope overlap (\code{&&}), so a segment
 whose envelope touches the box is returned even when the segment does
 not; use \code{aoi} for exact intersection. Default \code{NULL}.}
 
-\item{aoi}{Area of interest. An \code{sf}/\code{sfc} polygon (any CRS; transformed to
-EPSG:3005) filters with \code{ST_Intersects()}. For WKT, pass
-\code{sf::st_as_sfc(wkt, crs = 3005)}. Also accepts the other forms of
-\code{\link[=frs_extract]{frs_extract()}}'s \code{aoi}. Default \code{NULL}.}
-
 \item{stream_order_min}{Integer. Minimum Strahler stream order to return.
 Default \code{NULL} (all orders).}
 
@@ -54,14 +49,23 @@ the most commonly used FWA stream attributes.}
 wscode) and unmapped tributaries (NULL localcode). Default \code{FALSE} filters
 these out. Only applied when querying the FWA base table.}
 
+\item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
+
+\item{aoi}{Area of interest. An \code{sf}/\code{sfc} polygon (transformed to
+EPSG:3005, so it must carry a CRS) filters with \code{ST_Intersects()}. For
+WKT, pass \code{sf::st_as_sfc(wkt, crs = 3005)}. Also accepts the other forms
+of \code{\link[=frs_extract]{frs_extract()}}'s \code{aoi}; its character form (watershed group codes) is
+an envelope prefilter, so use \code{watershed_group_code} to select groups.
+Default \code{NULL}.}
+
 \item{simplify_m}{Numeric. Simplification tolerance in metres, applied in
 the database. Drops M coordinates. Default \code{NULL} (full resolution).}
 
-\item{order_by}{Character. Column to order rows by. Default
+\item{order_by}{Character vector. Columns to order rows by. Default
 \code{"linear_feature_id"}, the FWA table's unique key; give another table's
-unique key when \code{table} is changed, or \code{NULL} for no \verb{ORDER BY}.}
-
-\item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
+unique key (one or more columns) when \code{table} is changed, or \code{NULL} for
+no \verb{ORDER BY}. With \code{limit}, the first \code{limit} rows in this order are
+returned.}
 }
 \value{
 An \code{sf} data frame of stream segments.

@@ -84,3 +84,26 @@ for (nm in names(fetchers)) {
                  "invalid characters")
   })
 }
+
+test_that("fetch orders by several columns when given them", {
+  sql <- capture_fetch_sql(frs_stream_fetch, table = "fresh.streams",
+                           order_by = c("linear_feature_id",
+                                        "downstream_route_measure"))
+  expect_match(sql, " ORDER BY linear_feature_id, downstream_route_measure$")
+})
+
+test_that("lake and wetland fetch format area_ha_min as a number", {
+  for (f in list(frs_lake_fetch, frs_wetland_fetch)) {
+    sql <- capture_fetch_sql(f, area_ha_min = 1e-5)
+    expect_match(sql, "area_ha >= 1e-05", fixed = TRUE)
+    expect_error(capture_fetch_sql(f, area_ha_min = "1; DROP TABLE x"))
+  }
+})
+
+test_that("new fetch arguments come after limit, keeping positional calls", {
+  for (f in list(frs_lake_fetch, frs_wetland_fetch, frs_stream_fetch)) {
+    a <- names(formals(f))
+    expect_identical(tail(a, 3), c("aoi", "simplify_m", "order_by"))
+    expect_identical(a[length(a) - 3], "limit")
+  }
+})

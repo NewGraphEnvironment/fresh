@@ -682,8 +682,8 @@
 #' @param blue_line_key Integer or NULL.
 #' @param bbox Numeric length-4 or NULL (xmin, ymin, xmax, ymax in EPSG:3005).
 #'   Envelope overlap (`&&`), not intersection.
-#' @param aoi AOI specification passed to [.frs_resolve_aoi()], or NULL.
-#' @param conn A DBI connection, passed to [.frs_resolve_aoi()].
+#' @param aoi AOI specification passed to `.frs_resolve_aoi()`, or NULL.
+#' @param conn A DBI connection, passed to `.frs_resolve_aoi()`.
 #' @param extra Character vector of additional SQL predicates.
 #'
 #' @return Character string starting with " WHERE ..." or empty string.
@@ -782,22 +782,24 @@
 }
 
 
-#' Build an ORDER BY clause on one column
+#' Build an ORDER BY clause
 #'
 #' Fetch queries end on the table's unique key so rows come back in the same
 #' order on every run; PostgreSQL fixes no order unless the query does.
 #'
-#' @param order_by Character column name, or NULL for no clause.
+#' @param order_by Character vector of column names, or NULL for no clause.
+#'   Several columns order a table whose key spans them (a segmented table
+#'   repeats `linear_feature_id`).
 #' @return Character string starting with " ORDER BY ..." or empty string.
 #' @noRd
 .frs_order_by <- function(order_by) {
   if (is.null(order_by)) return("")
-  if (!is.character(order_by) || length(order_by) != 1 ||
-      is.na(order_by) || identical(order_by, "*")) {
-    stop("order_by must be a single column name or NULL", call. = FALSE)
+  if (!is.character(order_by) || length(order_by) == 0 ||
+      anyNA(order_by) || any(order_by == "*")) {
+    stop("order_by must be column names or NULL", call. = FALSE)
   }
-  .frs_validate_identifier(order_by, "order_by")
-  paste0(" ORDER BY ", order_by)
+  for (col in order_by) .frs_validate_identifier(col, "order_by")
+  paste0(" ORDER BY ", paste(order_by, collapse = ", "))
 }
 
 
@@ -941,7 +943,10 @@
   if (inherits(aoi, c("sf", "sfc"))) {
     # Transform to BC Albers (3005) to match DB geometry
     aoi_3005 <- sf::st_transform(aoi, 3005)
-    wkt <- sf::st_as_text(sf::st_union(sf::st_geometry(aoi_3005)))
+    # digits = 15: st_as_text() otherwise rounds to getOption("digits"),
+    # which at the default 7 puts BC Albers x on whole metres (fresh#286)
+    wkt <- sf::st_as_text(sf::st_union(sf::st_geometry(aoi_3005)),
+                          digits = 15)
     return(sprintf(
       "ST_Intersects(%s%s, ST_GeomFromText('%s', 3005))",
       prefix, geom_col, wkt

@@ -34,6 +34,36 @@ Relates to #30 (drop Z/M by default, which a caller drawing maps also wants). Ne
 - `ST_Normalize(LINESTRING ZM(5 5 1 10, 0 0 2 0))` → `LINESTRING Z (0 0 2,5 5 1)`: reversed, M dropped.
 - `ST_SimplifyPreserveTopology(LINESTRING ZM(...), 0.5)` → `LINESTRING Z (...)`: M dropped.
 
+## Line churn check (user's gate question), 2026-10-31
+
+Script: one-off probe comparing `sf::st_as_binary()` row for row (local fwapg on two connections, and
+local vs the shared bcfishpass instance). Local PostGIS GEOS 3.9.0; shared GEOS 3.10.2.
+
+| layer | WSG | simplify_m | rows | WKB differ local x2 | WKB differ local vs shared |
+|---|---|---|---|---|---|
+| streams | BULK | 25 | 30,046 | 0 | 0 |
+| streams | BULK | 100 | 30,046 | 0 | 0 |
+| streams | MORR | 25 | 22,245 | 0 | 0 |
+| streams | MORR | 100 | 22,245 | 0 | 0 |
+| lakes | BULK | 25 | 1,754 | — | 46 (vertex count diff: -2 x1, -1 x27, +1 x18) |
+
+- Streams (simplify only, no `ST_Normalize`) do not churn, even across GEOS versions. Row keys
+  matched in order on both databases, so ORDER BY holds across them too.
+- Lakes differ across GEOS by 1–2 vertices in 2.6% of polygons: the issue's known limit (wet#155 saw
+  one vertex on two lakes). Vertex counts differ, so it is the simplification, not normalization.
+
+## Plan review verdicts (review-286.md)
+
+- Blocker 2 confirmed: `sf::st_as_text()` under `digits = 7` writes `POINT (1234568 456789.1)` for
+  (1234567.891, 456789.123); `digits = 15` gives the full value. Fix in `.frs_resolve_aoi()`.
+- Blocker 1 confirmed by reading `R/utils.R` (character branch is `&&`). Not changed (would also
+  change `frs_extract()`); fetcher docs now say the WSG form is an envelope prefilter and point to
+  `watershed_group_code`. Live test of `aoi` uses a polygon that a feature's envelope overlaps but
+  the feature does not.
+- Gap 1: `order_by` takes a vector. Gap 2: empty difference rows dropped to match `sf::st_difference`.
+  Gap 3: new args moved after `limit`. Gap 4: NA-CRS aoi documented and tested; `area_ha_min` through
+  `.frs_sql_num()`. Acceptance 2: NEWS says `limit = n` now returns the n lowest keys.
+
 ## Errors Encountered
 
 | Error | Resolution |

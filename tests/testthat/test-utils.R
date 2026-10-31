@@ -334,8 +334,32 @@ test_that(".frs_order_by builds a clause or nothing", {
                    " ORDER BY waterbody_poly_id")
 })
 
-test_that(".frs_order_by rejects anything but one identifier", {
-  for (bad in list("*", c("a", "b"), NA_character_, 1, "id; DROP TABLE x")) {
+test_that(".frs_order_by takes several key columns", {
+  expect_identical(
+    .frs_order_by(c("linear_feature_id", "downstream_route_measure")),
+    " ORDER BY linear_feature_id, downstream_route_measure"
+  )
+})
+
+test_that(".frs_order_by rejects anything but identifiers", {
+  for (bad in list("*", c("a", "*"), character(0), NA_character_,
+                   c("a", NA), 1, "id; DROP TABLE x")) {
     expect_error(.frs_order_by(bad))
   }
+})
+
+test_that(".frs_resolve_aoi sends full coordinates whatever digits is set to", {
+  withr::local_options(digits = 7)
+  poly <- sf::st_sfc(sf::st_polygon(list(matrix(c(
+    1234567.891, 456789.123, 1234667.891, 456789.123,
+    1234667.891, 456889.123, 1234567.891, 456789.123
+  ), ncol = 2, byrow = TRUE))), crs = 3005)
+  expect_match(.frs_resolve_aoi(poly), "1234567.891 456789.123", fixed = TRUE)
+})
+
+test_that(".frs_resolve_aoi errors on an sf aoi with no CRS", {
+  poly <- sf::st_sfc(sf::st_polygon(list(
+    matrix(c(0, 0, 10, 0, 10, 10, 0, 0), ncol = 2, byrow = TRUE)
+  )))
+  expect_error(.frs_resolve_aoi(poly), "crs")
 })
