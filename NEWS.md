@@ -1,3 +1,13 @@
+# fresh 0.50.0
+
+Closes [#274](https://github.com/NewGraphEnvironment/fresh/issues/274).
+
+**Route measures reach the SQL exactly.**
+- `frs_point_locate()` writes its measure at 17 significant digits. It wrote 15, which for a stream's top can name a point past the last segment's end, and then `fwa_locatealong()` returned no row.
+- `frs_network()`, `frs_network_upstream()`, `frs_network_downstream()`, `frs_network_prune()` and `frs_waterbody_network()` find the segment a measure falls on (`downstream_route_measure <= m`) with the measure at full precision too, so a measure at a segment's own start no longer risks picking the segment before.
+- These functions now stop with `<arg> must be a single finite number` when a measure is `NA`, infinite or not length 1. Before, the value reached the database and failed there.
+- `frs_wsg_drainage()` still writes outlet measures at 15 digits. `fwa_downstream()` gives the same answer at either precision, and the bundled outlet table has at most 10.
+
 # fresh 0.49.0
 
 Closes [#286](https://github.com/NewGraphEnvironment/fresh/issues/286). Relates to [wet#155](https://github.com/NewGraphEnvironment/wet/issues/155).
