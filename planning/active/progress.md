@@ -10,3 +10,4 @@
 - Phase 2: head-case sample scripted; smoke run green (findings.md)
 - Plan review landed (review-plan.md): B1, G1, G3, A2, A3 fixed in the script; smoke 2 green
 - Phase 3: full sweep run and logs committed (findings.md, Full run)
+- Phase 4: research note, gate-test comment revised; NEWS correction moved to PR body

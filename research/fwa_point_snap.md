@@ -1,12 +1,14 @@
 # Snapping points to the FWA stream network
 
-**Verified:** 2026-10-31 (the head case and the sweep's measure precision) · **Issues:** fresh#247, fresh#266, fresh#274 · **Produced by:** `data-raw/point_snap_parity_check.R`, `data-raw/point_snap_tie_sweep.R`
+**Verified:** 2026-10-31 (the sweep re-run at exact measures, fresh#289) · **Issues:** fresh#247, fresh#266, fresh#274, fresh#289 · **Produced by:** `data-raw/point_snap_parity_check.R`, `data-raw/point_snap_tie_sweep.R`
 
 Source: measured 2026-10-07 on fwapg (`whse_basemapping`, 4,907,441 segments in `fwa_stream_networks_sp`), while working fresh#247. The parity run is `data-raw/point_snap_parity_check.R`, with logs in `data-raw/logs/point_snap_parity_247/`.
 
 Revised 2026-10-27 for fresh#266 (the tie rule, and what NewGraphEnvironment/fwapg#41 changes on fresh). That sweep is `data-raw/point_snap_tie_sweep.R`, logs in `data-raw/logs/indexpoint_266/`, run on the local docker fwapg (`docker/`, 4,907,441 segments, `exbc` still in `fwa_watershedatmeasure`, no `fwapg.db_version`) with the migrations applied inside a rolled-back transaction. Migration files and their md5s, the fwapg commit, and the elapsed times are in the log's header; the counts are in its body, which a second run reproduces byte for byte.
 
-Revised 2026-10-31 for fresh#274: `frs_point_locate()` and the network traversals' segment picks send the measure at 17 significant digits (the head-case caveat below). The sweep script writes each measure with `format(scientific = FALSE)`, which is the default 7 significant digits with one number of decimals for the whole vector (`4494.61997946051` goes out as `4494.620`), so the sweep's counts describe measures rounded that way, not what fresh sends.
+Revised 2026-10-31 for fresh#274: `frs_point_locate()` and the network traversals' segment picks send the measure at 17 significant digits. Before, `frs_point_locate()` wrote 15 (`sprintf("%s", m)`), which can round a stream's top *up*, past its last segment's end, so the head case below was not reachable through it.
+
+Revised 2026-10-31 for fresh#289: the sweep sent its measures through `format()`, 7 significant digits with one decimal count per chunk, so its CSV counts were of rounded measures. It now sends `.frs_sql_exact()` text, as fresh does, and each state checks in SQL that the text parses back to the stored double. The re-run is the one below. Only the CSV-measure counts moved; the snapped positions, all whole metres, reproduce byte for byte. The head case is now scripted into the sweep rather than an unrecorded query.
 
 ## Three snappers, three candidate rules
 
@@ -36,13 +38,17 @@ on the local docker fwapg, in three states so each change is attributed rather t
 `202610240132__indexpoint_tiebreak` alone, and both in filename order. **No database was
 migrated.** 49,725 snapped positions (all 19,905 PSCIS assessments plus 5,000 fish observation
 points, tolerance 150, `num_features = 5`), 23,540 measures from `crossings.csv` / `falls.csv` /
-`wsg_outlet.csv`, 970 positions for the expensive calls.
+`wsg_outlet.csv`, 970 positions for the expensive calls, and 400 blue lines each sent at its own
+top. Every measure is sent at 17 significant digits (fresh#289; the 2026-10-27 run sent 7).
 
 | state | `fwa_locatealong()` misses, 49,725 snapped positions | misses, 23,540 CSV measures | `fwa_watershedatmeasure()` misses, 970 | its errors |
 |---|---|---|---|---|
-| base | **0** | 42 | 85 | 294 |
-| tiebreak only | **0** | 38 | 86 | 293 |
-| both | **0** | 38 | 86 | 293 |
+| base | **0** | 36 | 85 | 294 |
+| tiebreak only | **0** | 31 | 86 | 293 |
+| both | **0** | 31 | 86 | 293 |
+
+At 7 significant digits the CSV column read 42 / 38 / 38: the rounding alone made a net 6 more
+measures miss before the migration and 7 more after, and hid one the migration fixes (below).
 
 - **Nothing changes on fresh's own snap path.** All 49,725 positions resolve in every state. fresh
   clamps its measure to a whole metre, and **no** candidate segment has an integer
@@ -52,15 +58,22 @@ points, tolerance 150, `num_features = 5`), 23,540 measures from `crossings.csv`
 - **The head case, and why it existed.** The pre-rework `fwa_locatealong()` compares bounds
   **rounded to 4 decimals**: `round(ds,4) <= round(m,4) AND round(us,4) > round(m,4)`. A measure at
   a stream's top can therefore never be placed — `round(us,4) > round(us,4)` is false by
-  construction. Of 400 blue lines sampled, their own top measure resolves on **2** before and
-  **218** after. (How that sample wrote its tops is not recorded. `frs_point_locate()` wrote the
-  measure with `sprintf("%s", m)`, 15 significant digits, until fresh#274, and that can round a top
-  *up*, past the segment's end; it now writes `.frs_sql_exact()` (`%.17g`), so a stream's exact top
-  reaches fwapg as stored.)
-- **4 CSV measures now resolve** that did not: `wsg_outlet.csv` 356363393 @ 322.567 and 360880826 @
-  2100.018; `crossings.csv` 356355973 @ 4494.61997946051 and 360862508 @ 10821.8246201562
-  (`sweep_changed.csv` carries them exactly; the crossings pair is bcfishpass's own fractional
-  indexing, which fresh never emits).
+  construction. Of 400 blue lines sampled by `ORDER BY md5(blue_line_key::text)`, each sent at its
+  own top (`max(upstream_route_measure)` over every segment, since `fwa_locatealong()` has no
+  guards) at 17 significant digits, **0** resolve before and **383** after. On 341 of them the top
+  is a segment fresh would snap to, and there it is 0 → **327**. 17 (14) still miss after the
+  migration. Per line in `sweep_tops.csv`. This replaces the unscripted "2 before, 218 after"
+  from fresh#266, whose way of writing the tops was not recorded. Taking the same 400 lines'
+  candidate-segment top instead gives 345 tops and 2 before, as #266 had: both (359014708,
+  359017843) are lines whose candidate top sits below a later segment, so the measure is not
+  a head case there.
+- **5 CSV measures now resolve** that did not: `wsg_outlet.csv` 356363393 @ 322.567 and 360880826 @
+  2100.018; `crossings.csv` 356355973 @ 4494.61997946051, 360862508 @ 10821.8246201562 and
+  356312469 @ 957.70485427024903 (`sweep_changed.csv` carries each as the `%.17g` text sent; the
+  crossings are bcfishpass's own fractional indexing, which fresh never emits). The last is the
+  head case inside a stream: it is exactly the top of segment 702605415, and the next segment
+  starts 0.5 mm higher, at 957.705341846863. At 7 digits it is `957.7049`, inside that gap,
+  and the 2026-10-27 run did not see it move.
 - **One position stops erroring**: 359434058 @ 159, which raised
   `line_interpolate_point: 2nd arg isn't within [0,1]`. The error comes through
   `fwa_upstreambordercrossings`, which the tiebreak migration rewrites;
@@ -79,7 +92,7 @@ points, tolerance 150, `num_features = 5`), 23,540 measures from `crossings.csv`
 - **293 of 970 positions (30%) error in all three states** with `more than one row returned by a
   subquery used as an expression`, from `fwa_watershedatmeasure()`. A pre-existing fwapg defect,
   untouched by either migration, and worth reporting upstream.
-- 85 → 86 watershed misses and 42 → 38 locatealong misses are the net; the sweep names each
+- 85 → 86 watershed misses and 36 → 31 locatealong misses are the net; the sweep names each
   position that moved in `sweep_changed.csv`.
 - `frs_cluster()`'s downstream trace starts are always a segment's own `downstream_route_measure`,
   inside its range under either rule, and a `CROSS JOIN LATERAL` drops a zero-row trace silently.

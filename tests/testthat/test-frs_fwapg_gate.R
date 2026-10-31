@@ -62,11 +62,13 @@ skip_unless_head_case <- function(conn, blk, m) {
 }
 
 # Blue line 360447231, named rather than searched for. Of 400 streams sampled
-# by ORDER BY md5(blue_line_key), 2 resolved their own top measure before the
-# migration and 218 after (#266) — the head case is the common case, not a
-# rarity. How that sample wrote its tops is not recorded, so
-# skip_unless_head_case() re-checks the column rule at the exact top; it does
-# not check ST_LocateAlong() on the geometry, which expect_gt() below does.
+# by ORDER BY md5(blue_line_key), each sent at its own exact top, 0 resolve it
+# before the migration and 383 after (data-raw/point_snap_tie_sweep.R,
+# sweep_tops.csv, #289) — the head case is the common case, not a rarity.
+# Its top over fresh's candidate segments, which blk_top() takes, is also its
+# top over every segment. skip_unless_head_case() re-checks the column rule at
+# the exact top; it does not check ST_LocateAlong() on the geometry, which
+# expect_gt() below does.
 head_blk <- 360447231L
 
 test_that("fwa_locatealong() resolves a measure at a stream's head", {

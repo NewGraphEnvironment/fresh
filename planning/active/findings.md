@@ -68,3 +68,9 @@ The snapped positions are clamped to whole metres, which `format()` writes exact
   gate pin is unaffected.
 - `sweep_summary.csv`'s old header ended in CRLF; R writes LF, so that line diffs with
   identical text.
+
+## The "2 before" explained (2026-10-31)
+
+Same 400 lines, candidate-segment top: 345 tops; 4 sit below the line's real top, and 2 of
+those (359014708, 359017843) resolve on base, since a later segment holds the measure. That
+is #266's "2 before". `format(957.70485427024903)` is `957.7049`, in the 0.5 mm gap.

@@ -58,14 +58,14 @@ Approved by the user at the plan gate, 2026-10-31.
 
 ## Phase 4: Revise the record
 
-- [ ] `research/fwa_point_snap.md`: new CSV miss counts per state, the revised
+- [x] `research/fwa_point_snap.md`: new CSV miss counts per state, the revised
       "now resolve" list, the head-case counts from the script, and which numbers
       moved and which held. Also update the Verified line, drop the 7-digit caveat
       paragraph, and correct "carries them exactly"
-- [ ] `tests/testthat/test-frs_fwapg_gate.R:65-69` comment: replace the
+- [x] `tests/testthat/test-frs_fwapg_gate.R:65-69` comment: replace the
       unrecorded 2 / 218 with the scripted count
-- [ ] NEWS.md line under the next version's heading (data-raw / research only)
-- [ ] Grep `research/`, `CLAUDE.md` and `planning/` (not archive) for "218",
+- [x] ~~NEWS.md line~~ — moved to the PR body: `/gh-pr-merge` writes NEWS at release (as 0.50.0's was); the line corrects 0.44.0's "four of 23,540"
+- [x] Grep `research/`, `CLAUDE.md` and `planning/` (not archive) for "218",
       "42", "38" and "4 CSV" to find other restatements
 
 ## Owed at the end (reported, done after merge)
