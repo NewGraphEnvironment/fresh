@@ -8,7 +8,7 @@ Revised 2026-10-27 for fresh#266 (the tie rule, and what NewGraphEnvironment/fwa
 
 Revised 2026-10-31 for fresh#274: `frs_point_locate()` and the network traversals' segment picks send the measure at 17 significant digits. Before, `frs_point_locate()` wrote 15 (`sprintf("%s", m)`), which can round a stream's top *up*, past its last segment's end, so the head case below was not reachable through it.
 
-Revised 2026-10-31 for fresh#289: the sweep sent its measures through one `format()` call over the whole frame, which shares one decimal count across the vector: 11 decimals for the CSV measures, so they went out at 14 to 16 significant digits, rounded at about 1e-11 m, and its CSV counts were of those rounded measures. It now sends `.frs_sql_exact()` text, as fresh does, and each state checks in SQL that the text parses back to the stored double. The re-run is the one below. Only the CSV-measure counts moved; the snapped positions, all whole metres, reproduce byte for byte. The head case is now scripted into the sweep rather than an unrecorded query.
+Revised 2026-10-31 for fresh#289: the sweep sent its measures through one `format()` call over the whole frame, which shares one decimal count across the vector: 11 decimals for the CSV measures, which moved 12,260 of the 23,540 by up to 5e-12 m, so its CSV counts were of those rounded measures. It now sends `.frs_sql_exact()` text, as fresh does, and each state checks in SQL that the text parses back to the stored double. The re-run is the one below. Only the CSV-measure counts moved; the snapped positions, all whole metres, reproduce byte for byte. The head case is now scripted into the sweep rather than an unrecorded query.
 
 ## Three snappers, three candidate rules
 
@@ -47,9 +47,9 @@ top. Every measure is sent at 17 significant digits (fresh#289; the 2026-10-27 r
 | tiebreak only | **0** | 31 | 86 | 293 |
 | both | **0** | 31 | 86 | 293 |
 
-Rounded to 11 decimals the CSV column read 42 / 38 / 38. A shift of about 1e-12 m was enough to
-move a net 6 measures across a segment boundary before the migration and 7 after, and it hid one
-the migration fixes (below).
+Rounded to 11 decimals the CSV column read 42 / 38 / 38. Shifts of at most 5e-12 m were enough to
+move a net 6 measures across a segment boundary before the migration and 7 after, and they hid
+one the migration fixes (below).
 
 - **Nothing changes on fresh's own snap path.** All 49,725 positions resolve in every state. fresh
   clamps its measure to a whole metre, and **no** candidate segment has an integer

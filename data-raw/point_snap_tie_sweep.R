@@ -382,8 +382,8 @@ DBI::dbDisconnect(conn)
 # chunk is re-run row by row under per-row savepoints, so one bad position does
 # not lose the rest of them.
 chunked <- function(con, d, call_sql, chunk = 2000L, label = "") {
-  # The measure goes through .frs_sql_exact() (%.17g), as every fresh code path
-  # sends one since #274, and the key through %d. format() shares one decimal
+  # The measure goes through .frs_sql_exact() (%.17g), as frs_point_locate() and
+  # the network traversals send one since #274, and the key through %d. format() shares one decimal
   # count across the whole vector, so it rounds most measures (#289). The text
   # is returned as `sent`, so sent_exact() checks what actually went out.
   m_sent <- vapply(d$m, .frs_sql_exact, character(1), label = "m")

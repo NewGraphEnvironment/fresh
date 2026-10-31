@@ -1,25 +1,28 @@
 # Task: point_snap_tie_sweep.R rounds its measures through format(), so its counts are of rounded measures (#289)
 
-
-`data-raw/point_snap_tie_sweep.R` builds its `VALUES` list with `format(d$m, scientific = FALSE)` (lines 334-336). `format()` defaults to 7 significant digits and uses one number of decimals for the whole vector, so the sweep does not send the measures it reads:
+`data-raw/point_snap_tie_sweep.R` built its `VALUES` list with `format(d$m, scientific = FALSE)` (lines 334-336), called once over the whole frame. `format()` uses one number of decimals for the whole vector, chosen so that every element shows 7 significant digits. For the 23,540 CSV measures that is 11 decimals, which moved 12,260 of them by up to 5e-12 m, so the sweep did not send the measures it read:
 
 ```r
 format(c(1528.8506958829107, 4494.61997946051), scientific = FALSE)
-#> "1528.851" "4494.620"
+#> "1528.851" "4494.620"   # a short vector: 7 significant digits
+# over the sweep's 23,540 CSV measures: 11 decimals, e.g. 957.70485427024903 -> "957.70485427025"
 ```
 
-The counts in `research/fwa_point_snap.md` from that sweep therefore describe measures rounded this way. That covers the CSV misses, the "4 CSV measures now resolve" list (which includes `crossings.csv` 356355973 @ 4494.61997946051) and the per-state tables. Since #274, fresh sends every route measure at 17 significant digits (`.frs_sql_exact()`), so these counts are not about what fresh sends.
+*Corrected 2026-10-31: this body first said 7 significant digits, which is what `format()` gives on one short vector, not on the sweep's. The code review on the fix measured 11 decimals.*
 
-The snapped positions are clamped to whole metres, which `format()` writes exactly when the chunk holds only whole numbers, so they are unaffected. The CSV measures and the 400-stream head-case sample are the ones in question.
+The counts in `research/fwa_point_snap.md` from that sweep therefore describe rounded measures. That covers the CSV misses, the "4 CSV measures now resolve" list and the per-state tables. Since #274, `frs_point_locate()` and the network traversals send route measures at 17 significant digits (`.frs_sql_exact()`), so these counts are not about what fresh sends.
+
+The snapped positions are clamped to whole metres, which `format()` writes exactly, so they are unaffected. The CSV measures and the 400-stream head-case sample are the ones in question.
 
 ## Decided at the gate
 
 Approved by the user at the plan gate, 2026-10-31.
 
 
-- **Head-case sample goes into the sweep (recommended).** It uses the gate test's
-  `blk_top()` definition: the guarded `max(upstream_route_measure)` over 400 blue lines
-  by `ORDER BY md5(blue_line_key::text)`. Each top is sent at `%.17g` to
+- **Head-case sample goes into the sweep (recommended).** 400 blue lines by
+  `ORDER BY md5(blue_line_key::text)`. *Revised after the plan review (G1): the top is
+  `max(upstream_route_measure)` over every segment, since `fwa_locatealong()` has no
+  guards; the gate test's guarded `blk_top()` is carried alongside as `m_guarded`.* Each top is sent at `%.17g` to
   `fwa_locatealong()` in all three states. This replaces the unrecorded "2 / 218"
   with a scripted, exact count. The alternative is to leave it attributed as
   unrecorded, which the issue body calls into question.
@@ -39,12 +42,12 @@ Approved by the user at the plan gate, 2026-10-31.
 
 ## Phase 2: Script the head-case sample
 
-- [x] Base side: create `working.tie266_heads` (400 blue lines by md5, guarded top as
-      in `tests/testthat/test-frs_fwapg_gate.R:blk_top()`), and add it to `tbls` so
-      it is dropped at start and end
+- [x] Base side: create `working.tie266_tops` (400 blue lines by md5; `m` the top over
+      every segment, `m_guarded` as `blk_top()` takes it), in `tbls` so it is dropped
+      at start and end
 - [x] Per state: `fwa_locatealong()` over the tops through `chunked()`, counted in
-      `summary` (`head_hit`, `head_miss`, `head_error`) and added as a frame in
-      `moved`
+      its own `tops_summary` table and written per line to `sweep_tops.csv`, so
+      `summary` and `moved` keep the shape earlier runs had (plan review A2/A3)
 - [x] Body line stating the sample rule and the n with a guarded top
 - [x] Smoke run with small `FRESH_SWEEP_*` caps; check that the round-trip guard
       passes and the outputs parse
