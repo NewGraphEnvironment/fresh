@@ -83,13 +83,13 @@ Mechanism choices (mine, stated):
 - [x] line churn check moved ahead (see findings.md): streams 0 WKB differences across GEOS 3.9/3.10
 
 ## Phase 4: Live determinism tests + line churn check
-- [ ] Live tests (skip without DB): lakes, wetlands, streams and watershed each fetched twice with
+- [x] Live tests (skip without DB): lakes, wetlands, streams and watershed each fetched twice with
       `simplify_m` → `identical()`; key column `!is.unsorted()` (fails without ORDER BY even when two
       calls happen to agree); `aoi` result is a subset of the bbox result for the same extent
-- [ ] Line churn check for the user: streams with `simplify_m` over a WSG, two separate connections,
+- [x] Line churn check for the user: streams with `simplify_m` over a WSG, two separate connections,
       compare WKB bytes (`sf::st_as_binary`) row for row; if a second fwapg with a different GEOS is
       reachable, compare there too and record the vertex differences. Write result to `findings.md`
-- [ ] Confirm `identical()` on two `st_read` results is a fair test (no per-read attributes), per the
+- [x] Confirm `identical()` on two `st_read` results is a fair test (no per-read attributes), per the
       code-check-r rule on reader results
 
 ## Phase 5: Wrap-up
