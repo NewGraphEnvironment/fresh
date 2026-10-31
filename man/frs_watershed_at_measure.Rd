@@ -9,7 +9,8 @@ frs_watershed_at_measure(
   blue_line_key,
   downstream_route_measure,
   upstream_measure = NULL,
-  upstream_blk = NULL
+  upstream_blk = NULL,
+  simplify_m = NULL
 )
 }
 \arguments{
@@ -27,6 +28,15 @@ point. When provided, returns the watershed between the two measures
 \item{upstream_blk}{Integer or \code{NULL}. Blue line key for the upstream point.
 Defaults to \code{blue_line_key} (same stream). Use when the upstream point is
 on a tributary.}
+
+\item{simplify_m}{Numeric or \code{NULL}. Simplification tolerance in metres,
+applied in the database as
+\code{ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))}, so the
+same database returns the same polygon on every call. For a subbasin the
+difference is taken first and simplified once, so the shared boundary
+is not simplified twice. Two databases on different GEOS versions can
+still simplify a ring differently. Default \code{NULL} (fwapg's polygon
+unchanged).}
 }
 \value{
 An \code{sf} data frame with a single polygon geometry.
@@ -56,6 +66,9 @@ aoi <- frs_watershed_at_measure(conn, 360873822, 208877,
 # Subbasin with upstream point on a tributary (different BLK)
 aoi <- frs_watershed_at_measure(conn, 360873822, 165115,
   upstream_measure = 838, upstream_blk = 360886221)
+
+# Simplified to 50 m for a map
+ws_map <- frs_watershed_at_measure(conn, 360873822, 208877, simplify_m = 50)
 DBI::dbDisconnect(conn)
 }
 }

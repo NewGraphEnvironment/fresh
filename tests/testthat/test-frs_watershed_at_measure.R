@@ -210,3 +210,120 @@ test_that("frs_watershed_at_measure errors when watersheds don't intersect", {
     "does not intersect"
   )
 })
+
+# -- simplify_m (#286) ----------------------------------------------------------
+
+unit_square_sf <- function(...) {
+  sf::st_sf(..., geom = sf::st_sfc(sf::st_polygon(list(
+    matrix(c(0, 0, 1, 0, 1, 1, 0, 1, 0, 0), ncol = 2, byrow = TRUE)
+  )), crs = 3005))
+}
+
+test_that("frs_watershed_at_measure without simplify_m sends the same SQL as before", {
+  sqls <- character(0)
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    sqls <<- c(sqls, sql)
+    unit_square_sf()
+  })
+  frs_watershed_at_measure("mock", 360873822, 208877)
+  expect_identical(sqls, paste(
+    "SELECT geom FROM whse_basemapping.fwa_watershedatmeasure(360873822,",
+    "208877)"))
+})
+
+test_that("frs_watershed_at_measure simplifies and normalizes a single watershed", {
+  sqls <- character(0)
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    sqls <<- c(sqls, sql)
+    unit_square_sf()
+  })
+  frs_watershed_at_measure("mock", 360873822, 208877, simplify_m = 50)
+  expect_length(sqls, 1)
+  expect_match(sqls, paste0(
+    "SELECT ST_Normalize(ST_SimplifyPreserveTopology(geom, 50)) AS geom ",
+    "FROM whse_basemapping.fwa_watershedatmeasure(360873822, 208877)"),
+    fixed = TRUE)
+})
+
+test_that("frs_watershed_at_measure simplifies a subbasin once, after the difference", {
+  sqls <- character(0)
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    sqls <<- c(sqls, sql)
+    unit_square_sf(intersects = TRUE)
+  })
+  res <- frs_watershed_at_measure("mock", 360873822, 165115,
+    upstream_measure = 838, upstream_blk = 360886221, simplify_m = 50)
+  expect_length(sqls, 1)
+  expect_match(sqls, paste0(
+    "ST_Normalize(ST_SimplifyPreserveTopology(",
+    "ST_Difference(d.geom, u.geom), 50)) AS geom"), fixed = TRUE)
+  expect_match(sqls, "fwa_watershedatmeasure(360873822, 165115) d", fixed = TRUE)
+  expect_match(sqls, "fwa_watershedatmeasure(360886221, 838) u", fixed = TRUE)
+  expect_identical(names(res), "geom")
+})
+
+test_that("frs_watershed_at_measure simplified subbasin errors when not intersecting", {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    unit_square_sf(intersects = FALSE)
+  })
+  expect_error(
+    frs_watershed_at_measure("mock", 111111, 1000, upstream_measure = 500,
+                             upstream_blk = 222222, simplify_m = 10),
+    "does not intersect"
+  )
+})
+
+test_that("frs_watershed_at_measure simplified subbasin drops an empty difference", {
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    sf::st_sf(intersects = TRUE,
+              geom = sf::st_sfc(sf::st_polygon(), crs = 3005))
+  })
+  res <- frs_watershed_at_measure("mock", 1, 10, upstream_measure = 20,
+                                  simplify_m = 10)
+  expect_equal(nrow(res), 0)
+})
+
+test_that("frs_watershed_at_measure rejects a bad simplify_m before the DB", {
+  expect_error(frs_watershed_at_measure("mock", 1, 10, simplify_m = 0),
+               "simplify_m must be a single positive number")
+})
+
+test_that("frs_watershed_at_measure writes a round key and measure in full", {
+  # sprintf("%s", 356000000) is "3.56e+08", which Postgres reads as numeric
+  # and matches to no fwa_watershedatmeasure() signature (#286 review)
+  for (simplify_m in list(NULL, 25)) {
+    sqls <- character(0)
+    local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+      sqls <<- c(sqls, sql)
+      if (grepl("intersects", sql)) unit_square_sf(intersects = TRUE) else
+        unit_square_sf()
+    })
+    frs_watershed_at_measure("mock", 356000000, 1e6,
+      upstream_measure = 2e6, simplify_m = simplify_m)
+    all_sql <- paste(sqls, collapse = "\n")
+    expect_match(all_sql, "fwa_watershedatmeasure(356000000, 1000000)",
+                 fixed = TRUE)
+    expect_match(all_sql, "fwa_watershedatmeasure(356000000, 2000000)",
+                 fixed = TRUE)
+    expect_no_match(all_sql, "e+", fixed = TRUE)
+  }
+})
+
+test_that("frs_watershed_at_measure writes a measure at full precision", {
+  # A segment's own downstream_route_measure rounded to 10 digits can fall
+  # below it, and fwapg then picks the segment before (#286 review round 3).
+  # This value needs all 17 digits: 15 do not read back as the same double.
+  m <- 1234567.8912345678
+  expect_false(as.numeric(sprintf("%.15g", m)) == m)
+  for (simplify_m in list(NULL, 25)) {
+    sqls <- character(0)
+    local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+      sqls <<- c(sqls, sql)
+      unit_square_sf()
+    })
+    frs_watershed_at_measure("mock", 360609038, m, simplify_m = simplify_m)
+    sent <- regmatches(sqls, regexpr("(?<=360609038, )[^)]+", sqls,
+                                     perl = TRUE))
+    expect_identical(sent, "1234567.8912345679")
+  }
+})
