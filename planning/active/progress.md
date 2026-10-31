@@ -12,3 +12,5 @@
 - Phase 4: research/fwa_point_snap.md caveat revised. `document()` writes nothing. lintr on touched files: the only new lints are `object_usage_linter` for `.frs_sql_exact`, from the stale installed fresh 0.48.0, which lacks it; indentation lints follow the files' existing pattern
 - Phase 5 (plan correction): Plan review found 14 more segment-pick sites. Tests red then green; `frs_wsg_drainage()` left with a measured reason. Code-check round 1 (pre-Phase 5 diff): Clean
 - Folded in the Plan review (review-plan.md): gate comments and research note no longer restate unprovenanced counts; the research note records the sweep's 7-digit measures and gains a Verified line; the point_locate test compares strings
+- Full suite at c51bb4f: FAILED 0, PASSED 2409, SKIPPED 6. Gated head-case test ran and passed with FRESH_FWAPG_TRIAL (after Phase 3)
+- `/code-check branch`: round 1 Clean (pre-Phase 5 diff), round 2 Clean, round 3 Clean, with a parsed enumeration of every sprintf placeholder in R/ (1,123 pairs): no position under 17 digits outside the accepted exceptions. No round found a defect inside a fix. 3 reviewer agents + 1 Plan review

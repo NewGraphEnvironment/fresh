@@ -79,9 +79,9 @@ The plan's "last site" claim was wrong: the grep needed `sprintf` and `measure` 
 - [ ] Edit the #274 issue body: remove the incorrect key claim from the Status block; list the segment-pick sites this branch fixed and `frs_wsg_drainage()` left as is
 
 ## Validation
-- [ ] Tests pass: full `devtools::test()` against local fwapg, plus the gated filter with `FRESH_FWAPG_TRIAL`
-- [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass: full `devtools::test()` against local fwapg, plus the gated filter with `FRESH_FWAPG_TRIAL`
+- [x] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 Verification: the Phase 1 mocked test is the red→green pin (shown red before Phase 2). The
