@@ -102,6 +102,9 @@ n_expensive <- n_size("FRESH_SWEEP_EXPENSIVE", 200L) # for the watershed and tra
 # and the report says so. The tie CENSUS stays exhaustive: it is geometry,
 # measured once on the base side, and costs nothing.
 n_tied <- n_size("FRESH_SWEEP_TIED", 800L)
+# Blue lines whose own top measure is sent to fwa_locatealong(): the head case
+# the tiebreak migration closes. Before #289 this was an unscripted query.
+n_heads <- n_size("FRESH_SWEEP_HEADS", 400L)
 
 # -- the database -------------------------------------------------------------
 
@@ -149,7 +152,7 @@ message(sprintf("base: exbc in fwa_watershedatmeasure = %s, fwapg.db_version = %
 # run that died midway left behind — not only the ones created before it died.
 tbls <- paste0("working.tie266_", c("pscis", "obs", "positions", "measures",
                                     "snap_pscis", "snap_obs", "measures_all",
-                                    "expensive"))
+                                    "expensive", "heads"))
 tbl <- function(n) tbls[[match(paste0("working.tie266_", n), tbls)]]
 # on.exit() does not fire at a script's top level under Rscript
 # (data-raw/point_snap_parity_check.R:46-49), so they are dropped at the start
@@ -306,6 +309,31 @@ csv_counts <- DBI::dbGetQuery(conn, sprintf(
   "SELECT src, count(*) AS n FROM %s GROUP BY src ORDER BY src", tbl("measures")))
 print(csv_counts, row.names = FALSE)
 
+# -- the head case ------------------------------------------------------------
+
+# A sample of blue lines, by the same md5 rule, each with its top taken as
+# tests/testthat/test-frs_fwapg_gate.R:blk_top() takes it: the highest
+# upstream_route_measure among the segments that pass fresh's candidate guards.
+# A blue line with no such segment has no top and is counted but not sent.
+invisible(DBI::dbExecute(conn, sprintf(
+  "CREATE TABLE %s AS
+   WITH b AS (
+     SELECT blue_line_key FROM (
+       SELECT DISTINCT blue_line_key FROM whse_basemapping.fwa_stream_networks_sp
+     ) d
+     ORDER BY md5(blue_line_key::text) LIMIT %d
+   )
+   SELECT b.blue_line_key,
+          (SELECT max(s.upstream_route_measure)
+           FROM whse_basemapping.fwa_stream_networks_sp s
+           WHERE s.blue_line_key = b.blue_line_key AND %s) AS m
+   FROM b", tbl("heads"), n_heads,
+  "s.localcode_ltree IS NOT NULL AND NOT s.wscode_ltree <@ '999' AND s.edge_type <> 1425")))
+n_heads_sampled <- one(sprintf("SELECT count(*) FROM %s", tbl("heads")))
+n_heads_top <- one(sprintf("SELECT count(*) FROM %s WHERE m IS NOT NULL", tbl("heads")))
+message(sprintf("%d of %d sampled blue lines have a guarded top", n_heads_top,
+                n_heads_sampled))
+
 # the positions the expensive calls run on: every tied one, plus a sample
 invisible(DBI::dbExecute(conn, sprintf(
   "CREATE TABLE working.tie266_expensive AS
@@ -449,6 +477,9 @@ sweep_state <- function(label, files) {
     "SELECT src, id, blue_line_key, m FROM %s ORDER BY src, id", tbl("measures")))
   exp_pos <- DBI::dbGetQuery(con,
     "SELECT blue_line_key, m FROM working.tie266_expensive ORDER BY blue_line_key, m")
+  heads <- DBI::dbGetQuery(con, sprintf(
+    "SELECT blue_line_key, m FROM %s WHERE m IS NOT NULL ORDER BY blue_line_key",
+    tbl("heads")))
 
   locate <- paste(
     "SELECT v.ord, (w.geom IS NOT NULL) AS hit",
@@ -464,6 +495,11 @@ sweep_state <- function(label, files) {
                   format(nrow(csv), big.mark = ",")))
   csv_loc <- chunked(con, csv, locate, label = paste0(label, "/locatealong_csv"))
   csv$locatealong <- answers(csv, csv_loc, "hit")
+
+  message(sprintf("state %-9s locatealong at %s blue lines' own tops ...", label,
+                  format(nrow(heads), big.mark = ",")))
+  head_loc <- chunked(con, heads, locate, label = paste0(label, "/locatealong_head"))
+  heads$locatealong <- answers(heads, head_loc, "hit")
 
   message(sprintf("state %-9s watershedatmeasure and downstreamtrace over %s ...",
                   label, format(nrow(exp_pos), big.mark = ",")))
@@ -481,8 +517,9 @@ sweep_state <- function(label, files) {
   exp_pos$trace <- answers(exp_pos, trc, "n", as = "numeric")
 
   errors <- Filter(Negate(is.null),
-                   list(loc$errors, csv_loc$errors, wsd$errors, trc$errors))
-  list(label = label, positions = pos, csv = csv, expensive = exp_pos,
+                   list(loc$errors, csv_loc$errors, head_loc$errors, wsd$errors,
+                        trc$errors))
+  list(label = label, positions = pos, csv = csv, heads = heads, expensive = exp_pos,
        errors = if (length(errors)) do.call(rbind, errors) else
          data.frame(call = character(), blue_line_key = numeric(), m = numeric(),
                     message = character(), stringsAsFactors = FALSE),
@@ -519,6 +556,10 @@ summary <- do.call(rbind, lapply(states, function(s) {
     csv_measures = nrow(s$csv),
     csv_locatealong_miss = sum(s$csv$locatealong == FALSE, na.rm = TRUE),
     csv_locatealong_error = sum(is.na(s$csv$locatealong)),
+    head_tops = nrow(s$heads),
+    head_locatealong_hit = sum(s$heads$locatealong == TRUE, na.rm = TRUE),
+    head_locatealong_miss = sum(s$heads$locatealong == FALSE, na.rm = TRUE),
+    head_locatealong_error = sum(is.na(s$heads$locatealong)),
     expensive_positions = nrow(s$expensive),
     watershed_miss = sum(s$expensive$watershed == FALSE, na.rm = TRUE),
     watershed_error = sum(is.na(s$expensive$watershed)),
@@ -558,6 +599,7 @@ pairs <- list(c("base", "tiebreak"), c("tiebreak", "both"))
 frames <- list(
   list(frame = "positions", col = "locatealong", call_label = "fwa_locatealong"),
   list(frame = "csv", col = "locatealong", call_label = "fwa_locatealong(csv)"),
+  list(frame = "heads", col = "locatealong", call_label = "fwa_locatealong(head)"),
   list(frame = "expensive", col = "watershed", call_label = "fwa_watershedatmeasure"),
   list(frame = "expensive", col = "trace", call_label = "fwa_downstreamtrace")
 )
@@ -579,6 +621,14 @@ moved <- moved[order(moved$state, moved$call, moved$blue_line_key, moved$m,
                      moved$src, moved$id, method = "radix"), , drop = FALSE]
 
 # -- the report ---------------------------------------------------------------
+
+# print() and write.csv() write a double at 7 and 15 significant digits, so
+# each measure is reported as the %.17g text the sweep sent: the report names
+# exactly the position that moved
+exact_m <- function(d) {
+  d$m <- vapply(d$m, .frs_sql_exact, character(1), label = "m")
+  d
+}
 
 dir_out <- file.path("data-raw", "logs", "indexpoint_266")
 dir.create(dir_out, recursive = TRUE, showWarnings = FALSE)
@@ -646,6 +696,10 @@ body <- c(
           n_expensive, n_tied, format(n_tied_all, big.mark = ",")),
   "         calls (the tie census above is exhaustive; only the watershed and",
   "         trace calls over the tied positions are sampled)",
+  sprintf("         %d blue lines for the head case, %d of them with a guarded top",
+          n_heads_sampled, n_heads_top),
+  "         (max upstream_route_measure over fresh's candidate segments), each",
+  "         top sent to fwa_locatealong() as stored",
   "         sampling rule: ORDER BY md5(<id>::text) LIMIT n",
   "",
   "## population (research/fwa_point_snap.md, fresh#247)",
@@ -669,7 +723,7 @@ body <- c(
   "",
   sprintf("## answers that moved: %d", nrow(moved)),
   if (nrow(moved)) {
-    utils::capture.output(print(utils::head(moved, 60), row.names = FALSE))
+    utils::capture.output(print(exact_m(utils::head(moved, 60)), row.names = FALSE))
   } else {
     "  none"
   },
@@ -691,12 +745,6 @@ writeLines(c(header, body), file.path(dir_out, "sweep.txt"))
 # carries the elapsed times.
 utils::write.csv(summary[, setdiff(names(summary), "secs")],
                  file.path(dir_out, "sweep_summary.csv"), row.names = FALSE)
-# write.csv() writes a double at 15 significant digits, so each measure is
-# written as the %.17g text the sweep sent, and the file carries it exactly
-exact_m <- function(d) {
-  d$m <- vapply(d$m, .frs_sql_exact, character(1), label = "m")
-  d
-}
 utils::write.csv(exact_m(moved), file.path(dir_out, "sweep_changed.csv"), row.names = FALSE)
 all_errors <- do.call(rbind, lapply(states, function(s) {
   if (!nrow(s$errors)) {

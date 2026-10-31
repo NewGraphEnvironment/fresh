@@ -39,14 +39,14 @@ Approved by the user at the plan gate, 2026-10-31.
 
 ## Phase 2: Script the head-case sample
 
-- [ ] Base side: create `working.tie266_heads` (400 blue lines by md5, guarded top as
+- [x] Base side: create `working.tie266_heads` (400 blue lines by md5, guarded top as
       in `tests/testthat/test-frs_fwapg_gate.R:blk_top()`), and add it to `tbls` so
       it is dropped at start and end
-- [ ] Per state: `fwa_locatealong()` over the tops through `chunked()`, counted in
+- [x] Per state: `fwa_locatealong()` over the tops through `chunked()`, counted in
       `summary` (`head_hit`, `head_miss`, `head_error`) and added as a frame in
       `moved`
-- [ ] Body line stating the sample rule and the n with a guarded top
-- [ ] Smoke run with small `FRESH_SWEEP_*` caps; check that the round-trip guard
+- [x] Body line stating the sample rule and the n with a guarded top
+- [x] Smoke run with small `FRESH_SWEEP_*` caps; check that the round-trip guard
       passes and the outputs parse
 
 ## Phase 3: Re-run the full sweep

@@ -6,3 +6,5 @@
 - Created branch `289-point-snap-tie-sweep-r-sends-measures-at` off origin/main
 - Scaffolded PWF baseline from issue #289 with approved phases
 - Next: start Phase 1
+- Phase 1 (f6154e5): exact measures sent, read-back guard, exact CSV output
+- Phase 2: head-case sample scripted; smoke run green (findings.md)

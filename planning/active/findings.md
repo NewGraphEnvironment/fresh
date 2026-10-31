@@ -26,3 +26,12 @@ The snapped positions are clamped to whole metres, which `format()` writes exact
 
 | Error | Resolution |
 |-------|------------|
+
+## Smoke run, 2026-10-31 (caps: 300 PSCIS, 300 obs, 300 crossings, 5 + 5 expensive)
+
+- The read-back guard on `working.tie266_measures_all` passes: RPostgres 1.4.10's
+  `dbWriteTable()` round-trips the CSV doubles bit for bit.
+- 345 of the 400 sampled blue lines have a guarded top (the #274 reviewer's 345).
+- Head case, exact tops: 2 resolve in base, 331 under the tiebreak and under both. That
+  matches the #274 reviewer's unpublished re-measure (old 2, new 331), now scripted.
+- CSV misses on the capped sample: 32 base, 30 after. The full run gives the real counts.
