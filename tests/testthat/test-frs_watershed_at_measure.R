@@ -287,3 +287,24 @@ test_that("frs_watershed_at_measure rejects a bad simplify_m before the DB", {
   expect_error(frs_watershed_at_measure("mock", 1, 10, simplify_m = 0),
                "simplify_m must be a single positive number")
 })
+
+test_that("frs_watershed_at_measure writes a round key and measure in full", {
+  # sprintf("%s", 356000000) is "3.56e+08", which Postgres reads as numeric
+  # and matches to no fwa_watershedatmeasure() signature (#286 review)
+  for (simplify_m in list(NULL, 25)) {
+    sqls <- character(0)
+    local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+      sqls <<- c(sqls, sql)
+      if (grepl("intersects", sql)) unit_square_sf(intersects = TRUE) else
+        unit_square_sf()
+    })
+    frs_watershed_at_measure("mock", 356000000, 1e6,
+      upstream_measure = 2e6, simplify_m = simplify_m)
+    all_sql <- paste(sqls, collapse = "\n")
+    expect_match(all_sql, "fwa_watershedatmeasure(356000000, 1000000)",
+                 fixed = TRUE)
+    expect_match(all_sql, "fwa_watershedatmeasure(356000000, 2000000)",
+                 fixed = TRUE)
+    expect_no_match(all_sql, "e+", fixed = TRUE)
+  }
+})

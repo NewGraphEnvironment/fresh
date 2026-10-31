@@ -98,12 +98,10 @@ frs_watershed_at_measure <- function(
     ))
   }
 
-  ws_down <- frs_db_query(conn,
-    sprintf(
-      "SELECT geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
-      blue_line_key, downstream_route_measure
-    )
-  )
+  ws_down <- frs_db_query(conn, paste(
+    "SELECT geom FROM",
+    .frs_watershedatmeasure_sql(blue_line_key, downstream_route_measure)
+  ))
 
   if (is.null(upstream_measure)) {
     return(ws_down)
@@ -111,12 +109,10 @@ frs_watershed_at_measure <- function(
 
   up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
 
-  ws_up <- frs_db_query(conn,
-    sprintf(
-      "SELECT geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
-      up_blk, upstream_measure
-    )
-  )
+  ws_up <- frs_db_query(conn, paste(
+    "SELECT geom FROM",
+    .frs_watershedatmeasure_sql(up_blk, upstream_measure)
+  ))
 
   if (!sf::st_intersects(ws_down, ws_up, sparse = FALSE)[1, 1]) {
     stop("upstream watershed does not intersect downstream watershed; ",
@@ -146,22 +142,18 @@ frs_watershed_at_measure <- function(
 
   if (is.null(upstream_measure)) {
     return(frs_db_query(conn, sprintf(
-      "SELECT %s AS geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
-      simplify("geom"), blue_line_key, downstream_route_measure
+      "SELECT %s AS geom FROM %s", simplify("geom"),
+      .frs_watershedatmeasure_sql(blue_line_key, downstream_route_measure)
     )))
   }
 
   up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
 
-  sql <- paste(
-    "SELECT ST_Intersects(d.geom, u.geom) AS intersects,",
-    "%s AS geom",
-    "FROM whse_basemapping.fwa_watershedatmeasure(%s, %s) d,",
-    "whse_basemapping.fwa_watershedatmeasure(%s, %s) u"
-  )
   ws <- frs_db_query(conn, sprintf(
-    sql, simplify("ST_Difference(d.geom, u.geom)"),
-    blue_line_key, downstream_route_measure, up_blk, upstream_measure
+    "SELECT ST_Intersects(d.geom, u.geom) AS intersects, %s AS geom FROM %s d, %s u",
+    simplify("ST_Difference(d.geom, u.geom)"),
+    .frs_watershedatmeasure_sql(blue_line_key, downstream_route_measure),
+    .frs_watershedatmeasure_sql(up_blk, upstream_measure)
   ))
 
   if (!isTRUE(ws$intersects[1])) {
@@ -173,4 +165,21 @@ frs_watershed_at_measure <- function(
   # sf::st_difference() drops an empty difference; ST_Difference() returns
   # POLYGON EMPTY. Match the unsimplified path.
   ws[!sf::st_is_empty(ws), ]
+}
+
+
+#' The `fwa_watershedatmeasure()` call for one point
+#'
+#' The key goes in as an integer and the measure through `.frs_sql_num()`.
+#' `sprintf("%s")` on a double writes `3.56e+08` for blue line key 356000000,
+#' which Postgres reads as numeric and matches to no `fwa_watershedatmeasure()`
+#' signature.
+#'
+#' @param blk Numeric blue line key.
+#' @param measure Numeric route measure.
+#' @return Character SQL function call.
+#' @noRd
+.frs_watershedatmeasure_sql <- function(blk, measure) {
+  sprintf("whse_basemapping.fwa_watershedatmeasure(%d, %s)",
+          as.integer(blk), .frs_sql_num(measure))
 }

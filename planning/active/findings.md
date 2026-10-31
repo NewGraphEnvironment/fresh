@@ -68,3 +68,4 @@ local vs the shared bcfishpass instance). Local PostGIS GEOS 3.9.0; shared GEOS 
 
 | Error | Resolution |
 |-------|------------|
+| `function whse_basemapping.fwa_watershedatmeasure(numeric, integer) does not exist` for blue line key 356000000 | `sprintf("%s", <double>)` writes `3.56e+08`; write keys with `%d` + `as.integer()` (`.frs_watershedatmeasure_sql()`) |
