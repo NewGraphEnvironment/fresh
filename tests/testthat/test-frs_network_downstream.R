@@ -45,3 +45,16 @@ test_that("frs_network_downstream returns sf of downstream segments", {
   expect_true(nrow(downstream) > 0)
   expect_true("stream_order" %in% names(downstream))
 })
+
+test_that("frs_network_downstream sends the measure at full precision", {
+  # %s keeps 15 significant digits, which can pick the segment before the
+  # one a measure starts (#274). This value needs all 17.
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+  frs_network_downstream("mock", blue_line_key = 360873822,
+    downstream_route_measure = 1234567.8912345678)
+  expect_identical(sql_measure_picks(sql_sent), "1234567.8912345679")
+})

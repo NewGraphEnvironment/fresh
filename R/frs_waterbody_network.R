@@ -88,7 +88,7 @@ frs_waterbody_network <- function(
       "JOIN network_wbkeys n ON p.waterbody_key = n.waterbody_key"
     ),
     as.integer(blue_line_key),
-    downstream_route_measure,
+    .frs_sql_exact(downstream_route_measure, "downstream_route_measure"),
     fwa_fn,
     select_cols,
     table

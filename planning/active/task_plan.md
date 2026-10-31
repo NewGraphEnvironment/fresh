@@ -62,8 +62,21 @@ Approved by the user at the plan gate, 2026-10-31.
       with what now holds (fixed in #274). Bump its Verified date
 - [x] `devtools::document()` (no roxygen changes expected); `lintr::lint_package()` clean on touched files
 
+## Phase 5: The rest of the class (plan correction from the Plan review)
+
+The plan's "last site" claim was wrong: the grep needed `sprintf` and `measure` on one line, and the
+`downstream_route_measure <= %s` segment pick puts them on different lines. 14 more sites.
+
+- [x] Mocked tests: every `downstream_route_measure <= <x>` literal is the `%.17g` text, in
+      `frs_network()` (direct, waterbody, and the `upstream_blk` check, with and without `upstream_measure`),
+      `frs_network_upstream()`, `frs_network_downstream()`, `frs_network_prune()`, `frs_waterbody_network()`.
+      Shared extractor in `tests/testthat/helper-sql_measure.R`. Red before the fix
+- [x] Send each through `.frs_sql_exact()`
+- [x] `frs_wsg_drainage()` left as is: its measures go to `fwa_downstream()`, which answered the same for
+      two outlets 2 ULPs apart at both precisions (probed); bundled outlets have at most 10 digits
+
 ## Owed at the end (reported, done after merge)
-- [ ] Edit the #274 issue body: remove the incorrect key claim from the Status block, and mark all four sites done
+- [ ] Edit the #274 issue body: remove the incorrect key claim from the Status block; list the segment-pick sites this branch fixed and `frs_wsg_drainage()` left as is
 
 ## Validation
 - [ ] Tests pass: full `devtools::test()` against local fwapg, plus the gated filter with `FRESH_FWAPG_TRIAL`

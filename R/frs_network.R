@@ -372,7 +372,7 @@ frs_network_direct <- function(conn, blue_line_key, downstream_route_measure,
         ")%s"
       ),
       stream_tbl,
-      blk, downstream_route_measure,
+      blk, .frs_sql_exact(downstream_route_measure, "downstream_route_measure"),
       select_cols, table, fwa_fn,
       wscode_col, localcode_col, filter_sql
     )
@@ -410,9 +410,9 @@ frs_network_direct <- function(conn, blue_line_key, downstream_route_measure,
         ")%s"
       ),
       stream_tbl,
-      blk, downstream_route_measure,
+      blk, .frs_sql_exact(downstream_route_measure, "downstream_route_measure"),
       stream_tbl,
-      up_blk, upstream_measure,
+      up_blk, .frs_sql_exact(upstream_measure, "upstream_measure"),
       select_cols, table, fwa_fn,
       wscode_col, localcode_col,
       fwa_fn,
@@ -503,7 +503,8 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
         "FROM %s p\n",
         "JOIN %s n ON p.waterbody_key = n.waterbody_key"
       ),
-      network_tbl, blk, downstream_route_measure,
+      network_tbl, blk,
+      .frs_sql_exact(downstream_route_measure, "downstream_route_measure"),
       network_tbl, fwa_fn,
       guard_sql,
       filter_cte,
@@ -548,8 +549,10 @@ frs_network_waterbody <- function(conn, blue_line_key, downstream_route_measure,
         "FROM %s p\n",
         "JOIN %s n ON p.waterbody_key = n.waterbody_key"
       ),
-      network_tbl, blk, downstream_route_measure,
-      network_tbl, up_blk, upstream_measure,
+      network_tbl, blk,
+      .frs_sql_exact(downstream_route_measure, "downstream_route_measure"),
+      network_tbl, up_blk,
+      .frs_sql_exact(upstream_measure, "upstream_measure"),
       network_tbl, fwa_fn,
       fwa_fn,
       guard_sql,
@@ -634,8 +637,8 @@ frs_check_upstream <- function(conn, down_blk, down_drm, up_blk, up_drm) {
       ") AS is_upstream\n",
       "FROM ref_down, ref_up"
     ),
-    as.integer(down_blk), down_drm,
-    as.integer(up_blk), up_drm
+    as.integer(down_blk), .frs_sql_exact(down_drm, "downstream_route_measure"),
+    as.integer(up_blk), .frs_sql_exact(up_drm, "upstream_measure")
   )
   result <- frs_db_query(conn, sql)
   if (nrow(result) == 0 || !isTRUE(result$is_upstream)) {

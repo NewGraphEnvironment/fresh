@@ -83,3 +83,10 @@ Found while measuring fwapg's pending `fwa_indexpoint` rework in #266
 
 | Error | Resolution |
 |-------|------------|
+
+## Plan review, 2026-10-31 (review-plan.md)
+
+- **B1 confirmed:** 14 more position measures through `%s`, all the `WHERE blue_line_key = … AND downstream_route_measure <= %s ORDER BY … DESC LIMIT 1` pick: `frs_network.R` (direct, waterbody, `frs_check_upstream`), `frs_network_upstream.R`, `frs_network_downstream.R`, `frs_network_prune.R`, `frs_waterbody_network.R`. My enumeration missed them because the grep needed `sprintf` and `measure` on one line. Fixed in Phase 5.
+- `frs_wsg_drainage.R:102` writes outlet measures with `DBI::dbQuoteLiteral()`, measured as 15 digits (`1234567.89123457::float8`). Not changed: `fwa_downstream()` on one blue line answered FALSE both ways for measures 2 ULPs apart, at 17 digits and at 15, so the rounding is not observable there. Bundled `wsg_outlet.csv` has at most 10 significant digits.
+- G3: `data-raw/point_snap_tie_sweep.R:334-336` sends measures with `format(d$m, scientific = FALSE)`, a shared-width format at the default 7 significant digits. So #266's sweep counts were measured on rounded measures. The research note should say so (Phase 4 follow-up).
+- G1/G2: the "185 of 400" and "2 before / 218 after" counts are from different populations than the issue's 86 of 400. The reviewer's read-only re-measure on the gate's own definition (guarded tops, 345 of 400 with a guarded segment): 165 of 345 parse above at 15 digits; exact tops resolve 2 (old rule) vs 331 (new rule).
