@@ -263,6 +263,7 @@ Small durable technical reference for internal behavior worth remembering.
 
 - A route measure written into SQL as a **position** goes through `.frs_sql_exact()` (`%.17g`), and a blue line key through `%d` on `as.integer()`. `%s` on a double keeps 15 significant digits, which can name a point past a segment's end or below its start, and writes a round key as `3.56e+08` (#274, #286).
 - A rule threshold or distance goes through `.frs_sql_num()` (10 digits); it is compared against, never resolved to a segment.
+- `data-raw/` scripts follow the same rule. `format()` over a vector gives every element the decimals the most demanding one needs, so `data-raw/point_snap_tie_sweep.R`'s measures went out rounded to 11 decimals and its counts were of rounded positions (#289).
 - To find every site, parse rather than grep: the SQL builders are multi-line `paste0()` templates with their `sprintf()` arguments in a block at the end, so a grep for `sprintf` and `measure` on one line missed 14 of them (#274).
 
 ### Waterbody area floors (`.frs_rule_ha_min()`)
