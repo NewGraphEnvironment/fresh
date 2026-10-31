@@ -1,5 +1,49 @@
 # Changelog
 
+## fresh 0.49.0
+
+Closes [\#286](https://github.com/NewGraphEnvironment/fresh/issues/286).
+Relates to
+[wet#155](https://github.com/NewGraphEnvironment/wet/issues/155).
+
+**[`frs_lake_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_lake_fetch.md),
+[`frs_wetland_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_wetland_fetch.md)
+and
+[`frs_stream_fetch()`](https://newgraphenvironment.github.io/fresh/reference/frs_stream_fetch.md)
+return the same `sf` on every call to the same database, and can
+simplify and clip in PostGIS.** - Each query ends on `ORDER BY` the
+table’s unique key (`waterbody_poly_id`, `linear_feature_id`). A new
+`order_by` names another table’s key, or `NULL` for none. **`limit = n`
+now returns the `n` lowest keys**, not whichever rows came first. -
+`simplify_m` simplifies in the database:
+`ST_Normalize(ST_SimplifyPreserveTopology())` for lakes and wetlands,
+and `ST_SimplifyPreserveTopology()` alone for streams, because
+`ST_Normalize()` would reverse a line’s downstream-to-upstream
+direction. Both drop M; `area_ha` and `length_metre` stay the stored
+values. `frs_watershed_at_measure(simplify_m =)` simplifies a subbasin
+once, after the difference. - `aoi` takes a polygon, a watershed group
+code or a blue line key and measure, through the same resolver
+[`frs_extract()`](https://newgraphenvironment.github.io/fresh/reference/frs_extract.md)
+uses, and filters with `ST_Intersects()`. `bbox` stays envelope overlap.
+The new arguments come after `limit`, so positional calls keep
+working. - Simplified streams were byte-identical across two connections
+and across GEOS 3.9.0 and 3.10.2 (BULK and MORR, 52,291 segments).
+Across those GEOS versions 46 of 1,754 simplified BULK lakes differed by
+1–2 vertices, so record `postgis_full_version()` with a saved result.
+`research/fwa_fetch_determinism.md` has the detail.
+
+**Numbers reach the SQL exactly.** -
+[`frs_watershed_at_measure()`](https://newgraphenvironment.github.io/fresh/reference/frs_watershed_at_measure.md)
+wrote a round blue line key passed as a double as `3.56e+08`, which
+matches no fwapg function. Keys now go in as integers, and measures at
+full precision, so a measure at a segment’s own start is no longer
+rounded below it and returned no watershed. `aoi = list(blk, measure)`
+shares the same builder. - An `sf` `aoi`’s WKT is written at 15 digits.
+It followed `getOption("digits")`, which at the default 7 rounds BC
+Albers x to the metre, so this also changes what
+`frs_extract(aoi = <sf>)` sends. - `area_ha_min` in the lake and wetland
+fetchers is validated and written exactly.
+
 ## fresh 0.48.0
 
 Closes [\#284](https://github.com/NewGraphEnvironment/fresh/issues/284).
