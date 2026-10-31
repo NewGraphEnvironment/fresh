@@ -8,3 +8,4 @@
 - Next: start Phase 1
 - Phase 1 (f6154e5): exact measures sent, read-back guard, exact CSV output
 - Phase 2: head-case sample scripted; smoke run green (findings.md)
+- Plan review landed (review-plan.md): B1, G1, G3, A2, A3 fixed in the script; smoke 2 green

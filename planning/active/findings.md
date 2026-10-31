@@ -35,3 +35,17 @@ The snapped positions are clamped to whole metres, which `format()` writes exact
 - Head case, exact tops: 2 resolve in base, 331 under the tiebreak and under both. That
   matches the #274 reviewer's unpublished re-measure (old 2, new 331), now scripted.
 - CSV misses on the capped sample: 32 base, 30 after. The full run gives the real counts.
+
+## Plan review folded in (review-plan.md); second smoke run, 2026-10-31
+
+- B1: each state now sends every CSV measure and top back as %.17g text and has
+  PostgreSQL compare it with the stored double (`sent_exact()`); positions are asserted
+  whole metres. Passes.
+- G1: tops are max(upstream_route_measure) over every segment, since fwa_locatealong()
+  has no guards. Smoke result (head case is full-size, 400): base 0 of 400 resolve,
+  tiebreak / both 383 of 400; over the 341 lines whose top is a candidate segment's,
+  0 -> 327. The guarded-top design gave 2 -> 331 of 345: its two base "hits" were lines
+  whose guarded top sits below the line's real top, so they were never head cases.
+- A2/A3: the head case has its own table (body) and `sweep_tops.csv` (one row per line);
+  `summary` and `moved` keep the shape earlier runs had.
+- G3: measures are written unquoted, so whole-metre rows do not churn.
