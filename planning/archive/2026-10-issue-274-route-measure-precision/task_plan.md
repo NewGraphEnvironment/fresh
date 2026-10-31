@@ -82,7 +82,7 @@ The plan's "last site" claim was wrong: the grep needed `sprintf` and `measure` 
 - [x] Tests pass: full `devtools::test()` against local fwapg, plus the gated filter with `FRESH_FWAPG_TRIAL`
 - [x] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
 
 Verification: the Phase 1 mocked test is the red→green pin (shown red before Phase 2). The
 gated head-case test runs `frs_point_locate()` at a stream's exact top against the trialled
