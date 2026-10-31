@@ -8,7 +8,7 @@ Written from the agent's reply (Plan agents cannot write files). The reviewer re
 ## Gap
 - **G1.** "185 of 400" conflicts with the issue's 86 of 400 (different populations and methods). -> Count dropped from the gate comment and the research note.
 - **G2.** "2 before / 218 after" describes rounded tops. The reviewer's exact-top re-measure on 345 guarded streams: old rule 2, new rule 331, new rule at 15 digits 182. -> Kept attributed to #266, with how that sample wrote its tops marked as unrecorded. The reviewer's numbers were not re-derived here, so they are not published.
-- **G3.** The #266 sweep writes measures with `format(scientific = FALSE)`, about 7 digits (`4494.61997946051` -> `4494.620`), verified. -> Stated in the research note. Re-running the sweep is a follow-up issue.
+- **G3.** The #266 sweep writes measures with `format(scientific = FALSE)`, about 7 digits (`4494.61997946051` -> `4494.620`), verified. -> Stated in the research note. Re-running the sweep is #289.
 
 ## Assumption (checked)
 - **A1.** The gate test stays meaningful at the exact top: old rule 0 rows, new rule 1. `skip_unless_head_case()` checks the column predicate only, not `ST_LocateAlong` on M; 14 of 345 pass the column rule but do not resolve. -> The comment no longer overstates this.
