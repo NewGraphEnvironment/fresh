@@ -50,11 +50,11 @@ Approved by the user at the plan gate, 2026-10-31.
 - [x] Phase 1 tests pass, along with the existing live test in the same file
 
 ## Phase 3: Gate test follows the caller (`tests/testthat/test-frs_fwapg_gate.R`)
-- [ ] `blk_top()` returns the stored `m` unrounded, because that is now what `frs_point_locate()` can express.
+- [x] `blk_top()` returns the stored `m` unrounded, because that is now what `frs_point_locate()` can express.
       Rewrite its comment: the 15-digit rounding caveat is gone
-- [ ] `skip_unless_head_case()` writes `m` with `.frs_sql_exact()` (lines 61, 64)
-- [ ] Update the `head_blk` comment: the flip no longer depends on 15-digit rounding
-- [ ] Run gated: `FRESH_FWAPG_TRIAL=<both migrations>` with `devtools::test(filter = "frs_fwapg_gate")`
+- [x] `skip_unless_head_case()` writes `m` with `.frs_sql_exact()` (lines 61, 64)
+- [x] Update the `head_blk` comment: the flip no longer depends on 15-digit rounding
+- [x] Run gated: `FRESH_FWAPG_TRIAL=<both migrations>` with `devtools::test(filter = "frs_fwapg_gate")`
       against local Docker fwapg. The head-case test must run (not skip) and pass. Without the trial it must skip
 
 ## Phase 4: Docs

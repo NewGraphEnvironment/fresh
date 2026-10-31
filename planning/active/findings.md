@@ -73,6 +73,12 @@ Found while measuring fwapg's pending `fwa_indexpoint` rework in #266
 - `head_blk` 360447231 at its exact top: parses exact, `old_rule` 0, closed >= 1, so it is still a head case once the gate test sends the exact measure.
 - Other measure interpolations in `R/`: `frs_order_child.R:249` is a distance threshold through `.frs_sql_num()`; `frs_col_generate.R` is column expressions. No other position site.
 
+## Gate test after #274, 2026-10-31
+
+- With `FRESH_FWAPG_TRIAL` (both migrations) against local Docker fwapg: the head-case test runs (2 passed) and so does the watershed error pin (2 passed); the gate test skips because `FRESH_FWAPG_CURRENT` is unset. Without the trial, all three skip.
+- The gate test does **not** discriminate `%s` from `%.17g` for `head_blk`: its `%s` top rounds *down* (parses below the stored top, see the probe above), so old `frs_point_locate()` would resolve it too. The pin for #274 is the mocked SQL-text test in `test-frs_point_locate.R`.
+- The "2 before, 218 after" counts in the gate test and research note come from #266's sample, which sent tops at 15 digits; no committed script re-derives them (`data-raw/point_snap_tie_sweep.R` does not sample tops). Left attributed, not re-measured.
+
 ## Errors Encountered
 
 | Error | Resolution |
