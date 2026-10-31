@@ -11,3 +11,4 @@
 - Phase 3: gate test's `blk_top()` / `skip_unless_head_case()` use the exact measure; comments updated. Trial run: head-case test ran and passed; no-trial run: all skip
 - Phase 4: research/fwa_point_snap.md caveat revised. `document()` writes nothing. lintr on touched files: the only new lints are `object_usage_linter` for `.frs_sql_exact`, from the stale installed fresh 0.48.0, which lacks it; indentation lints follow the files' existing pattern
 - Phase 5 (plan correction): Plan review found 14 more segment-pick sites. Tests red then green; `frs_wsg_drainage()` left with a measured reason. Code-check round 1 (pre-Phase 5 diff): Clean
+- Folded in the Plan review (review-plan.md): gate comments and research note no longer restate unprovenanced counts; the research note records the sweep's 7-digit measures and gains a Verified line; the point_locate test compares strings

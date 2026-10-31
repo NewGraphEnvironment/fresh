@@ -22,7 +22,7 @@ test_that("frs_point_locate writes the key as an integer and the measure in full
   # can parse above the segment's end, outside every segment's range (#274).
   # This value needs all 17 digits.
   m <- 1234567.8912345678
-  expect_false(as.numeric(sprintf("%.15g", m)) == m)
+  expect_false(sprintf("%s", m) == .frs_sql_exact(m))
   sql <- NULL
   local_mocked_bindings(frs_db_query = function(conn, sql_in, ...) {
     sql <<- sql_in

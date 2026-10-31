@@ -1,10 +1,12 @@
 # Snapping points to the FWA stream network
 
+**Verified:** 2026-10-31 (the head case and the sweep's measure precision) · **Issues:** fresh#247, fresh#266, fresh#274 · **Produced by:** `data-raw/point_snap_parity_check.R`, `data-raw/point_snap_tie_sweep.R`
+
 Source: measured 2026-10-07 on fwapg (`whse_basemapping`, 4,907,441 segments in `fwa_stream_networks_sp`), while working fresh#247. The parity run is `data-raw/point_snap_parity_check.R`, with logs in `data-raw/logs/point_snap_parity_247/`.
 
 Revised 2026-10-27 for fresh#266 (the tie rule, and what NewGraphEnvironment/fwapg#41 changes on fresh). That sweep is `data-raw/point_snap_tie_sweep.R`, logs in `data-raw/logs/indexpoint_266/`, run on the local docker fwapg (`docker/`, 4,907,441 segments, `exbc` still in `fwa_watershedatmeasure`, no `fwapg.db_version`) with the migrations applied inside a rolled-back transaction. Migration files and their md5s, the fwapg commit, and the elapsed times are in the log's header; the counts are in its body, which a second run reproduces byte for byte.
 
-Revised 2026-10-31 for fresh#274: `frs_point_locate()` sends the measure at 17 significant digits (the head-case caveat below).
+Revised 2026-10-31 for fresh#274: `frs_point_locate()` and the network traversals' segment picks send the measure at 17 significant digits (the head-case caveat below). The sweep script writes each measure with `format(scientific = FALSE)`, which is the default 7 significant digits with one number of decimals for the whole vector (`4494.61997946051` goes out as `4494.620`), so the sweep's counts describe measures rounded that way, not what fresh sends.
 
 ## Three snappers, three candidate rules
 
@@ -51,10 +53,10 @@ points, tolerance 150, `num_features = 5`), 23,540 measures from `crossings.csv`
   **rounded to 4 decimals**: `round(ds,4) <= round(m,4) AND round(us,4) > round(m,4)`. A measure at
   a stream's top can therefore never be placed — `round(us,4) > round(us,4)` is false by
   construction. Of 400 blue lines sampled, their own top measure resolves on **2** before and
-  **218** after. (Those counts sent each top at 15 significant digits, as `frs_point_locate()`
-  did then with `sprintf("%s", m)`; for 185 of the 400 that rounded the top *up*, outside even the
-  closed range. Since fresh#274 it writes the measure through `.frs_sql_exact()` (`%.17g`), so a
-  stream's exact top reaches fwapg as stored.)
+  **218** after. (How that sample wrote its tops is not recorded. `frs_point_locate()` wrote the
+  measure with `sprintf("%s", m)`, 15 significant digits, until fresh#274, and that can round a top
+  *up*, past the segment's end; it now writes `.frs_sql_exact()` (`%.17g`), so a stream's exact top
+  reaches fwapg as stored.)
 - **4 CSV measures now resolve** that did not: `wsg_outlet.csv` 356363393 @ 322.567 and 360880826 @
   2100.018; `crossings.csv` 356355973 @ 4494.61997946051 and 360862508 @ 10821.8246201562
   (`sweep_changed.csv` carries them exactly; the crossings pair is bcfishpass's own fractional

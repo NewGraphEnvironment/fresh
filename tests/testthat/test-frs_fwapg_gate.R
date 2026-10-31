@@ -17,9 +17,7 @@
 # chooses the measure, so fresh's guards belong here; proving the red side over
 # the population fwa_locatealong() actually scans is skip_unless_head_case()'s
 # job. Derived rather than retyped, and kept at full precision, which is what
-# frs_point_locate() sends since #274. Before that it wrote the measure with
-# sprintf("%s", m), 15 significant digits, and for 185 of 400 sampled streams
-# that rounded the top UP, outside even the closed range.
+# frs_point_locate() sends since #274 (it wrote 15 significant digits before).
 blk_top <- function(conn, blk) {
   m <- DBI::dbGetQuery(conn, sprintf(
     "SELECT max(upstream_route_measure) AS m
@@ -63,12 +61,12 @@ skip_unless_head_case <- function(conn, blk, m) {
                       .frs_sql_exact(m, "m")))
 }
 
-# Blue line 360447231. Of 400 streams sampled by ORDER BY md5(blue_line_key),
-# 2 resolved their own top measure before the migration and 218 after — the
-# head case is the common case, not a rarity. That sample sent the measure at
-# 15 significant digits (#266), so which streams flip was measured on rounded
-# tops; this one is named rather than searched for, and skip_unless_head_case()
-# checks it is still a head case at the exact top.
+# Blue line 360447231, named rather than searched for. Of 400 streams sampled
+# by ORDER BY md5(blue_line_key), 2 resolved their own top measure before the
+# migration and 218 after (#266) — the head case is the common case, not a
+# rarity. How that sample wrote its tops is not recorded, so
+# skip_unless_head_case() re-checks the column rule at the exact top; it does
+# not check ST_LocateAlong() on the geometry, which expect_gt() below does.
 head_blk <- 360447231L
 
 test_that("fwa_locatealong() resolves a measure at a stream's head", {
