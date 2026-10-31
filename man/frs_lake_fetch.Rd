@@ -9,10 +9,13 @@ frs_lake_fetch(
   watershed_group_code = NULL,
   blue_line_key = NULL,
   bbox = NULL,
+  aoi = NULL,
   area_ha_min = NULL,
   table = "whse_basemapping.fwa_lakes_poly",
   cols = c("waterbody_poly_id", "waterbody_key", "waterbody_type", "area_ha",
     "gnis_name_1", "blue_line_key", "watershed_group_code", "geom"),
+  simplify_m = NULL,
+  order_by = "waterbody_poly_id",
   limit = NULL
 )
 }
@@ -26,7 +29,14 @@ Default \code{NULL}.}
 Default \code{NULL}.}
 
 \item{bbox}{Numeric vector of length 4 (\code{xmin}, \code{ymin}, \code{xmax}, \code{ymax}) in
-BC Albers (EPSG:3005). Default \code{NULL}.}
+BC Albers (EPSG:3005). Matches on envelope overlap (\code{&&}), so a lake
+whose envelope touches the box is returned even when the lake does
+not; use \code{aoi} for exact intersection. Default \code{NULL}.}
+
+\item{aoi}{Area of interest. An \code{sf}/\code{sfc} polygon (any CRS; transformed to
+EPSG:3005) filters with \code{ST_Intersects()}. For WKT, pass
+\code{sf::st_as_sfc(wkt, crs = 3005)}. Also accepts the other forms of
+\code{\link[=frs_extract]{frs_extract()}}'s \code{aoi}. Default \code{NULL}.}
 
 \item{area_ha_min}{Numeric. Minimum lake area in hectares. Default \code{NULL}.}
 
@@ -36,6 +46,13 @@ BC Albers (EPSG:3005). Default \code{NULL}.}
 \item{cols}{Character vector of column names to select. Default includes
 the most commonly used FWA lake attributes.}
 
+\item{simplify_m}{Numeric. Simplification tolerance in metres, applied in
+the database. Drops M coordinates. Default \code{NULL} (full resolution).}
+
+\item{order_by}{Character. Column to order rows by. Default
+\code{"waterbody_poly_id"}, the FWA table's unique key; give another table's
+unique key when \code{table} is changed, or \code{NULL} for no \verb{ORDER BY}.}
+
 \item{limit}{Integer. Maximum rows to return. Default \code{NULL} (no limit).}
 }
 \value{
@@ -43,7 +60,19 @@ An \code{sf} data frame of lake polygons.
 }
 \description{
 Retrieve lake polygons from an FWA lakes table.
-Filter by watershed group code, blue line key, and/or bounding box.
+Filter by watershed group code, blue line key, bounding box and/or area of
+interest.
+}
+\details{
+Rows come back ordered by \code{order_by} (the table's unique key by default),
+so the same database returns the same \code{sf} on every call. For map layers,
+\code{simplify_m} simplifies in the database with
+\code{ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))};
+\code{ST_Normalize()} fixes the order of parts, rings and ring start vertices so
+equal polygons serialise equally. \code{area_ha} is the stored, unsimplified
+area. Two databases on different GEOS versions can still simplify a ring
+differently, so a caller that saves the result should record
+\code{postgis_full_version()} with it.
 }
 \examples{
 \dontrun{
@@ -51,6 +80,10 @@ conn <- frs_db_conn()
 lakes <- frs_lake_fetch(conn, watershed_group_code = "BULK")
 lakes_big <- frs_lake_fetch(conn, watershed_group_code = "BULK",
   area_ha_min = 10)
+
+# Map layer: inside a watershed polygon, simplified to 25 m
+ws <- frs_watershed_at_measure(conn, 360873822, 208877, simplify_m = 25)
+lakes_map <- frs_lake_fetch(conn, aoi = ws, simplify_m = 25)
 DBI::dbDisconnect(conn)
 }
 }

@@ -7,3 +7,4 @@
 - Scaffolded PWF baseline from issue #286 with approved phases
 - Next: start Phase 1
 - Phase 1: `.frs_geom_select()`, `.frs_validate_simplify_m()`, `.frs_order_by()` added; `.frs_build_where()` takes `aoi`/`conn`. Helper tests in test-utils.R (83 pass). Fetcher-level mocked tests land with Phase 2 so each commit is green.
+- Phase 2: three fetchers take `aoi`, `simplify_m`, `order_by`; lake/wetland now validate `table`/`cols` like streams. `aoi` sits after `bbox`; every caller found in local checkouts (breaks, fresh tests) passes arguments by name. New `test-frs_fetch_sql.R` (mocked) failed before the wiring, passes after; fetch filter 49 pass.

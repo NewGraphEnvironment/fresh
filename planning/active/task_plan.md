@@ -58,16 +58,16 @@ Mechanism choices (mine, stated):
       `geom` entry replaced; validates `simplify_m`
 - [x] `.frs_order_by(order_by)`: validated `" ORDER BY <col>"` or `""`
 - [x] `.frs_build_where()` gains `aoi`/`conn`, appending `.frs_resolve_aoi()`'s predicate when non-empty
-- [ ] Mocked unit tests (capture SQL via `local_mocked_bindings(frs_db_query = ...)`): ORDER BY present
+- [x] Mocked unit tests (capture SQL via `local_mocked_bindings(frs_db_query = ...)`): ORDER BY present
       with default key and absent with `order_by = NULL`; ORDER BY precedes LIMIT; simplify expression
       present with Normalize for lakes/wetlands, without for streams; `aoi` sf → `ST_Intersects`;
       bad `simplify_m` / bad `order_by` error; `simplify_m` with no `geom` in `cols` errors
 
 ## Phase 2: Fetchers
-- [ ] `frs_lake_fetch()`, `frs_wetland_fetch()`: `aoi`, `simplify_m`, `order_by = "waterbody_poly_id"`;
+- [x] `frs_lake_fetch()`, `frs_wetland_fetch()`: `aoi`, `simplify_m`, `order_by = "waterbody_poly_id"`;
       add `.frs_validate_identifier()` on `table`/`cols` as `frs_stream_fetch()` already does
-- [ ] `frs_stream_fetch()`: `aoi`, `simplify_m` (no Normalize), `order_by = "linear_feature_id"`
-- [ ] Roxygen for each: new params, bbox = envelope overlap, `simplify_m` drops M, GEOS-version limit;
+- [x] `frs_stream_fetch()`: `aoi`, `simplify_m` (no Normalize), `order_by = "linear_feature_id"`
+- [x] Roxygen for each: new params, bbox = envelope overlap, `simplify_m` drops M, GEOS-version limit;
       examples show `aoi` + `simplify_m`; `devtools::document()`
 
 ## Phase 3: Watershed
