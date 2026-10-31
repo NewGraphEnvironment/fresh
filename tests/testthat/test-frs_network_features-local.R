@@ -192,3 +192,45 @@ test_that("result = \"exists\" returns the array walk's segments (SKGT)", {
     }
   }
 })
+
+
+# #284: result = "distinct" returns, per segment, the ids "ids" returns, once
+# each and sorted, on the same fixture. The fixture's feature ids are unique,
+# so the id column here is blue_line_key, which many features share.
+test_that("result = \"distinct\" returns unique() of the array walk's ids (SKGT)", {
+  conn <- local_fwapg()
+  features <- nf_local_features(conn)
+  walk <- function(result, direction, ie) {
+    frs_network_features(
+      conn,
+      segments            = "whse_basemapping.fwa_stream_networks_sp",
+      features            = features,
+      segment_id_col      = "linear_feature_id",
+      feature_id_col      = "blue_line_key",
+      direction           = direction,
+      aoi                 = "SKGT",
+      include_equivalents = ie,
+      result              = result
+    )
+  }
+  for (cs in list(list("downstream", FALSE), list("downstream", TRUE),
+                  list("upstream", FALSE))) {
+    ids <- walk("ids", cs[[1]], cs[[2]])
+    di <- walk("distinct", cs[[1]], cs[[2]])
+    info <- sprintf("%s, include_equivalents = %s", cs[[1]], cs[[2]])
+    expect_gt(nrow(ids), 0L)
+    expect_named(di, names(ids))
+    expect_identical(sort(as.character(di$linear_feature_id)),
+                     sort(as.character(ids$linear_feature_id)), info = info)
+    # Compared as numbers: as.character() of a double prints a key ending in
+    # zeros as "3.6e+08", which the array's text never does.
+    want <- lapply(ids$feature_ids, function(x) sort(unique(as.numeric(x))))
+    names(want) <- as.character(ids$linear_feature_id)
+    got <- lapply(di$feature_ids, as.numeric)
+    names(got) <- as.character(di$linear_feature_id)
+    expect_identical(got[names(want)], want, info = info)
+    # some segment must have repeated ids, or the fixture shows nothing
+    expect_true(any(lengths(ids$feature_ids) > lengths(want)), info = info)
+    expect_length(nf_tmp_tables(conn), 0L)
+  }
+})
