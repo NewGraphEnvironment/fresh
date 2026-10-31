@@ -74,3 +74,18 @@ The snapped positions are clamped to whole metres, which `format()` writes exact
 Same 400 lines, candidate-segment top: 345 tops; 4 sit below the line's real top, and 2 of
 those (359014708, 359017843) resolve on base, since a later segment holds the measure. That
 is #266's "2 before". `format(957.70485427024903)` is `957.7049`, in the 0.5 mm gap.
+
+## Code-check round 1 corrected the issue's premise (2026-10-31, review-round1.md)
+
+- The old `chunked()` called `format()` once over the whole frame. For the 23,540 CSV
+  measures that shares **11 decimals** (14-16 significant digits), not 7: reproduced with
+  `format()` over the CSV measure vector. `format(x)` on ONE value gives 7 digits, which is
+  where the issue's `4494.620` came from; the old `sweep.txt`'s `4494.620` was `print()`.
+- So the 2026-10-31 entries above saying "7 digits" / `957.7049` are wrong in the cause and
+  size of the rounding; the counts are right. 957.70485427024903 is 3.4e-13 m below the
+  stored top 957.70485427024937 (psql `=` false), not on it; the old text
+  `957.70485427025` was 6.3e-13 m above it, in the gap.
+- `sent_exact()` built its own text; it now checks `chunked()`'s returned `sent`. Mutant
+  (format() restored in chunked()) stops: "3840 of 3840 rows joined and 1332 differ".
+  Real script passes the smoke run. The committed full-run logs stand: the fix moves the
+  check, not the text sent.

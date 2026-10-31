@@ -41,7 +41,9 @@
 # Measures reach SQL at 17 significant digits (.frs_sql_exact()) and keys
 # through %d, as on fresh's own code paths since #274; the two CSVs of
 # positions carry each measure as that same text. Runs before #289 sent
-# measures through format(), at 7 significant digits.
+# measures through one format() call over the whole frame, which shares one
+# decimal count across it: 11 decimals for the CSV measures, so they went out
+# rounded at about 1e-11 m.
 
 pkgload::load_all(".", quiet = TRUE)
 
@@ -381,12 +383,11 @@ DBI::dbDisconnect(conn)
 # not lose the rest of them.
 chunked <- function(con, d, call_sql, chunk = 2000L, label = "") {
   # The measure goes through .frs_sql_exact() (%.17g), as every fresh code path
-  # sends one since #274, and the key through %d. format() would write the
-  # measures at 7 significant digits with one decimal count for the whole
-  # vector, so the sweep would measure rounded positions (#289).
-  vals <- sprintf("(%d,%d,%s)", seq_len(nrow(d)),
-                  as.integer(d$blue_line_key),
-                  vapply(d$m, .frs_sql_exact, character(1), label = "m"))
+  # sends one since #274, and the key through %d. format() shares one decimal
+  # count across the whole vector, so it rounds most measures (#289). The text
+  # is returned as `sent`, so sent_exact() checks what actually went out.
+  m_sent <- vapply(d$m, .frs_sql_exact, character(1), label = "m")
+  vals <- sprintf("(%d,%d,%s)", seq_len(nrow(d)), as.integer(d$blue_line_key), m_sent)
   out <- vector("list", max(1L, ceiling(length(vals) / chunk)))
   # kept as rows, not as tab-joined text: strsplit() drops a trailing empty
   # field, so an empty conditionMessage() would make the 4th field missing and
@@ -435,7 +436,8 @@ chunked <- function(con, d, call_sql, chunk = 2000L, label = "") {
   # joined back on the ordinal, never on the order the rows arrived in
   if (is.null(rows)) rows <- data.frame(ord = integer())
   list(rows = rows[order(rows$ord), , drop = FALSE],
-       errors = if (length(errs)) do.call(rbind, errs) else NULL)
+       errors = if (length(errs)) do.call(rbind, errs) else NULL,
+       sent = m_sent)
 }
 
 # `answer` is the column `call_sql` returns per ordinal; missing ordinals (a
@@ -456,17 +458,18 @@ answers <- function(d, got, answer, as = c("logical", "numeric")) {
   out
 }
 
-# Sends each row's %.17g measure back keyed on `key` and counts the rows whose
-# stored measure differs from the parsed text. Every row must join, and none
-# may differ.
-sent_exact <- function(con, d, table, key) {
+# Sends the measure text chunked() sent for each row (`sent`) back keyed on
+# `key`, and counts the rows whose stored measure differs from it as PostgreSQL
+# parses it. Every row must join, and none may differ.
+sent_exact <- function(con, d, sent, table, key) {
+  stopifnot(length(sent) == nrow(d))
   if (!nrow(d)) {
     return(invisible())
   }
   k <- d[[key]]
   k <- if (is.character(k)) as.character(DBI::dbQuoteString(con, k)) else
     sprintf("%d", as.integer(k))
-  vals <- sprintf("(%s,%s)", k, vapply(d$m, .frs_sql_exact, character(1), label = "m"))
+  vals <- sprintf("(%s,%s)", k, sent)
   n <- DBI::dbGetQuery(con, sprintf(
     "SELECT count(*) AS joined,
             count(*) FILTER (WHERE t.m IS DISTINCT FROM v.m::double precision) AS differ
@@ -507,12 +510,8 @@ sweep_state <- function(label, files) {
     "SELECT blue_line_key, m FROM working.tie266_expensive ORDER BY blue_line_key, m")
   tops <- DBI::dbGetQuery(con, sprintf(
     "SELECT blue_line_key, m, m_guarded FROM %s ORDER BY blue_line_key", tbl("tops")))
-  # What reaches fwapg is the %.17g text of the value read here, so each state
-  # sends that text back and has PostgreSQL compare it with what it stores.
-  # This covers the read, the format and the parse in one check (#289). The
-  # snapped positions are whole metres, which every step writes exactly.
-  sent_exact(con, csv, tbl("measures"), "id")
-  sent_exact(con, tops, tbl("tops"), "blue_line_key")
+  # The snapped positions are whole metres, which every step writes exactly;
+  # the CSV measures and the tops are checked after their calls (sent_exact()).
   if (any(pos$m != floor(pos$m))) {
     stop("a snapped position is not a whole metre: fresh's snap has changed",
          call. = FALSE)
@@ -532,11 +531,15 @@ sweep_state <- function(label, files) {
                   format(nrow(csv), big.mark = ",")))
   csv_loc <- chunked(con, csv, locate, label = paste0(label, "/locatealong_csv"))
   csv$locatealong <- answers(csv, csv_loc, "hit")
+  # The text chunked() sent, compared by PostgreSQL with what it stores: this
+  # covers the read, the format and the parse in one check (#289)
+  sent_exact(con, csv, csv_loc$sent, tbl("measures"), "id")
 
   message(sprintf("state %-9s locatealong at %s blue lines' own tops ...", label,
                   format(nrow(tops), big.mark = ",")))
   top_loc <- chunked(con, tops, locate, label = paste0(label, "/locatealong_top"))
   tops$locatealong <- answers(tops, top_loc, "hit")
+  sent_exact(con, tops, top_loc$sent, tbl("tops"), "blue_line_key")
 
   message(sprintf("state %-9s watershedatmeasure and downstreamtrace over %s ...",
                   label, format(nrow(exp_pos), big.mark = ",")))

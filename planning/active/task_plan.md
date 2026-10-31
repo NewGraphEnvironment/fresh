@@ -1,4 +1,4 @@
-# Task: point_snap_tie_sweep.R sends measures at 7 significant digits, so its counts are of rounded measures (#289)
+# Task: point_snap_tie_sweep.R rounds its measures through format(), so its counts are of rounded measures (#289)
 
 
 `data-raw/point_snap_tie_sweep.R` builds its `VALUES` list with `format(d$m, scientific = FALSE)` (lines 334-336). `format()` defaults to 7 significant digits and uses one number of decimals for the whole vector, so the sweep does not send the measures it reads:

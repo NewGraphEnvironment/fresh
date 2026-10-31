@@ -8,7 +8,7 @@ Revised 2026-10-27 for fresh#266 (the tie rule, and what NewGraphEnvironment/fwa
 
 Revised 2026-10-31 for fresh#274: `frs_point_locate()` and the network traversals' segment picks send the measure at 17 significant digits. Before, `frs_point_locate()` wrote 15 (`sprintf("%s", m)`), which can round a stream's top *up*, past its last segment's end, so the head case below was not reachable through it.
 
-Revised 2026-10-31 for fresh#289: the sweep sent its measures through `format()`, 7 significant digits with one decimal count per chunk, so its CSV counts were of rounded measures. It now sends `.frs_sql_exact()` text, as fresh does, and each state checks in SQL that the text parses back to the stored double. The re-run is the one below. Only the CSV-measure counts moved; the snapped positions, all whole metres, reproduce byte for byte. The head case is now scripted into the sweep rather than an unrecorded query.
+Revised 2026-10-31 for fresh#289: the sweep sent its measures through one `format()` call over the whole frame, which shares one decimal count across the vector: 11 decimals for the CSV measures, so they went out at 14 to 16 significant digits, rounded at about 1e-11 m, and its CSV counts were of those rounded measures. It now sends `.frs_sql_exact()` text, as fresh does, and each state checks in SQL that the text parses back to the stored double. The re-run is the one below. Only the CSV-measure counts moved; the snapped positions, all whole metres, reproduce byte for byte. The head case is now scripted into the sweep rather than an unrecorded query.
 
 ## Three snappers, three candidate rules
 
@@ -39,7 +39,7 @@ on the local docker fwapg, in three states so each change is attributed rather t
 migrated.** 49,725 snapped positions (all 19,905 PSCIS assessments plus 5,000 fish observation
 points, tolerance 150, `num_features = 5`), 23,540 measures from `crossings.csv` / `falls.csv` /
 `wsg_outlet.csv`, 970 positions for the expensive calls, and 400 blue lines each sent at its own
-top. Every measure is sent at 17 significant digits (fresh#289; the 2026-10-27 run sent 7).
+top. Every measure is sent at 17 significant digits (fresh#289; the 2026-10-27 run rounded them to 11 decimals).
 
 | state | `fwa_locatealong()` misses, 49,725 snapped positions | misses, 23,540 CSV measures | `fwa_watershedatmeasure()` misses, 970 | its errors |
 |---|---|---|---|---|
@@ -47,8 +47,9 @@ top. Every measure is sent at 17 significant digits (fresh#289; the 2026-10-27 r
 | tiebreak only | **0** | 31 | 86 | 293 |
 | both | **0** | 31 | 86 | 293 |
 
-At 7 significant digits the CSV column read 42 / 38 / 38: the rounding alone made a net 6 more
-measures miss before the migration and 7 more after, and hid one the migration fixes (below).
+Rounded to 11 decimals the CSV column read 42 / 38 / 38. A shift of about 1e-12 m was enough to
+move a net 6 measures across a segment boundary before the migration and 7 after, and it hid one
+the migration fixes (below).
 
 - **Nothing changes on fresh's own snap path.** All 49,725 positions resolve in every state. fresh
   clamps its measure to a whole metre, and **no** candidate segment has an integer
@@ -71,9 +72,11 @@ measures miss before the migration and 7 more after, and hid one the migration f
   2100.018; `crossings.csv` 356355973 @ 4494.61997946051, 360862508 @ 10821.8246201562 and
   356312469 @ 957.70485427024903 (`sweep_changed.csv` carries each as the `%.17g` text sent; the
   crossings are bcfishpass's own fractional indexing, which fresh never emits). The last is the
-  head case inside a stream: it is exactly the top of segment 702605415, and the next segment
-  starts 0.5 mm higher, at 957.705341846863. At 7 digits it is `957.7049`, inside that gap,
-  and the 2026-10-27 run did not see it move.
+  head case inside a stream. It lies 3.4e-13 m below the top of segment 702605415
+  (957.70485427024937; the CSV holds that top written at 15 significant digits), which the old
+  4-decimal comparison cannot place, and the next segment starts 0.5 mm higher, at
+  957.705341846863. Rounded to 11 decimals it went out as `957.70485427025`, 6.3e-13 m *above*
+  that top and so in the gap, missed in every state, and the 2026-10-27 run did not see it move.
 - **One position stops erroring**: 359434058 @ 159, which raised
   `line_interpolate_point: 2nd arg isn't within [0,1]`. The error comes through
   `fwa_upstreambordercrossings`, which the tiebreak migration rewrites;
