@@ -58,9 +58,9 @@ Approved by the user at the plan gate, 2026-10-31.
       against local Docker fwapg. The head-case test must run (not skip) and pass. Without the trial it must skip
 
 ## Phase 4: Docs
-- [ ] `research/fwa_point_snap.md`: replace the "`%.17g` would round-trip; not changed in #266" caveat
+- [x] `research/fwa_point_snap.md`: replace the "`%.17g` would round-trip; not changed in #266" caveat
       with what now holds (fixed in #274). Bump its Verified date
-- [ ] `devtools::document()` (no roxygen changes expected); `lintr::lint_package()` clean on touched files
+- [x] `devtools::document()` (no roxygen changes expected); `lintr::lint_package()` clean on touched files
 
 ## Owed at the end (reported, done after merge)
 - [ ] Edit the #274 issue body: remove the incorrect key claim from the Status block, and mark all four sites done

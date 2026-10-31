@@ -4,6 +4,8 @@ Source: measured 2026-10-07 on fwapg (`whse_basemapping`, 4,907,441 segments in 
 
 Revised 2026-10-27 for fresh#266 (the tie rule, and what NewGraphEnvironment/fwapg#41 changes on fresh). That sweep is `data-raw/point_snap_tie_sweep.R`, logs in `data-raw/logs/indexpoint_266/`, run on the local docker fwapg (`docker/`, 4,907,441 segments, `exbc` still in `fwa_watershedatmeasure`, no `fwapg.db_version`) with the migrations applied inside a rolled-back transaction. Migration files and their md5s, the fwapg commit, and the elapsed times are in the log's header; the counts are in its body, which a second run reproduces byte for byte.
 
+Revised 2026-10-31 for fresh#274: `frs_point_locate()` sends the measure at 17 significant digits (the head-case caveat below).
+
 ## Three snappers, three candidate rules
 
 | | fwapg `fwa_indexpoint()` | `link::lnk_points_snap()` (0.50.0) | `fresh::frs_point_snap()` (0.40.0) |
@@ -49,9 +51,10 @@ points, tolerance 150, `num_features = 5`), 23,540 measures from `crossings.csv`
   **rounded to 4 decimals**: `round(ds,4) <= round(m,4) AND round(us,4) > round(m,4)`. A measure at
   a stream's top can therefore never be placed — `round(us,4) > round(us,4)` is false by
   construction. Of 400 blue lines sampled, their own top measure resolves on **2** before and
-  **218** after. (A caveat for fresh: `frs_point_locate()` interpolates the measure with
-  `sprintf("%s", m)`, which is 15 significant digits, and for 185 of those 400 that rounds the top
-  *up*, outside even the closed range. `%.17g` would round-trip; not changed in #266.)
+  **218** after. (Those counts sent each top at 15 significant digits, as `frs_point_locate()`
+  did then with `sprintf("%s", m)`; for 185 of the 400 that rounded the top *up*, outside even the
+  closed range. Since fresh#274 it writes the measure through `.frs_sql_exact()` (`%.17g`), so a
+  stream's exact top reaches fwapg as stored.)
 - **4 CSV measures now resolve** that did not: `wsg_outlet.csv` 356363393 @ 322.567 and 360880826 @
   2100.018; `crossings.csv` 356355973 @ 4494.61997946051 and 360862508 @ 10821.8246201562
   (`sweep_changed.csv` carries them exactly; the crossings pair is bcfishpass's own fractional
