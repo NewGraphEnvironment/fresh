@@ -92,11 +92,17 @@ test_that("fetch orders by several columns when given them", {
   expect_match(sql, " ORDER BY linear_feature_id, downstream_route_measure$")
 })
 
-test_that("lake and wetland fetch format area_ha_min as a number", {
+test_that("lake and wetland fetch write area_ha_min exactly", {
   for (f in list(frs_lake_fetch, frs_wetland_fetch)) {
-    sql <- capture_fetch_sql(f, area_ha_min = 1e-5)
-    expect_match(sql, "area_ha >= 1e-05", fixed = TRUE)
-    expect_error(capture_fetch_sql(f, area_ha_min = "1; DROP TABLE x"))
+    # The stored area of a lake must pass its own floor, so no rounding
+    a <- 1234.56789012345678
+    sql <- capture_fetch_sql(f, area_ha_min = a)
+    sent <- regmatches(sql, regexpr("(?<=area_ha >= )[^ ]+", sql, perl = TRUE))
+    expect_identical(as.numeric(sent), a)
+    expect_error(capture_fetch_sql(f, area_ha_min = "1; DROP TABLE x"),
+                 "area_ha_min must be a single finite number")
+    expect_error(capture_fetch_sql(f, area_ha_min = Inf),
+                 "area_ha_min must be a single finite number")
   }
 })
 

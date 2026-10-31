@@ -118,3 +118,17 @@ test_that("a watershed at a segment's own start measure is found", {
     expect_equal(nrow(ws), 1)
   }
 })
+
+test_that(".frs_sql_exact text reads back in Postgres as the same double", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+
+  set.seed(286)
+  x <- c(runif(500, 0, 2e6), 2415.57257727526, 1234567.8912345678, 0.1)
+  sent <- vapply(x, .frs_sql_exact, character(1))
+  back <- DBI::dbGetQuery(conn, paste0(
+    "SELECT unnest(ARRAY[", paste(sent, collapse = ", "), "]::float8[]) AS v"
+  ))$v
+  expect_identical(back, x)
+})

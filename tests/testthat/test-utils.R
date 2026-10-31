@@ -363,3 +363,18 @@ test_that(".frs_resolve_aoi errors on an sf aoi with no CRS", {
   )))
   expect_error(.frs_resolve_aoi(poly), "crs")
 })
+
+test_that(".frs_sql_exact writes 17 significant digits and refuses non-finite input", {
+  # R's own parser is not correctly rounded for 17-digit text (1 ulp off in
+  # about a fifth of cases), so the exact round trip is pinned against
+  # Postgres in test-frs_fetch_live.R; here, the digits and the values R does
+  # read back exactly
+  expect_identical(.frs_sql_exact(1234567.8912345678), "1234567.8912345679")
+  for (x in c(2415.57257727526, 1e6, 0.1, 208877L)) {
+    expect_identical(as.numeric(.frs_sql_exact(x)), as.double(x))
+  }
+  expect_identical(.frs_sql_exact(1e6), "1000000")
+  for (bad in list(NA_real_, Inf, -Inf, NaN, c(1, 2), "1", NULL)) {
+    expect_error(.frs_sql_exact(bad, "m"), "m must be a single finite number")
+  }
+})

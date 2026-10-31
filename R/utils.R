@@ -760,10 +760,31 @@
                  geom_col), call. = FALSE)
   }
   expr <- sprintf("ST_SimplifyPreserveTopology(%s, %s)", geom_col,
-                  .frs_sql_num(as.double(simplify_m)))
+                  .frs_sql_exact(simplify_m, "simplify_m"))
   if (normalize) expr <- sprintf("ST_Normalize(%s)", expr)
   cols[cols == geom_col] <- paste(expr, "AS", geom_col)
   paste(cols, collapse = ", ")
+}
+
+
+#' Format a number as SQL text that reads back as the same double
+#'
+#' `%.17g` round-trips any finite double, so the text sent is the value
+#' given. `.frs_sql_num()` keeps 10 significant digits, which is fine for a
+#' rule threshold but not for a value compared exactly against stored data:
+#' an FWA measure such as 2415.57257727526 rounds to 2415.572577, below the
+#' segment that starts there (fresh#286). `as.double()` first, so a
+#' `bit64::integer64` is converted rather than formatted from its raw bits.
+#'
+#' @param x Numeric scalar, finite.
+#' @param label Character. Name used in the error message.
+#' @return Character string.
+#' @noRd
+.frs_sql_exact <- function(x, label = "value") {
+  if (!is.numeric(x) || length(x) != 1 || !is.finite(as.double(x))) {
+    stop(sprintf("%s must be a single finite number", label), call. = FALSE)
+  }
+  sprintf("%.17g", as.double(x))
 }
 
 

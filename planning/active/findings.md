@@ -64,8 +64,30 @@ local vs the shared bcfishpass instance). Local PostGIS GEOS 3.9.0; shared GEOS 
   Gap 3: new args moved after `limit`. Gap 4: NA-CRS aoi documented and tested; `area_ha_min` through
   `.frs_sql_num()`. Acceptance 2: NEWS says `limit = n` now returns the n lowest keys.
 
+## Values written into SQL text by the changed code (enumeration closing the round 2/3 class)
+
+Mechanism (rounds 2 and 3): an R value's SQL text was decided by an R formatter — `%s` chose
+exponent form (wrong type), `%.10g` chose precision (wrong value). Every site in the branch's
+changed functions, after 2026-10-31 fixes (`git diff 08b19b7...HEAD -- R/ | grep sprintf|paste`):
+
+| value | site | formatter | verdict |
+|---|---|---|---|
+| watershed key | `.frs_watershedatmeasure_sql()` | `%d` of `as.integer()` | safe: max FWA blk 380,887,830 < 2^31; validated non-NA |
+| watershed measure | same | `.frs_sql_exact()` (`%.17g` of `as.double()`) | safe: Postgres reads 503/503 back identical (live test) |
+| `simplify_m` | `.frs_geom_select()`, `.frs_watershed_simplified()` | `.frs_sql_exact()` | safe |
+| `area_ha_min` | lake/wetland fetch | `.frs_sql_exact()` | safe; was `paste0` (15 digits, injectable) on main |
+| `order_by` | `.frs_order_by()` | identifier regex | safe |
+| `aoi` sf | `.frs_resolve_aoi()` | `st_as_text(digits = 15)` | safe: session-independent; same ids as the DB polygon over 3 watersheds (round 1) |
+| geometry column | `.frs_geom_select()` | constant `"geom"` | safe |
+| unchanged lines in the fetchers: `limit`, `stream_order_min`, `blue_line_key` | `as.integer()`; `watershed_group_code` `.frs_quote_string()`; `bbox` `%s` (envelope, unchanged from main) | — | safe / out of scope |
+
+R's own parser is not correctly rounded for 17-digit text (2000 random doubles: Postgres 2000 exact,
+R `as.numeric()` 1612), so round-trip tests go through Postgres.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| `frs_watershed_at_measure(conn, 360609038, 2415.57257727526)` returned 0 rows after round 2's fix | `.frs_sql_num()` keeps 10 digits; measures, `area_ha_min`, `simplify_m` through `.frs_sql_exact()` (`%.17g`) |
+| `.frs_sql_exact` round-trip test failed in R | R's parser is 1 ulp off on ~19% of 17-digit strings; pinned the round trip against Postgres instead |
 | `function whse_basemapping.fwa_watershedatmeasure(numeric, integer) does not exist` for blue line key 356000000 | `sprintf("%s", <double>)` writes `3.56e+08`; write keys with `%d` + `as.integer()` (`.frs_watershedatmeasure_sql()`) |

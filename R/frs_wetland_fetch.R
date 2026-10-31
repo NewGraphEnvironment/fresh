@@ -87,7 +87,7 @@ frs_wetland_fetch <- function(
     aoi = aoi,
     conn = conn,
     extra = if (!is.null(area_ha_min)) {
-      paste0("area_ha >= ", .frs_sql_num(area_ha_min))
+      paste0("area_ha >= ", .frs_sql_exact(area_ha_min, "area_ha_min"))
     }
   )
 
