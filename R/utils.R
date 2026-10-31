@@ -681,6 +681,9 @@
 #' @param watershed_group_code Character or NULL.
 #' @param blue_line_key Integer or NULL.
 #' @param bbox Numeric length-4 or NULL (xmin, ymin, xmax, ymax in EPSG:3005).
+#'   Envelope overlap (`&&`), not intersection.
+#' @param aoi AOI specification passed to [.frs_resolve_aoi()], or NULL.
+#' @param conn A DBI connection, passed to [.frs_resolve_aoi()].
 #' @param extra Character vector of additional SQL predicates.
 #'
 #' @return Character string starting with " WHERE ..." or empty string.
@@ -689,7 +692,9 @@
     watershed_group_code = NULL,
     blue_line_key = NULL,
     bbox = NULL,
-    extra = NULL
+    extra = NULL,
+    aoi = NULL,
+    conn = NULL
 ) {
   clauses <- character(0)
 
@@ -715,6 +720,11 @@
     )
   }
 
+  aoi_pred <- .frs_resolve_aoi(aoi, conn = conn)
+  if (nzchar(aoi_pred)) {
+    clauses <- c(clauses, aoi_pred)
+  }
+
   if (!is.null(extra)) {
     clauses <- c(clauses, extra)
   }
@@ -722,6 +732,72 @@
   if (length(clauses) == 0) return("")
 
   paste0(" WHERE ", paste(clauses, collapse = " AND "))
+}
+
+
+#' Build a fetch SELECT list, optionally simplifying the geometry
+#'
+#' With `simplify_m`, the `geom_col` entry of `cols` becomes
+#' `ST_SimplifyPreserveTopology(geom, simplify_m) AS geom`, wrapped in
+#' `ST_Normalize()` when `normalize = TRUE`. `ST_Normalize()` puts rings,
+#' parts and each ring's start vertex in a canonical order, so equal polygons
+#' serialise equally. It also reverses a line whose first vertex sorts after
+#' its last, so line layers pass `normalize = FALSE` to keep their digitized
+#' direction. Both functions drop M (measured, PostGIS 3.5 / GEOS 3.9).
+#'
+#' @param cols Character vector of column names.
+#' @param simplify_m Numeric tolerance in metres, or NULL for no simplifying.
+#' @param normalize Logical. Wrap the simplified geometry in `ST_Normalize()`.
+#' @param geom_col Character. Name of the geometry column in `cols`.
+#' @return Character. Comma-separated SELECT list.
+#' @noRd
+.frs_geom_select <- function(cols, simplify_m = NULL, normalize = TRUE,
+                             geom_col = "geom") {
+  if (is.null(simplify_m)) return(paste(cols, collapse = ", "))
+  .frs_validate_simplify_m(simplify_m)
+  if (!geom_col %in% cols) {
+    stop(sprintf("simplify_m needs the geometry column '%s' in cols",
+                 geom_col), call. = FALSE)
+  }
+  expr <- sprintf("ST_SimplifyPreserveTopology(%s, %s)", geom_col,
+                  .frs_sql_num(simplify_m))
+  if (normalize) expr <- sprintf("ST_Normalize(%s)", expr)
+  cols[cols == geom_col] <- paste(expr, "AS", geom_col)
+  paste(cols, collapse = ", ")
+}
+
+
+#' Validate a simplification tolerance
+#'
+#' @param simplify_m Value to check: a single finite number greater than 0.
+#' @return `simplify_m` invisibly.
+#' @noRd
+.frs_validate_simplify_m <- function(simplify_m) {
+  if (!is.numeric(simplify_m) || length(simplify_m) != 1 ||
+      !is.finite(simplify_m) || simplify_m <= 0) {
+    stop("simplify_m must be a single positive number (metres) or NULL",
+         call. = FALSE)
+  }
+  invisible(simplify_m)
+}
+
+
+#' Build an ORDER BY clause on one column
+#'
+#' Fetch queries end on the table's unique key so rows come back in the same
+#' order on every run; PostgreSQL fixes no order unless the query does.
+#'
+#' @param order_by Character column name, or NULL for no clause.
+#' @return Character string starting with " ORDER BY ..." or empty string.
+#' @noRd
+.frs_order_by <- function(order_by) {
+  if (is.null(order_by)) return("")
+  if (!is.character(order_by) || length(order_by) != 1 ||
+      is.na(order_by) || identical(order_by, "*")) {
+    stop("order_by must be a single column name or NULL", call. = FALSE)
+  }
+  .frs_validate_identifier(order_by, "order_by")
+  paste0(" ORDER BY ", order_by)
 }
 
 

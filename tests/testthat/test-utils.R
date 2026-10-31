@@ -279,3 +279,63 @@ test_that(".frs_wsg_in qualifies its inner column", {
                fixed = TRUE)
   expect_false(grepl("SELECT watershed_group_code FROM", s, fixed = TRUE))
 })
+
+# -- fetch SQL helpers (#286) -------------------------------------------------
+
+test_that(".frs_build_where adds an sf aoi as ST_Intersects", {
+  poly <- sf::st_sfc(sf::st_polygon(list(
+    matrix(c(0, 0, 10, 0, 10, 10, 0, 10, 0, 0), ncol = 2, byrow = TRUE)
+  )), crs = 3005)
+  w <- .frs_build_where(watershed_group_code = "BULK", aoi = poly)
+  expect_match(w, "^ WHERE watershed_group_code = 'BULK' AND ST_Intersects\\(geom, ST_GeomFromText\\(")
+})
+
+test_that(".frs_build_where with a NULL aoi is unchanged", {
+  expect_identical(.frs_build_where(), "")
+  expect_identical(
+    .frs_build_where(blue_line_key = 1, aoi = NULL),
+    " WHERE blue_line_key = 1"
+  )
+})
+
+test_that(".frs_geom_select passes cols through without simplify_m", {
+  expect_identical(.frs_geom_select(c("a", "geom")), "a, geom")
+})
+
+test_that(".frs_geom_select simplifies and normalizes the geometry column", {
+  expect_identical(
+    .frs_geom_select(c("a", "geom", "b"), simplify_m = 25),
+    "a, ST_Normalize(ST_SimplifyPreserveTopology(geom, 25)) AS geom, b"
+  )
+})
+
+test_that(".frs_geom_select skips ST_Normalize when normalize = FALSE", {
+  expect_identical(
+    .frs_geom_select(c("a", "geom"), simplify_m = 2.5, normalize = FALSE),
+    "a, ST_SimplifyPreserveTopology(geom, 2.5) AS geom"
+  )
+})
+
+test_that(".frs_geom_select rejects a bad simplify_m", {
+  for (bad in list(0, -1, NA_real_, Inf, c(1, 2), "10", TRUE)) {
+    expect_error(.frs_geom_select(c("geom"), simplify_m = bad),
+                 "simplify_m must be a single positive number")
+  }
+})
+
+test_that(".frs_geom_select errors when the geometry column is not selected", {
+  expect_error(.frs_geom_select(c("a", "b"), simplify_m = 10),
+               "needs the geometry column 'geom'")
+})
+
+test_that(".frs_order_by builds a clause or nothing", {
+  expect_identical(.frs_order_by(NULL), "")
+  expect_identical(.frs_order_by("waterbody_poly_id"),
+                   " ORDER BY waterbody_poly_id")
+})
+
+test_that(".frs_order_by rejects anything but one identifier", {
+  for (bad in list("*", c("a", "b"), NA_character_, 1, "id; DROP TABLE x")) {
+    expect_error(.frs_order_by(bad))
+  }
+})

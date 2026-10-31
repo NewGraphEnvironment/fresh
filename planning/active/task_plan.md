@@ -54,10 +54,10 @@ Mechanism choices (mine, stated):
   errors as now.
 
 ## Phase 1: Shared helpers + failing tests
-- [ ] `.frs_geom_select(cols, simplify_m, normalize)` in `R/utils.R`: returns the select list with the
+- [x] `.frs_geom_select(cols, simplify_m, normalize)` in `R/utils.R`: returns the select list with the
       `geom` entry replaced; validates `simplify_m`
-- [ ] `.frs_order_by(order_by)`: validated `" ORDER BY <col>"` or `""`
-- [ ] `.frs_build_where()` gains `aoi`/`conn`, appending `.frs_resolve_aoi()`'s predicate when non-empty
+- [x] `.frs_order_by(order_by)`: validated `" ORDER BY <col>"` or `""`
+- [x] `.frs_build_where()` gains `aoi`/`conn`, appending `.frs_resolve_aoi()`'s predicate when non-empty
 - [ ] Mocked unit tests (capture SQL via `local_mocked_bindings(frs_db_query = ...)`): ORDER BY present
       with default key and absent with `order_by = NULL`; ORDER BY precedes LIMIT; simplify expression
       present with Normalize for lakes/wetlands, without for streams; `aoi` sf → `ST_Intersects`;
