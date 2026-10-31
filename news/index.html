@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.47.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.48.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.48.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.48.0" id="fresh-0480">fresh 0.48.0<a class="anchor" aria-label="anchor" href="#fresh-0480"></a></h2>
+<p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/284" class="external-link">#284</a>. Relates to <a href="https://github.com/NewGraphEnvironment/link/issues/401" class="external-link">link#401</a>.</p>
+<p><strong><code>frs_network_features(result = "distinct")</code> returns, per segment, the feature IDs upstream or downstream once each, so a caller can ask which kinds of feature lie there.</strong> - With <code>feature_id_col</code> naming a kind (a species code), each segment gets the set of kinds, sorted by the ID in its type’s order, in the same list-column shape as <code>result = "ids"</code>. It runs the array walk’s own join, predicate, <code>aoi</code> filter and scoped downstream path, aggregating <code>array_agg(DISTINCT … ORDER BY …)</code> with no ordered subquery. <code>result = "ids"</code> and <code>"exists"</code> send the same SQL as 0.47.0. - Over every watershed group’s fish records it costs less than an <code>"ids"</code> walk over one group’s own: LFRA 65 → 37 to 39 s, BULK 21 → 8 s, SETN 47 → 44 to 46 s (m1, twice each). One existence walk per species cost 3 to 7 times more. Evidence is in link’s <code>data-raw/logs/obs_province_401/</code>.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.47.0" id="fresh-0470">fresh 0.47.0<a class="anchor" aria-label="anchor" href="#fresh-0470"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/281" class="external-link">#281</a>. Relates to <a href="https://github.com/NewGraphEnvironment/link/issues/394" class="external-link">link#394</a>.</p>
