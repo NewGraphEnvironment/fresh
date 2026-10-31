@@ -37,17 +37,17 @@ Approved by the user at the plan gate, 2026-10-31.
   `.frs_watershedatmeasure_sql()`. It's out of scope.
 
 ## Phase 1: Tests first
-- [ ] `tests/testthat/test-frs_point_locate.R`: a mocked test (`local_mocked_bindings(frs_db_query = ...)`,
+- [x] `tests/testthat/test-frs_point_locate.R`: a mocked test (`local_mocked_bindings(frs_db_query = ...)`,
       the pattern at `test-frs_watershed_at_measure.R:290`). It asserts the SQL is
       `fwa_locatealong(356000000, 1234567.8912345679)` for key `356000000` (double) and measure
       `1234567.8912345678`, and contains no `e+`
-- [ ] Same file: a non-finite measure (`NA`, `Inf`) errors before the DB with
+- [x] Same file: a non-finite measure (`NA`, `Inf`) errors before the DB with
       `downstream_route_measure must be a single finite number`
-- [ ] Confirm both fail on the current code
+- [x] Confirm both fail on the current code
 
 ## Phase 2: Fix `frs_point_locate()`
-- [ ] `sprintf("... fwa_locatealong(%d, %s)", as.integer(blue_line_key), .frs_sql_exact(downstream_route_measure, "downstream_route_measure"))`
-- [ ] Phase 1 tests pass, along with the existing live test in the same file
+- [x] `sprintf("... fwa_locatealong(%d, %s)", as.integer(blue_line_key), .frs_sql_exact(downstream_route_measure, "downstream_route_measure"))`
+- [x] Phase 1 tests pass, along with the existing live test in the same file
 
 ## Phase 3: Gate test follows the caller (`tests/testthat/test-frs_fwapg_gate.R`)
 - [ ] `blk_top()` returns the stored `m` unrounded, because that is now what `frs_point_locate()` can express.
