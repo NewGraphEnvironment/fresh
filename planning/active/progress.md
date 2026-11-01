@@ -129,3 +129,13 @@ the resume instruction is given.
   (`R/frs_habitat.R:438`, `:607`), not `.frs_resolve_aoi()`'s loose bbox arm, so
   a group job's working table holds exactly that group and the group overwrite is
   a clean replace.
+- **Mutation sweep clean, 10 of 10 sites caught, 0 skipped** (`findings.md`,
+  "Mutation sweep"). Run against the final shape. The defect site reddens four
+  tests; the "one fact derived twice" site reddens two, so the property test
+  that pins the chooser and the guard together is load-bearing.
+- **mirai path run, not reasoned about:** `workers = 2L` against the installed
+  branch reproduces all six #282 assertions. No test in the suite exercises
+  `workers`, and a `load_all()` run could not have, since the daemon resolves
+  internals in the installed namespace.
+- **259 spanning blue lines re-derived** 2026-11-01, unchanged — the only
+  measured figure in the NEWS entry carried over from the parked session.

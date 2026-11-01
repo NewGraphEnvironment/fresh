@@ -208,8 +208,11 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
 
 ## Phase 3: Prove the guard fires, and that both callers use it
 
-- [ ] Restore the defect inside the helper, confirm Phase 1's test reddens, put
-      the fix back, confirm green.
+- [x] Restore the defect inside the helper, confirm Phase 1's test reddens, put
+      the fix back, confirm green. Done mechanically rather than by hand, with
+      `dev/mutation_sweep.R` over 10 sites: baseline 0 red / 0 skip, each site
+      credited only on red -> green -> red. **0 of 10 uncaught**; the defect
+      site reddens four tests, including Phase 1's. Table in `findings.md`.
 - [x] Enumeration over the **parsed function**, not the files — a `list.files("R")`
       check cannot fire, because `devtools::test()` runs from `tests/testthat` and
       a count of zero over zero passes, and there is no `R/` at all under
@@ -228,7 +231,10 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
 - [x] `devtools::install()` run, which also cleared the two
       `object_usage_linter` warnings for `.frs_persist_streams` — the stale
       installed package, not a defect (`exists()` against the installed 0.51.0
-      was `FALSE`). `workers > 1` path still to run.
+      was `FALSE`). `workers > 1` run against the installed branch, 2026-11-01:
+      the #282 scenario through `R/frs_habitat.R:668` passes all six assertions
+      (no test in the suite exercises `workers`, and a `load_all()` run could
+      not, since the daemon resolves internals in the installed namespace).
 - [ ] `devtools::test()` and `lintr::lint_package()` clean; `/code-check branch`,
       three rounds minimum, continuing while a round finds a defect inside the
       previous fix.

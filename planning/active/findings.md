@@ -518,3 +518,77 @@ keeps the pair key." The owner chose the parent segment, so `to_streams` no
 longer keys on `id_segment` at all and the question does not arise there. Where
 it does arise is #293, and it is now option (c) in that body — so it is filed,
 not dropped, and not duplicated into a new issue.
+
+### Mutation sweep — the guards fire, measured
+
+`dev/mutation_sweep.R dev/mutation_sweep_sites_persist_282.csv '^(frs_habitat|utils)$'`,
+2026-11-01, against `f1f649b`'s code (the restructured single-decision-site
+shape, not the pre-restructure one the discarded first sweep tested). Baseline
+required 0 red / 0 skip; a site is credited only on red → green → red.
+
+| site | file:line | red | caught |
+|---|---|---|---|
+| the defect itself — `if (in_to) return("linear_feature_id")` | `R/utils.R:1213` | 4 | yes |
+| key-mismatch error | `R/utils.R:1206` | 1 | yes |
+| WSG target needs the column | `R/utils.R:1192` | 1 | yes |
+| no-key-at-all error | `R/utils.R:1216` | 1 | yes |
+| target ≠ source guard | `R/utils.R:1244` | 1 | yes |
+| WSG code quoted, not pasted | `R/utils.R:1255` | 1 | yes |
+| "one fact derived twice" — the guard asks the chooser | `R/utils.R:1297` | 2 | yes |
+| added-key NULL guard | `R/utils.R:1298` | 1 | yes |
+| sequential path calls the helper | `R/frs_habitat.R:523` | 3 | yes |
+| mirai path calls the helper | `R/frs_habitat.R:668` | 1 | yes |
+
+**Sites with no test catching them: 0 of 10.** The two that matter most are the
+last-but-three and the first: restoring the defect reddens four tests including
+the #282 integration test, and substituting the chooser call in
+`.frs_persist_streams()` with a hardcoded key — the regression `f1f649b`
+removed — reddens two, so the property test that pins the two sites' agreement
+is load-bearing rather than decorative.
+
+### The mirai path, run rather than reasoned about
+
+`workers = 2L` is not exercised by any test in the suite (no test file
+mentions `workers`), and the daemon resolves fresh's internals in the
+**installed** namespace, so a `load_all()` run proves nothing about it. Run
+2026-11-01 against the installed branch, as the #282 scenario end to end:
+
+```
+run 1 rows: 464
+decoy inserted, OTHR rows: 1
+collision live (decoy id in run-2 ids): TRUE
+OTHR rows after run 2: 1
+run 2 own rows: 464 (run 1: 464)
+id sets equal: TRUE
+MIRAI 282 CHECK: PASS
+```
+
+Same six assertions as the sequential integration test, through
+`R/frs_habitat.R:668`. Script: the scratch `mirai_282.R` reproduced here; it is
+not committed, because a committed version would need a test harness that
+installs the package first.
+
+### The one NEWS figure quoted from the parked session, re-derived
+
+`CLAUDE.md` requires a measured figure in NEWS to be re-derived at the time of
+writing. The NEWS entry cites **259 blue lines spanning more than one watershed
+group** as the context for #294.
+
+```sql
+SELECT count(*)::int FROM (
+  SELECT blue_line_key FROM whse_basemapping.fwa_stream_networks_sp
+  GROUP BY blue_line_key HAVING count(DISTINCT watershed_group_code) > 1) q;
+--> 259   (re-derived 2026-11-01; 259 on 2026-10-28)
+```
+
+### Full suite
+
+`devtools::test()` with `set_max_fails(Inf)`, 2026-11-01:
+`[ FAIL 0 | WARN 21 | SKIP 6 | PASS 2501 ]`.
+
+All 21 warnings are one sf message — *"Could not find a simple features
+geometry column. Will return a `data.frame`."* — from
+`test-frs_network_features-live.R` (3) and `-local.R` (18), neither touched by
+this branch. The 6 skips are the `FRESH_FWAPG_TRIAL` gate (4) and the two
+`bcfishpass`-schema `frs_params()` tests, which skip by design on a database
+without that schema.
