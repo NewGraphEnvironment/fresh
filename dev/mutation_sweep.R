@@ -29,11 +29,15 @@
 #   3. runs the filtered tests on the unmutated copy and REFUSES unless
 #      that baseline is 0 red and 0 skipped (a skip and a pass are
 #      indistinguishable in a summary line, so a sweep over a skipping
-#      baseline proves nothing);
+#      baseline proves nothing). Skips are counted from the reporter, so a
+#      file that skips at its top level, and so adds no test row, counts;
 #   4. per site: applies the one mutation, runs the tests, records how
 #      many tests went red or skipped and the names of the red ones, and
 #      restores the file;
-#   5. prints the table and writes it to results.csv.
+#   5. runs the unmutated baseline again and REFUSES the whole table unless
+#      it is still 0 red and 0 skipped, since a site's red is only its
+#      mutation's while nothing else has moved (a live database, a flake);
+#   6. prints the table and writes it to results.csv.
 #
 # A site whose mutated copy fails to load (a deleted line that also closed
 # a string or a call) is recorded as an ERROR row and counted as uncaught:
@@ -125,13 +129,42 @@ sweep_mutate <- function(lines, site) {
 # Run the filtered tests on the copy. One row per test: red is a failed
 # expectation or an uncaught error (testthat counts those separately).
 sweep_run <- function(copy, filter) {
-  res <- testthat::test_local(copy, filter = filter, reporter = "silent",
+  rep <- testthat::SilentReporter$new()
+  res <- testthat::test_local(copy, filter = filter, reporter = rep,
                               stop_on_failure = FALSE, stop_on_warning = FALSE)
   df <- as.data.frame(res)
-  if (nrow(df) == 0) stop("filter ", sQuote(filter), " matched no tests")
-  data.frame(file = df$file, test = df$test,
-             red = df$failed > 0 | df$error, skipped = df$skipped,
-             stringsAsFactors = FALSE)
+  # A skip at a file's top level (skip_if_no_conn() before any test_that())
+  # drops the whole file and adds no row to `df`, so skips are counted from
+  # the reporter, which records every skip expectation, file-level included
+  skips <- Filter(function(e) inherits(e, "expectation_skip"), rep$expectations())
+  if (nrow(df) == 0 && length(skips) == 0) {
+    stop("filter ", sQuote(filter), " matched no tests")
+  }
+  out <- data.frame(file = df$file, test = df$test,
+                    red = df$failed > 0 | df$error, skipped = df$skipped,
+                    stringsAsFactors = FALSE)
+  attr(out, "n_skip") <- length(skips)
+  attr(out, "skip_where") <- vapply(skips, function(e) {
+    src <- e$srcref
+    if (is.null(src)) return(conditionMessage(e))
+    paste0(basename(attr(src, "srcfile")$filename), ":", src[1], ": ",
+           conditionMessage(e))
+  }, character(1))
+  out
+}
+
+# TRUE when an unmutated run is 0 red and 0 skipped; otherwise prints why
+# and returns FALSE. Skips come from the reporter (see sweep_run()), so a
+# file skipped at its top level counts.
+sweep_clean <- function(run, what) {
+  n_red <- sum(run$red)
+  n_skip <- attr(run, "n_skip")
+  if (n_red == 0 && n_skip == 0) return(TRUE)
+  cat(sprintf("REFUSED: %s is %d red, %d skipped (%d tests ran); a sweep needs 0 and 0\n",
+              what, n_red, n_skip, nrow(run)))
+  if (n_red) print(run[run$red, c("file", "test")], row.names = FALSE, right = FALSE)
+  if (n_skip) cat(paste0("  skip: ", attr(run, "skip_where"), "\n"), sep = "")
+  FALSE
 }
 
 sweep_main <- function(args) {
@@ -168,13 +201,7 @@ sweep_main <- function(args) {
   Sys.setenv(NOT_CRAN = "true")
   cat("baseline: filter", sQuote(filter), "\n")
   base <- sweep_run(copy, filter)
-  bad <- base[base$red | base$skipped, ]
-  if (nrow(bad)) {
-    cat(sprintf("REFUSED: baseline is %d red, %d skipped of %d tests; a sweep needs 0 and 0\n",
-                sum(base$red), sum(base$skipped), nrow(base)))
-    print(bad, row.names = FALSE, right = FALSE)
-    return(2L)
-  }
+  if (!sweep_clean(base, "baseline")) return(2L)
   cat(sprintf("baseline: %d tests, 0 red, 0 skipped\n", nrow(base)))
 
   rows <- vector("list", nrow(sites))
@@ -202,15 +229,27 @@ sweep_main <- function(args) {
     }
     caught_by <- r$test[r$red]
     cat(sprintf("[%d/%d] %s: %d red, %d skipped\n", k, nrow(sites), site$label,
-                length(caught_by), sum(r$skipped)))
+                length(caught_by), attr(r, "n_skip")))
     rows[[k]] <- data.frame(label = site$label, file = site$file,
                             action = site$action, occurrence = site$occurrence,
-                            red = length(caught_by), skipped = sum(r$skipped),
+                            red = length(caught_by), skipped = attr(r, "n_skip"),
                             caught = length(caught_by) > 0,
                             caught_by = paste(caught_by, collapse = "; "),
                             stringsAsFactors = FALSE)
   }
   tbl <- do.call(rbind, rows)
+
+  # Each site's red is credited to its mutation only while the unmutated
+  # tests are still green: a mutation that left state in a live database,
+  # or a flaky test, would otherwise read as a catch. Re-run the baseline
+  # and refuse the whole table if it moved.
+  cat("baseline again, after the last site\n")
+  after <- sweep_run(copy, filter)
+  if (!sweep_clean(after, "baseline after the sweep")) {
+    cat("the per-site results above are not trusted; no table saved\n")
+    return(2L)
+  }
+
   utils::write.csv(tbl, out, row.names = FALSE)
 
   # Console: clip caught_by so the table stays one row per site; the CSV
