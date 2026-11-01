@@ -37,11 +37,12 @@ frs_order_child(
 - table:
 
   Character. Schema-qualified streams table (e.g. `"fresh.streams"`).
+  Must carry `watershed_group_code`.
 
 - habitat:
 
   Character. Schema-qualified habitat table (e.g.
-  `"fresh.streams_habitat"`).
+  `"fresh.streams_habitat"`). Must carry `watershed_group_code`.
 
 - species:
 
@@ -99,7 +100,8 @@ frs_order_child(
 
 ## Value
 
-Invisibly, the number of segments newly labeled.
+Invisibly, the number of segments newly labeled, in the watershed groups
+`table` holds.
 
 ## Why this exists
 
@@ -217,6 +219,7 @@ of scope here.
     SET <label> = TRUE
     FROM s
     WHERE <habitat>.id_segment = s.id_segment
+      AND <habitat>.watershed_group_code = s.watershed_group_code
       AND <habitat>.species_code = '<species>'
       AND <habitat>.accessible = TRUE
       AND <habitat>.<label> IS NOT TRUE
@@ -230,6 +233,12 @@ of scope here.
 
 Bracketed clauses are emitted only when the corresponding parameter is
 non-NULL.
+
+Both tables must carry `watershed_group_code`: `id_segment` is unique
+only within a watershed group, so the join matches both, and a shared
+`habitat` table holding other groups' rows (as `fresh.streams_habitat`
+does) leaves those rows alone. The count returned and the verbose lines
+cover the groups present in `table`, not the whole habitat table.
 
 ## Examples
 

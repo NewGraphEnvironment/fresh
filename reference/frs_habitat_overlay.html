@@ -93,19 +93,22 @@ the flags to overlay. Must follow the canonical shape — see
 <dd><p>Character. Schema-qualified destination table to UPDATE
 in place. Must have boolean columns named in <code>habitat_types</code>
 plus a <code>species_code</code> column. Either has the join keys (<code>by</code>)
-directly, or only <code>id_segment</code> (use <code>bridge</code> to resolve).</p></dd>
+directly, or <code>id_segment</code> and <code>watershed_group_code</code> (use <code>bridge</code>
+to resolve).</p></dd>
 
 
 <dt id="arg-bridge">bridge<a class="anchor" aria-label="anchor" href="#arg-bridge"></a></dt>
 <dd><p>Character or <code>NULL</code>. Optional schema-qualified
-segments table providing <code>id_segment</code> + the join keys in <code>by</code></p><ul><li><p><code>downstream_route_measure</code> + <code>upstream_route_measure</code>. When
-provided, switches to a 3-way range-containment join. Default
-<code>NULL</code> (direct point-match join — <code>to</code> must have the join keys).
+segments table providing <code>id_segment</code> + <code>watershed_group_code</code> +
+the join keys in <code>by</code> + <code>downstream_route_measure</code> +
+<code>upstream_route_measure</code>. When provided, switches to a 3-way
+range-containment join on both keys, and <code>to</code> must carry
+<code>watershed_group_code</code> too. Default <code>NULL</code> (direct point-match
+join — <code>to</code> must have the join keys).
 <strong>Note:</strong> the range column names are currently hardcoded to FWA
 convention (<code>downstream_route_measure</code> / <code>upstream_route_measure</code>).
 <code>from</code> and <code>bridge</code> must both use these names; non-FWA segment
-schemas would need a follow-up parameterisation.</p></li>
-</ul></dd>
+schemas would need a follow-up parameterisation.</p></dd>
 
 
 <dt id="arg-species">species<a class="anchor" aria-label="anchor" href="#arg-species"></a></dt>
@@ -168,16 +171,22 @@ overlay. Shape-translation lives with the consumer.</p>
 <ul><li><p><strong>Direct (<code>bridge = NULL</code>)</strong> — the <code>to</code> table has the join keys
 directly. SQL does <code>to.&lt;by&gt; = from.&lt;by&gt;</code> (point match).</p></li>
 <li><p><strong>Bridged (<code>bridge = "&lt;segments_table&gt;"</code>)</strong> — the <code>to</code> table is
-keyed by <code>id_segment</code> (e.g. <code>fresh.streams_habitat</code>) and lacks
-the geographic keys in <code>by</code>. The bridge table provides the
-link, with <code>id_segment</code> + range columns. SQL does a 3-way join:</p>
+keyed by <code>(id_segment, watershed_group_code)</code> (e.g.
+<code>fresh.streams_habitat</code>) and lacks the geographic keys in <code>by</code>. The
+bridge table provides the link, with <code>id_segment</code>,
+<code>watershed_group_code</code> and the range columns. SQL does a 3-way join:</p>
 <p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>to.id_segment <span class="ot">=</span> bridge.id_segment</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>AND bridge.<span class="sc">&lt;</span>by[<span class="dv">1</span>]<span class="sc">&gt;</span> <span class="er">=</span> from.<span class="sc">&lt;</span>by[<span class="dv">1</span>]<span class="sc">&gt;</span></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>AND bridge.downstream_route_measure <span class="sc">&gt;=</span> from.downstream_route_measure</span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>AND bridge.upstream_route_measure   <span class="sc">&lt;=</span> from.upstream_route_measure</span></code></pre><p></p></div>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>AND to.watershed_group_code <span class="ot">=</span> bridge.watershed_group_code</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>AND bridge.<span class="sc">&lt;</span>by[<span class="dv">1</span>]<span class="sc">&gt;</span> <span class="er">=</span> from.<span class="sc">&lt;</span>by[<span class="dv">1</span>]<span class="sc">&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>AND bridge.downstream_route_measure <span class="sc">&gt;=</span> from.downstream_route_measure</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>AND bridge.upstream_route_measure   <span class="sc">&lt;=</span> from.upstream_route_measure</span></code></pre><p></p></div>
 <p>Range containment, not point match — covers the case where one
 <code>from</code> row's <code>[drm, urm]</code> range maps to multiple bridge segments
-(e.g. when other break sources fall inside the range).</p></li>
+(e.g. when other break sources fall inside the range). The join
+matches <code>watershed_group_code</code> as well as <code>id_segment</code>, because
+<code>id_segment</code> is unique only within a watershed group: a <code>to</code> table
+holding several groups (as <code>fresh.streams_habitat</code> does) has other
+groups' rows at the same <code>id_segment</code>, and they are left alone.</p></li>
 </ul><p>Future bridges aren't required to be <code>fresh.streams</code> — any table
 providing <code>id_segment</code> + the join-key columns + range columns
 works. Use cases include lake / wetland centerline segments or

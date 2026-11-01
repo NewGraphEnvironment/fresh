@@ -43,21 +43,21 @@ frs_habitat_overlay(
 
   Character. Schema-qualified destination table to UPDATE in place. Must
   have boolean columns named in `habitat_types` plus a `species_code`
-  column. Either has the join keys (`by`) directly, or only `id_segment`
-  (use `bridge` to resolve).
+  column. Either has the join keys (`by`) directly, or `id_segment` and
+  `watershed_group_code` (use `bridge` to resolve).
 
 - bridge:
 
   Character or `NULL`. Optional schema-qualified segments table
-  providing `id_segment` + the join keys in `by`
-
-  - `downstream_route_measure` + `upstream_route_measure`. When
-    provided, switches to a 3-way range-containment join. Default `NULL`
-    (direct point-match join — `to` must have the join keys). **Note:**
-    the range column names are currently hardcoded to FWA convention
-    (`downstream_route_measure` / `upstream_route_measure`). `from` and
-    `bridge` must both use these names; non-FWA segment schemas would
-    need a follow-up parameterisation.
+  providing `id_segment` + `watershed_group_code` + the join keys in
+  `by` + `downstream_route_measure` + `upstream_route_measure`. When
+  provided, switches to a 3-way range-containment join on both keys, and
+  `to` must carry `watershed_group_code` too. Default `NULL` (direct
+  point-match join — `to` must have the join keys). **Note:** the range
+  column names are currently hardcoded to FWA convention
+  (`downstream_route_measure` / `upstream_route_measure`). `from` and
+  `bridge` must both use these names; non-FWA segment schemas would need
+  a follow-up parameterisation.
 
 - species:
 
@@ -122,18 +122,24 @@ Shape-translation lives with the consumer.
   directly. SQL does `to.<by> = from.<by>` (point match).
 
 - **Bridged (`bridge = "<segments_table>"`)** — the `to` table is keyed
-  by `id_segment` (e.g. `fresh.streams_habitat`) and lacks the
-  geographic keys in `by`. The bridge table provides the link, with
-  `id_segment` + range columns. SQL does a 3-way join:
+  by `(id_segment, watershed_group_code)` (e.g. `fresh.streams_habitat`)
+  and lacks the geographic keys in `by`. The bridge table provides the
+  link, with `id_segment`, `watershed_group_code` and the range columns.
+  SQL does a 3-way join:
 
       to.id_segment = bridge.id_segment
+      AND to.watershed_group_code = bridge.watershed_group_code
       AND bridge.<by[1]> = from.<by[1]>
       AND bridge.downstream_route_measure >= from.downstream_route_measure
       AND bridge.upstream_route_measure   <= from.upstream_route_measure
 
   Range containment, not point match — covers the case where one `from`
   row's `[drm, urm]` range maps to multiple bridge segments (e.g. when
-  other break sources fall inside the range).
+  other break sources fall inside the range). The join matches
+  `watershed_group_code` as well as `id_segment`, because `id_segment`
+  is unique only within a watershed group: a `to` table holding several
+  groups (as `fresh.streams_habitat` does) has other groups' rows at the
+  same `id_segment`, and they are left alone.
 
 Future bridges aren't required to be `fresh.streams` — any table
 providing `id_segment` + the join-key columns + range columns works. Use

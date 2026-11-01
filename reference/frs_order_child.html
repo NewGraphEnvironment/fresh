@@ -85,12 +85,12 @@ segments above an inaccessible barrier.</p>
 
 <dt id="arg-table">table<a class="anchor" aria-label="anchor" href="#arg-table"></a></dt>
 <dd><p>Character. Schema-qualified streams table (e.g.
-<code>"fresh.streams"</code>).</p></dd>
+<code>"fresh.streams"</code>). Must carry <code>watershed_group_code</code>.</p></dd>
 
 
 <dt id="arg-habitat">habitat<a class="anchor" aria-label="anchor" href="#arg-habitat"></a></dt>
 <dd><p>Character. Schema-qualified habitat table (e.g.
-<code>"fresh.streams_habitat"</code>).</p></dd>
+<code>"fresh.streams_habitat"</code>). Must carry <code>watershed_group_code</code>.</p></dd>
 
 
 <dt id="arg-species">species<a class="anchor" aria-label="anchor" href="#arg-species"></a></dt>
@@ -151,7 +151,8 @@ species' rearing gradient maximum. Default <code>NULL</code> (no gradient test).
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Invisibly, the number of segments newly labeled.</p>
+    <p>Invisibly, the number of segments newly labeled, in the
+watershed groups <code>table</code> holds.</p>
     </div>
     <div class="section level2">
     <h2 id="why-this-exists">Why this exists<a class="anchor" aria-label="anchor" href="#why-this-exists"></a></h2>
@@ -262,18 +263,24 @@ break + filter approaches are out of scope here.</p>
 <span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="kw">SET</span> <span class="op">&lt;</span><span class="kw">label</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">TRUE</span></span>
 <span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="kw">FROM</span> s</span>
 <span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="kw">WHERE</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.id_segment <span class="op">=</span> s.id_segment</span>
-<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.species_code <span class="op">=</span> <span class="st">'&lt;species&gt;'</span></span>
-<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.accessible <span class="op">=</span> <span class="kw">TRUE</span></span>
-<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.<span class="op">&lt;</span><span class="kw">label</span><span class="op">&gt;</span> <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">TRUE</span></span>
-<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">=</span> s.stream_order_max</span>
-<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order_parent <span class="op">&gt;=</span> <span class="op">&lt;</span>parent_order_min<span class="op">&gt;</span></span>
-<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">&gt;=</span> <span class="op">&lt;</span>child_order_min<span class="op">&gt;</span>   <span class="co">-- default 1 if both NULL</span></span>
-<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">&lt;=</span> <span class="op">&lt;</span>child_order_max<span class="op">&gt;</span>   <span class="co">-- default 1 if both NULL</span></span>
-<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>  [<span class="kw">AND</span> s.downstream_route_measure <span class="op">&lt;=</span> <span class="op">&lt;</span>distance_max<span class="op">&gt;</span>]</span>
-<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>  [<span class="kw">AND</span> s.channel_width <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">AND</span> s.channel_width <span class="op">&lt;=</span> <span class="op">&lt;</span>channel_width_max<span class="op">&gt;</span>]</span>
-<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>  [<span class="kw">AND</span> s.gradient <span class="op">&lt;=</span> <span class="op">&lt;</span>gradient_max<span class="op">&gt;</span>]</span></code></pre><p></p></div>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.watershed_group_code <span class="op">=</span> s.watershed_group_code</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.species_code <span class="op">=</span> <span class="st">'&lt;species&gt;'</span></span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.accessible <span class="op">=</span> <span class="kw">TRUE</span></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="kw">AND</span> <span class="op">&lt;</span>habitat<span class="op">&gt;</span>.<span class="op">&lt;</span><span class="kw">label</span><span class="op">&gt;</span> <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">TRUE</span></span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">=</span> s.stream_order_max</span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order_parent <span class="op">&gt;=</span> <span class="op">&lt;</span>parent_order_min<span class="op">&gt;</span></span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">&gt;=</span> <span class="op">&lt;</span>child_order_min<span class="op">&gt;</span>   <span class="co">-- default 1 if both NULL</span></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>  <span class="kw">AND</span> s.stream_order <span class="op">&lt;=</span> <span class="op">&lt;</span>child_order_max<span class="op">&gt;</span>   <span class="co">-- default 1 if both NULL</span></span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>  [<span class="kw">AND</span> s.downstream_route_measure <span class="op">&lt;=</span> <span class="op">&lt;</span>distance_max<span class="op">&gt;</span>]</span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>  [<span class="kw">AND</span> s.channel_width <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">AND</span> s.channel_width <span class="op">&lt;=</span> <span class="op">&lt;</span>channel_width_max<span class="op">&gt;</span>]</span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a>  [<span class="kw">AND</span> s.gradient <span class="op">&lt;=</span> <span class="op">&lt;</span>gradient_max<span class="op">&gt;</span>]</span></code></pre><p></p></div>
 <p>Bracketed clauses are emitted only when the corresponding parameter
 is non-NULL.</p>
+<p>Both tables must carry <code>watershed_group_code</code>: <code>id_segment</code> is unique
+only within a watershed group, so the join matches both, and a shared
+<code>habitat</code> table holding other groups' rows (as <code>fresh.streams_habitat</code>
+does) leaves those rows alone. The count returned and the verbose lines
+cover the groups present in <code>table</code>, not the whole habitat table.</p>
     </div>
 
     <div class="section level2">
