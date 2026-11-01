@@ -239,6 +239,19 @@ frs_order_child <- function(conn,
   sp_quoted <- .frs_quote_string(species)
   pom <- as.integer(parent_order_min)
 
+  # Both tables must carry watershed_group_code (fresh#218): checked here,
+  # the way the UPDATE will resolve them, so a table without it is named
+  # rather than failing inside the SQL below.
+  for (nm in c("table", "habitat")) {
+    cols <- names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0",
+                                                get(nm))))
+    if (!"watershed_group_code" %in% cols) {
+      stop(sprintf(paste0("%s %s must carry watershed_group_code: ",
+                          "id_segment is unique only within a watershed group"),
+                   nm, get(nm)), call. = FALSE)
+    }
+  }
+
   # Default both child bounds to 1L when neither is set — matches
   # bcfishpass's `stream_order = 1` predicate exactly. Caller can pass
   # one or both to widen (e.g. orders 1-2) or narrow.

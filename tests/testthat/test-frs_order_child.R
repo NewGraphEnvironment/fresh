@@ -16,6 +16,9 @@
       0L
     },
     dbGetQuery = function(conn, statement, ...) {
+      if (grepl("LIMIT 0", statement)) {
+        return(data.frame(watershed_group_code = character(0)))
+      }
       data.frame(n = 0L)
     }
   )
@@ -271,4 +274,39 @@ test_that("frs_order_child writes and counts one watershed group only", {
   expect_gt(length(msgs), 0)
   expect_match(msgs, "BT before: 0 segments with rearing = TRUE", all = FALSE)
   expect_match(msgs, "\\+1 segments labeled rearing = TRUE", all = FALSE)
+})
+
+test_that("frs_order_child names a table lacking watershed_group_code", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  for (t in c("oc3_streams", "oc3_habitat", "oc3_streams_nowsg", "oc3_habitat_nowsg")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS pg_temp.%s", t))
+  }
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE oc3_streams (id_segment integer, blue_line_key integer,
+      stream_order integer, stream_order_parent integer,
+      downstream_route_measure double precision, watershed_group_code text)")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE oc3_habitat (id_segment integer, watershed_group_code text,
+      species_code text, accessible boolean, rearing boolean)")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE oc3_streams_nowsg AS SELECT id_segment, blue_line_key,
+      stream_order, stream_order_parent, downstream_route_measure
+    FROM oc3_streams")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE oc3_habitat_nowsg AS SELECT id_segment, species_code,
+      accessible, rearing FROM oc3_habitat")
+
+  expect_error(
+    frs_order_child(conn, "pg_temp.oc3_streams_nowsg", "pg_temp.oc3_habitat",
+                    species = "BT", verbose = FALSE),
+    "table pg_temp.oc3_streams_nowsg must carry watershed_group_code")
+  expect_error(
+    frs_order_child(conn, "pg_temp.oc3_streams", "pg_temp.oc3_habitat_nowsg",
+                    species = "BT", verbose = FALSE),
+    "habitat pg_temp.oc3_habitat_nowsg must carry watershed_group_code")
+  # Both carrying it: no error, nothing to label
+  expect_equal(frs_order_child(conn, "pg_temp.oc3_streams", "pg_temp.oc3_habitat",
+                               species = "BT", verbose = FALSE), 0L)
 })

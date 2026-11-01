@@ -169,11 +169,15 @@ frs_habitat_overlay <- function(conn, from, to,
   # Column names as the UPDATE will resolve the table (case folding,
   # search_path, temp tables): an information_schema lookup by the literal
   # schema and table name misses a pg_temp table and a mixed-case name. A
-  # table that does not resolve has no columns.
+  # table that does not resolve has no columns; any other error (a dropped
+  # connection, a permission denial) is still raised as itself.
   cols_of <- function(tbl) {
     tryCatch(
       names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0", tbl))),
-      error = function(e) character(0))
+      error = function(e) {
+        if (grepl("does not exist", conditionMessage(e))) return(character(0))
+        stop(e)
+      })
   }
 
   # --- Validate target columns ---
