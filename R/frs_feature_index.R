@@ -8,9 +8,17 @@
 #' Uses `fwa_upstream()` or `fwa_downstream()` for network-aware
 #' traversal via ltree codes.
 #'
+#' The output is keyed on `id_segment` and `watershed_group_code`, one row
+#' per segment of `segments`: `id_segment` is unique only within a
+#' watershed group, so a table holding several groups (a persisted
+#' `fresh.streams`) repeats values across them, and a join back on
+#' `id_segment` alone would cross them (fresh#218, fresh#277). Join on both.
+#'
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param segments Character. Schema-qualified segmented streams table
-#'   (from [frs_network_segment()]).
+#'   (from [frs_network_segment()]). Must carry `watershed_group_code`,
+#'   which is carried through to `to`; a table without it is refused before
+#'   anything is written.
 #' @param features Character. Schema-qualified feature table
 #'   (from [frs_feature_find()]).
 #' @param direction Character. `"downstream"` (features between segment
@@ -28,7 +36,10 @@
 #' @param overwrite Logical. Drop `to` before creating. Default `TRUE`.
 #' @param verbose Logical. Print progress. Default `TRUE`.
 #'
-#' @return `conn` invisibly, for pipe chaining.
+#' @return `conn` invisibly, for pipe chaining. `to` holds `id_segment`,
+#'   `watershed_group_code` and `features_dnstr` (or `features_upstr`), an
+#'   array of feature IDs ordered by route measure, `NULL` where a segment
+#'   has none, indexed on `(id_segment, watershed_group_code)`.
 #'
 #' @family habitat
 #'
@@ -45,14 +56,15 @@
 #'   direction = "downstream",
 #'   to = "working.crossings_dnstr")
 #'
-#' # Query: segments with confirmed barriers downstream. The output carries
-#' # `id_segment` and no `watershed_group_code`, so this join is safe only
-#' # while `segments` holds one watershed group: `id_segment` is unique only
-#' # within a group (fresh#218, fresh#277).
+#' # Query: segments with confirmed barriers downstream. Join on both key
+#' # columns: `id_segment` is unique only within a watershed group, and
+#' # `fresh.streams` holds many (fresh#218).
 #' DBI::dbGetQuery(conn, "
-#'   SELECT s.id_segment, i.features_dnstr
+#'   SELECT s.id_segment, s.watershed_group_code, i.features_dnstr
 #'   FROM fresh.streams s
-#'   JOIN working.crossings_dnstr i ON s.id_segment = i.id_segment
+#'   JOIN working.crossings_dnstr i
+#'     ON s.id_segment = i.id_segment
+#'    AND s.watershed_group_code = i.watershed_group_code
 #'   WHERE array_length(i.features_dnstr, 1) > 0
 #'   LIMIT 10")
 #'
@@ -80,6 +92,17 @@ frs_feature_index <- function(conn, segments, features,
   .frs_validate_identifier(col_segment_id, "segment ID column")
   .frs_validate_identifier(col_feature_id, "feature ID column")
   stopifnot(direction %in% c("downstream", "upstream"))
+
+  # `segments` must carry watershed_group_code (fresh#218): checked before
+  # the DROP below, the way the SELECT will resolve the table, so a table
+  # without it is named rather than failing inside the SQL after `to` is gone.
+  cols <- names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0",
+                                              segments)))
+  if (!"watershed_group_code" %in% cols) {
+    stop(sprintf(paste0("segments %s must carry watershed_group_code: ",
+                        "id_segment is unique only within a watershed group"),
+                 segments), call. = FALSE)
+  }
 
   if (overwrite) {
     .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", to))
@@ -119,6 +142,7 @@ frs_feature_index <- function(conn, segments, features,
     "CREATE TABLE %s AS
      SELECT
        s.%s AS id_segment,
+       s.watershed_group_code,
        array_agg(%s ORDER BY f.downstream_route_measure) FILTER (
          WHERE %s IS NOT NULL
        ) AS features_%s
@@ -139,7 +163,7 @@ frs_feature_index <- function(conn, segments, features,
           f.wscode_ltree, f.localcode_ltree
         ))
      )
-     GROUP BY s.%s",
+     GROUP BY s.%s, s.watershed_group_code",
     to,
     col_segment_id,
     fid_expr,
@@ -154,6 +178,13 @@ frs_feature_index <- function(conn, segments, features,
 
   .frs_db_execute(conn, sql)
   .frs_index_working(conn, to)
+  # The key the output is joined on, as one index: .frs_index_working()
+  # indexes each column alone, and a pg_temp `to` (the tests' shape) gets
+  # none from it, since its information_schema lookup names the schema.
+  tbl <- utils::tail(strsplit(to, "\\.")[[1]], 1)
+  .frs_db_execute(conn, sprintf(
+    "CREATE INDEX IF NOT EXISTS %s_segment_wsg_idx ON %s (id_segment, watershed_group_code)",
+    tbl, to))
 
   if (verbose) {
     stats <- DBI::dbGetQuery(conn, sprintf(
