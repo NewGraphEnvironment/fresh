@@ -21,7 +21,9 @@ frs_feature_index(
 \item{conn}{A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object.}
 
 \item{segments}{Character. Schema-qualified segmented streams table
-(from \code{\link[=frs_network_segment]{frs_network_segment()}}).}
+(from \code{\link[=frs_network_segment]{frs_network_segment()}}). Must carry \code{watershed_group_code},
+which is carried through to \code{to}; a table without it is refused before
+anything is written.}
 
 \item{features}{Character. Schema-qualified feature table
 (from \code{\link[=frs_feature_find]{frs_feature_find()}}).}
@@ -48,7 +50,10 @@ features by label before indexing (e.g. \code{"label = 'blocked'"}).}
 \item{verbose}{Logical. Print progress. Default \code{TRUE}.}
 }
 \value{
-\code{conn} invisibly, for pipe chaining.
+\code{conn} invisibly, for pipe chaining. \code{to} holds \code{id_segment},
+\code{watershed_group_code} and \code{features_dnstr} (or \code{features_upstr}), an
+array of feature IDs ordered by route measure, \code{NULL} where a segment
+has none, indexed on \verb{(id_segment, watershed_group_code)}.
 }
 \description{
 For each segment in a stream table, find which features from a
@@ -59,6 +64,12 @@ crossings are between this segment and the ocean?"
 \details{
 Uses \code{fwa_upstream()} or \code{fwa_downstream()} for network-aware
 traversal via ltree codes.
+
+The output is keyed on \code{id_segment} and \code{watershed_group_code}, one row
+per segment of \code{segments}: \code{id_segment} is unique only within a
+watershed group, so a table holding several groups (a persisted
+\code{fresh.streams}) repeats values across them, and a join back on
+\code{id_segment} alone would cross them (fresh#218, fresh#277). Join on both.
 }
 \examples{
 \dontrun{
@@ -71,14 +82,15 @@ frs_feature_index(conn,
   direction = "downstream",
   to = "working.crossings_dnstr")
 
-# Query: segments with confirmed barriers downstream. The output carries
-# `id_segment` and no `watershed_group_code`, so this join is safe only
-# while `segments` holds one watershed group: `id_segment` is unique only
-# within a group (fresh#218, fresh#277).
+# Query: segments with confirmed barriers downstream. Join on both key
+# columns: `id_segment` is unique only within a watershed group, and
+# `fresh.streams` holds many (fresh#218).
 DBI::dbGetQuery(conn, "
-  SELECT s.id_segment, i.features_dnstr
+  SELECT s.id_segment, s.watershed_group_code, i.features_dnstr
   FROM fresh.streams s
-  JOIN working.crossings_dnstr i ON s.id_segment = i.id_segment
+  JOIN working.crossings_dnstr i
+    ON s.id_segment = i.id_segment
+   AND s.watershed_group_code = i.watershed_group_code
   WHERE array_length(i.features_dnstr, 1) > 0
   LIMIT 10")
 

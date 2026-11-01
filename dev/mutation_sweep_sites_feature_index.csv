@@ -1,0 +1,6 @@
+"label","file","pattern","occurrence","action","replacement","within"
+"feature_index SELECT carries wsg","R/frs_feature_index.R","       s.watershed_group_code,","1","delete","","frs_feature_index"
+"feature_index GROUP BY wsg","R/frs_feature_index.R","GROUP BY s.%s, s.watershed_group_code""","1","substitute","GROUP BY s.%s""","frs_feature_index"
+"feature_index requires wsg","R/frs_feature_index.R","if (!""watershed_group_code"" %in% cols) {","1","substitute","if (FALSE) {","frs_feature_index"
+"feature_index guard before DROP","R/frs_feature_index.R","  stopifnot(direction %in% c(""downstream"", ""upstream""))","1","substitute","  stopifnot(direction %in% c(""downstream"", ""upstream"")); if (overwrite) .frs_db_execute(conn, sprintf(""DROP TABLE IF EXISTS %s"", to))","frs_feature_index"
+"feature_index index on both keys","R/frs_feature_index.R","ON %s (id_segment, watershed_group_code)""","1","substitute","ON %s (id_segment)""","frs_feature_index"
