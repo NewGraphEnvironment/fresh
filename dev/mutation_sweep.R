@@ -25,17 +25,21 @@
 #      temp directory: all pkgload::load_all() needs, and never the whole
 #      working tree, which can carry caches and rasters;
 #   2. checks every site matches before any test runs: a pattern with
-#      fewer matching lines than `occurrence` is an error, not a miss;
+#      fewer matching lines than `occurrence` is an error, not a miss; and
+#      prints the line each site resolved to, since an occurrence index
+#      moves when a line with the same text is added above the guard;
 #   3. runs the filtered tests on the unmutated copy and REFUSES unless
 #      that baseline is 0 red and 0 skipped (a skip and a pass are
 #      indistinguishable in a summary line, so a sweep over a skipping
 #      baseline proves nothing). Skips are counted from the reporter, so a
 #      file that skips at its top level, and so adds no test row, counts;
-#   4. per site: applies the one mutation, runs the tests, and when any
-#      test goes red runs them again, still mutated; records how many tests
-#      went red in both runs and their names, how many skipped, and
-#      restores the file. A test red in one run only is reported and not
-#      counted, so a flake cannot credit a site with a catch;
+#   4. per site: applies the one mutation and runs the tests; when any test
+#      goes red, runs them unmutated and then mutated again. A test counts
+#      as catching the site only if it is red in both mutated runs and
+#      green in the unmutated run between them, so neither a flake nor an
+#      outage spanning two runs credits a site. Records the counted tests,
+#      how many skipped, the line the site resolved to and its text, and
+#      restores the file;
 #   5. runs the unmutated baseline again and REFUSES the whole table unless
 #      it is still 0 red and 0 skipped, since a site's red is only its
 #      mutation's while nothing else has moved (state a mutation left in a
@@ -47,7 +51,8 @@
 # re-specify it, usually as a substitute.
 #
 # Exit status: 0 every site caught; 1 at least one site caught by no
-# test; 2 refused (baseline not clean, bad input, unmatched site).
+# test; 2 refused (baseline not clean, bad input, unmatched site). An
+# interrupted sweep saves no table; read it as not run, whatever its status.
 #
 # One sweep at a time per database: each site is a full test run against
 # the same database the suite uses (fresh#242 findings, "Errors
@@ -108,16 +113,21 @@ sweep_sites_read <- function(path) {
   sites
 }
 
-# Apply one site's mutation to a file's lines. Errors name the site when
-# the pattern has fewer matching lines than `occurrence` asks for.
-sweep_mutate <- function(lines, site) {
+# The line a site resolves to. Errors name the site when the pattern has
+# fewer matching lines than `occurrence` asks for.
+sweep_line <- function(lines, site) {
   hits <- which(grepl(site$pattern, lines, fixed = TRUE))
   if (length(hits) < site$occurrence) {
     stop(sprintf("site %s: pattern %s matches %d line(s) of %s, occurrence %d asked",
                  sQuote(site$label), sQuote(site$pattern), length(hits),
                  site$file, site$occurrence))
   }
-  i <- hits[site$occurrence]
+  hits[site$occurrence]
+}
+
+# Apply one site's mutation to a file's lines.
+sweep_mutate <- function(lines, site) {
+  i <- sweep_line(lines, site)
   if (site$action == "delete") {
     return(lines[-i])
   }
@@ -166,6 +176,10 @@ sweep_run <- function(copy, filter) {
   out
 }
 
+# One key per test row: file and name, which identify a test only while
+# names are unique within a file (the baseline refuses otherwise)
+sweep_keys <- function(run) paste(run$file, run$test, sep = "\r")
+
 # TRUE when an unmutated run is 0 red and 0 skipped; otherwise prints why
 # and returns FALSE. Skips come from the reporter (see sweep_run()), so a
 # file skipped at its top level counts.
@@ -198,8 +212,14 @@ sweep_main <- function(args) {
   sweep_copy(pkg, copy)
   cat("copied", length(list.files(copy, recursive = TRUE)), "files to", copy, "\n")
 
-  # Every site must resolve before the first test run
+  # Every site must resolve before the first test run. An occurrence index
+  # names a slot, not a guard: a line with the same text added above it
+  # moves the site to another line, maybe another function. So each site's
+  # resolved line and its text are printed here and kept in the table, for
+  # whoever reads it to check against the guard the label means.
   originals <- list()
+  sites$line <- NA_integer_
+  sites$text <- NA_character_
   for (k in seq_len(nrow(sites))) {
     f <- file.path(copy, sites$file[k])
     if (!file.exists(f)) {
@@ -208,13 +228,25 @@ sweep_main <- function(args) {
     if (is.null(originals[[sites$file[k]]])) {
       originals[[sites$file[k]]] <- readLines(f, warn = FALSE)
     }
-    invisible(sweep_mutate(originals[[sites$file[k]]], sites[k, ]))
+    sites$line[k] <- sweep_line(originals[[sites$file[k]]], sites[k, ])
+    sites$text[k] <- trimws(originals[[sites$file[k]]][sites$line[k]])
   }
+  cat("sites resolve to:\n")
+  cat(sprintf("  %s  %s:%d  %s\n", sites$label, sites$file, sites$line, sites$text),
+      sep = "")
 
   Sys.setenv(NOT_CRAN = "true")
   cat("baseline: filter", sQuote(filter), "\n")
   base <- sweep_run(copy, filter)
   if (!sweep_clean(base, "baseline")) return(2L)
+  # Runs are compared test by test on file + name, so a name used twice in
+  # one file would let one block's red stand for another's
+  dup <- duplicated(sweep_keys(base))
+  if (any(dup)) {
+    cat("REFUSED: test names repeat within a file, so runs cannot be matched test by test:\n")
+    print(unique(base[dup, c("file", "test")]), row.names = FALSE, right = FALSE)
+    return(2L)
+  }
   cat(sprintf("baseline: %d tests, 0 red, 0 skipped\n", nrow(base)))
 
   rows <- vector("list", nrow(sites))
@@ -226,13 +258,18 @@ sweep_main <- function(args) {
     # a call) is a mis-specified site, not a caught one: record it and go
     # on, so one such site does not throw the rest of the sweep away.
     r <- tryCatch(sweep_run(copy, filter), error = function(e) e)
-    # A test that goes red once, for a reason other than the mutation (a
-    # flake, a live database's state), would credit this site with a catch
-    # that the after-sweep baseline cannot see, since it is gone by then.
-    # So a run with any red is repeated, still mutated, and only the tests
-    # red in both runs count.
+    # A red that is not the mutation's (a flake, a database outage, state
+    # left by an earlier site) would credit this site with a catch the
+    # after-sweep baseline cannot see once it has passed. So a run with any
+    # red is followed by an unmutated run and a second mutated one, and a
+    # test counts only if it is red in both mutated runs and green in the
+    # unmutated run between them.
+    u <- NULL
     r2 <- NULL
     if (!inherits(r, "error") && any(r$red)) {
+      writeLines(originals[[site$file]], f)
+      u <- tryCatch(sweep_run(copy, filter), error = function(e) e)
+      writeLines(sweep_mutate(originals[[site$file]], site), f)
       r2 <- tryCatch(sweep_run(copy, filter), error = function(e) e)
     }
     writeLines(originals[[site$file]], f)
@@ -243,6 +280,7 @@ sweep_main <- function(args) {
                           character(1)), collapse = " | ")
       cat(sprintf("[%d/%d] %s: ERROR %s\n", k, nrow(sites), site$label, msg))
       rows[[k]] <- data.frame(label = site$label, file = site$file,
+                              line = site$line, text = site$text,
                               action = site$action, occurrence = site$occurrence,
                               red = NA_integer_, skipped = NA_integer_,
                               caught = FALSE, caught_by = paste("ERROR:", msg),
@@ -252,17 +290,24 @@ sweep_main <- function(args) {
     caught_by <- character(0)
     once <- character(0)
     if (!is.null(r2)) {
-      key1 <- paste(r$file, r$test, sep = "\r")[r$red]
-      key2 <- if (inherits(r2, "error")) character(0) else
-        paste(r2$file, r2$test, sep = "\r")[r2$red]
-      caught_by <- r$test[r$red][key1 %in% key2]
-      once <- r$test[r$red][!key1 %in% key2]
+      key1 <- sweep_keys(r)[r$red]
+      # An errored control or second run credits nothing
+      if (!inherits(u, "error") && !inherits(r2, "error")) {
+        hold <- key1 %in% sweep_keys(r2)[r2$red] &
+          key1 %in% sweep_keys(u)[!u$red]
+        caught_by <- r$test[r$red][hold]
+        once <- r$test[r$red][!hold]
+      } else {
+        once <- r$test[r$red]
+      }
     }
-    cat(sprintf("[%d/%d] %s: %d red in both runs, %d skipped%s\n", k, nrow(sites),
+    cat(sprintf("[%d/%d] %s: %d red in both mutated runs, %d skipped%s\n", k, nrow(sites),
                 site$label, length(caught_by), attr(r, "n_skip"),
-                if (length(once)) paste0("; red in one run only, not counted: ",
+                if (length(once)) paste0("; not counted (not red in both mutated runs ",
+                                         "and green unmutated): ",
                                          paste(once, collapse = "; ")) else ""))
     rows[[k]] <- data.frame(label = site$label, file = site$file,
+                            line = site$line, text = site$text,
                             action = site$action, occurrence = site$occurrence,
                             red = length(caught_by), skipped = attr(r, "n_skip"),
                             caught = length(caught_by) > 0,
@@ -277,7 +322,11 @@ sweep_main <- function(args) {
   # and refuse the whole table if it moved.
   cat("baseline again, after the last site\n")
   after <- sweep_run(copy, filter)
-  if (!sweep_clean(after, "baseline after the sweep")) {
+  if (!sweep_clean(after, "baseline after the sweep") ||
+      !setequal(sweep_keys(after), sweep_keys(base))) {
+    if (!setequal(sweep_keys(after), sweep_keys(base))) {
+      cat("REFUSED: the baseline after the sweep ran a different set of tests\n")
+    }
     cat("the per-site results above are not trusted; no table saved\n")
     return(2L)
   }
@@ -286,7 +335,7 @@ sweep_main <- function(args) {
 
   # Console: clip caught_by so the table stays one row per site; the CSV
   # carries every name
-  shown <- tbl
+  shown <- tbl[, setdiff(names(tbl), "text")]
   long <- nchar(shown$caught_by) > 70
   shown$caught_by[long] <- paste0(substr(shown$caught_by[long], 1, 67), "...")
   cat("\n")
@@ -303,6 +352,16 @@ if (sys.nframe() == 0L) {
   status <- tryCatch(sweep_main(commandArgs(trailingOnly = TRUE)),
                      error = function(e) {
                        cat("REFUSED:", conditionMessage(e), "\n")
+                       2L
+                     },
+                     # Ctrl-C or a SIGINT deadline is not an error, and would
+                     # otherwise halt with 1, "swept, a site uncaught". This
+                     # catches one between test runs only: during a run
+                     # (testthat 3.3.2) Rscript still exits 1 with no table,
+                     # so read an interrupted sweep as not run, whatever its
+                     # status
+                     interrupt = function(e) {
+                       cat("REFUSED: interrupted; nothing was swept to completion\n")
                        2L
                      })
   quit(save = "no", status = status)
