@@ -16,7 +16,8 @@ frs_network_features(
   segments_wscode_col = "wscode_ltree",
   segments_localcode_col = "localcode_ltree",
   features_wscode_col = "wscode_ltree",
-  features_localcode_col = "localcode_ltree"
+  features_localcode_col = "localcode_ltree",
+  result = c("ids", "exists", "distinct")
 )
 }
 \arguments{
@@ -75,9 +76,25 @@ following the same convention.}
 
 \item{features_localcode_col}{Character. Local-code column on
 \code{features}. Default \code{"localcode_ltree"}. See \code{features_wscode_col}.}
+
+\item{result}{Character. \code{"ids"} (default) returns each segment's array
+of feature IDs. \code{"exists"} returns only whether a segment has any
+feature at the requested position, without building the arrays: the
+same walk (predicate, \code{aoi}, scoped downstream path) reduced to the
+distinct segment IDs it reaches, so no array is aggregated and the
+walk has no \verb{ORDER BY}. Its segments are exactly the rows
+\code{"ids"} returns. Use it when the arrays would only be tested for
+presence (\code{id \%in\% result$id}). \code{"distinct"} returns each segment's
+feature IDs once each, sorted by the ID, from the same walk: the
+answer to which kinds of feature lie up or downstream when
+\code{feature_id_col} names a kind (a species code, say). Only distinct
+pairs leave the server, so it stays cheap where a segment reaches many
+features that share an ID (a main stem below thousands of records of a
+few species); with a unique \code{feature_id_col} it returns as much as
+\code{"ids"} (#284).}
 }
 \value{
-A tibble with two columns:
+With \code{result = "ids"}, a data frame with two columns:
 \itemize{
 \item \verb{<segment_id_col>} -- matches the input column name on segments.
 \item \code{feature_ids} -- an R list-column of character vectors (one
@@ -92,6 +109,18 @@ array literals are parsed to R character vectors via the
 internal \code{.frs_parse_pg_array()} helper -- limited to
 unquoted-element arrays (the common case for FWA-snapped IDs).
 }
+
+With \code{result = "exists"}, a data frame with one row per distinct
+\verb{<segment_id_col>} that has at least one feature at the requested
+position, and a logical \code{has_features} that is \code{TRUE} on every row.
+Segments with none don't appear, as with \code{"ids"}. A feature counts
+whatever its ID, so a segment whose only features have a NULL ID is a
+row in both forms (an empty array under \code{"ids"}).
+
+With \code{result = "distinct"}, the same two columns as \code{"ids"} and the same
+rows, with each segment's IDs once each, sorted by the ID (in its SQL
+type's order, so numerically for a numeric ID): the set \code{unique()}
+would give of the \code{"ids"} vector.
 }
 \description{
 For each row in a segments table, return an array of feature IDs
@@ -108,6 +137,10 @@ Mirrors \code{bcfishpass.load_dnstr_chunked} in
 but generalises to either direction. The SQL pattern joins via
 \verb{whse_basemapping.fwa_<direction>()} for cross-mainstem ltree
 comparison, then \code{array_agg}s feature IDs grouped by segment ID.
+
+With \code{result = "exists"} the same walk answers only whether each segment
+has any such feature, returning the segments that do without building
+their arrays (#281).
 }
 \section{Scoped downstream walks}{
 
@@ -206,6 +239,20 @@ obs_per_segment <- frs_network_features(
 # feature_ids is a list-column of character vectors:
 lengths(obs_per_segment$feature_ids)        # per-segment counts
 obs_per_segment$feature_ids[[1]]            # character vector
+
+# Only whether any barrier lies downstream: the segments of the first
+# call, without building their arrays
+has_dnstr <- frs_network_features(
+  conn,
+  segments       = "bcfishpass.streams",
+  features       = "bcfishpass.barriers_pscis",
+  segment_id_col = "segmented_stream_id",
+  feature_id_col = "barriers_pscis_id",
+  direction      = "downstream",
+  aoi            = "ADMS",
+  result         = "exists"
+)
+setequal(has_dnstr$segmented_stream_id, dnstr_barriers$segmented_stream_id)
 
 DBI::dbDisconnect(conn)
 }

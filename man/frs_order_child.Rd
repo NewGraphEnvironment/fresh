@@ -23,10 +23,10 @@ frs_order_child(
 \item{conn}{DBI connection.}
 
 \item{table}{Character. Schema-qualified streams table (e.g.
-\code{"fresh.streams"}).}
+\code{"fresh.streams"}). Must carry \code{watershed_group_code}.}
 
 \item{habitat}{Character. Schema-qualified habitat table (e.g.
-\code{"fresh.streams_habitat"}).}
+\code{"fresh.streams_habitat"}). Must carry \code{watershed_group_code}.}
 
 \item{species}{Character. Species code (e.g. \code{"BT"}).}
 
@@ -67,7 +67,8 @@ species' rearing gradient maximum. Default \code{NULL} (no gradient test).}
 \item{verbose}{Logical. Print before/after counts. Default \code{TRUE}.}
 }
 \value{
-Invisibly, the number of segments newly labeled.
+Invisibly, the number of segments newly labeled, in the
+watershed groups \code{table} holds.
 }
 \description{
 Post-classification update that adds a habitat label (default
@@ -195,6 +196,7 @@ UPDATE <habitat>
 SET <label> = TRUE
 FROM s
 WHERE <habitat>.id_segment = s.id_segment
+  AND <habitat>.watershed_group_code = s.watershed_group_code
   AND <habitat>.species_code = '<species>'
   AND <habitat>.accessible = TRUE
   AND <habitat>.<label> IS NOT TRUE
@@ -209,6 +211,12 @@ WHERE <habitat>.id_segment = s.id_segment
 
 Bracketed clauses are emitted only when the corresponding parameter
 is non-NULL.
+
+Both tables must carry \code{watershed_group_code}: \code{id_segment} is unique
+only within a watershed group, so the join matches both, and a shared
+\code{habitat} table holding other groups' rows (as \code{fresh.streams_habitat}
+does) leaves those rows alone. The count returned and the verbose lines
+cover the groups present in \code{table}, not the whole habitat table.
 }
 
 \examples{

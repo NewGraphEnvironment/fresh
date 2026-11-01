@@ -1,6 +1,6 @@
 # Walking FWA downstream: what `FWA_Downstream()` and the working table give a walk
 
-**Verified:** 2026-10-21 on local fwapg (`whse_basemapping`), BULK working table from `frs_network_segment()`; "Prefiltering the feature side" 2026-10-28, local fwapg with link's `fresh_default` barrier views · **Issues:** #259, #272 · **Produced by:** `data-raw/near_river_check.R` (logs `data-raw/logs/near_river_259/`), probes in `planning/archive/2026-10-issue-259-near-river/` (findings and review rounds 1 to 6); `data-raw/network_features_prefilter.R` (logs `data-raw/logs/network_features_272/`), probes and mutation runs in `planning/archive/2026-10-issue-272-network-features-prefilter/`.
+**Verified:** 2026-10-21 on local fwapg (`whse_basemapping`), BULK working table from `frs_network_segment()`; "Prefiltering the feature side" 2026-10-28 and "Existence walks" 2026-10-29, local fwapg with link's `fresh_default` barrier views · **Issues:** #259, #272, #281 · **Produced by:** `data-raw/near_river_check.R` (logs `data-raw/logs/near_river_259/`), probes in `planning/archive/2026-10-issue-259-near-river/` (findings and review rounds 1 to 6); `data-raw/network_features_prefilter.R` (logs `data-raw/logs/network_features_272/`), probes and mutation runs in `planning/archive/2026-10-issue-272-network-features-prefilter/`; `data-raw/network_features_exists.R` (logs `data-raw/logs/network_features_exists_281/`).
 
 A downstream walk that joins rows with `FWA_Downstream()` and sorts them `wscode_ltree DESC, downstream_route_measure DESC` reads as one contiguous chain from the origin. It is not one, in five ways. `frs_near_river()` handles each; any new walk should too.
 
@@ -92,6 +92,38 @@ prefilter. Every walk returned the same sorted arrays in every form that finishe
 
 The per-side code columns are parameters. `blue_line_key`, `downstream_route_measure` and
 `watershed_group_code` are FWA names that the function already hard-codes.
+
+## Existence walks
+
+`frs_network_features(result = "exists")` answers whether a segment has any feature
+downstream (or upstream) without building the arrays. It is the array walk's own join,
+reduced to `SELECT DISTINCT` segment ids, on the same scope and prefilter. Its segments are
+the array walk's rows, including a segment whose only features have NULL ids, which gets an
+empty array there.
+
+**The join form, not a correlated `EXISTS`.** `EXISTS` can stop at the first match per
+segment, but it must drive from the segments. Against the prefiltered features, a derived
+table, Postgres runs it as a nested-loop semi-join over the materialized feature list. In
+CHWK CH that is about 5,200 rows tested per segment, with no index (11.4 s under
+`EXPLAIN ANALYZE`, against 2.8 s for the join; 6.1 s against 2.6 s timed). Across SALR, CHWK
+and LFRA it is 1.1× (SALR) to 15× (LFRA) slower than the join. Against the feature view
+itself, unprefiltered, so each segment could probe the view's own indexes, it did not finish
+in 5 minutes in CHWK, where the join takes 2.6 s. The join drives from the admitted features
+and probes the temp table's indexes, which is #272's plan.
+
+**What it saves is small, because the join is the cost.** On link's natural barrier views,
+SETN's CH walk (180,313 segments with a barrier downstream) takes 41 s through
+`result = "exists"` and 50 s through the arrays, end to end, which includes the arrays'
+transfer and R parse. Across SALR, CHWK, LFRA and SETN, the exists mode is 1.00× to 1.24×
+faster end to end, rising from group to group with the segments reached. In SETN CH the join makes
+the 4,829,028 pairs in 37.9 s of the array walk's 45.3 s (`EXPLAIN ANALYZE`), and the sort
+of the pairs spills 538,912 kB to disk, which is link#394's 4.83 M pairs and 526 MiB. The
+spill is real, but it is the smaller part. link#394's second lever, walking each distinct
+feature set once, removes whole walks rather than part of each.
+
+A digest that reads only a subquery's id column times the walk without its arrays, because
+Postgres replaces an unread `array_agg` output with `NULL`. To time the arrays, read them
+(`sum(cardinality(feature_ids))`).
 
 ## GEOS
 

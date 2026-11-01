@@ -18,6 +18,14 @@
 #' @param upstream_blk Integer or `NULL`. Blue line key for the upstream point.
 #'   Defaults to `blue_line_key` (same stream). Use when the upstream point is
 #'   on a tributary.
+#' @param simplify_m Numeric or `NULL`. Simplification tolerance in metres,
+#'   applied in the database as
+#'   `ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))`, so the
+#'   same database returns the same polygon on every call. For a subbasin the
+#'   difference is taken first and simplified once, so the shared boundary
+#'   is not simplified twice. Two databases on different GEOS versions can
+#'   still simplify a ring differently. Default `NULL` (fwapg's polygon
+#'   unchanged).
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame with a single polygon geometry.
@@ -40,6 +48,9 @@
 #' # Subbasin with upstream point on a tributary (different BLK)
 #' aoi <- frs_watershed_at_measure(conn, 360873822, 165115,
 #'   upstream_measure = 838, upstream_blk = 360886221)
+#'
+#' # Simplified to 50 m for a map
+#' ws_map <- frs_watershed_at_measure(conn, 360873822, 208877, simplify_m = 50)
 #' DBI::dbDisconnect(conn)
 #' }
 frs_watershed_at_measure <- function(
@@ -47,7 +58,8 @@ frs_watershed_at_measure <- function(
     blue_line_key,
     downstream_route_measure,
     upstream_measure = NULL,
-    upstream_blk = NULL
+    upstream_blk = NULL,
+    simplify_m = NULL
 ) {
   if (!is.numeric(blue_line_key) || length(blue_line_key) != 1 || is.na(blue_line_key)) {
     stop("blue_line_key must be a single numeric value")
@@ -68,6 +80,8 @@ frs_watershed_at_measure <- function(
     }
   }
 
+  if (!is.null(simplify_m)) .frs_validate_simplify_m(simplify_m)
+
   # Validate upstream > downstream before hitting the DB
   if (!is.null(upstream_measure)) {
     up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
@@ -77,12 +91,17 @@ frs_watershed_at_measure <- function(
     }
   }
 
-  ws_down <- frs_db_query(conn,
-    sprintf(
-      "SELECT geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
-      blue_line_key, downstream_route_measure
-    )
-  )
+  if (!is.null(simplify_m)) {
+    return(.frs_watershed_simplified(
+      conn, blue_line_key, downstream_route_measure,
+      upstream_measure, upstream_blk, simplify_m
+    ))
+  }
+
+  ws_down <- frs_db_query(conn, paste(
+    "SELECT geom FROM",
+    .frs_watershedatmeasure_sql(blue_line_key, downstream_route_measure)
+  ))
 
   if (is.null(upstream_measure)) {
     return(ws_down)
@@ -90,12 +109,10 @@ frs_watershed_at_measure <- function(
 
   up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
 
-  ws_up <- frs_db_query(conn,
-    sprintf(
-      "SELECT geom FROM whse_basemapping.fwa_watershedatmeasure(%s, %s)",
-      up_blk, upstream_measure
-    )
-  )
+  ws_up <- frs_db_query(conn, paste(
+    "SELECT geom FROM",
+    .frs_watershedatmeasure_sql(up_blk, upstream_measure)
+  ))
 
   if (!sf::st_intersects(ws_down, ws_up, sparse = FALSE)[1, 1]) {
     stop("upstream watershed does not intersect downstream watershed; ",
@@ -103,4 +120,69 @@ frs_watershed_at_measure <- function(
   }
 
   sf::st_difference(ws_down, ws_up)
+}
+
+
+#' Watershed at measure, simplified in one query
+#'
+#' With an upstream point, the difference and the intersection test come
+#' from the same query, so each delineation runs once and the difference is
+#' simplified as one polygon.
+#'
+#' @return An `sf` data frame with a single polygon geometry.
+#' @noRd
+.frs_watershed_simplified <- function(conn, blue_line_key,
+                                      downstream_route_measure,
+                                      upstream_measure, upstream_blk,
+                                      simplify_m) {
+  simplify <- function(g) {
+    sprintf("ST_Normalize(ST_SimplifyPreserveTopology(%s, %s))", g,
+            .frs_sql_exact(simplify_m, "simplify_m"))
+  }
+
+  if (is.null(upstream_measure)) {
+    return(frs_db_query(conn, sprintf(
+      "SELECT %s AS geom FROM %s", simplify("geom"),
+      .frs_watershedatmeasure_sql(blue_line_key, downstream_route_measure)
+    )))
+  }
+
+  up_blk <- if (is.null(upstream_blk)) blue_line_key else upstream_blk
+
+  ws <- frs_db_query(conn, sprintf(
+    "SELECT ST_Intersects(d.geom, u.geom) AS intersects, %s AS geom FROM %s d, %s u",
+    simplify("ST_Difference(d.geom, u.geom)"),
+    .frs_watershedatmeasure_sql(blue_line_key, downstream_route_measure),
+    .frs_watershedatmeasure_sql(up_blk, upstream_measure)
+  ))
+
+  if (!isTRUE(ws$intersects[1])) {
+    stop("upstream watershed does not intersect downstream watershed; ",
+         "points may not be on the same network")
+  }
+
+  ws$intersects <- NULL
+  # sf::st_difference() drops an empty difference; ST_Difference() returns
+  # POLYGON EMPTY. Match the unsimplified path.
+  ws[!sf::st_is_empty(ws), ]
+}
+
+
+#' The `fwa_watershedatmeasure()` call for one point
+#'
+#' The key goes in as an integer: `sprintf("%s")` on a double writes
+#' `3.56e+08` for blue line key 356000000, which Postgres reads as numeric
+#' and matches to no `fwa_watershedatmeasure()` signature. The measure goes
+#' in through `.frs_sql_exact()`: fwapg picks the segment with
+#' `downstream_route_measure <= measure`, so a segment's own start rounded to
+#' fewer digits (`.frs_sql_num()` keeps 10) can fall below it and select the
+#' segment before.
+#'
+#' @param blk Numeric blue line key.
+#' @param measure Numeric route measure.
+#' @return Character SQL function call.
+#' @noRd
+.frs_watershedatmeasure_sql <- function(blk, measure) {
+  sprintf("whse_basemapping.fwa_watershedatmeasure(%d, %s)",
+          as.integer(blk), .frs_sql_exact(measure, "measure"))
 }

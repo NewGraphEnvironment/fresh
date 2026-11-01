@@ -1,3 +1,64 @@
+# fresh 0.51.0
+
+Relates to [#277](https://github.com/NewGraphEnvironment/fresh/issues/277). Parts 1 and 2 of three; part 3 is a schema change and is not in this release.
+
+**`frs_order_child()` and `frs_habitat_overlay()`'s bridged join match `watershed_group_code`.**
+- Both wrote to a habitat table through a join on `id_segment` alone, which is unique only within a watershed group, so against a shared table such as `fresh.streams_habitat` they flagged habitat `TRUE` in groups the job never segmented. Both writes are additive, so no count went negative to show it.
+- `frs_order_child()` matches the group in its `UPDATE`, and its verbose "before" count takes the shared watershed-group clause, so the count it returns and the lines it prints are the job's rather than the whole table's.
+- `frs_habitat_overlay(bridge = )` matches the group in its three-way join. It now requires `watershed_group_code` on `bridge` and on `to`, because a caller cannot add it through `by`, which governs the bridge-to-source join only. The direct mode is unchanged — there the caller names every join column.
+- `frs_habitat_overlay()` reads a table's columns with `SELECT * FROM t LIMIT 0` rather than an `information_schema` lookup by literal schema and table name, which misses a `pg_temp` table or a mixed-case name. Same resolution `frs_habitat_classify()` uses; error text and order are unchanged.
+
+# fresh 0.50.1
+
+Closes [#289](https://github.com/NewGraphEnvironment/fresh/issues/289). No change to the package's functions.
+
+**The tie sweep sends its measures exactly.**
+- `data-raw/point_snap_tie_sweep.R` sends each measure at 17 significant digits (`.frs_sql_exact()`), and in each state checks that the database stores what it was sent. It used one `format()` call over the whole frame, which rounded the CSV measures to 11 decimals.
+- Re-run against the same migrations, CSV `fwa_locatealong()` misses are 36 before the tiebreak migration and 31 after, and five measures now resolve. 0.44.0's "four of 23,540 measures now resolve" was measured on the rounded measures.
+- The head case is now part of the sweep: of 400 blue lines, none resolve their own top measure before the migration and 383 after (`sweep_tops.csv`). `research/fwa_point_snap.md` carries the numbers.
+
+# fresh 0.50.0
+
+Closes [#274](https://github.com/NewGraphEnvironment/fresh/issues/274).
+
+**Route measures reach the SQL exactly.**
+- `frs_point_locate()` writes its measure at 17 significant digits. It wrote 15, which for a stream's top can name a point past the last segment's end, and then `fwa_locatealong()` returned no row.
+- `frs_network()`, `frs_network_upstream()`, `frs_network_downstream()`, `frs_network_prune()` and `frs_waterbody_network()` find the segment a measure falls on (`downstream_route_measure <= m`) with the measure at full precision too, so a measure at a segment's own start no longer risks picking the segment before.
+- These functions now stop with `<arg> must be a single finite number` when a measure is `NA`, infinite or not length 1. Before, the value reached the database and failed there.
+- `frs_wsg_drainage()` still writes outlet measures at 15 digits. `fwa_downstream()` gives the same answer at either precision, and the bundled outlet table has at most 10.
+
+# fresh 0.49.0
+
+Closes [#286](https://github.com/NewGraphEnvironment/fresh/issues/286). Relates to [wet#155](https://github.com/NewGraphEnvironment/wet/issues/155).
+
+**`frs_lake_fetch()`, `frs_wetland_fetch()` and `frs_stream_fetch()` return the same `sf` on every call to the same database, and can simplify and clip in PostGIS.**
+- Each query ends on `ORDER BY` the table's unique key (`waterbody_poly_id`, `linear_feature_id`). A new `order_by` names another table's key, or `NULL` for none. **`limit = n` now returns the `n` lowest keys**, not whichever rows came first.
+- `simplify_m` simplifies in the database: `ST_Normalize(ST_SimplifyPreserveTopology())` for lakes and wetlands, and `ST_SimplifyPreserveTopology()` alone for streams, because `ST_Normalize()` would reverse a line's downstream-to-upstream direction. Both drop M; `area_ha` and `length_metre` stay the stored values. `frs_watershed_at_measure(simplify_m =)` simplifies a subbasin once, after the difference.
+- `aoi` takes a polygon, a watershed group code or a blue line key and measure, through the same resolver `frs_extract()` uses, and filters with `ST_Intersects()`. `bbox` stays envelope overlap. The new arguments come after `limit`, so positional calls keep working.
+- Simplified streams were byte-identical across two connections and across GEOS 3.9.0 and 3.10.2 (BULK and MORR, 52,291 segments). Across those GEOS versions 46 of 1,754 simplified BULK lakes differed by 1–2 vertices, so record `postgis_full_version()` with a saved result. `research/fwa_fetch_determinism.md` has the detail.
+
+**Numbers reach the SQL exactly.**
+- `frs_watershed_at_measure()` wrote a round blue line key passed as a double as `3.56e+08`, which matches no fwapg function. Keys now go in as integers, and measures at full precision, so a measure at a segment's own start is no longer rounded below it and returned no watershed. `aoi = list(blk, measure)` shares the same builder.
+- An `sf` `aoi`'s WKT is written at 15 digits. It followed `getOption("digits")`, which at the default 7 rounds BC Albers x to the metre, so this also changes what `frs_extract(aoi = <sf>)` sends.
+- `area_ha_min` in the lake and wetland fetchers is validated and written exactly.
+
+# fresh 0.48.0
+
+Closes [#284](https://github.com/NewGraphEnvironment/fresh/issues/284). Relates to [link#401](https://github.com/NewGraphEnvironment/link/issues/401).
+
+**`frs_network_features(result = "distinct")` returns, per segment, the feature IDs upstream or downstream once each, so a caller can ask which kinds of feature lie there.**
+- With `feature_id_col` naming a kind (a species code), each segment gets the set of kinds, sorted by the ID in its type's order, in the same list-column shape as `result = "ids"`. It runs the array walk's own join, predicate, `aoi` filter and scoped downstream path, aggregating `array_agg(DISTINCT … ORDER BY …)` with no ordered subquery. `result = "ids"` and `"exists"` send the same SQL as 0.47.0.
+- Over every watershed group's fish records it costs less than an `"ids"` walk over one group's own: LFRA 65 → 37 to 39 s, BULK 21 → 8 s, SETN 47 → 44 to 46 s (m1, twice each). One existence walk per species cost 3 to 7 times more. Evidence is in link's `data-raw/logs/obs_province_401/`.
+
+# fresh 0.47.0
+
+Closes [#281](https://github.com/NewGraphEnvironment/fresh/issues/281). Relates to [link#394](https://github.com/NewGraphEnvironment/link/issues/394).
+
+**`frs_network_features(result = "exists")` returns the segments that have any feature downstream (or upstream), without building the arrays.**
+- The result is one row per segment that has at least one feature, with `<segment_id_col>` and a logical `has_features` that is always `TRUE`. Segments with none are left out, as with the arrays, so a caller testing `id %in% result$id` gets the same answer by adding one argument. A segment whose only features have NULL ids is a row in both forms.
+- It runs the array walk's own join on the same predicate, `aoi` filter and #272 scoped downstream path, and reduces it to `SELECT DISTINCT` segment ids. Nothing is aggregated into an array and the walk has no `ORDER BY`. `result = "ids"`, the default, sends the same SQL as 0.46.0.
+- On link's natural barrier views it is 1.00× (SALR) to 1.24× (SETN) faster end to end. The saving in seconds grows with the number of segments reached: in SETN, CH takes 41 s rather than 50 s. Most of the time is the join, which both forms run. A correlated `EXISTS` was 1.1× to 15× slower than the join, because it has to drive from the segments. Logs are in `data-raw/logs/network_features_exists_281/`, from `data-raw/network_features_exists.R`. `research/fwa_downstream_walk.md`, "Existence walks", has the plans.
+
 # fresh 0.46.0
 
 Closes [#242](https://github.com/NewGraphEnvironment/fresh/issues/242). Follows [#240](https://github.com/NewGraphEnvironment/fresh/issues/240).

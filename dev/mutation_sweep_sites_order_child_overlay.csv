@@ -1,0 +1,7 @@
+"label","file","pattern","occurrence","action","replacement","within"
+"order_child UPDATE wsg match","R/frs_order_child.R","AND h.watershed_group_code = s.watershed_group_code","1","delete","","frs_order_child"
+"order_child before count .frs_wsg_in","R/frs_order_child.R",".frs_wsg_in(table)))$n","1","substitute","""""))$n","frs_order_child"
+"overlay bridge join wsg match","R/frs_habitat_overlay.R",""" AND h.watershed_group_code = s.watershed_group_code AND "", bk_pred,","1","substitute",""" AND "", bk_pred,","frs_habitat_overlay"
+"overlay bridge requires wsg","R/frs_habitat_overlay.R","c(""id_segment"", ""watershed_group_code"", by,","1","substitute","c(""id_segment"", by,","frs_habitat_overlay"
+"overlay to requires wsg","R/frs_habitat_overlay.R","if (!""watershed_group_code"" %in% to_cols) {","1","substitute","if (FALSE) {","frs_habitat_overlay"
+"order_child requires wsg","R/frs_order_child.R","if (!""watershed_group_code"" %in% cols) {","1","substitute","if (FALSE) {","frs_order_child"

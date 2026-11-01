@@ -32,9 +32,19 @@
 # indexpoint tiebreak, since the "tiebreak alone" state applies only that one.
 #
 # Writes data-raw/logs/indexpoint_266/sweep.txt (a non-reproducible header
-# then a reproducible body), sweep_summary.csv (the three-state count table)
-# and sweep_changed.csv (every position whose answer moved, with the state
-# that moved it). A second run must be byte-identical in the body.
+# then a reproducible body), sweep_summary.csv (the three-state count table),
+# sweep_changed.csv (every position whose answer moved, with the state that
+# moved it), sweep_tops.csv (the head case, one row per sampled blue line) and
+# sweep_errors.csv (every call that raised). A second run must be byte-identical
+# in the body.
+#
+# Measures reach SQL at 17 significant digits (.frs_sql_exact()) and keys
+# through %d, as frs_point_locate() and the network traversals send them
+# since #274 (frs_wsg_drainage() does not); the two CSVs of
+# positions carry each measure as that same text. Runs before #289 sent
+# measures through one format() call over the whole frame, which shares one
+# decimal count across it: 11 decimals for the CSV measures, which moved
+# 12,260 of 23,540 by up to 5e-12 m.
 
 pkgload::load_all(".", quiet = TRUE)
 
@@ -96,6 +106,9 @@ n_expensive <- n_size("FRESH_SWEEP_EXPENSIVE", 200L) # for the watershed and tra
 # and the report says so. The tie CENSUS stays exhaustive: it is geometry,
 # measured once on the base side, and costs nothing.
 n_tied <- n_size("FRESH_SWEEP_TIED", 800L)
+# Blue lines whose own top measure is sent to fwa_locatealong(): the head case
+# the tiebreak migration closes. Before #289 this was an unscripted query.
+n_tops <- n_size("FRESH_SWEEP_TOPS", 400L)
 
 # -- the database -------------------------------------------------------------
 
@@ -143,7 +156,7 @@ message(sprintf("base: exbc in fwa_watershedatmeasure = %s, fwapg.db_version = %
 # run that died midway left behind — not only the ones created before it died.
 tbls <- paste0("working.tie266_", c("pscis", "obs", "positions", "measures",
                                     "snap_pscis", "snap_obs", "measures_all",
-                                    "expensive"))
+                                    "expensive", "tops"))
 tbl <- function(n) tbls[[match(paste0("working.tie266_", n), tbls)]]
 # on.exit() does not fire at a script's top level under Rscript
 # (data-raw/point_snap_parity_check.R:46-49), so they are dropped at the start
@@ -274,6 +287,17 @@ all_measures <- rbind(csv_measures("crossings.csv", "crossings"),
                       csv_measures("wsg_outlet.csv", "wsg_outlet"))
 DBI::dbWriteTable(conn, DBI::Id(schema = "working", table = "tie266_measures_all"),
                   all_measures, overwrite = TRUE)
+# Read back and compared bit for bit: the sweep sends what it reads from this
+# table, so a write that rounded the measures would put #289 back unseen.
+back <- DBI::dbGetQuery(conn,
+  "SELECT id, blue_line_key, m FROM working.tie266_measures_all")
+back <- back[match(all_measures$id, back$id), ]
+if (anyNA(back$id) || !identical(as.double(back$m), all_measures$m) ||
+      !identical(as.double(back$blue_line_key), all_measures$blue_line_key)) {
+  stop("working.tie266_measures_all does not read back the measures written to ",
+       "it bit for bit, so the sweep would not send the CSVs' own measures",
+       call. = FALSE)
+}
 # the sample is taken in SQL, by the stated rule, so it is reproducible and
 # does not cost 533,291 round trips
 invisible(DBI::dbExecute(conn, sprintf(
@@ -288,6 +312,34 @@ invisible(DBI::dbExecute(conn, sprintf(
 csv_counts <- DBI::dbGetQuery(conn, sprintf(
   "SELECT src, count(*) AS n FROM %s GROUP BY src ORDER BY src", tbl("measures")))
 print(csv_counts, row.names = FALSE)
+
+# -- the head case ------------------------------------------------------------
+
+# A sample of blue lines, by the same md5 rule, each sent at its own top. The
+# top is max(upstream_route_measure) over EVERY segment of the line, because
+# fwa_locatealong() scans every segment with no guards
+# (tests/testthat/test-frs_fwapg_gate.R, skip_unless_head_case()). m_guarded is
+# the top over fresh's candidate segments only, as blk_top() there takes it;
+# where the two differ the line's top is a segment fresh never snaps to, and
+# the report counts those lines apart.
+invisible(DBI::dbExecute(conn, sprintf(
+  "CREATE TABLE %s AS
+   WITH b AS (
+     SELECT blue_line_key FROM (
+       SELECT DISTINCT blue_line_key FROM whse_basemapping.fwa_stream_networks_sp
+     ) d
+     ORDER BY md5(blue_line_key::text) LIMIT %d
+   )
+   SELECT b.blue_line_key,
+          max(s.upstream_route_measure) AS m,
+          max(s.upstream_route_measure) FILTER (WHERE %s) AS m_guarded
+   FROM b JOIN whse_basemapping.fwa_stream_networks_sp s USING (blue_line_key)
+   GROUP BY b.blue_line_key", tbl("tops"), n_tops,
+  "s.localcode_ltree IS NOT NULL AND NOT s.wscode_ltree <@ '999' AND s.edge_type <> 1425")))
+n_tops_sampled <- one(sprintf("SELECT count(*) FROM %s", tbl("tops")))
+n_tops_guarded <- one(sprintf("SELECT count(*) FROM %s WHERE m_guarded = m", tbl("tops")))
+message(sprintf("%d sampled blue lines; on %d the top is a candidate segment's",
+                n_tops_sampled, n_tops_guarded))
 
 # the positions the expensive calls run on: every tied one, plus a sample
 invisible(DBI::dbExecute(conn, sprintf(
@@ -331,9 +383,13 @@ DBI::dbDisconnect(conn)
 # chunk is re-run row by row under per-row savepoints, so one bad position does
 # not lose the rest of them.
 chunked <- function(con, d, call_sql, chunk = 2000L, label = "") {
-  vals <- sprintf("(%d,%s,%s)", seq_len(nrow(d)),
-                  format(d$blue_line_key, scientific = FALSE),
-                  format(d$m, scientific = FALSE))
+  # The measure goes through .frs_sql_exact() (%.17g), as frs_point_locate()
+  # and the network traversals send one since #274, and the key through %d.
+  # format() shares one decimal count across the whole vector, so it rounded
+  # about half the CSV measures (#289). The text is returned as `sent`, so
+  # sent_exact() checks what actually went out.
+  m_sent <- vapply(d$m, .frs_sql_exact, character(1), label = "m")
+  vals <- sprintf("(%d,%d,%s)", seq_len(nrow(d)), as.integer(d$blue_line_key), m_sent)
   out <- vector("list", max(1L, ceiling(length(vals) / chunk)))
   # kept as rows, not as tab-joined text: strsplit() drops a trailing empty
   # field, so an empty conditionMessage() would make the 4th field missing and
@@ -382,7 +438,8 @@ chunked <- function(con, d, call_sql, chunk = 2000L, label = "") {
   # joined back on the ordinal, never on the order the rows arrived in
   if (is.null(rows)) rows <- data.frame(ord = integer())
   list(rows = rows[order(rows$ord), , drop = FALSE],
-       errors = if (length(errs)) do.call(rbind, errs) else NULL)
+       errors = if (length(errs)) do.call(rbind, errs) else NULL,
+       sent = m_sent)
 }
 
 # `answer` is the column `call_sql` returns per ordinal; missing ordinals (a
@@ -401,6 +458,31 @@ answers <- function(d, got, answer, as = c("logical", "numeric")) {
     out[got$rows$ord] <- if (as == "logical") as.logical(v) else as.numeric(v)
   }
   out
+}
+
+# Sends the measure text chunked() sent for each row (`sent`) back keyed on
+# `key`, and counts the rows whose stored measure differs from it as PostgreSQL
+# parses it. Every row must join, and none may differ.
+sent_exact <- function(con, d, sent, table, key) {
+  stopifnot(length(sent) == nrow(d))
+  if (!nrow(d)) {
+    return(invisible())
+  }
+  k <- d[[key]]
+  k <- if (is.character(k)) as.character(DBI::dbQuoteString(con, k)) else
+    sprintf("%d", as.integer(k))
+  vals <- sprintf("(%s,%s)", k, sent)
+  n <- DBI::dbGetQuery(con, sprintf(
+    "SELECT count(*) AS joined,
+            count(*) FILTER (WHERE t.m IS DISTINCT FROM v.m::double precision) AS differ
+     FROM (VALUES %s) v(k, m) JOIN %s t ON t.%s = v.k",
+    paste(vals, collapse = ","), table, key))
+  if (as.numeric(n$joined) != nrow(d) || as.numeric(n$differ) != 0) {
+    stop(sprintf("%s: %s of %d rows joined and %s differ from the text sent, so the ",
+                 table, format(as.numeric(n$joined)), nrow(d), format(as.numeric(n$differ))),
+         "sweep would not send the measures it stores", call. = FALSE)
+  }
+  invisible()
 }
 
 sweep_state <- function(label, files) {
@@ -428,6 +510,14 @@ sweep_state <- function(label, files) {
     "SELECT src, id, blue_line_key, m FROM %s ORDER BY src, id", tbl("measures")))
   exp_pos <- DBI::dbGetQuery(con,
     "SELECT blue_line_key, m FROM working.tie266_expensive ORDER BY blue_line_key, m")
+  tops <- DBI::dbGetQuery(con, sprintf(
+    "SELECT blue_line_key, m, m_guarded FROM %s ORDER BY blue_line_key", tbl("tops")))
+  # The snapped positions are whole metres, which every step writes exactly;
+  # the CSV measures and the tops are checked after their calls (sent_exact()).
+  if (any(pos$m != floor(pos$m))) {
+    stop("a snapped position is not a whole metre: fresh's snap has changed",
+         call. = FALSE)
+  }
 
   locate <- paste(
     "SELECT v.ord, (w.geom IS NOT NULL) AS hit",
@@ -443,6 +533,15 @@ sweep_state <- function(label, files) {
                   format(nrow(csv), big.mark = ",")))
   csv_loc <- chunked(con, csv, locate, label = paste0(label, "/locatealong_csv"))
   csv$locatealong <- answers(csv, csv_loc, "hit")
+  # The text chunked() sent, compared by PostgreSQL with what it stores: this
+  # covers the read, the format and the parse in one check (#289)
+  sent_exact(con, csv, csv_loc$sent, tbl("measures"), "id")
+
+  message(sprintf("state %-9s locatealong at %s blue lines' own tops ...", label,
+                  format(nrow(tops), big.mark = ",")))
+  top_loc <- chunked(con, tops, locate, label = paste0(label, "/locatealong_top"))
+  tops$locatealong <- answers(tops, top_loc, "hit")
+  sent_exact(con, tops, top_loc$sent, tbl("tops"), "blue_line_key")
 
   message(sprintf("state %-9s watershedatmeasure and downstreamtrace over %s ...",
                   label, format(nrow(exp_pos), big.mark = ",")))
@@ -460,8 +559,9 @@ sweep_state <- function(label, files) {
   exp_pos$trace <- answers(exp_pos, trc, "n", as = "numeric")
 
   errors <- Filter(Negate(is.null),
-                   list(loc$errors, csv_loc$errors, wsd$errors, trc$errors))
-  list(label = label, positions = pos, csv = csv, expensive = exp_pos,
+                   list(loc$errors, csv_loc$errors, top_loc$errors, wsd$errors,
+                        trc$errors))
+  list(label = label, positions = pos, csv = csv, tops = tops, expensive = exp_pos,
        errors = if (length(errors)) do.call(rbind, errors) else
          data.frame(call = character(), blue_line_key = numeric(), m = numeric(),
                     message = character(), stringsAsFactors = FALSE),
@@ -508,6 +608,29 @@ summary <- do.call(rbind, lapply(states, function(s) {
   )
 }))
 print(summary, row.names = FALSE)
+
+# The head case, apart from the summary so that table and the moved list keep
+# the shape the earlier runs had. Counted over every sampled line, and over
+# those whose top is a candidate segment's (the population blk_top() names).
+tops_count <- function(t, label, set) {
+  data.frame(state = label, lines = set, tops = nrow(t),
+             hit = sum(t$locatealong == TRUE, na.rm = TRUE),
+             miss = sum(t$locatealong == FALSE, na.rm = TRUE),
+             error = sum(is.na(t$locatealong)))
+}
+tops_summary <- do.call(rbind, lapply(states, function(s) {
+  g <- !is.na(s$tops$m_guarded) & s$tops$m_guarded == s$tops$m
+  rbind(tops_count(s$tops, s$label, "all"),
+        tops_count(s$tops[g, , drop = FALSE], s$label, "top_is_candidate"))
+}))
+print(tops_summary, row.names = FALSE)
+# one row per line, its answer in each state; the states read the same table in
+# the same order, which the stopifnot() pins
+stopifnot(all(vapply(states, function(s) {
+  identical(s$tops$blue_line_key, states$base$tops$blue_line_key)
+}, TRUE)))
+tops_lines <- states$base$tops[, c("blue_line_key", "m", "m_guarded")]
+for (s in states) tops_lines[[s$label]] <- s$tops$locatealong
 
 # Every position whose answer moved, attributed to the state that moved it.
 # NA (the call errored) is a distinct outcome from FALSE (it returned nothing),
@@ -558,6 +681,25 @@ moved <- moved[order(moved$state, moved$call, moved$blue_line_key, moved$m,
                      moved$src, moved$id, method = "radix"), , drop = FALSE]
 
 # -- the report ---------------------------------------------------------------
+
+# print() and write.csv() write a double at 7 and 15 significant digits, so
+# each measure is reported as the %.17g text the sweep sent: the report names
+# exactly the position that moved
+exact_m <- function(d, cols = "m") {
+  for (col in cols) {
+    v <- d[[col]]
+    d[[col]] <- vapply(v, function(x) if (is.na(x)) NA_character_ else
+      .frs_sql_exact(x, col), character(1))
+  }
+  d
+}
+# write.csv() quotes every character column, so the measures, made character
+# above, are left unquoted as they were when they were numbers
+write_exact <- function(d, file, cols = "m") {
+  quoted <- which(vapply(d, function(x) is.character(x) || is.factor(x), TRUE))
+  utils::write.csv(exact_m(d, cols), file, row.names = FALSE,
+                   quote = if (length(quoted)) unname(quoted) else FALSE)
+}
 
 dir_out <- file.path("data-raw", "logs", "indexpoint_266")
 dir.create(dir_out, recursive = TRUE, showWarnings = FALSE)
@@ -625,6 +767,11 @@ body <- c(
           n_expensive, n_tied, format(n_tied_all, big.mark = ",")),
   "         calls (the tie census above is exhaustive; only the watershed and",
   "         trace calls over the tied positions are sampled)",
+  sprintf("         %d blue lines for the head case, each sent at its own top",
+          n_tops_sampled),
+  sprintf("         (max upstream_route_measure over every segment); on %d the top",
+          n_tops_guarded),
+  "         is a candidate segment's, as blk_top() in the gate test takes it",
   "         sampling rule: ORDER BY md5(<id>::text) LIMIT n",
   "",
   "## population (research/fwa_point_snap.md, fresh#247)",
@@ -646,9 +793,13 @@ body <- c(
   "## errors, by message",
   errors_by_message(),
   "",
+  "## the head case: fwa_locatealong() at each sampled blue line's own top",
+  "  (one row per line in sweep_tops.csv)",
+  utils::capture.output(print(tops_summary, row.names = FALSE)),
+  "",
   sprintf("## answers that moved: %d", nrow(moved)),
   if (nrow(moved)) {
-    utils::capture.output(print(utils::head(moved, 60), row.names = FALSE))
+    utils::capture.output(print(exact_m(utils::head(moved, 60)), row.names = FALSE))
   } else {
     "  none"
   },
@@ -670,7 +821,8 @@ writeLines(c(header, body), file.path(dir_out, "sweep.txt"))
 # carries the elapsed times.
 utils::write.csv(summary[, setdiff(names(summary), "secs")],
                  file.path(dir_out, "sweep_summary.csv"), row.names = FALSE)
-utils::write.csv(moved, file.path(dir_out, "sweep_changed.csv"), row.names = FALSE)
+write_exact(moved, file.path(dir_out, "sweep_changed.csv"))
+write_exact(tops_lines, file.path(dir_out, "sweep_tops.csv"), cols = c("m", "m_guarded"))
 all_errors <- do.call(rbind, lapply(states, function(s) {
   if (!nrow(s$errors)) {
     return(NULL)
@@ -686,7 +838,7 @@ if (is.null(all_errors)) {
                            blue_line_key = numeric(), m = numeric(),
                            message = character(), stringsAsFactors = FALSE)
 }
-utils::write.csv(all_errors, file.path(dir_out, "sweep_errors.csv"), row.names = FALSE)
+write_exact(all_errors, file.path(dir_out, "sweep_errors.csv"))
 message("wrote ", file.path(dir_out, "sweep.txt"))
 
 conn <- fwapg_conn()

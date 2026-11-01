@@ -26,19 +26,20 @@ the flags to overlay. Must follow the canonical shape — see
 \item{to}{Character. Schema-qualified destination table to UPDATE
 in place. Must have boolean columns named in \code{habitat_types}
 plus a \code{species_code} column. Either has the join keys (\code{by})
-directly, or only \code{id_segment} (use \code{bridge} to resolve).}
+directly, or \code{id_segment} and \code{watershed_group_code} (use \code{bridge}
+to resolve).}
 
 \item{bridge}{Character or \code{NULL}. Optional schema-qualified
-segments table providing \code{id_segment} + the join keys in \code{by}
-\itemize{
-\item \code{downstream_route_measure} + \code{upstream_route_measure}. When
-provided, switches to a 3-way range-containment join. Default
-\code{NULL} (direct point-match join — \code{to} must have the join keys).
+segments table providing \code{id_segment} + \code{watershed_group_code} +
+the join keys in \code{by} + \code{downstream_route_measure} +
+\code{upstream_route_measure}. When provided, switches to a 3-way
+range-containment join on both keys, and \code{to} must carry
+\code{watershed_group_code} too. Default \code{NULL} (direct point-match
+join — \code{to} must have the join keys).
 \strong{Note:} the range column names are currently hardcoded to FWA
 convention (\code{downstream_route_measure} / \code{upstream_route_measure}).
 \code{from} and \code{bridge} must both use these names; non-FWA segment
-schemas would need a follow-up parameterisation.
-}}
+schemas would need a follow-up parameterisation.}
 
 \item{species}{Character vector. Species codes to ingest. \code{NULL}
 (default) processes every species code present in \code{to}.}
@@ -98,11 +99,13 @@ overlay. Shape-translation lives with the consumer.
 \item \strong{Direct (\code{bridge = NULL})} — the \code{to} table has the join keys
 directly. SQL does \verb{to.<by> = from.<by>} (point match).
 \item \strong{Bridged (\code{bridge = "<segments_table>"})} — the \code{to} table is
-keyed by \code{id_segment} (e.g. \code{fresh.streams_habitat}) and lacks
-the geographic keys in \code{by}. The bridge table provides the
-link, with \code{id_segment} + range columns. SQL does a 3-way join:
+keyed by \verb{(id_segment, watershed_group_code)} (e.g.
+\code{fresh.streams_habitat}) and lacks the geographic keys in \code{by}. The
+bridge table provides the link, with \code{id_segment},
+\code{watershed_group_code} and the range columns. SQL does a 3-way join:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{to.id_segment = bridge.id_segment
+AND to.watershed_group_code = bridge.watershed_group_code
 AND bridge.<by[1]> = from.<by[1]>
 AND bridge.downstream_route_measure >= from.downstream_route_measure
 AND bridge.upstream_route_measure   <= from.upstream_route_measure
@@ -110,7 +113,11 @@ AND bridge.upstream_route_measure   <= from.upstream_route_measure
 
 Range containment, not point match — covers the case where one
 \code{from} row's \verb{[drm, urm]} range maps to multiple bridge segments
-(e.g. when other break sources fall inside the range).
+(e.g. when other break sources fall inside the range). The join
+matches \code{watershed_group_code} as well as \code{id_segment}, because
+\code{id_segment} is unique only within a watershed group: a \code{to} table
+holding several groups (as \code{fresh.streams_habitat} does) has other
+groups' rows at the same \code{id_segment}, and they are left alone.
 }
 
 Future bridges aren't required to be \code{fresh.streams} — any table

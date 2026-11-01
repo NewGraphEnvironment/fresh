@@ -172,3 +172,11 @@ test_that("blk+measure aoi resolves against real DB", {
   result <- DBI::dbGetQuery(conn, sql)
   expect_gt(result$n, 0)
 })
+
+test_that(".frs_resolve_aoi blk+measure writes the call as frs_watershed_at_measure does", {
+  # One builder for fwa_watershedatmeasure() (#286 review round 4): a round
+  # key in full and the measure at 17 digits
+  result <- .frs_resolve_aoi(list(blk = 356000000, measure = 1234567.8912345678))
+  expect_match(result,
+    "fwa_watershedatmeasure(356000000, 1234567.8912345679)", fixed = TRUE)
+})

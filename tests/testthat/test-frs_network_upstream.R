@@ -77,3 +77,16 @@ test_that("include_all = TRUE returns more or equal segments (placeholder/unmapp
   # In practice fwa_upstream() rarely returns these, so counts may be equal
   expect_true(nrow(without_guards) >= nrow(with_guards))
 })
+
+test_that("frs_network_upstream sends the measure at full precision", {
+  # %s keeps 15 significant digits, which can pick the segment before the
+  # one a measure starts (#274). This value needs all 17.
+  sql_sent <- NULL
+  local_mocked_bindings(frs_db_query = function(conn, sql, ...) {
+    sql_sent <<- sql
+    data.frame()
+  })
+  frs_network_upstream("mock", blue_line_key = 360873822,
+    downstream_route_measure = 1234567.8912345678)
+  expect_identical(sql_measure_picks(sql_sent), "1234567.8912345679")
+})

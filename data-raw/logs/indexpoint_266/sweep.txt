@@ -1,6 +1,6 @@
 # fresh#266 sweep - header (not reproducible)
-run: 2026-10-28 00:07:29 PDT
-fresh: 0.43.0 (7e7d979)
+run: 2026-10-31 14:48:37 PDT
+fresh: 0.50.0 (4cb1ac8)
 fwapg commit: b088b43
 migrations, applied inside a transaction and rolled back:
   202610131654__watershedatmeasure_drop_exbc.sql  md5 a048f8e21eb65082729b62afc5b5b3f5
@@ -9,7 +9,7 @@ host: localhost:5432/fwapg
 base: fwa_indexpoint(point geometry, tolerance double precision DEFAULT 5000, num_features integer DEFAULT 1)
 base: exbc in fwa_watershedatmeasure = TRUE, fwapg.db_version = absent
 after the trials: unchanged (signature and exbc re-checked on a new connection)
-snap: 2 s; states: base 1082 s, tiebreak 959 s, both 913 s
+snap: 2 s; states: base 1323 s, tiebreak 1263 s, both 1161 s
 base-side output md5 (sorted src|id|rank|blk|m|locatealong): f0a5e96f60dd7a7af0eddc1e165faf48
 
 # fresh#266 sweep - body (a second run must be byte-identical from here)
@@ -18,6 +18,9 @@ samples: all PSCIS, 5000 fish observation points, 20000 of crossings.csv,
          200 sampled positions plus 800 of the 6,223 tied ones for the expensive
          calls (the tie census above is exhaustive; only the watershed and
          trace calls over the tied positions are sampled)
+         400 blue lines for the head case, each sent at its own top
+         (max upstream_route_measure over every segment); on 341 the top
+         is a candidate segment's, as blk_top() in the gate test takes it
          sampling rule: ORDER BY md5(<id>::text) LIMIT n
 
 ## population (research/fwa_point_snap.md, fresh#247)
@@ -49,9 +52,9 @@ samples: all PSCIS, 5000 fish observation points, 20000 of crossings.csv,
  tiebreak     49725                0                 0        23540
      both     49725                0                 0        23540
  csv_locatealong_miss csv_locatealong_error expensive_positions watershed_miss
-                   42                     0                 970             85
-                   38                     0                 970             86
-                   38                     0                 970             86
+                   36                     0                 970             85
+                   31                     0                 970             86
+                   31                     0                 970             86
  watershed_error trace_empty trace_error errors
              294           2           0    294
              293           2           0    293
@@ -63,19 +66,31 @@ samples: all PSCIS, 5000 fish observation points, 20000 of crossings.csv,
   tiebreak: 293 x Failed to fetch row : ERROR:  more than one row returned by a subquery used as an expression
   both: 293 x Failed to fetch row : ERROR:  more than one row returned by a subquery used as an expression
 
-## answers that moved: 5
+## the head case: fwa_locatealong() at each sampled blue line's own top
+  (one row per line in sweep_tops.csv)
+    state            lines tops hit miss error
+     base              all  400   0  400     0
+     base top_is_candidate  341   0  341     0
+ tiebreak              all  400 383   17     0
+ tiebreak top_is_candidate  341 327   14     0
+     both              all  400 383   17     0
+     both top_is_candidate  341 327   14     0
+
+## answers that moved: 6
     state                   call        src               id candidate_rank
+ tiebreak   fwa_locatealong(csv)  crossings crossings_365234             NA
  tiebreak   fwa_locatealong(csv)  crossings crossings_108527             NA
  tiebreak   fwa_locatealong(csv) wsg_outlet   wsg_outlet_129             NA
  tiebreak   fwa_locatealong(csv)  crossings  crossings_72826             NA
  tiebreak   fwa_locatealong(csv) wsg_outlet   wsg_outlet_147             NA
  tiebreak fwa_watershedatmeasure       <NA>             <NA>             NA
- blue_line_key         m   was   now
-     356355973  4494.620 FALSE  TRUE
-     356363393   322.567 FALSE  TRUE
-     360862508 10821.825 FALSE  TRUE
-     360880826  2100.018 FALSE  TRUE
-     359434058   159.000  <NA> FALSE
+ blue_line_key                  m   was   now
+     356312469 957.70485427024903 FALSE  TRUE
+     356355973   4494.61997946051 FALSE  TRUE
+     356363393 322.56700000000001 FALSE  TRUE
+     360862508   10821.8246201562 FALSE  TRUE
+     360880826           2100.018 FALSE  TRUE
+     359434058                159  <NA> FALSE
 
 ## note on crossings.csv
   its measures are bcfishpass's own fractional indexing; fresh never emits a
