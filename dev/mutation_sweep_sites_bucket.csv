@@ -1,0 +1,5 @@
+"label","file","pattern","occurrence","action","replacement","within"
+"bucket hab_join wsg match","R/frs_habitat.R","AND h.watershed_group_code = s.watershed_group_code"", habitat)","1","substitute",""", habitat)",".frs_bucket_connected"
+"bucket subtractive UPDATE wsg match","R/frs_habitat.R","AND h.watershed_group_code = s.watershed_group_code","2","delete","",".frs_bucket_connected"
+"bucket subtractive NOT EXISTS","R/frs_habitat.R","AND NOT EXISTS (","1","substitute","AND EXISTS (",".frs_bucket_connected"
+"bucket verbose count .frs_wsg_in","R/frs_habitat.R",".frs_wsg_in(table)))$n","1","substitute","""""))$n",".frs_bucket_connected"
