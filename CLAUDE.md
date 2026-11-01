@@ -37,6 +37,8 @@ R/
   frs_db_query.R             — execute SQL, return sf
   frs_habitat.R              — orchestrator: multi-WSG/AOI habitat pipeline
   frs_habitat_classify.R     — long-format habitat classification per species [link]
+  frs_habitat_predicates.R   — SQL predicates for one species' habitat rules
+  frs_habitat_overlay.R      — overlay flags from one table onto another
   frs_network_segment.R      — domain-agnostic network segmentation
   frs_feature_find.R         — locate point features on network
   frs_feature_index.R        — upstream/downstream relationship indexing
@@ -57,19 +59,26 @@ R/
   frs_network.R              — unified multi-table network traversal
   frs_network_upstream.R     — upstream network query (ltree)
   frs_network_downstream.R   — downstream network query (ltree)
+  frs_network_features.R     — per-segment arrays of features up/downstream
   frs_network_prune.R        — prune network to connected-waterbody constraints
   frs_waterbody_network.R    — build the waterbody-only network subset
+  frs_near_river.R           — distance from each segment down to the nearest river
   frs_watershed_at_measure.R — watershed polygon at a blue-line position
   frs_watershed_split.R      — split a watershed polygon at a position
   frs_point_snap.R           — bulk-snap a dataset of points to the network
   frs_point_locate.R         — locate point on stream network
+  frs_point_match.R          — match two point datasets by instream distance
+  frs_candidates_pick.R      — score, filter and dedup candidates per key
   frs_stream_fetch.R         — fetch stream segments
   frs_lake_fetch.R           — fetch lakes
   frs_wetland_fetch.R        — fetch wetlands
   frs_order_filter.R         — filter on stream order / order_parent
+  frs_order_child.R          — classify rearing on direct children of large-order streams
   frs_params.R               — load species habitat parameters
   frs_wsg_species.R          — species presence per watershed group
+  frs_wsg_drainage.R         — WSG drainage closure from FWA topology
   frs_edge_types.R           — FWA edge type lookup
+  frs_migration_trial.R      — apply fwapg migrations in a rolled-back transaction
   utils.R                    — internal helpers
 tests/testthat/              — unit tests
 inst/extdata/                — bundled CSVs (falls, crossings, params, species)
