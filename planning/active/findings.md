@@ -358,8 +358,11 @@ WHERE n.watershed_group_code IS DISTINCT FROM s.watershed_group_code;  --> 0
 `.frs_resolve_aoi()` (`R/utils.R:941-1000`) returns a **row predicate** in every
 arm — `&&`, `ST_Intersects`, a table lookup. There is no `ST_Intersection`,
 `frs_clip()` or `ST_LocateBetween` anywhere in `R/frs_habitat.R`,
-`R/frs_extract.R` or `R/frs_network_segment.R`, so **a job always holds whole FWA
-segments**, never a clipped part of one. Breaking happens inside the job.
+`R/frs_extract.R` or `R/frs_network_segment.R`, so **an AOI never truncates a
+segment at its boundary** — a job holds all of the ground each segment it
+touches covers. `frs_break_apply()` does cut geometry (`ST_LocateBetween`), but
+that is subdivision inside the job, not clipping at the AOI edge, which is why
+deleting by parent segment is complete rather than partial.
 
 That makes `DELETE … WHERE linear_feature_id IN (SELECT linear_feature_id FROM <from>)`
 a complete and correct partition overwrite, and it is the only candidate that is

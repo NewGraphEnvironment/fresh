@@ -1165,12 +1165,14 @@
 #' * **Watershed group**, when `wsg_code` is given. The job segmented the whole
 #'   group, so deleting it and reinserting is a clean replace.
 #' * **Parent segment** (`linear_feature_id`), for a custom AOI. Every
-#'   `.frs_resolve_aoi()` arm is a row predicate and nothing in the pipeline
-#'   clips geometry, so a job holds whole FWA segments and deleting the target's
-#'   rows for those segments is a complete replace — it clears sub-segments an
-#'   earlier run broke at other measures as well. No `linear_feature_id` spans a
-#'   watershed group (0, measured province-wide), so it can never reach another
-#'   group's rows.
+#'   `.frs_resolve_aoi()` arm is a row predicate, so an AOI selects whole FWA
+#'   segments and never truncates one at its boundary: a job holds all of the
+#'   ground each segment it touches covers, subdivided by [frs_break_apply()]
+#'   but not cut short. Deleting the target's rows for those segments is
+#'   therefore a complete replace, and it clears sub-segments an earlier run
+#'   broke at other measures as well. No `linear_feature_id` spans a watershed
+#'   group (0, measured province-wide), so it can never reach another group's
+#'   rows.
 #' * **`id_segment`**, only when neither table carries `linear_feature_id` — a
 #'   network that is not the Freshwater Atlas, where `id_segment` is the only
 #'   identity there is.

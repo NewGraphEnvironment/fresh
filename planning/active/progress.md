@@ -97,3 +97,35 @@ the resume instruction is given.
   is written.
 - **Blocked at Phase 2** on the owner's key choice, which is the one decision the
   resume instruction reserved. Options and numbers put back in the same session.
+- **Owner's decisions, 2026-11-01:** delete key = **parent segment**
+  (`linear_feature_id`); the #293 fallout to be **recorded in #293's body**.
+- **Phase 2 landed** (`4dd375c`): `.frs_persist_streams()` replaces both copies
+  of the persist block, with `.frs_persist_delete_sql()` split out as a pure
+  string builder so the one proof that runs on CI needs no database. Nine
+  CI-runnable cases, the widened `.frs_persist_columns()` return pinned in the
+  existing #114 test, and an enumeration over `deparse(body(frs_habitat))` with
+  positive controls.
+- **Phase 3-4 partial** (`41fcd41`): two DB tests for the added-key NULL guard
+  (hot and cold path — it had none, so a sweep would have called it uncaught),
+  the mutation site list, `data-raw/audit_persist_282.R`, and the `to_streams`
+  roxygen.
+- **Self-review found a defect in my own Phase 2 code** (`f1f649b`):
+  `.frs_persist_streams()` recomputed the delete key the builder also decided —
+  "one fact derived twice". `.frs_persist_delete_key()` is now the single
+  decision site; the agreement is pinned as a property over every column set
+  that reaches a key, rather than by reading two paths and finding them
+  consistent. The enumeration test's positive controls caught the restructure,
+  which is what they are for.
+- **First mutation sweep stopped and discarded**, deliberately: it was running
+  against the pre-restructure code, and an interrupted sweep writes no table, so
+  it is read as not run. Re-run once on the final shape with 10 sites, including
+  one for the regression `f1f649b` removes.
+- Three wordings sharpened after re-reading them: "nothing in the pipeline clips
+  geometry" was loose, because `frs_break_apply()` does cut geometry. The
+  accurate claim, in NEWS, the roxygen and `findings.md`, is that an AOI never
+  *truncates* a segment at its boundary; breaking subdivides inside the run.
+- Checked rather than assumed, before standing behind the repair claim: WSG mode
+  passes a strict `watershed_group_code = '<code>'` row filter
+  (`R/frs_habitat.R:438`, `:607`), not `.frs_resolve_aoi()`'s loose bbox arm, so
+  a group job's working table holds exactly that group and the group overwrite is
+  a clean replace.
