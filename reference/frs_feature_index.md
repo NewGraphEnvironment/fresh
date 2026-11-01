@@ -34,6 +34,8 @@ frs_feature_index(
 
   Character. Schema-qualified segmented streams table (from
   [`frs_network_segment()`](https://newgraphenvironment.github.io/fresh/reference/frs_network_segment.md)).
+  Must carry `watershed_group_code`, which is carried through to `to`; a
+  table without it is refused before anything is written.
 
 - features:
 
@@ -73,12 +75,22 @@ frs_feature_index(
 
 ## Value
 
-`conn` invisibly, for pipe chaining.
+`conn` invisibly, for pipe chaining. `to` holds `id_segment`,
+`watershed_group_code` and `features_dnstr` (or `features_upstr`), an
+array of feature IDs ordered by route measure, `NULL` where a segment
+has none, indexed on `(id_segment, watershed_group_code)`.
 
 ## Details
 
 Uses `fwa_upstream()` or `fwa_downstream()` for network-aware traversal
 via ltree codes.
+
+The output is keyed on `id_segment` and `watershed_group_code`, one row
+per segment of `segments`: `id_segment` is unique only within a
+watershed group, so a table holding several groups (a persisted
+`fresh.streams`) repeats values across them, and a join back on
+`id_segment` alone would cross them (fresh#218, fresh#277). Join on
+both.
 
 ## See also
 
@@ -119,14 +131,15 @@ frs_feature_index(conn,
   direction = "downstream",
   to = "working.crossings_dnstr")
 
-# Query: segments with confirmed barriers downstream. The output carries
-# `id_segment` and no `watershed_group_code`, so this join is safe only
-# while `segments` holds one watershed group: `id_segment` is unique only
-# within a group (fresh#218, fresh#277).
+# Query: segments with confirmed barriers downstream. Join on both key
+# columns: `id_segment` is unique only within a watershed group, and
+# `fresh.streams` holds many (fresh#218).
 DBI::dbGetQuery(conn, "
-  SELECT s.id_segment, i.features_dnstr
+  SELECT s.id_segment, s.watershed_group_code, i.features_dnstr
   FROM fresh.streams s
-  JOIN working.crossings_dnstr i ON s.id_segment = i.id_segment
+  JOIN working.crossings_dnstr i
+    ON s.id_segment = i.id_segment
+   AND s.watershed_group_code = i.watershed_group_code
   WHERE array_length(i.features_dnstr, 1) > 0
   LIMIT 10")
 
