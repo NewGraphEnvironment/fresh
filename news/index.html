@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.50.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.51.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.51.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.51.0" id="fresh-0510">fresh 0.51.0<a class="anchor" aria-label="anchor" href="#fresh-0510"></a></h2>
+<p>Relates to <a href="https://github.com/NewGraphEnvironment/fresh/issues/277" class="external-link">#277</a>. Parts 1 and 2 of three; part 3 is a schema change and is not in this release.</p>
+<p><strong><code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> and <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code>’s bridged join match <code>watershed_group_code</code>.</strong> - Both wrote to a habitat table through a join on <code>id_segment</code> alone, which is unique only within a watershed group, so against a shared table such as <code>fresh.streams_habitat</code> they flagged habitat <code>TRUE</code> in groups the job never segmented. Both writes are additive, so no count went negative to show it. - <code><a href="../reference/frs_order_child.html">frs_order_child()</a></code> matches the group in its <code>UPDATE</code>, and its verbose “before” count takes the shared watershed-group clause, so the count it returns and the lines it prints are the job’s rather than the whole table’s. - <code>frs_habitat_overlay(bridge = )</code> matches the group in its three-way join. It now requires <code>watershed_group_code</code> on <code>bridge</code> and on <code>to</code>, because a caller cannot add it through <code>by</code>, which governs the bridge-to-source join only. The direct mode is unchanged — there the caller names every join column. - <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code> reads a table’s columns with <code>SELECT * FROM t LIMIT 0</code> rather than an <code>information_schema</code> lookup by literal schema and table name, which misses a <code>pg_temp</code> table or a mixed-case name. Same resolution <code><a href="../reference/frs_habitat_classify.html">frs_habitat_classify()</a></code> uses; error text and order are unchanged.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.50.1" id="fresh-0501">fresh 0.50.1<a class="anchor" aria-label="anchor" href="#fresh-0501"></a></h2>
 <p>Closes <a href="https://github.com/NewGraphEnvironment/fresh/issues/289" class="external-link">#289</a>. No change to the package’s functions.</p>

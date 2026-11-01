@@ -1,5 +1,36 @@
 # Changelog
 
+## fresh 0.51.0
+
+Relates to
+[\#277](https://github.com/NewGraphEnvironment/fresh/issues/277). Parts
+1 and 2 of three; part 3 is a schema change and is not in this release.
+
+**[`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md)
+and
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)’s
+bridged join match `watershed_group_code`.** - Both wrote to a habitat
+table through a join on `id_segment` alone, which is unique only within
+a watershed group, so against a shared table such as
+`fresh.streams_habitat` they flagged habitat `TRUE` in groups the job
+never segmented. Both writes are additive, so no count went negative to
+show it. -
+[`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md)
+matches the group in its `UPDATE`, and its verbose “before” count takes
+the shared watershed-group clause, so the count it returns and the lines
+it prints are the job’s rather than the whole table’s. -
+`frs_habitat_overlay(bridge = )` matches the group in its three-way
+join. It now requires `watershed_group_code` on `bridge` and on `to`,
+because a caller cannot add it through `by`, which governs the
+bridge-to-source join only. The direct mode is unchanged — there the
+caller names every join column. -
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)
+reads a table’s columns with `SELECT * FROM t LIMIT 0` rather than an
+`information_schema` lookup by literal schema and table name, which
+misses a `pg_temp` table or a mixed-case name. Same resolution
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+uses; error text and order are unchanged.
+
 ## fresh 0.50.1
 
 Closes [\#289](https://github.com/NewGraphEnvironment/fresh/issues/289).
