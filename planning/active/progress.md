@@ -139,3 +139,17 @@ the resume instruction is given.
   internals in the installed namespace.
 - **259 spanning blue lines re-derived** 2026-11-01, unchanged — the only
   measured figure in the NEWS entry carried over from the parked session.
+- **Round 1 of `/code-check branch` found two real bugs in this branch's own
+  code**, both reproduced before fixing (`findings.md`, "Round 1"):
+  the added-key NULL guard was a **one-shot proxy** — the ALTER has already run
+  when it raises, so the re-run its own error invites passes silently and the
+  stale NULL-key row survives for ever; and `wsg` **and** `aoi` together is a
+  subset job that was overwriting the whole watershed group, which also made
+  the NEWS repair instruction actively harmful. Fixed at the decision sites:
+  the guard asks the target for NULL-key rows on every call, and
+  `.frs_partition_wsg()` decides whether a job owns the group outright.
+- Also from round 1: the partition overwrite is now **one statement** (a
+  data-modifying CTE), closing the DELETE/INSERT window
+  `code-check-infra.md` names; `withr::defer()` in the audit script; and the
+  `IS NOT DISTINCT FROM` claim in three planning files reconciled with the `=`
+  that shipped.

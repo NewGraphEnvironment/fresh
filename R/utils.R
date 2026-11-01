@@ -1153,6 +1153,26 @@
 }
 
 
+#' Which watershed group a job owns outright
+#'
+#' [.frs_persist_delete_key()] keys a delete on `watershed_group_code` only
+#' where the job holds every row of that group, because the delete removes the
+#' whole group and the insert after it writes back what the job segmented.
+#' `frs_habitat()` accepts `wsg` **and** `aoi` together, and then the job holds
+#' a subset: a character `aoi` is ANDed into the group filter, and an `sf` or
+#' list `aoi` replaces the group predicate altogether, so the working table can
+#' even span groups. Both are subset jobs and key on the parent segment like
+#' any other custom AOI.
+#'
+#' @param wsg Character scalar. The watershed group the job is for.
+#' @param aoi The call's `aoi` argument, or `NULL`.
+#' @return `wsg` when the job covers the whole group, otherwise `NULL`.
+#' @noRd
+.frs_partition_wsg <- function(wsg, aoi) {
+  if (is.null(aoi)) wsg else NULL
+}
+
+
 #' Choose the partition-overwrite delete key for a persist target
 #'
 #' The single place the key is decided. [.frs_persist_delete_sql()] builds the
@@ -1162,8 +1182,11 @@
 #'
 #' Three keys, by what the tables carry:
 #'
-#' * **Watershed group**, when `wsg_code` is given. The job segmented the whole
-#'   group, so deleting it and reinserting is a clean replace.
+#' * **Watershed group**, when `wsg_code` is given. Deleting the group and
+#'   reinserting is a clean replace only where the job segmented the whole
+#'   group, so the caller passes `wsg_code` for exactly that case:
+#'   [.frs_partition_wsg()] is what decides it, and `frs_habitat()` passes
+#'   `NULL` whenever an `aoi` narrows a watershed-group job to a subset of it.
 #' * **Parent segment** (`linear_feature_id`), for a custom AOI. Every
 #'   `.frs_resolve_aoi()` arm is a row predicate, so an AOI selects whole FWA
 #'   segments and never truncates one at its boundary: a job holds all of the
@@ -1291,28 +1314,46 @@
   sql_delete <- .frs_persist_delete_sql(to, from, wsg_code,
                                         cols$cols_to, cols$cols_from)
 
-  # A key column this call just added holds NULL on every pre-existing row, so
-  # the delete matches none of them and the job's own earlier rows would
-  # duplicate instead of being replaced. Same shape as fresh#225. The key comes
-  # from the one chooser the statement above was built from, so this guard
-  # cannot end up checking a different column than the delete uses.
+  # A row whose key is NULL is matched by no partition delete, so it survives
+  # every run while the job's own rows are replaced beside it. Same shape as
+  # fresh#225. Ask the target for that condition directly, on every call: the
+  # obvious predicate -- "this call added the key column" -- is a proxy for it,
+  # and a one-shot one, because .frs_persist_columns() has already run the
+  # ALTER by the time we get here. A re-run after the error would find the
+  # column present, nothing newly added, and proceed to exactly the outcome the
+  # guard exists to prevent (measured: run 1 errors, run 2 writes the duplicate
+  # and every later run leaves it there). The key comes from the one chooser
+  # the statement above was built from, so the guard cannot end up checking a
+  # different column than the delete uses.
   key <- .frs_persist_delete_key(to, from, wsg_code, cols$cols_to, cols$cols_from)
-  if (key %in% cols$cols_added) {
-    n_pre <- DBI::dbGetQuery(conn, sprintf(
-      "SELECT count(*)::int AS n FROM %s", to))$n
-    if (length(n_pre) == 1 && !is.na(n_pre) && n_pre > 0) {
-      stop(sprintf(
-        "%s was missing %s, which has just been added, so its %d existing
-         row(s) hold NULL for it and the partition delete would match none of
-         them. Backfill %s in %s, or drop %s and re-run.",
-        to, key, n_pre, key, to, to), call. = FALSE)
+  n_null <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s WHERE %s IS NULL",
+    to, DBI::dbQuoteIdentifier(conn, key)))$n
+  if (length(n_null) == 1 && !is.na(n_null) && n_null > 0) {
+    why <- if (key %in% cols$cols_added) {
+      sprintf("%s was missing %s, which has just been added, so", to, key)
+    } else {
+      sprintf("%s holds rows with no %s, so", to, key)
     }
+    stop(sprintf(
+      "%s %d row(s) hold NULL for it and the partition delete would match
+       none of them -- they would survive this run and every later one.
+       Backfill %s in %s, or drop %s and re-run.",
+      why, n_null, key, to, to), call. = FALSE)
   }
 
-  .frs_db_execute(conn, sql_delete)
+  # One statement, not two. A DELETE and an INSERT autocommitted separately
+  # lose the partition if anything stops the pair between them -- a
+  # statement_timeout, a cancelled query, a dropped connection -- which is the
+  # same loss this issue is about, reached another way
+  # (code-check-infra.md, "Two-statement DELETE/INSERT into a persist table is
+  # not atomic"). A data-modifying CTE runs the delete exactly once, to
+  # completion, against the statement's own snapshot, so the insert's rows are
+  # not visible to it; one statement is atomic whether or not the caller holds
+  # a transaction open, which BEGIN/COMMIT here would not be.
   .frs_db_execute(conn, sprintf(
-    "INSERT INTO %s (%s) SELECT %s FROM %s",
-    to, cols$cols_sql, cols$cols_sql, from))
+    "WITH del AS (%s) INSERT INTO %s (%s) SELECT %s FROM %s",
+    sql_delete, to, cols$cols_sql, cols$cols_sql, from))
   invisible(NULL)
 }
 

@@ -28,7 +28,10 @@ out <- if (length(args) >= 2) args[[2]] else
   "data-raw/audit_persist_282_results.csv"
 
 conn <- frs_db_conn()
-on.exit(DBI::dbDisconnect(conn))
+# on.exit() at a script's top level registers on the global environment and
+# never fires (code-check-r.md), and the column check below can stop() with
+# the connection open.
+withr::defer(DBI::dbDisconnect(conn), envir = globalenv())
 # CLAUDE.md: both timeouts on any long DB op.
 DBI::dbExecute(conn, "SET statement_timeout = 900000")
 DBI::dbExecute(conn, "SET lock_timeout = 60000")

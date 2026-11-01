@@ -53,13 +53,15 @@ Auto-generated from \code{wsg} when available. Required when \code{wsg} is
 persistent stream segments. Accumulates across runs, and must not be the
 working table \verb{working.streams_<label>} that this call builds.
 
-Each run overwrites its own partition of the table before inserting. With
-\code{wsg}, the partition is the watershed group. With a custom \code{aoi}, it is the
-FWA segments the AOI covers, keyed on \code{linear_feature_id} — an AOI selects
-whole segments, never part of one, so every row the run is about to replace
-goes, including sub-segments an earlier run broke at different measures.
-Rows for ground the run does not cover are untouched, whichever watershed
-group they belong to.
+Each run overwrites its own partition of the table before inserting, in
+one statement, so a run that fails leaves the partition as it was. With
+\code{wsg} and no \code{aoi}, the partition is the watershed group. Otherwise — a
+custom \code{aoi}, or \code{wsg} \strong{and} \code{aoi} together, which narrows the job to a
+subset of the group — it is the FWA segments the run covers, keyed on
+\code{linear_feature_id}. An AOI selects whole segments, never part of one, so
+every row the run is about to replace goes, including sub-segments an
+earlier run broke at different measures. Rows for ground the run does not
+cover are untouched, whichever watershed group they belong to.
 
 Two limits. A target that carries no \code{linear_feature_id} is not the
 Freshwater Atlas, and the custom-AOI key falls back to \code{id_segment}, which

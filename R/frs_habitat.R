@@ -52,13 +52,15 @@
 #'   persistent stream segments. Accumulates across runs, and must not be the
 #'   working table `working.streams_<label>` that this call builds.
 #'
-#'   Each run overwrites its own partition of the table before inserting. With
-#'   `wsg`, the partition is the watershed group. With a custom `aoi`, it is the
-#'   FWA segments the AOI covers, keyed on `linear_feature_id` — an AOI selects
-#'   whole segments, never part of one, so every row the run is about to replace
-#'   goes, including sub-segments an earlier run broke at different measures.
-#'   Rows for ground the run does not cover are untouched, whichever watershed
-#'   group they belong to.
+#'   Each run overwrites its own partition of the table before inserting, in
+#'   one statement, so a run that fails leaves the partition as it was. With
+#'   `wsg` and no `aoi`, the partition is the watershed group. Otherwise — a
+#'   custom `aoi`, or `wsg` **and** `aoi` together, which narrows the job to a
+#'   subset of the group — it is the FWA segments the run covers, keyed on
+#'   `linear_feature_id`. An AOI selects whole segments, never part of one, so
+#'   every row the run is about to replace goes, including sub-segments an
+#'   earlier run broke at different measures. Rows for ground the run does not
+#'   cover are untouched, whichever watershed group they belong to.
 #'
 #'   Two limits. A target that carries no `linear_feature_id` is not the
 #'   Freshwater Atlas, and the custom-AOI key falls back to `id_segment`, which
@@ -322,7 +324,12 @@ frs_habitat <- function(conn, wsg = NULL,
       }
       job_label <- tolower(w)
 
-      list(label = job_label, aoi = job_aoi, species = sp, wsg = w)
+      # wsg names the group; partition_wsg says whether this job owns all of
+      # it, which is what decides the persist delete key. An aoi narrows the
+      # job to a subset, so the whole-group overwrite would delete rows the
+      # insert does not put back.
+      list(label = job_label, aoi = job_aoi, species = sp, wsg = w,
+           partition_wsg = .frs_partition_wsg(w, aoi))
     })
     wsg_specs <- Filter(Negate(is.null), wsg_specs)
   } else {
@@ -350,7 +357,8 @@ frs_habitat <- function(conn, wsg = NULL,
     }
 
     wsg_specs <- list(list(label = label, aoi = aoi,
-                           species = valid_sp, wsg = NULL))
+                           species = valid_sp, wsg = NULL,
+                           partition_wsg = NULL))
   }
 
   if (length(wsg_specs) == 0) {
@@ -390,7 +398,7 @@ frs_habitat <- function(conn, wsg = NULL,
     job_label <- spec$label
     job_aoi <- spec$aoi
     species <- spec$species
-    wsg_code <- spec$wsg  # NULL for custom AOI mode
+    wsg_code <- spec$partition_wsg  # NULL for a custom AOI or a subset job
     t0 <- proc.time()
 
     # 1. Determine gradient thresholds at which to break the network
@@ -572,7 +580,7 @@ frs_habitat <- function(conn, wsg = NULL,
       job_label <- spec$label
       job_aoi <- spec$aoi
       species <- spec$species
-      wsg_code <- spec$wsg
+      wsg_code <- spec$partition_wsg
       t0 <- proc.time()
 
       # Access thresholds (always) + extra thresholds (configurable).

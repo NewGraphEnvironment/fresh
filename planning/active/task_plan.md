@@ -58,9 +58,11 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
   So a `workers > 1` test of new code fails with "object not found" until
   `devtools::install()` runs — a hard error, not a skip.
 - **`watershed_group_code` is `NOT NULL` with 0 nulls in FWA** (measured), but
-  fresh is network-agnostic, so the predicate uses `IS NOT DISTINCT FROM`. #225
-  is the filed precedent: `.frs_quote_string(NA)` renders `'NA'`, which never
-  matches NULL.
+  fresh is network-agnostic, so a NULL in that column is possible on another
+  network. #225 is the filed precedent: `.frs_quote_string(NA)` renders `'NA'`,
+  which never matches NULL. **Shipped as `=` plus a NULL-key guard, not as
+  `IS NOT DISTINCT FROM`** — the guard covers all three keys, a predicate
+  change would have covered one.
 - **Nothing proposed here runs on CI** — `.github/workflows/` has no Postgres
   service, and `pg_temp` is a Postgres schema, so "unit" fixtures skip there too.
 
@@ -185,11 +187,16 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
       is correct (a one-group network); either one lacking it → `stop()` with a
       migration instruction. A silent fallback to a key just shown to be wrong is
       the workaround `CLAUDE.md` names as the signal to build a function instead.
-- [x] Guard the ALTER-before-DELETE hazard: when `watershed_group_code` was among
-      `.frs_persist_columns()`'s added columns, pre-existing rows hold NULL, and
-      `IS NOT DISTINCT FROM` will not match them against non-NULL source rows — so
-      the job's own prior rows **duplicate** instead of being replaced, where
-      today they are replaced. Detect and `stop()`. Same family as #225.
+- [x] Guard the NULL-key hazard: a row whose delete key is NULL is matched by no
+      partition delete, so it survives every run while the job's own rows are
+      replaced beside it. `.frs_persist_columns()`'s ALTER is one way in — a
+      column added now holds NULL on every pre-existing row — but not the only
+      one, so the guard asks the **target** for NULL-key rows on every call
+      rather than asking whether this call added the column. That proxy was
+      what shipped first, and round 1 of `/code-check branch` measured it
+      one-shot: the ALTER has already run when it raises, so a re-run finds
+      nothing newly added, the guard goes inert, and the duplicate lands.
+      Same family as #225.
 - [x] Widen `.frs_persist_columns()`'s return from a pasted string to a list
       (`cols_sql`, `cols_from`, `cols_added`) — it has exactly two callers
       (`R/frs_habitat.R:507`, `:668`), and the current return cannot answer either

@@ -762,4 +762,18 @@ test_that("both frs_habitat paths persist streams through the one helper", {
   # recomputing the key, so the two cannot drift apart.
   persist <- paste(deparse(body(.frs_persist_streams)), collapse = "\n")
   expect_true(grepl(".frs_persist_delete_key", persist, fixed = TRUE))
+
+  # The partition key comes from .frs_partition_wsg(), not from spec$wsg. The
+  # two differ exactly when wsg and aoi are given together: the job then holds
+  # a subset of the group, so a whole-group delete would remove rows the
+  # insert does not put back. .frs_partition_wsg() has its own unit test; this
+  # pins the wiring, which that test cannot see.
+  expect_equal(n_of(".frs_partition_wsg(", body_txt), 1L)
+  expect_equal(n_of("spec$partition_wsg", body_txt), 2L)
+  expect_equal(n_of("wsg_code <- spec$wsg", body_txt), 0L)
+
+  # The overwrite is one statement, so a failure cannot leave the partition
+  # deleted and not written back.
+  expect_true(grepl("WITH del AS", persist, fixed = TRUE))
+  expect_equal(n_of(".frs_db_execute", persist), 2L)
 })

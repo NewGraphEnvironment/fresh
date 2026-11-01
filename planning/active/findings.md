@@ -117,9 +117,17 @@ SELECT is_nullable, data_type FROM information_schema.columns
 
 Run against the default `frs_db_conn()` on 2026-10-28. `NOT NULL` with no nulls,
 so on FWA `=` would be safe. fresh is network-agnostic (`CLAUDE.md`, "Design
-principles"), and a spyda-built network's column need not be, so the predicate
-uses `IS NOT DISTINCT FROM`: `=` against a NULL matches nothing, which is the
-silent-no-op direction.
+principles"), and a spyda-built network's column need not be, so a NULL in it is
+the silent-no-op direction: `=` against NULL matches nothing.
+
+**What shipped is `watershed_group_code = '<code>'`, not `IS NOT DISTINCT
+FROM`.** The NULL case is handled where it generalises instead — the guard in
+`.frs_persist_streams()` refuses any target holding rows whose *key* is NULL,
+whichever of the three keys the job uses, so the hazard is closed for
+`linear_feature_id` and `id_segment` as well, and a row that no delete can ever
+match is reported rather than quietly worked around. A predicate change would
+have covered one key of three. Correcting the earlier plan text, which said the
+predicate would carry it.
 
 ### `id_segment` numbering — the first reading was wrong
 
@@ -592,3 +600,104 @@ geometry column. Will return a `data.frame`."* — from
 this branch. The 6 skips are the `FRESH_FWAPG_TRIAL` gate (4) and the two
 `bcfishpass`-schema `frs_params()` tests, which skip by design on a database
 without that schema.
+
+## Round 1 of `/code-check branch`, 2026-11-01
+
+Five findings, two bugs. Both bugs were in code this branch added, and both were
+reproduced here before being fixed.
+
+### The added-key guard was a one-shot proxy
+
+The guard refused a target whose key column *this call had added*. But
+`.frs_persist_columns()` runs the `ALTER TABLE ... ADD COLUMN` before the guard
+is reached, with no transaction around it, so the column is already on the
+target permanently when the error is raised. Reproduced on
+`working.gp_dst`, a target that predates `linear_feature_id` and holds one row:
+
+```
+run 1 : ERROR: working.gp_dst was missing linear_feature_id ...   dst = {NULL, 'stale'}
+run 2 : OK                                 dst = {NULL,'stale'}, {42,'job'}
+run 3 : OK                                 dst = {NULL,'stale'}, {42,'job'}
+```
+
+The error text says to re-run, and the re-run passes silently with neither
+remedy applied. Worse than no guard, because it reads as handled.
+
+"This call added the column" is a proxy for "the target holds rows whose key is
+NULL", and the property is directly measurable on every call. The guard now asks
+the target: `count(*) WHERE <key> IS NULL`, for whichever of the three keys the
+job uses — so it also covers a NULL `linear_feature_id` or `id_segment` arriving
+any other way, which the proxy never could. `cols_added` is still read, to say
+in the message whether the column was just added. Cost measured on
+`fresh.streams`, 3,802,814 rows: **1.43 s** for the count, against a persist that
+already deletes and inserts thousands of rows.
+
+The old tests dropped the target first, so only the cold path ran — which is why
+the mutation sweep credited the guard as covered. Both calls are now asserted.
+
+### `wsg` **and** `aoi` together is a subset job, and was overwriting the whole group
+
+`frs_habitat()` accepts both. `R/frs_habitat.R:316-322` ANDs a character `aoi`
+into the group filter, and for an `sf`/list `aoi` replaces the group predicate
+altogether. Either way the job holds a *subset* of the group — and the spec
+still carried `wsg = w`, so the persist deleted the whole group and inserted
+back only the subset. Every row of that group outside the AOI was lost; with an
+`sf` AOI the working table can also span groups, so rows of other groups were
+inserted and never deleted, duplicating. Pre-existing, and the same shape as
+#282 itself: a delete wider than the insert.
+
+Three claims this branch had added were false for that mode, and the worst of
+them was the repair instruction — "re-run the affected group with `wsg`" — since
+narrowing a repair with an `aoi` is exactly when someone reaches for it, and it
+would have made the damage larger.
+
+Fixed at the decision, not at the claims: `.frs_partition_wsg(wsg, aoi)` returns
+the group only when `aoi` is `NULL`, the spec carries it as `partition_wsg`
+beside `wsg` (which the verbose print still uses), and both persist calls read
+it. A subset job therefore keys on the parent segment like any other custom AOI,
+which is correct for both sub-cases, including one spanning groups. The roxygen,
+the `@param to_streams` entry and the NEWS line now say this.
+
+### The partition overwrite is one statement
+
+`code-check-infra.md`, "Two-statement DELETE/INSERT into a persist table is not
+atomic". fresh#114 removed the known cause of a failing INSERT, but a
+`statement_timeout`, a cancelled query or a dropped connection between the two
+autocommitted statements still loses the partition — the same loss as #282,
+reached another way. This branch created the single place where that is one fix.
+
+A data-modifying CTE, `WITH del AS (<delete>) INSERT INTO ... SELECT ...`, runs
+the delete exactly once and to completion against the statement's own snapshot,
+so the insert's rows are invisible to it. One statement is atomic whether or not
+the caller holds a transaction open, which `BEGIN`/`COMMIT` here would not be —
+RPostgres refuses a nested `dbBegin()`. Verified on a scratch pair: replaces
+rather than duplicates, leaves another group's row intact, and is idempotent
+across runs.
+
+The test for it forces the insert half to fail with a `NOT NULL` the source
+violates. Restoring the two-statement form in a copy of the package reddens it
+exactly as it should — `nrow(res)` 0 against 1, the partition deleted and not
+written back — so the assertion discriminates rather than passing on both
+shapes.
+
+### Two smaller ones
+
+- `data-raw/audit_persist_282.R` used `on.exit()` at a script's top level, which
+  never fires (`code-check-r.md`), and the column check below it can `stop()`
+  with the connection open. Now `withr::defer(..., envir = globalenv())`.
+- `findings.md`, `task_plan.md` and `review-plan.md` all said the watershed-group
+  predicate uses `IS NOT DISTINCT FROM`; the shipped statement is
+  `watershed_group_code = '<code>'`. Behaviourally moot, since `wsg_code` cannot
+  be NULL there, but the stale text was also the stated rationale for the guard
+  that finding 1 showed to be one-shot, so the two are reconciled together: the
+  NULL case is handled by a guard covering all three keys, not by the predicate.
+
+### Not changed
+
+The reviewer confirmed the custom-AOI key's premise independently —
+`linear_feature_id` is globally unique in FWA (4,907,441 rows / 4,907,441
+distinct) and 0 values span a watershed group — and found no injection surface,
+no `sprintf()` placeholder mismatch, and `.frs_persist_columns()` with exactly
+one non-test caller. The three accepted tradeoffs stand: `to_barriers` is #294,
+the `indentation_linter` lints match their neighbours, and `NEWS.md` 0.46.0 is
+history.

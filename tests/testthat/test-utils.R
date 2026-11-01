@@ -497,6 +497,17 @@ test_that(".frs_same_relation compares folded names", {
 })
 
 
+test_that(".frs_partition_wsg keeps the group only for a whole-group job", {
+  # The persist delete removes the whole group, so the group is the partition
+  # only when the job segmented all of it. frs_habitat() accepts wsg AND aoi
+  # together, and that job holds a subset: ANDed into the group filter for a
+  # character aoi, replacing it for an sf/list aoi.
+  expect_equal(.frs_partition_wsg("BULK", NULL), "BULK")
+  expect_null(.frs_partition_wsg("BULK", "gradient < 0.05"))
+  expect_null(.frs_partition_wsg("BULK", list(table = "x")))
+  expect_null(.frs_partition_wsg("BULK", data.frame(a = 1)))
+})
+
 test_that(".frs_persist_streams refuses a target whose key it just added", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
@@ -523,11 +534,58 @@ test_that(".frs_persist_streams refuses a target whose key it just added", {
        42::bigint AS linear_feature_id", src))
 
   expect_error(.frs_persist_streams(conn, dst, src, NULL),
-               "1 existing\\s+row\\(s\\) hold NULL")
+               "1 row\\(s\\) hold NULL")
   # The guard fires before the delete, so the pre-existing row is still there.
   expect_equal(
     DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", dst))$n,
     1L)
+
+  # The warm path, which is where the first version of this guard failed. Its
+  # predicate was "this call added the key column", and .frs_persist_columns()
+  # has already run the ALTER by the time the guard raises -- so a second call
+  # found nothing newly added, went inert, and wrote the duplicate the guard
+  # exists to prevent. The condition is a property of the target, not of this
+  # call, so it must still hold on every later run.
+  expect_error(.frs_persist_streams(conn, dst, src, NULL),
+               "1 row\\(s\\) hold NULL")
+  expect_error(.frs_persist_streams(conn, dst, src, NULL),
+               "holds rows with no linear_feature_id")
+  expect_equal(
+    DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", dst))$n,
+    1L)
+})
+
+test_that(".frs_persist_streams replaces its partition atomically", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_282_atomic_src"
+  dst <- "working.test_282_atomic_dst"
+  on.exit({
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  # A DELETE and an INSERT autocommitted separately lose the partition when
+  # anything stops the pair between them. Force the insert half to fail with a
+  # constraint the source violates, and the row the delete would have removed
+  # must still be there.
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s (linear_feature_id bigint, tag text NOT NULL)", dst))
+  DBI::dbExecute(conn, sprintf("INSERT INTO %s VALUES (42, 'mine')", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 42::bigint AS linear_feature_id,
+       NULL::text AS tag", src))
+
+  expect_error(.frs_persist_streams(conn, dst, src, NULL), "not-null|null value")
+  res <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT linear_feature_id, tag FROM %s", dst))
+  expect_equal(nrow(res), 1L)
+  expect_equal(res$tag, "mine")
 })
 
 test_that(".frs_persist_streams allows an empty target gaining the key", {

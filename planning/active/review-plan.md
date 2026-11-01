@@ -147,7 +147,14 @@ paths — and it carries a positive control, which the file-parsing version did 
 Two corrections the agent made to my own citations, both accepted: the
 `to_barriers` projection is `R/frs_break.R:350-357` (multiclass — the arm
 `frs_habitat()` actually reaches), not `:225-231`; and `#225` is the filed
-precedent for the NULL-group shape that `IS NOT DISTINCT FROM` preempts.
+precedent for the NULL-group shape.
+
+G1 is recorded above as the review stated it, which is history and stays. What
+shipped differs on both halves: the predicate is `=`, and the hazard is caught
+by a guard that refuses a target holding NULL-key rows for **any** of the three
+keys. The first version of that guard asked whether this call had added the key
+column, which round 1 of `/code-check branch` measured to be a one-shot proxy;
+it now asks the target directly. `findings.md` carries the reasoning.
 
 ## What the review did not change
 
