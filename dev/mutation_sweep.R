@@ -1,7 +1,10 @@
 #!/usr/bin/env Rscript
 # Mutation sweep: prove that each guard in R/ is caught by a named test
-# (fresh#280). Addresses every site by text, never by line number, so a
-# site list survives edits that do not touch the predicate itself.
+# (fresh#280). Addresses every site by text, never by line number, so an
+# edit elsewhere in the file does not move it. An occurrence index can
+# still move when a line with the same text is added above the guard, so a
+# site names the function it belongs to (`within`) and a site that
+# resolves outside it is refused.
 #
 # Usage, from the package root, with the tests' environment (PG* vars):
 #
@@ -16,6 +19,10 @@
 #   action       "delete" removes that line; "substitute" replaces the
 #                first `pattern` on that line with `replacement`
 #   replacement  for substitute; may be empty
+#   within       optional: the top-level function the site's line must be
+#                in; a site resolving anywhere else refuses the sweep. The
+#                function each site resolves to is printed and saved either
+#                way.
 # <test filter>: testthat's `filter`, a regex on test file names without
 #   the test- prefix and .R suffix, e.g. "frs_bucket_connected".
 # [results.csv]: defaults to <sites>_results.csv beside the site list.
@@ -125,6 +132,22 @@ sweep_line <- function(lines, site) {
   hits[site$occurrence]
 }
 
+# The top-level function whose definition spans `line` of an R file, or NA
+# when the line is outside every `name <- function(...)` at top level.
+sweep_enclosing <- function(path, line) {
+  ex <- parse(path, keep.source = TRUE)
+  refs <- attr(ex, "srcref")
+  for (k in seq_along(ex)) {
+    e <- ex[[k]]
+    if (refs[[k]][1] <= line && line <= refs[[k]][3] && is.call(e) &&
+        (identical(e[[1]], as.name("<-")) || identical(e[[1]], as.name("="))) &&
+        is.call(e[[3]]) && identical(e[[3]][[1]], as.name("function"))) {
+      return(as.character(e[[2]]))
+    }
+  }
+  NA_character_
+}
+
 # Apply one site's mutation to a file's lines.
 sweep_mutate <- function(lines, site) {
   i <- sweep_line(lines, site)
@@ -220,6 +243,9 @@ sweep_main <- function(args) {
   originals <- list()
   sites$line <- NA_integer_
   sites$text <- NA_character_
+  sites$fn <- NA_character_
+  if (is.null(sites$within)) sites$within <- ""
+  sites$within[is.na(sites$within)] <- ""
   for (k in seq_len(nrow(sites))) {
     f <- file.path(copy, sites$file[k])
     if (!file.exists(f)) {
@@ -230,10 +256,20 @@ sweep_main <- function(args) {
     }
     sites$line[k] <- sweep_line(originals[[sites$file[k]]], sites[k, ])
     sites$text[k] <- trimws(originals[[sites$file[k]]][sites$line[k]])
+    if (grepl("\\.[Rr]$", f)) sites$fn[k] <- sweep_enclosing(f, sites$line[k])
   }
   cat("sites resolve to:\n")
-  cat(sprintf("  %s  %s:%d  %s\n", sites$label, sites$file, sites$line, sites$text),
+  cat(sprintf("  %s  %s:%d in %s  %s\n", sites$label, sites$file, sites$line,
+              ifelse(is.na(sites$fn), "(no top-level function)", sites$fn), sites$text),
       sep = "")
+  moved <- nzchar(sites$within) & (is.na(sites$fn) | sites$fn != sites$within)
+  if (any(moved)) {
+    stop("site(s) resolve outside their `within` function, so the occurrence ",
+         "index points at another guard: ",
+         paste(sprintf("%s (in %s, want %s)", sites$label[moved],
+                       ifelse(is.na(sites$fn), "none", sites$fn), sites$within[moved]),
+               collapse = "; "))
+  }
 
   Sys.setenv(NOT_CRAN = "true")
   cat("baseline: filter", sQuote(filter), "\n")
@@ -280,7 +316,7 @@ sweep_main <- function(args) {
                           character(1)), collapse = " | ")
       cat(sprintf("[%d/%d] %s: ERROR %s\n", k, nrow(sites), site$label, msg))
       rows[[k]] <- data.frame(label = site$label, file = site$file,
-                              line = site$line, text = site$text,
+                              line = site$line, fn = site$fn, text = site$text,
                               action = site$action, occurrence = site$occurrence,
                               red = NA_integer_, skipped = NA_integer_,
                               caught = FALSE, caught_by = paste("ERROR:", msg),
@@ -291,10 +327,12 @@ sweep_main <- function(args) {
     once <- character(0)
     if (!is.null(r2)) {
       key1 <- sweep_keys(r)[r$red]
-      # An errored control or second run credits nothing
-      if (!inherits(u, "error") && !inherits(r2, "error")) {
+      # An errored control or second run credits nothing, and so does a
+      # control with any skip: a skipped test is not a green one, and
+      # fresh's skip_if_no_conn() turns a dropped connection into a skip
+      if (!inherits(u, "error") && !inherits(r2, "error") && attr(u, "n_skip") == 0) {
         hold <- key1 %in% sweep_keys(r2)[r2$red] &
-          key1 %in% sweep_keys(u)[!u$red]
+          key1 %in% sweep_keys(u)[!u$red & !u$skipped]
         caught_by <- r$test[r$red][hold]
         once <- r$test[r$red][!hold]
       } else {
@@ -307,7 +345,7 @@ sweep_main <- function(args) {
                                          "and green unmutated): ",
                                          paste(once, collapse = "; ")) else ""))
     rows[[k]] <- data.frame(label = site$label, file = site$file,
-                            line = site$line, text = site$text,
+                            line = site$line, fn = site$fn, text = site$text,
                             action = site$action, occurrence = site$occurrence,
                             red = length(caught_by), skipped = attr(r, "n_skip"),
                             caught = length(caught_by) > 0,
