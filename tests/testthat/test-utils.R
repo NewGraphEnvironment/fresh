@@ -154,14 +154,24 @@ test_that(".frs_persist_columns adds missing columns to a stale target (fresh#11
 
   cols <- .frs_persist_columns(conn, dst, src)
   DBI::dbExecute(conn, sprintf(
-    "INSERT INTO %s (%s) SELECT %s FROM %s", dst, cols, cols, src))
+    "INSERT INTO %s (%s) SELECT %s FROM %s",
+    dst, cols$cols_sql, cols$cols_sql, src))
 
   res <- DBI::dbGetQuery(conn, sprintf(
     "SELECT linear_feature_id, id_segment, mad_m3s FROM %s", dst))
   expect_equal(res$id_segment, 7L)
   expect_equal(res$mad_m3s, 0.5)
-  # Idempotent on an already-aligned target
-  expect_no_error(.frs_persist_columns(conn, dst, src))
+  # The widened return (fresh#282): which column was added, and the target's
+  # columns after alignment, are what .frs_persist_streams() keys its NULL
+  # guard on.
+  expect_equal(cols$cols_added, "mad_m3s")
+  expect_setequal(cols$cols_from,
+                  c("linear_feature_id", "mad_m3s", "id_segment"))
+  expect_setequal(cols$cols_to,
+                  c("linear_feature_id", "mad_m3s", "id_segment"))
+  # Idempotent on an already-aligned target, and nothing added the second time
+  expect_no_error(cols2 <- .frs_persist_columns(conn, dst, src))
+  expect_length(cols2$cols_added, 0)
 })
 
 test_that(".frs_persist_columns errors on a shared column type mismatch (fresh#114)", {
@@ -377,4 +387,111 @@ test_that(".frs_sql_exact writes 17 significant digits and refuses non-finite in
   for (bad in list(NA_real_, Inf, -Inf, NaN, c(1, 2), "1", NULL)) {
     expect_error(.frs_sql_exact(bad, "m"), "m must be a single finite number")
   }
+})
+
+
+# -- Persist partition delete (fresh#282) -------------------------------------
+# Pure-string tests: there is no Postgres service in .github/workflows/, so
+# these are the only proof of the delete key that runs on CI.
+
+test_that(".frs_persist_delete_sql keys a WSG job on the watershed group", {
+  sql <- .frs_persist_delete_sql("fresh.streams", "working.streams_bulk",
+    wsg_code = "BULK",
+    cols_to = c("id_segment", "watershed_group_code", "linear_feature_id"),
+    cols_from = c("id_segment", "watershed_group_code", "linear_feature_id"))
+  expect_match(sql, "^DELETE FROM fresh\\.streams WHERE watershed_group_code")
+  expect_match(sql, "'BULK'", fixed = TRUE)
+  expect_false(grepl("id_segment", sql))
+})
+
+test_that(".frs_persist_delete_sql quotes a WSG code rather than pasting it", {
+  # The mirai path used to interpolate '%s' raw while the sequential path went
+  # through .frs_quote_string(). One helper, one quoting rule.
+  sql <- .frs_persist_delete_sql("fresh.streams", "working.streams_x",
+    wsg_code = "O'HARA", cols_to = "watershed_group_code",
+    cols_from = "watershed_group_code")
+  expect_match(sql, "'O''HARA'", fixed = TRUE)
+})
+
+test_that(".frs_persist_delete_sql keys a custom AOI on the parent segment", {
+  cols <- c("id_segment", "watershed_group_code", "linear_feature_id",
+            "downstream_route_measure")
+  sql <- .frs_persist_delete_sql("fresh.streams", "working.streams_rich",
+    wsg_code = NULL, cols_to = cols, cols_from = cols)
+  expect_match(sql, "DELETE FROM fresh\\.streams WHERE linear_feature_id IN")
+  expect_match(sql, "SELECT linear_feature_id FROM working\\.streams_rich")
+  # Not the key fresh#282 was filed against: id_segment is unique only within
+  # a watershed group, and a job's derived ids collide with real same-group
+  # linear_feature_ids.
+  expect_false(grepl("id_segment", sql))
+  # And not the pair key either — it leaves those same-group collisions in.
+  expect_false(grepl("watershed_group_code", sql))
+})
+
+test_that(".frs_persist_delete_sql falls back to id_segment only off-FWA", {
+  cols <- c("id_segment", "watershed_group_code")
+  sql <- .frs_persist_delete_sql("other.segments", "working.segments_x",
+    wsg_code = NULL, cols_to = cols, cols_from = cols)
+  expect_match(sql, "WHERE id_segment IN \\(SELECT id_segment FROM")
+})
+
+test_that(".frs_persist_delete_sql errors when one side lacks the key", {
+  # A silent fallback here would be a fallback to the key fresh#282 showed to
+  # be wrong, so it must name the table and stop.
+  expect_error(
+    .frs_persist_delete_sql("fresh.streams", "working.streams_x",
+      wsg_code = NULL,
+      cols_to = c("id_segment", "linear_feature_id"),
+      cols_from = "id_segment"),
+    "working\\.streams_x"
+  )
+  expect_error(
+    .frs_persist_delete_sql("fresh.streams", "working.streams_x",
+      wsg_code = NULL,
+      cols_to = "id_segment",
+      cols_from = c("id_segment", "linear_feature_id")),
+    "fresh\\.streams"
+  )
+})
+
+test_that(".frs_persist_delete_sql errors with no key at all", {
+  expect_error(
+    .frs_persist_delete_sql("a.b", "c.d", wsg_code = NULL,
+      cols_to = "geom", cols_from = "geom"),
+    "no key to delete on"
+  )
+})
+
+test_that(".frs_persist_delete_sql errors when a WSG target lacks the column", {
+  expect_error(
+    .frs_persist_delete_sql("a.b", "c.d", wsg_code = "BULK",
+      cols_to = c("id_segment", "linear_feature_id"),
+      cols_from = c("id_segment", "linear_feature_id",
+                    "watershed_group_code")),
+    "no watershed_group_code column"
+  )
+})
+
+test_that(".frs_persist_delete_sql refuses a target equal to its source", {
+  # DELETE ... WHERE col IN (SELECT col FROM <same table>) matches every row
+  # against itself, so the table would empty and the INSERT would then read
+  # from the table it just emptied. Nothing validated this before.
+  cols <- c("id_segment", "linear_feature_id")
+  expect_error(
+    .frs_persist_delete_sql("working.streams_bulk", "working.streams_bulk",
+      wsg_code = NULL, cols_to = cols, cols_from = cols),
+    "same table"
+  )
+  # Case-insensitively, since Postgres folds an unquoted identifier.
+  expect_error(
+    .frs_persist_delete_sql("Working.Streams_Bulk", "working.streams_bulk",
+      wsg_code = "BULK", cols_to = "watershed_group_code",
+      cols_from = "watershed_group_code"),
+    "same table"
+  )
+})
+
+test_that(".frs_same_relation compares folded names", {
+  expect_true(.frs_same_relation("fresh.streams", "FRESH.Streams"))
+  expect_false(.frs_same_relation("fresh.streams", "fresh.streams_habitat"))
 })

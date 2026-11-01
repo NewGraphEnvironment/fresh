@@ -501,23 +501,7 @@ frs_habitat <- function(conn, wsg = NULL,
 
     # 5. Persist streams (if to_streams provided)
     if (!is.null(to_streams)) {
-      .frs_db_execute(w_conn, sprintf(
-        "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
-        to_streams, streams_tbl))
-      cols_insert <- .frs_persist_columns(w_conn, to_streams, streams_tbl)
-      # Partition delete: by WSG if available, otherwise by id_segment
-      if (!is.null(wsg_code)) {
-        .frs_db_execute(w_conn, sprintf(
-          "DELETE FROM %s WHERE watershed_group_code = %s",
-          to_streams, .frs_quote_string(wsg_code)))
-      } else {
-        .frs_db_execute(w_conn, sprintf(
-          "DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
-          to_streams, streams_tbl))
-      }
-      .frs_db_execute(w_conn, sprintf(
-        "INSERT INTO %s (%s) SELECT %s FROM %s",
-        to_streams, cols_insert, cols_insert, streams_tbl))
+      .frs_persist_streams(w_conn, to_streams, streams_tbl, wsg_code)
     }
 
     # 5b. Persist gradient barriers (if to_barriers provided)
@@ -662,22 +646,7 @@ frs_habitat <- function(conn, wsg = NULL,
         species, params, params_fresh, verbose = FALSE)
 
       if (!is.null(to_streams)) {
-        DBI::dbExecute(w_conn, sprintf(
-          "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
-          to_streams, streams_tbl))
-        cols_insert <- .frs_persist_columns(w_conn, to_streams, streams_tbl)
-        if (!is.null(wsg_code)) {
-          DBI::dbExecute(w_conn, sprintf(
-            "DELETE FROM %s WHERE watershed_group_code = '%s'",
-            to_streams, wsg_code))
-        } else {
-          DBI::dbExecute(w_conn, sprintf(
-            "DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
-            to_streams, streams_tbl))
-        }
-        DBI::dbExecute(w_conn, sprintf(
-          "INSERT INTO %s (%s) SELECT %s FROM %s",
-          to_streams, cols_insert, cols_insert, streams_tbl))
+        .frs_persist_streams(w_conn, to_streams, streams_tbl, wsg_code)
       }
 
       # Persist gradient barriers

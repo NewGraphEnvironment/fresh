@@ -155,8 +155,9 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
          equals `n1` — this half is what catches the duplicate regression below
       6. `expect_setequal(ids2, ids1)` — assert the determinism premise rather
          than assume it
-- [ ] Pure-string test of the SQL builder, which is the only proof that runs on
-      CI at all. **Moved to Phase 2**: the builder it tests is Phase 2's helper,
+- [x] Pure-string test of the SQL builder, which is the only proof that runs on
+      CI at all. Landed in Phase 2 as nine `tests/testthat/test-utils.R` cases.
+      **Moved to Phase 2**: the builder it tests is Phase 2's helper,
       so it cannot be written before the key is chosen.
 - [x] Confirm the test fails on `main` as written. It does, 2026-11-01: one
       failure, at the decoy-survives assertion, with the live-collision check and
@@ -165,35 +166,40 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
 
 ## Phase 2: One persist site instead of two
 
-- [ ] Split the helper so one half is testable without a database:
+- [x] Split the helper so one half is testable without a database:
       `.frs_persist_delete_sql(to, from, wsg_code, has_wsg)` returning a string,
       and `.frs_persist_streams(conn, to, from, wsg_code)` executing it.
-- [ ] Order inside the helper must stay CREATE → `.frs_persist_columns()` →
+- [x] Order inside the helper must stay CREATE → `.frs_persist_columns()` →
       DELETE → INSERT, with a comment saying why: `.frs_persist_columns()`'s own
       roxygen (`R/utils.R:969-978`) exists because an INSERT used to fail *after*
       the partition DELETE had run.
-- [ ] Scoped DELETE per Phase 0's decision. With `wsg_code` given, the existing
-      group delete, unchanged.
-- [ ] **Error, do not fall back, on column mismatch.** Four states: both tables
+- [x] Scoped DELETE per Phase 0's decision — the owner chose the **parent
+      segment** key, 2026-11-01: `DELETE … WHERE linear_feature_id IN (SELECT
+      linear_feature_id FROM <from>)`. With `wsg_code` given, the existing group
+      delete, unchanged except that both paths now quote the code through
+      `.frs_quote_string()` instead of one of them pasting `'%s'`.
+- [x] **Error, do not fall back, on column mismatch.** Four states: both tables
       carry `watershed_group_code` → scoped delete; **neither** → `id_segment`-only
       is correct (a one-group network); either one lacking it → `stop()` with a
       migration instruction. A silent fallback to a key just shown to be wrong is
       the workaround `CLAUDE.md` names as the signal to build a function instead.
-- [ ] Guard the ALTER-before-DELETE hazard: when `watershed_group_code` was among
+- [x] Guard the ALTER-before-DELETE hazard: when `watershed_group_code` was among
       `.frs_persist_columns()`'s added columns, pre-existing rows hold NULL, and
       `IS NOT DISTINCT FROM` will not match them against non-NULL source rows — so
       the job's own prior rows **duplicate** instead of being replaced, where
       today they are replaced. Detect and `stop()`. Same family as #225.
-- [ ] Widen `.frs_persist_columns()`'s return from a pasted string to a list
+- [x] Widen `.frs_persist_columns()`'s return from a pasted string to a list
       (`cols_sql`, `cols_from`, `cols_added`) — it has exactly two callers
       (`R/frs_habitat.R:507`, `:668`), and the current return cannot answer either
       the presence question or the NULL question.
-- [ ] Add the missing `to_streams != paste0("working.streams_", label)` check.
+- [x] Add the missing `to_streams != paste0("working.streams_", label)` check,
+      as `.frs_same_relation()` inside the builder, so it is one of the
+      CI-runnable cases.
       Nothing validates it today; the existing test carries the hazard as a
       comment only (`tests/testthat/test-frs_habitat.R:85`). With
       `DELETE … USING` where `to` and `from` are one relation, every row matches
       itself and the table empties.
-- [ ] Replace both blocks with the helper call (`R/frs_habitat.R:503-521`,
+- [x] Replace both blocks with the helper call (`R/frs_habitat.R:503-521`,
       `:664-681`), and match `.frs_wsg_in()`'s care (`R/utils.R:645-662`) — #242's
       solution to the same shared-table problem, including its note on why the
       inner column is deliberately qualified.
@@ -202,12 +208,18 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
 
 - [ ] Restore the defect inside the helper, confirm Phase 1's test reddens, put
       the fix back, confirm green.
-- [ ] Enumeration over the **parsed function**, not the files — a `list.files("R")`
+- [x] Enumeration over the **parsed function**, not the files — a `list.files("R")`
       check cannot fire, because `devtools::test()` runs from `tests/testthat` and
       a count of zero over zero passes, and there is no `R/` at all under
       `R CMD check`. The mirai closure is lexically inside `frs_habitat`'s body,
       so one assertion covers both paths, from an installed package, with no DB:
-      - no `"DELETE FROM"` in `deparse(body(frs_habitat))`
+      - no streams partition delete in `deparse(body(frs_habitat))`, and every
+        `DELETE FROM` left in it is the `to_barriers` `blue_line_key` one —
+        #294's scope, deliberately untouched. Pinned by count, so a new
+        unscoped delete cannot be added without reddening the test. (Adapted
+        from the plan's "no `DELETE FROM` at all", which `to_barriers`
+        staying makes unachievable.)
+      - `.frs_persist_streams(` appears exactly twice, one per path
       - `"watershed_group_code"` present in the SQL builder's body
       - `"DELETE"` present in the SQL builder's body — the positive control, so a
         renamed or deleted helper fails loudly instead of passing

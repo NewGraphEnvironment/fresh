@@ -1074,15 +1074,24 @@
 #' appended to per run. When the source gains a column (e.g. `mad_m3s`,
 #' fresh#114), a positional `INSERT ... SELECT *` into a target built by an
 #' older run fails — after the partition DELETE has already run. This adds
-#' any source columns the target lacks (same type) and returns the source
-#' column names, for use as an explicit `INSERT (cols) SELECT cols` list.
+#' any source columns the target lacks (same type) and reports the columns,
+#' for use as an explicit `INSERT (cols) SELECT cols` list.
 #' Errors if a column both tables share has a different type.
+#'
+#' A pasted string alone cannot answer the two questions
+#' [.frs_persist_streams()] has to ask before it deletes anything: whether a
+#' key column is present on each side, and whether it was one this call just
+#' added (in which case the target's pre-existing rows hold NULL for it, and a
+#' delete keyed on it matches none of them — fresh#282, same family as #225).
+#' So the return is a list.
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param to Character. Schema-qualified persist target (must exist).
 #' @param from Character. Schema-qualified source table.
-#' @return Character scalar: the source column names, quoted and
-#'   comma-joined, ready to splice into SQL.
+#' @return List with `cols_sql` (the source column names, quoted and
+#'   comma-joined, ready to splice into SQL), `cols_from`, `cols_to` (the
+#'   target's columns *after* alignment) and `cols_added` (those this call
+#'   added to the target), each an unquoted character vector.
 #' @noRd
 .frs_persist_columns <- function(conn, to, from) {
   .frs_validate_identifier(to, "persist target")
@@ -1119,7 +1128,172 @@
       to, DBI::dbQuoteIdentifier(conn, cols_missing$col[i]),
       cols_missing$type[i]))
   }
-  paste(DBI::dbQuoteIdentifier(conn, cols_from$col), collapse = ", ")
+  list(
+    cols_sql = paste(DBI::dbQuoteIdentifier(conn, cols_from$col),
+                     collapse = ", "),
+    cols_from = cols_from$col,
+    cols_to = union(cols_to, cols_missing$col),
+    cols_added = cols_missing$col
+  )
+}
+
+
+#' Does one table name denote the same relation as another
+#'
+#' [.frs_validate_identifier()] admits only `[A-Za-z_][A-Za-z0-9_.]*`, so a
+#' name carries no quoting or whitespace and Postgres folds it to lower case.
+#' A plain case-insensitive comparison is therefore exact for the names fresh
+#' accepts.
+#'
+#' @param a,b Character. Schema-qualified table names.
+#' @return Logical scalar.
+#' @noRd
+.frs_same_relation <- function(a, b) {
+  identical(tolower(a), tolower(b))
+}
+
+
+#' Build the partition-overwrite DELETE for a persist target
+#'
+#' Pure string builder, so the one proof of this that runs on CI needs no
+#' database (there is no Postgres service in `.github/workflows/`).
+#'
+#' Three keys, by what the tables carry:
+#'
+#' * **Watershed group**, when `wsg_code` is given. The job segmented the whole
+#'   group, so deleting it and reinserting is a clean replace.
+#' * **Parent segment** (`linear_feature_id`), for a custom AOI. Every
+#'   `.frs_resolve_aoi()` arm is a row predicate and nothing in the pipeline
+#'   clips geometry, so a job holds whole FWA segments and deleting the target's
+#'   rows for those segments is a complete replace — it clears sub-segments an
+#'   earlier run broke at other measures as well. No `linear_feature_id` spans a
+#'   watershed group (0, measured province-wide), so it can never reach another
+#'   group's rows.
+#' * **`id_segment`**, only when neither table carries `linear_feature_id` — a
+#'   network that is not the Freshwater Atlas, where `id_segment` is the only
+#'   identity there is.
+#'
+#' `id_segment` alone is **not** a fallback for an FWA table. It is unique only
+#' within a watershed group on a persisted table (fresh#218), and on a table
+#' built by current code a job's derived ids collide with real same-group
+#' `linear_feature_id`s (81 of 275 on a measured 464-row AOI), so keying on it
+#' deletes rows the job will not put back. That is fresh#282.
+#'
+#' @param to Character. Schema-qualified persist target.
+#' @param from Character. Schema-qualified source table.
+#' @param wsg_code Character or `NULL`. Watershed group being written.
+#' @param cols_to,cols_from Character vectors of column names.
+#' @return Character scalar: one `DELETE` statement.
+#' @noRd
+.frs_persist_delete_sql <- function(to, from, wsg_code, cols_to, cols_from) {
+  .frs_validate_identifier(to, "persist target")
+  .frs_validate_identifier(from, "persist source")
+  # DELETE ... WHERE col IN (SELECT col FROM <same table>) matches every row
+  # against itself, so the target would empty and the INSERT then read from the
+  # table it just emptied. The existing integration test carried this hazard as
+  # a comment only.
+  if (.frs_same_relation(to, from)) {
+    stop(sprintf(
+      "persist target and source are the same table (%s). Pass a to_streams
+       that differs from the working table working.streams_<label>.", to),
+      call. = FALSE)
+  }
+
+  if (!is.null(wsg_code)) {
+    if (!"watershed_group_code" %in% cols_to) {
+      stop(sprintf(
+        "%s has no watershed_group_code column, so a watershed-group job
+         cannot scope its delete. Drop or migrate %s and re-run.", to, to),
+        call. = FALSE)
+    }
+    return(sprintf(
+      "DELETE FROM %s WHERE watershed_group_code = %s",
+      to, .frs_quote_string(wsg_code)))
+  }
+
+  in_to <- "linear_feature_id" %in% cols_to
+  in_from <- "linear_feature_id" %in% cols_from
+  # One side only is a mismatch, not a reason to fall back: the fallback key is
+  # the one fresh#282 showed to be wrong, so say so instead of silently using
+  # it. CLAUDE.md names a workaround as the signal to build a function.
+  if (in_to != in_from) {
+    lacking <- if (in_to) from else to
+    stop(sprintf(
+      "%s carries linear_feature_id and %s does not, so a custom-AOI delete
+       has no key both tables share. Drop or migrate %s and re-run.",
+      if (in_to) to else from, lacking, lacking), call. = FALSE)
+  }
+  if (in_to) {
+    return(sprintf(
+      "DELETE FROM %s WHERE linear_feature_id IN (
+         SELECT linear_feature_id FROM %s)", to, from))
+  }
+
+  # Neither carries it — not an FWA network. id_segment is the only identity.
+  if (!("id_segment" %in% cols_to && "id_segment" %in% cols_from)) {
+    stop(sprintf(
+      "neither %s nor %s carries linear_feature_id, and id_segment is missing
+       from at least one of them, so there is no key to delete on.", to, from),
+      call. = FALSE)
+  }
+  sprintf("DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
+          to, from)
+}
+
+
+#' Persist a working streams table into a shared target
+#'
+#' The `to_streams` half of [frs_habitat()], for both the sequential and the
+#' mirai path — they ran two copies of this before fresh#282, and the copies
+#' had already drifted (one quoted `wsg_code` through
+#' [.frs_quote_string()], the other interpolated `'%s'` raw).
+#'
+#' Order is CREATE, then align columns, then DELETE, then INSERT, and it has to
+#' stay that way: [.frs_persist_columns()] raises on a column whose type
+#' differs between the tables, and an INSERT that failed *after* the partition
+#' DELETE had already run is what its own roxygen records.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param to Character. Schema-qualified persist target. Created if absent.
+#' @param from Character. Schema-qualified working table to persist.
+#' @param wsg_code Character or `NULL`. The watershed group being written, or
+#'   `NULL` for a custom AOI.
+#' @return NULL invisibly.
+#' @noRd
+.frs_persist_streams <- function(conn, to, from, wsg_code = NULL) {
+  .frs_validate_identifier(to, "persist target")
+  .frs_validate_identifier(from, "persist source")
+
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0", to, from))
+  cols <- .frs_persist_columns(conn, to, from)
+
+  sql_delete <- .frs_persist_delete_sql(to, from, wsg_code,
+                                        cols$cols_to, cols$cols_from)
+
+  # A key column this call just added holds NULL on every pre-existing row, so
+  # the delete matches none of them and the job's own earlier rows would
+  # duplicate instead of being replaced. Same shape as fresh#225.
+  key <- if (!is.null(wsg_code)) "watershed_group_code" else
+    if ("linear_feature_id" %in% cols$cols_to) "linear_feature_id" else
+      "id_segment"
+  if (key %in% cols$cols_added) {
+    n_pre <- DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*)::int AS n FROM %s", to))$n
+    if (length(n_pre) == 1 && !is.na(n_pre) && n_pre > 0) {
+      stop(sprintf(
+        "%s was missing %s, which has just been added, so its %d existing
+         row(s) hold NULL for it and the partition delete would match none of
+         them. Backfill %s in %s, or drop %s and re-run.",
+        to, key, n_pre, key, to, to), call. = FALSE)
+    }
+  }
+
+  .frs_db_execute(conn, sql_delete)
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (%s) SELECT %s FROM %s",
+    to, cols$cols_sql, cols$cols_sql, from))
+  invisible(NULL)
 }
 
 

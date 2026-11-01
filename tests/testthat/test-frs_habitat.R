@@ -718,3 +718,40 @@ test_that("custom-AOI persist keeps another group's row at a colliding id_segmen
   # 7. The determinism the above rests on, asserted rather than assumed.
   expect_setequal(ids2, ids1)
 })
+
+
+test_that("both frs_habitat paths persist streams through the one helper", {
+  # Enumeration over the parsed function, not over R/: devtools::test() runs
+  # from tests/testthat, and under R CMD check there is no R/ at all, so a
+  # list.files("R") check counts zero over zero and passes. The mirai closure
+  # is lexically inside frs_habitat's body, so this covers both paths with no
+  # database and no file paths.
+  body_txt <- paste(deparse(body(frs_habitat)), collapse = "\n")
+  n_of <- function(pat, x) {
+    m <- gregexpr(pat, x, fixed = TRUE)[[1]]
+    if (length(m) == 1 && m[[1]] == -1) 0L else length(m)
+  }
+
+  # Both paths call the helper.
+  expect_equal(n_of(".frs_persist_streams(", body_txt), 2L)
+
+  # Neither path carries a streams partition delete of its own.
+  expect_false(grepl("id_segment IN (SELECT id_segment", body_txt,
+                     fixed = TRUE))
+  expect_false(grepl("DELETE FROM %s WHERE watershed_group_code", body_txt,
+                     fixed = TRUE))
+
+  # Every DELETE left in the body is the to_barriers blue_line_key one, which
+  # is fresh#294's scope and deliberately untouched here. Pinning the count
+  # means a new unscoped delete cannot be added without reddening this.
+  expect_equal(n_of("DELETE FROM", body_txt),
+               n_of("blue_line_key IN", body_txt))
+  expect_equal(n_of("DELETE FROM", body_txt), 2L)
+
+  # Positive controls: a renamed or deleted builder fails loudly here rather
+  # than passing because its strings are simply absent.
+  builder <- paste(deparse(body(.frs_persist_delete_sql)), collapse = "\n")
+  expect_true(grepl("DELETE FROM", builder, fixed = TRUE))
+  expect_true(grepl("linear_feature_id", builder, fixed = TRUE))
+  expect_true(grepl("watershed_group_code", builder, fixed = TRUE))
+})
