@@ -495,3 +495,66 @@ test_that(".frs_same_relation compares folded names", {
   expect_true(.frs_same_relation("fresh.streams", "FRESH.Streams"))
   expect_false(.frs_same_relation("fresh.streams", "fresh.streams_habitat"))
 })
+
+
+test_that(".frs_persist_streams refuses a target whose key it just added", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_282_persist_src"
+  dst <- "working.test_282_persist_dst"
+  on.exit({
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  # A target from an older run that never carried linear_feature_id, holding a
+  # row. .frs_persist_columns() adds the column, so that row holds NULL for it
+  # and a delete keyed on it would match nothing — the job's own earlier rows
+  # would duplicate rather than be replaced. Same shape as fresh#225.
+  DBI::dbExecute(conn, sprintf("CREATE TABLE %s (id_segment integer)", dst))
+  DBI::dbExecute(conn, sprintf("INSERT INTO %s VALUES (7)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 7::integer AS id_segment,
+       42::bigint AS linear_feature_id", src))
+
+  expect_error(.frs_persist_streams(conn, dst, src, NULL),
+               "1 existing\\s+row\\(s\\) hold NULL")
+  # The guard fires before the delete, so the pre-existing row is still there.
+  expect_equal(
+    DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", dst))$n,
+    1L)
+})
+
+test_that(".frs_persist_streams allows an empty target gaining the key", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_282_empty_src"
+  dst <- "working.test_282_empty_dst"
+  on.exit({
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  # Same shape, no pre-existing rows: adding the column is harmless, so the
+  # guard must not fire. The cold path of the idempotent branch.
+  DBI::dbExecute(conn, sprintf("CREATE TABLE %s (id_segment integer)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 7::integer AS id_segment,
+       42::bigint AS linear_feature_id", src))
+
+  expect_no_error(.frs_persist_streams(conn, dst, src, NULL))
+  res <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT id_segment, linear_feature_id FROM %s", dst))
+  expect_equal(nrow(res), 1L)
+  expect_equal(res$id_segment, 7L)
+})

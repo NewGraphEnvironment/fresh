@@ -49,7 +49,26 @@
 #'   Auto-generated from `wsg` when available. Required when `wsg` is
 #'   `NULL` and `aoi` is provided.
 #' @param to_streams Character or `NULL`. Schema-qualified table for
-#'   persistent stream segments. Accumulates across runs.
+#'   persistent stream segments. Accumulates across runs, and must not be the
+#'   working table `working.streams_<label>` that this call builds.
+#'
+#'   Each run overwrites its own partition of the table before inserting. With
+#'   `wsg`, the partition is the watershed group. With a custom `aoi`, it is the
+#'   FWA segments the AOI covers, keyed on `linear_feature_id` — an AOI selects
+#'   whole segments, never part of one, so every row the run is about to replace
+#'   goes, including sub-segments an earlier run broke at different measures.
+#'   Rows for ground the run does not cover are untouched, whichever watershed
+#'   group they belong to.
+#'
+#'   Two limits. A target that carries no `linear_feature_id` is not the
+#'   Freshwater Atlas, and the custom-AOI key falls back to `id_segment`, which
+#'   is only sound where that column is unique across the whole table; a target
+#'   carrying it while the working table does not, or the reverse, is an error
+#'   rather than a fallback. And a table written by a release before 0.52.0 may
+#'   be missing rows: a custom-AOI run then keyed its delete on `id_segment`
+#'   alone, which is unique only within a watershed group, so it could remove
+#'   rows no run put back. Re-running an affected group with `wsg` repairs it,
+#'   the whole-group overwrite being self-healing.
 #' @param to_habitat Character or `NULL`. Schema-qualified table for
 #'   habitat classifications. Long format: one row per segment x species.
 #' @param break_sources List of additional break source specs (falls,
