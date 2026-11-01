@@ -1,5 +1,26 @@
 # Changelog
 
+## fresh 0.52.0
+
+Relates to
+[\#277](https://github.com/NewGraphEnvironment/fresh/issues/277). Part 3
+of three, which completes the fixes it lists; whether
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)’s
+direct mode should refuse an `id_segment` join without the group stays
+open there.
+
+**[`frs_feature_index()`](https://newgraphenvironment.github.io/fresh/reference/frs_feature_index.md)
+keys its output on `id_segment` and `watershed_group_code`.** - The
+output carried `id_segment` alone, which is unique only within a
+watershed group, so a `segments` table holding several groups, such as a
+persisted `fresh.streams`, collapsed its groups’ rows at a shared value
+into one array, and a caller had no second column to join on. - `to` now
+holds one row per segment of `segments`, carries `watershed_group_code`,
+and is indexed on both columns. Join it back on both, as the updated
+example does. - `segments` must carry `watershed_group_code`. A table
+without it is refused by name, before the `DROP` that `overwrite = TRUE`
+runs, so an existing `to` stays in place.
+
 ## fresh 0.51.0
 
 Relates to

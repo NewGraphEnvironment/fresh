@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.51.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.52.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.52.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.52.0" id="fresh-0520">fresh 0.52.0<a class="anchor" aria-label="anchor" href="#fresh-0520"></a></h2>
+<p>Relates to <a href="https://github.com/NewGraphEnvironment/fresh/issues/277" class="external-link">#277</a>. Part 3 of three, which completes the fixes it lists; whether <code><a href="../reference/frs_habitat_overlay.html">frs_habitat_overlay()</a></code>’s direct mode should refuse an <code>id_segment</code> join without the group stays open there.</p>
+<p><strong><code><a href="../reference/frs_feature_index.html">frs_feature_index()</a></code> keys its output on <code>id_segment</code> and <code>watershed_group_code</code>.</strong> - The output carried <code>id_segment</code> alone, which is unique only within a watershed group, so a <code>segments</code> table holding several groups, such as a persisted <code>fresh.streams</code>, collapsed its groups’ rows at a shared value into one array, and a caller had no second column to join on. - <code>to</code> now holds one row per segment of <code>segments</code>, carries <code>watershed_group_code</code>, and is indexed on both columns. Join it back on both, as the updated example does. - <code>segments</code> must carry <code>watershed_group_code</code>. A table without it is refused by name, before the <code>DROP</code> that <code>overwrite = TRUE</code> runs, so an existing <code>to</code> stays in place.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.51.0" id="fresh-0510">fresh 0.51.0<a class="anchor" aria-label="anchor" href="#fresh-0510"></a></h2>
 <p>Relates to <a href="https://github.com/NewGraphEnvironment/fresh/issues/277" class="external-link">#277</a>. Parts 1 and 2 of three; part 3 is a schema change and is not in this release.</p>
