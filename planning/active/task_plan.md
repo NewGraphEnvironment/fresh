@@ -136,12 +136,16 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
 
 ## Phase 1: Reproduce the loss, end to end
 
-- [ ] Integration test in `tests/testthat/test-frs_habitat.R`, following the
+- [x] Integration test in `tests/testthat/test-frs_habitat.R`, following the
       file's pattern: `skip_if_not(.frs_db_available(), "DB not available")`, the
       small ltree AOI the neighbouring tests use, `working.*` tables, `on.exit()`
       cleanup.
-- [ ] Assertions, in this order — the first draft asserted only survival, which a
-      no-op delete also satisfies:
+- [x] Assertions, in this order — the first draft asserted only survival, which a
+      no-op delete also satisfies. One addition from Phase 0: the decoy carries a
+      **different `linear_feature_id`**, because no FWA `linear_feature_id` spans
+      a watershed group, so a same-lfid decoy would be legitimately deleted by a
+      correctly scoped physical-identity or parent-segment key — the test would
+      then pass or fail on the key rather than on the defect:
       1. after run 1, capture `ids1` and `n1`
       2. insert one decoy row at an id from `ids1` with `watershed_group_code = 'OTHR'`
       3. **assert the collision is live** before asserting survival: the decoy id
@@ -152,8 +156,12 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
       6. `expect_setequal(ids2, ids1)` — assert the determinism premise rather
          than assume it
 - [ ] Pure-string test of the SQL builder, which is the only proof that runs on
-      CI at all.
-- [ ] Confirm the test fails on `main` as written.
+      CI at all. **Moved to Phase 2**: the builder it tests is Phase 2's helper,
+      so it cannot be written before the key is chosen.
+- [x] Confirm the test fails on `main` as written. It does, 2026-11-01: one
+      failure, at the decoy-survives assertion, with the live-collision check and
+      every other assertion passing. The branch carries no code change yet, so
+      that run is `main`'s behaviour.
 
 ## Phase 2: One persist site instead of two
 

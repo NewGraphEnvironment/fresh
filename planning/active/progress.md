@@ -73,3 +73,27 @@ cd /Users/airvine/Projects/repo/fresh && git fetch -q origin && git checkout 282
 
 The park approval covered the baseline only. The run-to-PR mandate starts when
 the resume instruction is given.
+
+## Session 2026-11-01 (resume — run-to-PR mandate)
+
+- Merged `origin/main` (v0.51.0) into the branch, clean. #277 parts 1 and 2 had
+  landed while parked, so `frs_order_child()` and `frs_habitat_overlay()` already
+  match `watershed_group_code`; the two `to_streams` delete sites are untouched at
+  `R/frs_habitat.R:515` and `:675`.
+- **Phase 0 measured** (`findings.md` A–F, commit `7f87793`). The re-opened key
+  decision is settled empirically against the pair key: on a table built by
+  current code the residual collisions are **same-group** — 81 of a job's 275
+  derived ids name a real FWA segment and all 81 are in the job's own group, 0
+  other-group. Found a third key the plan had not considered, the parent segment
+  (`linear_feature_id`), which is the only candidate correct against both table
+  generations and the only one that clears stale broken rows. Float equality in
+  the predicate is safe and measured. The key does **not** decide #293, contrary
+  to the resume premise — its targets carry no `linear_feature_id`.
+- **Phase 1 reproduced the loss end to end.** New integration test in
+  `tests/testthat/test-frs_habitat.R`, key-agnostic by construction (the decoy
+  carries a distinct `linear_feature_id`). Run against the unfixed code: one
+  failure, at the decoy-survives assertion, with the live-collision check passing
+  first. The pure-string builder test moves to Phase 2, which is where the builder
+  is written.
+- **Blocked at Phase 2** on the owner's key choice, which is the one decision the
+  resume instruction reserved. Options and numbers put back in the same session.

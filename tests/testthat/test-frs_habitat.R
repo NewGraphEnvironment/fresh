@@ -640,3 +640,81 @@ test_that("frs_habitat_access forwards only arguments its finders accept", {
                 info = cl$fn)
   }
 })
+
+
+# --- #282: custom-AOI persist must not delete other groups' rows -------------
+
+test_that("custom-AOI persist keeps another group's row at a colliding id_segment", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  tgt <- "working.persist_282_streams"
+  hab <- "working.persist_282_habitat"
+  # to_streams must NOT collide with the auto-generated working.streams_<label>
+  on.exit({
+    for (tbl in c(tgt, hab, paste0(hab, "_near_river"),
+                  "working.streams_p282a", "working.streams_p282b")) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+    }
+    DBI::dbExecute(conn, "DROP TABLE IF EXISTS decoy_282")
+    DBI::dbDisconnect(conn)
+  })
+  for (tbl in c(tgt, hab, paste0(hab, "_near_river"))) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+  }
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+  run <- function(label) {
+    frs_habitat(conn, aoi = aoi, species = "CO", label = label,
+      to_streams = tgt, to_habitat = hab, verbose = FALSE)
+  }
+  ids_of <- function(where) {
+    sort(DBI::dbGetQuery(conn, sprintf(
+      "SELECT id_segment FROM %s WHERE %s", tgt, where))$id_segment)
+  }
+  n_where <- function(where) {
+    DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*)::int AS n FROM %s WHERE %s", tgt, where))$n
+  }
+
+  # 1. First run establishes the job's own rows.
+  invisible(run("p282a"))
+  ids1 <- ids_of("TRUE")
+  n1 <- length(ids1)
+  expect_gt(n1, 0)
+
+  # 2. A decoy standing for another watershed group's row that happens to share
+  #    an id_segment. It must carry a DIFFERENT linear_feature_id: no FWA
+  #    linear_feature_id spans a watershed group (measured, 0 province-wide), so
+  #    a same-lfid row would not be another group's row at all — and a decoy
+  #    sharing it would be deleted by a correctly scoped physical-identity or
+  #    parent-segment key, making this test pass or fail on the key rather than
+  #    on the defect.
+  decoy_id <- ids1[1]
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS decoy_282")
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TEMPORARY TABLE decoy_282 AS
+       SELECT * FROM %s WHERE id_segment = %d LIMIT 1", tgt, decoy_id))
+  DBI::dbExecute(conn,
+    "UPDATE decoy_282
+        SET watershed_group_code = 'OTHR', linear_feature_id = -999")
+  DBI::dbExecute(conn, sprintf("INSERT INTO %s SELECT * FROM decoy_282", tgt))
+  expect_equal(n_where("watershed_group_code = 'OTHR'"), 1L)
+
+  # 3. Second run over the same ground, into the same shared table.
+  invisible(run("p282b"))
+  ids2 <- ids_of("watershed_group_code IS DISTINCT FROM 'OTHR'")
+
+  # 4. The collision is live — assert it before asserting survival, or a
+  #    no-op delete would satisfy the test.
+  expect_true(decoy_id %in% ids2)
+
+  # 5. The other group's row survives.
+  expect_equal(n_where("watershed_group_code = 'OTHR'"), 1L)
+
+  # 6. The job's own rows are replaced, not duplicated.
+  expect_equal(length(ids2), n1)
+
+  # 7. The determinism the above rests on, asserted rather than assumed.
+  expect_setequal(ids2, ids1)
+})
