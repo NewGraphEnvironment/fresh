@@ -271,3 +271,175 @@ The remaining `id_segment`-only joins under `R/frs_cluster.R`,
 | Review reported #218's measurement "impossible" because it could reach no `fresh` schema | The default `frs_db_conn()` does reach it. A subagent's negative about data availability is about its connection, not the world — re-probe before accepting it. |
 | Scoped-site audit passed two sites it should have failed | Asked "does the DELETE name the column" instead of "is the group set the right scope". Re-audit by what the scope *selects*, not by which identifiers appear. |
 | Province-wide `blue_line_key` aggregate times out on some connections | `DBI::dbExecute(conn, "SET statement_timeout = 240000")` before the query; `CLAUDE.md` prescribes `statement_timeout` + `lock_timeout` on long DB ops. |
+
+## Phase 0, 2026-11-01 — the key decision, measured on the table the fix writes
+
+All queries against the default `frs_db_conn()` target with
+`SET statement_timeout` / `lock_timeout`. Scripts:
+`/private/tmp/.../scratchpad/phase0_{target,working,b2,b3,c}.R` (scratch, not
+committed — every query is reproduced inline below).
+
+### A. The persisted target `fresh.streams`, re-verified today
+
+| measure | value |
+|---|---|
+| rows / groups | 3,802,814 / 98 |
+| `id_segment = linear_feature_id` (base) | **0** |
+| `id_segment <> linear_feature_id` (derived) | 3,802,814 |
+| duplicate `(id_segment, watershed_group_code)` | **0** |
+| duplicate `(linear_feature_id, downstream_route_measure)` | **0** |
+| `id_segment` values in >1 group | 113,305 |
+| `linear_feature_id` in >1 group | **0** |
+| `downstream_route_measure` integral / fractional | 2,518,505 / 1,284,309 |
+
+Unchanged from 2026-10-28, so `research/id_segment_identity.md` still holds.
+Column types: `id_segment integer`, `linear_feature_id bigint`,
+`downstream_route_measure double precision`, `watershed_group_code varchar`.
+
+### B. What a current-code custom-AOI job actually brings
+
+`frs_habitat(aoi = "wscode_ltree <@ '100.190442.999098.995997.058910.432966'",
+species = "CO")` — 464 rows, one group (ADMS), **189 base / 275 derived**, and
+within the job 0 duplicates on `id_segment` alone, on the pair, and on
+`(linear_feature_id, downstream_route_measure)`.
+
+The review's earlier figures (434 rows, 189 base / 245 derived) were the same AOI
+with a different species set — the base count is identical and only the break
+count moves, because `breaks_gradient` auto-derives from the species' spawn/rear
+maxima. Not nondeterminism: see D.
+
+**Against `fresh.streams` itself, all three candidate keys delete 0 rows** — ADMS
+is not among its 98 groups, and the two id spaces do not overlap anyway (a job's
+ids are `linear_feature_id`-scale, 1e7–9e8; the table's are 1..n per group,
+max 87,639). So the #282 loss does not materialise against the *legacy* table at
+all. It materialises against a target built by **current** code, which is what the
+blast radius below measures.
+
+### C. Blast radius in the id space (the generalizable number)
+
+Which real FWA segments share this job's `id_segment` values — i.e. which rows a
+target holding those groups would lose:
+
+```sql
+WITH job AS (SELECT DISTINCT id_segment,
+               bool_or(id_segment = linear_feature_id) AS is_base
+             FROM <job rows> GROUP BY id_segment),
+     jg AS (SELECT DISTINCT watershed_group_code FROM <job rows>)
+SELECT CASE WHEN j.is_base THEN 'base id' ELSE 'derived id' END,
+       CASE WHEN n.watershed_group_code IN (SELECT * FROM jg)
+            THEN 'same-group' ELSE 'other-group' END,
+       count(*)
+FROM job j JOIN whse_basemapping.fwa_stream_networks_sp n
+  ON n.linear_feature_id = j.id_segment
+GROUP BY 1,2;
+--> base id   | same-group | 189
+--> derived id| same-group |  81
+--> (no other-group rows at all)
+```
+
+**81 of the 275 derived ids name a real FWA segment, and every one of them is in
+the job's own group.** 0 other-group. So on a current-code-built table the
+residual collision is **same-group**, which confirms the review's B2/B3 and
+settles the re-opened decision: **the pair key fixes nothing here.** It also
+cannot be assumed unique, because those 81 derived ids each equal a real
+same-group `linear_feature_id`.
+
+Physical identity cannot reach another group by construction, and it is measured:
+
+```sql
+SELECT count(*) FROM <job rows> s
+JOIN whse_basemapping.fwa_stream_networks_sp n
+  ON n.linear_feature_id = s.linear_feature_id
+WHERE n.watershed_group_code IS DISTINCT FROM s.watershed_group_code;  --> 0
+```
+
+### D. A third key the plan did not consider: the parent segment
+
+`.frs_resolve_aoi()` (`R/utils.R:941-1000`) returns a **row predicate** in every
+arm — `&&`, `ST_Intersects`, a table lookup. There is no `ST_Intersection`,
+`frs_clip()` or `ST_LocateBetween` anywhere in `R/frs_habitat.R`,
+`R/frs_extract.R` or `R/frs_network_segment.R`, so **a job always holds whole FWA
+segments**, never a clipped part of one. Breaking happens inside the job.
+
+That makes `DELETE … WHERE linear_feature_id IN (SELECT linear_feature_id FROM <from>)`
+a complete and correct partition overwrite, and it is the only candidate that is
+correct against **both** table generations:
+
+| | pair key | physical identity | parent segment |
+|---|---|---|---|
+| can delete another group's rows | no, while the pair stays unique | **never** (0 lfids span groups, province-wide) | **never** (same) |
+| fixes the same-group residual (81 ids) | **no** | yes | yes |
+| clears stale broken rows left by an earlier, differently-broken run | no | no | **yes** |
+| correct against legacy `fresh.streams` | no — id spaces disjoint, deletes nothing | partly — see below | yes |
+| float comparison in the predicate | none | `double precision` `=` | none (`bigint`) |
+
+The legacy row of that table, measured:
+
+```sql
+SELECT count(*) AS n_bulk_rows,
+       sum((n.linear_feature_id IS NOT NULL)::int) AS n_at_fwa_base_measure,
+       sum((n.linear_feature_id IS NULL)::int)     AS n_at_broken_measure
+FROM fresh.streams f
+LEFT JOIN whse_basemapping.fwa_stream_networks_sp n
+  ON n.linear_feature_id = f.linear_feature_id
+ AND n.downstream_route_measure = f.downstream_route_measure
+WHERE f.watershed_group_code = 'BULK';
+--> 87,639 | 30,046 at an FWA base measure | 57,593 at a broken measure
+```
+
+So a current-code job over legacy BULK ground would, under physical identity,
+replace the 30,046 rows sitting at FWA's own measures and leave the 57,593
+broken-measure rows behind as stale duplicates of the same ground. Under the
+parent-segment key both go.
+
+### E. Is a float equality safe in the DELETE predicate?
+
+Yes, for the values in play, and the reason is not "floats compare fine":
+
+- **Derived rows: 275 of 275 have an integral measure.** `frs_break_apply()` writes
+  `round(b.downstream_route_measure::numeric, measure_precision)`
+  (`R/frs_break.R:612`) and `frs_habitat()` passes `measure_precision = 0L`
+  (`R/frs_habitat.R:232`). An integer below 2^53 converts to `double precision`
+  exactly, so the stored value is exact and `=` is exact.
+- **Base rows keep FWA's own double**, copied by `INSERT … SELECT` between two
+  `double precision` columns with no cast — bit-for-bit, so `=` is exact. (123 of
+  the job's 189 base measures are fractional, so this half matters.)
+- **The cross-run risk is recomputation, not representation.** The predicate
+  compares a measure this run computed against one a previous run stored. Measured
+  directly: two runs of the same AOI into one target produced 464 rows and 464
+  distinct `(linear_feature_id, downstream_route_measure)` pairs, each appearing
+  exactly once — the second run reproduced the first's measures exactly and
+  replaced rather than duplicated. But that is a property of break detection being
+  deterministic for the same AOI, not of the key. A *different* AOI over the same
+  ground can break at different measures, and then physical identity matches
+  nothing and leaves stale rows (the parent-segment key does not have this
+  failure).
+
+So: safe, but it buys a predicate whose correctness rests on an extra premise the
+parent-segment key does not need.
+
+### F. The key does not transfer to #293, and that is a separate finding
+
+Read #293 before writing any NEWS. Its targets carry **only** `id_segment` and
+`watershed_group_code` as identity:
+
+```
+fresh.streams_habitat_co        : id_segment, watershed_group_code, accessible,
+                                  spawning, rearing, lake_rearing, wetland_rearing
+<current code>_habitat          : + species_code
+```
+
+No `linear_feature_id`, no `downstream_route_measure`. So neither physical
+identity nor the parent-segment key can be used there without widening the
+habitat schema or joining back through the working streams table. #293's own fix
+— narrow the delete from whole groups to the job's own rows — can only be keyed
+on the pair on that table.
+
+And the pair is not sound there either, for exactly the reason in C: 81 of this
+one job's derived ids equal a real same-group `linear_feature_id`, so a pair-key
+delete on a habitat table built by current code can remove a legitimate
+same-group row. **Narrowing the group set does not fix that**; it needs
+`id_segment` to be unambiguous, or the habitat table to carry physical identity.
+That is a widening question for #293, and it is not resolved by whichever key
+#282 picks — contrary to the resume instruction's premise. Recorded here and
+owed to #293's body.

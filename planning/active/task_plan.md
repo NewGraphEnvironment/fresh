@@ -72,7 +72,12 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
   group** (measured twice on this connection). That one hits the **WSG** path too.
   The projection to widen is `R/frs_break.R:350-357` (the multiclass arm
   `frs_habitat()` actually reaches).
-- **Delete key: RE-OPENED.** The owner chose `(id_segment, watershed_group_code)`
+- **Delete key: RE-OPENED, now measured.** Phase 0 settled the empirical half on
+  2026-11-01 (`findings.md` A–F): the residual collisions on a current-code table
+  are **same-group**, so the pair key does not fix the defect; a third key, the
+  parent segment, is correct against both table generations and clears stale rows
+  as well. The choice itself is still the owner's. History below.
+- **Delete key, as it stood at the gate.** The owner chose `(id_segment, watershed_group_code)`
   on 2026-10-28, on the premise corrected above. Against a `fresh.streams`-era
   table the pair key fixes the loss and preserves a key that currently holds (0
   duplicate pairs in 3.8M rows). Against a table freshly built by current code,
@@ -85,14 +90,38 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
 
 ## Phase 0: Settle the mechanism before writing a test against it
 
-- [ ] Re-measure `id_segment` composition (base vs derived) and real collision
+- [x] Re-measure `id_segment` composition (base vs derived) and real collision
       partners on the database that holds the `to_streams` target, not on a
-      working table — both queries are in `review-plan.md`.
-- [ ] Establish which pipeline built `fresh.streams` as it stands, so the plan
-      says which table generation the fix is for.
+      working table. Done 2026-11-01, `findings.md` Phase 0 A–C. The headline:
+      **81 of a job's 275 derived ids name a real FWA segment and every one is
+      same-group, 0 other-group** — so the pair key fixes nothing on a
+      current-code table, and the re-opened decision is settled against it.
+- [x] Establish which pipeline built `fresh.streams` as it stands, so the plan
+      says which table generation the fix is for. Legacy: 0 of 3,802,814 rows
+      have `id_segment = linear_feature_id`, and a current-code job's ids cannot
+      collide with its 1..n-per-group ids at all, so **the #282 loss does not
+      materialise against the legacy table** — it materialises against a target
+      built by current code.
+- [x] A third key the plan had not considered, found while measuring: the
+      **parent segment**, `linear_feature_id IN (SELECT … FROM <from>)`. Jobs
+      always hold whole FWA segments (every `.frs_resolve_aoi()` arm is a row
+      predicate; no clipping anywhere in the pipeline), and 0 `linear_feature_id`
+      spans a watershed group province-wide. It is the only candidate correct
+      against both table generations, and the only one that clears stale
+      broken-segment rows. `findings.md` Phase 0 D.
+- [x] Float equality in the DELETE: **safe**, measured. Derived measures are 275
+      of 275 integral (`measure_precision = 0L` → `round(…::numeric, 0)`), base
+      measures are copied `double precision` to `double precision` with no cast,
+      and two runs of one AOI reproduced all 464 `(lfid, drm)` pairs exactly. The
+      residual risk is recomputation across *different* AOIs, which the
+      parent-segment key does not have. `findings.md` Phase 0 E.
 - [ ] Put the key choice back to the owner with those numbers: pair key vs
-      physical identity. If the pair key stands, the branch must state plainly
-      what it does not fix.
+      physical identity vs parent segment. **Correction to the resume
+      instruction's premise:** this does *not* decide #293. Its targets carry only
+      `id_segment` and `watershed_group_code` (measured, `findings.md` Phase 0 F),
+      so neither physical identity nor the parent-segment key is available there
+      without widening the habitat schema — and the pair key is unsound there for
+      the same same-group reason. Owed to #293's body either way.
 - [x] Correct the mechanism where the claim was: `CLAUDE.md` corrected on `main`
       (`4d65b96`), pointing at the new `research/id_segment_identity.md`, which
       carries both artifacts with their queries. **`NEWS.md` 0.46.0 and the
