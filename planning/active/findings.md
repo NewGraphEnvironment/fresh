@@ -443,3 +443,75 @@ same-group row. **Narrowing the group set does not fix that**; it needs
 That is a widening question for #293, and it is not resolved by whichever key
 #282 picks — contrary to the resume instruction's premise. Recorded here and
 owed to #293's body.
+
+## Phase 3-4, 2026-11-01
+
+### Damage already in the wild: none attributable to #282
+
+`data-raw/audit_persist_282.R` against `fresh.streams`, 98 groups:
+
+| groups | with a shortfall | segments missing |
+|---|---|---|
+| 98 | 3 (LPCE, KETL, CHWK) | 34 |
+
+All 34 are `edge_type` 6010 — "Construction Line, connectors (for streams that
+leave and re-enter a watershed group)" (`inst/extdata/edge_types.csv:41`) — and
+every one of their blue lines is present in the table. A shortfall that is
+uniform by edge type with the blue line retained is a filter's signature, not row
+loss; `R/frs_break.R:192` and `:314` exclude that edge type explicitly.
+
+This agrees with Phase 0 rather than adding to it: the loss **cannot** have
+happened on this table, because a current-code job's `id_segment` values are
+`linear_feature_id`-scale and the table's are 1..n per group, so the broken
+delete matches nothing there. The audit is kept for a table built by current
+code, where the same query is the detector.
+
+### lintr
+
+| tree | lints |
+|---|---|
+| `origin/main` | 1400 |
+| this branch | 1425 |
+
++25, every one `indentation_linter` on a continuation line, in the same style as
+the code around it — the linter's hanging-indent rule is unmet across the package
+(1400 pre-existing, 293 of them in the files this branch touches), so matching it
+locally would make these lines inconsistent with their neighbours.
+`CLAUDE.md`'s "Surgical Changes" prefers the neighbours. The three
+non-`indentation_linter` lints in the touched files are all pre-existing
+(`object_length_linter` on `.frs_validate_gradient_thresholds`, and a semicolon
+and a long line in tests predating this branch).
+
+Two `object_usage_linter` warnings — *"no visible global function definition for
+`.frs_persist_streams`"* — appeared first and were the stale installed package,
+exactly as `code-check-r.md` describes: `exists(".frs_persist_streams",
+asNamespace("fresh"))` was `FALSE` against the installed 0.51.0. Both cleared
+after `devtools::install()`, with no code change.
+
+### Issue bodies reconciled
+
+- **#282** — the body stated the wrong `id_segment` mechanism and proposed the
+  pair key. Corrected in place, with the measured sections replacing "Not yet
+  measured" and the superseded proposal struck rather than deleted.
+- **#293** — the owner's call was to record the finding there. Its body now
+  separates the scope defect it was filed for from the second defect measured
+  here (`id_segment` ambiguity on a current-code table, 81 of 275 derived ids),
+  states that its targets carry no `linear_feature_id` so #282's key is
+  unavailable, and lays out (a) widen the schema, (b) key through the working
+  table, (c) make `id_segment` unambiguous — undecided, which is right, since it
+  is a stored-data decision.
+
+### #295's question, as this release answers it
+
+`NEWS.md` 0.46.0's wrong sentence is **not** rewritten. A changelog entry is
+history; this release's entry carries the correction and points at
+`research/id_segment_identity.md`. #295 stays open for #231's body, which is not
+this branch's.
+
+### Phase 4 item that is moot
+
+"File the same-group `id_segment` key question, sibling of #218 — only if Phase 0
+keeps the pair key." The owner chose the parent segment, so `to_streams` no
+longer keys on `id_segment` at all and the question does not arise there. Where
+it does arise is #293, and it is now option (c) in that body — so it is filed,
+not dropped, and not duplicated into a new issue.

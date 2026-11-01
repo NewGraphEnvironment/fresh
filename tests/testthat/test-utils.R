@@ -558,3 +558,58 @@ test_that(".frs_persist_streams allows an empty target gaining the key", {
   expect_equal(nrow(res), 1L)
   expect_equal(res$id_segment, 7L)
 })
+
+
+test_that("the delete key chooser and the statement it builds never disagree", {
+  # The guard in .frs_persist_streams() and the DELETE itself must be about the
+  # same column. Asserted as a property over every column set that reaches a
+  # key, rather than by reading two code paths and finding them consistent --
+  # "one fact derived twice" is the shape this is here to prevent.
+  cases <- list(
+    list(wsg = "BULK", to = c("id_segment", "watershed_group_code",
+                              "linear_feature_id"),
+         from = c("id_segment", "watershed_group_code",
+                  "linear_feature_id")),
+    list(wsg = "BULK", to = c("id_segment", "watershed_group_code"),
+         from = c("id_segment", "watershed_group_code")),
+    list(wsg = NULL, to = c("id_segment", "watershed_group_code",
+                            "linear_feature_id"),
+         from = c("id_segment", "watershed_group_code",
+                  "linear_feature_id")),
+    list(wsg = NULL, to = c("id_segment", "linear_feature_id"),
+         from = c("id_segment", "linear_feature_id")),
+    list(wsg = NULL, to = c("id_segment", "watershed_group_code"),
+         from = c("id_segment", "watershed_group_code")),
+    list(wsg = NULL, to = "id_segment", from = "id_segment")
+  )
+  for (cs in cases) {
+    key <- .frs_persist_delete_key("fresh.streams", "working.streams_x",
+      cs$wsg, cs$to, cs$from)
+    sql <- .frs_persist_delete_sql("fresh.streams", "working.streams_x",
+      cs$wsg, cs$to, cs$from)
+    expect_match(sql, paste0("WHERE ", key), fixed = TRUE,
+                 info = paste(key, "|", paste(cs$to, collapse = ",")))
+    # And no other candidate key is named by the statement.
+    for (other in setdiff(c("id_segment", "watershed_group_code",
+                            "linear_feature_id"), key)) {
+      expect_false(grepl(paste0("WHERE ", other), sql, fixed = TRUE),
+                   info = paste("statement names", other, "not", key))
+    }
+  }
+})
+
+test_that(".frs_persist_delete_key returns the three keys it should", {
+  expect_equal(
+    .frs_persist_delete_key("a.b", "c.d", "BULK",
+      c("id_segment", "watershed_group_code"),
+      c("id_segment", "watershed_group_code")),
+    "watershed_group_code")
+  expect_equal(
+    .frs_persist_delete_key("a.b", "c.d", NULL,
+      c("id_segment", "linear_feature_id"),
+      c("id_segment", "linear_feature_id")),
+    "linear_feature_id")
+  expect_equal(
+    .frs_persist_delete_key("a.b", "c.d", NULL, "id_segment", "id_segment"),
+    "id_segment")
+})

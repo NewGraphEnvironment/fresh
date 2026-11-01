@@ -1153,10 +1153,12 @@
 }
 
 
-#' Build the partition-overwrite DELETE for a persist target
+#' Choose the partition-overwrite delete key for a persist target
 #'
-#' Pure string builder, so the one proof of this that runs on CI needs no
-#' database (there is no Postgres service in `.github/workflows/`).
+#' The single place the key is decided. [.frs_persist_delete_sql()] builds the
+#' statement from what this returns and [.frs_persist_streams()] checks its
+#' added-column guard against it, so the two cannot disagree about which column
+#' the delete is keyed on.
 #'
 #' Three keys, by what the tables carry:
 #'
@@ -1183,6 +1185,53 @@
 #' @param from Character. Schema-qualified source table.
 #' @param wsg_code Character or `NULL`. Watershed group being written.
 #' @param cols_to,cols_from Character vectors of column names.
+#' @return Character scalar: the column name to key the delete on.
+#' @noRd
+.frs_persist_delete_key <- function(to, from, wsg_code, cols_to, cols_from) {
+  if (!is.null(wsg_code)) {
+    if (!"watershed_group_code" %in% cols_to) {
+      stop(sprintf(
+        "%s has no watershed_group_code column, so a watershed-group job
+         cannot scope its delete. Drop or migrate %s and re-run.", to, to),
+        call. = FALSE)
+    }
+    return("watershed_group_code")
+  }
+
+  in_to <- "linear_feature_id" %in% cols_to
+  in_from <- "linear_feature_id" %in% cols_from
+  # One side only is a mismatch, not a reason to fall back: the fallback key is
+  # the one fresh#282 showed to be wrong, so say so instead of silently using
+  # it. CLAUDE.md names a workaround as the signal to build a function.
+  if (in_to != in_from) {
+    lacking <- if (in_to) from else to
+    stop(sprintf(
+      "%s carries linear_feature_id and %s does not, so a custom-AOI delete
+       has no key both tables share. Drop or migrate %s and re-run.",
+      if (in_to) to else from, lacking, lacking), call. = FALSE)
+  }
+  if (in_to) return("linear_feature_id")
+
+  # Neither carries it — not an FWA network. id_segment is the only identity.
+  if (!("id_segment" %in% cols_to && "id_segment" %in% cols_from)) {
+    stop(sprintf(
+      "neither %s nor %s carries linear_feature_id, and id_segment is missing
+       from at least one of them, so there is no key to delete on.", to, from),
+      call. = FALSE)
+  }
+  "id_segment"
+}
+
+
+#' Build the partition-overwrite DELETE for a persist target
+#'
+#' The statement for the key [.frs_persist_delete_key()] chose. Pure string
+#' builder, so the one proof of this that runs on CI needs no database.
+#'
+#' @param to Character. Schema-qualified persist target.
+#' @param from Character. Schema-qualified source table.
+#' @param wsg_code Character or `NULL`. Watershed group being written.
+#' @param cols_to,cols_from Character vectors of column names.
 #' @return Character scalar: one `DELETE` statement.
 #' @noRd
 .frs_persist_delete_sql <- function(to, from, wsg_code, cols_to, cols_from) {
@@ -1199,45 +1248,14 @@
       call. = FALSE)
   }
 
-  if (!is.null(wsg_code)) {
-    if (!"watershed_group_code" %in% cols_to) {
-      stop(sprintf(
-        "%s has no watershed_group_code column, so a watershed-group job
-         cannot scope its delete. Drop or migrate %s and re-run.", to, to),
-        call. = FALSE)
-    }
+  key <- .frs_persist_delete_key(to, from, wsg_code, cols_to, cols_from)
+  if (identical(key, "watershed_group_code")) {
     return(sprintf(
       "DELETE FROM %s WHERE watershed_group_code = %s",
       to, .frs_quote_string(wsg_code)))
   }
-
-  in_to <- "linear_feature_id" %in% cols_to
-  in_from <- "linear_feature_id" %in% cols_from
-  # One side only is a mismatch, not a reason to fall back: the fallback key is
-  # the one fresh#282 showed to be wrong, so say so instead of silently using
-  # it. CLAUDE.md names a workaround as the signal to build a function.
-  if (in_to != in_from) {
-    lacking <- if (in_to) from else to
-    stop(sprintf(
-      "%s carries linear_feature_id and %s does not, so a custom-AOI delete
-       has no key both tables share. Drop or migrate %s and re-run.",
-      if (in_to) to else from, lacking, lacking), call. = FALSE)
-  }
-  if (in_to) {
-    return(sprintf(
-      "DELETE FROM %s WHERE linear_feature_id IN (
-         SELECT linear_feature_id FROM %s)", to, from))
-  }
-
-  # Neither carries it — not an FWA network. id_segment is the only identity.
-  if (!("id_segment" %in% cols_to && "id_segment" %in% cols_from)) {
-    stop(sprintf(
-      "neither %s nor %s carries linear_feature_id, and id_segment is missing
-       from at least one of them, so there is no key to delete on.", to, from),
-      call. = FALSE)
-  }
-  sprintf("DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
-          to, from)
+  sprintf("DELETE FROM %s WHERE %s IN (SELECT %s FROM %s)",
+          to, key, key, from)
 }
 
 
@@ -1273,10 +1291,10 @@
 
   # A key column this call just added holds NULL on every pre-existing row, so
   # the delete matches none of them and the job's own earlier rows would
-  # duplicate instead of being replaced. Same shape as fresh#225.
-  key <- if (!is.null(wsg_code)) "watershed_group_code" else
-    if ("linear_feature_id" %in% cols$cols_to) "linear_feature_id" else
-      "id_segment"
+  # duplicate instead of being replaced. Same shape as fresh#225. The key comes
+  # from the one chooser the statement above was built from, so this guard
+  # cannot end up checking a different column than the delete uses.
+  key <- .frs_persist_delete_key(to, from, wsg_code, cols$cols_to, cols$cols_from)
   if (key %in% cols$cols_added) {
     n_pre <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*)::int AS n FROM %s", to))$n

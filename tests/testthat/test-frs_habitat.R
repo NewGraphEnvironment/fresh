@@ -748,10 +748,18 @@ test_that("both frs_habitat paths persist streams through the one helper", {
                n_of("blue_line_key IN", body_txt))
   expect_equal(n_of("DELETE FROM", body_txt), 2L)
 
-  # Positive controls: a renamed or deleted builder fails loudly here rather
-  # than passing because its strings are simply absent.
+  # Positive controls, each against the function that owns the string: a
+  # renamed or deleted helper fails loudly here rather than passing because
+  # the text it was matched on is simply absent. The builder writes the
+  # statement; the chooser is the one place the key column is named.
   builder <- paste(deparse(body(.frs_persist_delete_sql)), collapse = "\n")
+  chooser <- paste(deparse(body(.frs_persist_delete_key)), collapse = "\n")
   expect_true(grepl("DELETE FROM", builder, fixed = TRUE))
-  expect_true(grepl("linear_feature_id", builder, fixed = TRUE))
-  expect_true(grepl("watershed_group_code", builder, fixed = TRUE))
+  expect_true(grepl(".frs_persist_delete_key", builder, fixed = TRUE))
+  expect_true(grepl("linear_feature_id", chooser, fixed = TRUE))
+  expect_true(grepl("watershed_group_code", chooser, fixed = TRUE))
+  # The guard in .frs_persist_streams() asks the chooser rather than
+  # recomputing the key, so the two cannot drift apart.
+  persist <- paste(deparse(body(.frs_persist_streams)), collapse = "\n")
+  expect_true(grepl(".frs_persist_delete_key", persist, fixed = TRUE))
 })
