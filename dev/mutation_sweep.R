@@ -267,7 +267,7 @@ sweep_main <- function(args) {
     stop("site(s) resolve outside their `within` function, so the occurrence ",
          "index points at another guard: ",
          paste(sprintf("%s (in %s, want %s)", sites$label[moved],
-                       ifelse(is.na(sites$fn), "none", sites$fn), sites$within[moved]),
+                       ifelse(is.na(sites$fn[moved]), "none", sites$fn[moved]), sites$within[moved]),
                collapse = "; "))
   }
 
