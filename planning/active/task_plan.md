@@ -115,8 +115,10 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
       and two runs of one AOI reproduced all 464 `(lfid, drm)` pairs exactly. The
       residual risk is recomputation across *different* AOIs, which the
       parent-segment key does not have. `findings.md` Phase 0 E.
-- [ ] Put the key choice back to the owner with those numbers: pair key vs
-      physical identity vs parent segment. **Correction to the resume
+- [x] Put the key choice back to the owner with those numbers: pair key vs
+      physical identity vs parent segment. Answered 2026-11-01 — **parent
+      segment**, and the #293 fallout recorded in #293's body.
+      (Original wording follows.) **Correction to the resume
       instruction's premise:** this does *not* decide #293. Its targets carry only
       `id_segment` and `watershed_group_code` (measured, `findings.md` Phase 0 F),
       so neither physical identity nor the parent-segment key is available there
@@ -223,31 +225,45 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
       - `"watershed_group_code"` present in the SQL builder's body
       - `"DELETE"` present in the SQL builder's body — the positive control, so a
         renamed or deleted helper fails loudly instead of passing
-- [ ] `devtools::install()` then run the `workers > 1` path, or the parallel test
-      fails with "object not found" rather than skipping.
+- [x] `devtools::install()` run, which also cleared the two
+      `object_usage_linter` warnings for `.frs_persist_streams` — the stale
+      installed package, not a defect (`exists()` against the installed 0.51.0
+      was `FALSE`). `workers > 1` path still to run.
 - [ ] `devtools::test()` and `lintr::lint_package()` clean; `/code-check branch`,
       three rounds minimum, continuing while a round finds a defect inside the
       previous fix.
 
 ## Phase 4: Docs, repair, release
 
-- [ ] `frs_habitat()` roxygen for `to_streams`: write the limit from the
+- [x] `frs_habitat()` roxygen for `to_streams`: write the limit from the
       measurement, not from the model. Any custom AOI persisted into a table that
       already holds its own group both loses rows outside the AOI and leaves
       stale broken-segment rows behind — broader than "two custom AOIs in one
       group". `devtools::document()`.
-- [ ] `data-raw/` audit for damage already in the wild: per group in
+- [x] `data-raw/audit_persist_282.R`. Run: 98 groups, 3 with a shortfall, 34
+      segments, and all 34 are `edge_type` 6010 construction-line connectors
+      with their blue lines present — a filter's signature, not loss. Agrees
+      with Phase 0, which says the loss cannot have happened on this table.
+      Original wording: per group in
       `fresh.streams`, count FWA segments for that group absent from the table.
       State in NEWS that re-running an affected group in **WSG mode** is the
       repair, the whole-group delete being self-healing.
 - [x] File the `to_barriers` issue — **#294**, citing `R/frs_break.R:350-358`
       (the multiclass arm) and the 259 spanning blue lines.
-- [ ] File the same-group `id_segment` key question, sibling of #218 — only if
-      Phase 0 keeps the pair key. Physical identity makes it moot.
-- [ ] `NEWS.md` entry — resolve #295's question on the 0.46.0 correction, and name
-      `scripts/habitat/habitat_province.R:31-36` as what fills the shared table
-      with other groups in the first place. Version bump in `DESCRIPTION` as the
-      **final** commit.
+- [x] File the same-group `id_segment` key question, sibling of #218 — moot
+      for `to_streams`, which no longer keys on `id_segment` at all. Where it
+      does arise is #293, and it is option (c) in that body: filed, not dropped,
+      and not duplicated into a new issue.
+- [x] `NEWS.md` entry, as **0.53.0**: `origin/main` released 0.52.0 under the
+      branch, so the number moved and the roxygen's "before 0.52.0" moved with
+      it. #295's question answered by leaving the released 0.46.0 entry as
+      written — a changelog is history — and carrying the correction in this
+      entry, pointing at `research/id_segment_identity.md`; #295 stays open for
+      #231's body. `scripts/habitat/habitat_province.R:31-32` is confirmed as
+      what fills the shared table (all WSGs into `fresh.streams`) but is not
+      named in NEWS: the entry describes the package's own inputs, and a path
+      into a run script is not one of them.
+- [ ] Version bump in `DESCRIPTION` to 0.53.0 as the **final** commit.
 
 ## Owed at the end (reported, done after merge)
 
