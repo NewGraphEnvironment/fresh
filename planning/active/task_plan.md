@@ -93,12 +93,17 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
 - [ ] Put the key choice back to the owner with those numbers: pair key vs
       physical identity. If the pair key stands, the branch must state plainly
       what it does not fix.
-- [ ] Correct the mechanism in the issue body and in `NEWS.md` (0.46.0's wording
-      is wrong; this release is the place to correct it, since the correction is
-      the finding).
-- [ ] File the `frs_habitat_classify()` / `frs_near_river()` custom-AOI
-      whole-group delete (below) — before Phase 1, because if it is the dominant
-      loss this branch's NEWS has to be written around it.
+- [x] Correct the mechanism where the claim was: `CLAUDE.md` corrected on `main`
+      (`4d65b96`), pointing at the new `research/id_segment_identity.md`, which
+      carries both artifacts with their queries. **`NEWS.md` 0.46.0 and the
+      bodies of #231 and #282 still carry it** — filed as #295, which asks how a
+      released changelog entry should be corrected.
+- [x] File the `frs_habitat_classify()` / `frs_near_river()` custom-AOI
+      whole-group delete — **#293**. Read it before Phase 1: if it is the
+      dominant loss, this branch's NEWS has to be written around it. It is not
+      the same mechanism as #231/#277/#282 (the predicate names the group
+      correctly; the group *set* is too wide), so it is in none of their
+      sub-issue lists.
 
 ## Phase 1: Reproduce the loss, end to end
 
@@ -186,9 +191,11 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
       `fresh.streams`, count FWA segments for that group absent from the table.
       State in NEWS that re-running an affected group in **WSG mode** is the
       repair, the whole-group delete being self-healing.
-- [ ] File the `to_barriers` issue, citing `R/frs_break.R:350-357`.
-- [ ] File the same-group `id_segment` key question, sibling of #218.
-- [ ] `NEWS.md` entry — including the 0.46.0 mechanism correction, and naming
+- [x] File the `to_barriers` issue — **#294**, citing `R/frs_break.R:350-358`
+      (the multiclass arm) and the 259 spanning blue lines.
+- [ ] File the same-group `id_segment` key question, sibling of #218 — only if
+      Phase 0 keeps the pair key. Physical identity makes it moot.
+- [ ] `NEWS.md` entry — resolve #295's question on the 0.46.0 correction, and name
       `scripts/habitat/habitat_province.R:31-36` as what fills the shared table
       with other groups in the first place. Version bump in `DESCRIPTION` as the
       **final** commit.

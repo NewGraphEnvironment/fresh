@@ -43,6 +43,28 @@
 - Next: parked 2026-10-28; resume with the command below. **Start at Phase 0, not
   Phase 1** — the key decision is open and needs the owner.
 
+## Session 2026-11-01 (compact capture, no phase work)
+
+- Landed the mechanism correction on `main` (`4d65b96`), not on this branch: the
+  wrong claim in `CLAUDE.md` is what produced the first draft of this plan, so
+  leaving it behind a parked PR would let the next session repeat the error. Added
+  `research/id_segment_identity.md` with both artifacts and their queries, and its
+  row in `research/README.md`.
+- Filed the three siblings this branch's review turned up, so none of them lives
+  only in a parked branch:
+  - **#293** — `frs_habitat_classify()` / `frs_near_river()` delete whole
+    watershed groups in custom-AOI mode. Bigger than #282, and the inverse
+    mechanism: the predicate names the group correctly, the group *set* is too
+    wide. Read before Phase 1.
+  - **#294** — `to_barriers` deletes by `blue_line_key` alone; 259 lines span
+    groups; needs `watershed_group_code` carried through `frs_break_find()`'s
+    multiclass projection.
+  - **#295** — `NEWS.md` 0.46.0 and #231's body still state the wrong mechanism;
+    asks how a released changelog entry should be corrected.
+- `origin/main` moved from `a49b45b` to v0.50.1 while parked, so the resume
+  command's `git merge origin/main` is doing real work, not a formality.
+- Nothing in Phase 0–4 was executed. The branch still holds only the baseline.
+
 ### Resume
 
 ```bash
