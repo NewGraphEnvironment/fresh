@@ -34,12 +34,14 @@
 #' - **Direct (`bridge = NULL`)** — the `to` table has the join keys
 #'   directly. SQL does `to.<by> = from.<by>` (point match).
 #' - **Bridged (`bridge = "<segments_table>"`)** — the `to` table is
-#'   keyed by `id_segment` (e.g. `fresh.streams_habitat`) and lacks
-#'   the geographic keys in `by`. The bridge table provides the
-#'   link, with `id_segment` + range columns. SQL does a 3-way join:
+#'   keyed by `(id_segment, watershed_group_code)` (e.g.
+#'   `fresh.streams_habitat`) and lacks the geographic keys in `by`. The
+#'   bridge table provides the link, with `id_segment`,
+#'   `watershed_group_code` and the range columns. SQL does a 3-way join:
 #'
 #'   ```
 #'   to.id_segment = bridge.id_segment
+#'   AND to.watershed_group_code = bridge.watershed_group_code
 #'   AND bridge.<by[1]> = from.<by[1]>
 #'   AND bridge.downstream_route_measure >= from.downstream_route_measure
 #'   AND bridge.upstream_route_measure   <= from.upstream_route_measure
@@ -47,7 +49,11 @@
 #'
 #'   Range containment, not point match — covers the case where one
 #'   `from` row's `[drm, urm]` range maps to multiple bridge segments
-#'   (e.g. when other break sources fall inside the range).
+#'   (e.g. when other break sources fall inside the range). The join
+#'   matches `watershed_group_code` as well as `id_segment`, because
+#'   `id_segment` is unique only within a watershed group: a `to` table
+#'   holding several groups (as `fresh.streams_habitat` does) has other
+#'   groups' rows at the same `id_segment`, and they are left alone.
 #'
 #' Future bridges aren't required to be `fresh.streams` — any table
 #' providing `id_segment` + the join-key columns + range columns
@@ -61,12 +67,15 @@
 #' @param to Character. Schema-qualified destination table to UPDATE
 #'   in place. Must have boolean columns named in `habitat_types`
 #'   plus a `species_code` column. Either has the join keys (`by`)
-#'   directly, or only `id_segment` (use `bridge` to resolve).
+#'   directly, or `id_segment` and `watershed_group_code` (use `bridge`
+#'   to resolve).
 #' @param bridge Character or `NULL`. Optional schema-qualified
-#'   segments table providing `id_segment` + the join keys in `by`
-#'   + `downstream_route_measure` + `upstream_route_measure`. When
-#'   provided, switches to a 3-way range-containment join. Default
-#'   `NULL` (direct point-match join — `to` must have the join keys).
+#'   segments table providing `id_segment` + `watershed_group_code` +
+#'   the join keys in `by` + `downstream_route_measure` +
+#'   `upstream_route_measure`. When provided, switches to a 3-way
+#'   range-containment join on both keys, and `to` must carry
+#'   `watershed_group_code` too. Default `NULL` (direct point-match
+#'   join — `to` must have the join keys).
 #'   **Note:** the range column names are currently hardcoded to FWA
 #'   convention (`downstream_route_measure` / `upstream_route_measure`).
 #'   `from` and `bridge` must both use these names; non-FWA segment
@@ -157,17 +166,27 @@ frs_habitat_overlay <- function(conn, from, to,
     }
   }
 
+  # Column names as the UPDATE will resolve the table (case folding,
+  # search_path, temp tables): an information_schema lookup by the literal
+  # schema and table name misses a pg_temp table and a mixed-case name. A
+  # table that does not resolve has no columns; any other error (a dropped
+  # connection, a permission denial) is still raised as itself.
+  cols_of <- function(tbl) {
+    tryCatch(
+      names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0", tbl))),
+      error = function(e) {
+        if (grepl("does not exist", conditionMessage(e))) return(character(0))
+        stop(e)
+      })
+  }
+
   # --- Validate target columns ---
   to_parts <- strsplit(to, "\\.", fixed = FALSE)[[1]]
   if (length(to_parts) != 2L) {
     stop("`to` must be schema-qualified (e.g. 'working.streams_habitat')",
          call. = FALSE)
   }
-  to_cols <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT column_name FROM information_schema.columns
-     WHERE table_schema = %s AND table_name = %s",
-    .frs_quote_string(to_parts[1]),
-    .frs_quote_string(to_parts[2])))$column_name
+  to_cols <- cols_of(to)
   missing_hab <- setdiff(habitat_types, to_cols)
   if (length(missing_hab) > 0) {
     stop(sprintf(
@@ -192,11 +211,7 @@ frs_habitat_overlay <- function(conn, from, to,
     stop("`from` must be schema-qualified (e.g. 'working.user_habitat_classification')",
          call. = FALSE)
   }
-  from_cols <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT column_name FROM information_schema.columns
-     WHERE table_schema = %s AND table_name = %s",
-    .frs_quote_string(from_parts[1]),
-    .frs_quote_string(from_parts[2])))$column_name
+  from_cols <- cols_of(from)
   if (length(from_cols) == 0) {
     stop(sprintf("from table %s not found or has no columns", from),
          call. = FALSE)
@@ -216,18 +231,22 @@ frs_habitat_overlay <- function(conn, from, to,
       stop("`bridge` must be schema-qualified (e.g. 'fresh.streams')",
            call. = FALSE)
     }
-    bridge_cols <- DBI::dbGetQuery(conn, sprintf(
-      "SELECT column_name FROM information_schema.columns
-       WHERE table_schema = %s AND table_name = %s",
-      .frs_quote_string(bridge_parts[1]),
-      .frs_quote_string(bridge_parts[2])))$column_name
-    required_bridge <- c("id_segment", by,
+    bridge_cols <- cols_of(bridge)
+    required_bridge <- c("id_segment", "watershed_group_code", by,
                           "downstream_route_measure", "upstream_route_measure")
     missing_bridge <- setdiff(required_bridge, bridge_cols)
     if (length(missing_bridge) > 0) {
       stop(sprintf(
         "bridge table %s missing required columns: %s",
         bridge, paste(missing_bridge, collapse = ", ")), call. = FALSE)
+    }
+    # id_segment is unique only within a watershed group (fresh#218), so the
+    # bridged join matches the group too, and `to` has to carry it.
+    if (!"watershed_group_code" %in% to_cols) {
+      stop(sprintf(paste0(
+        "`to` table %s must carry watershed_group_code when `bridge` is set: ",
+        "id_segment is unique only within a watershed group"), to),
+        call. = FALSE)
     }
   }
 
@@ -236,9 +255,10 @@ frs_habitat_overlay <- function(conn, from, to,
     from_clause <- sprintf("FROM %s AS k", from)
     join_pred   <- paste(sprintf("h.%s = k.%s", by, by), collapse = " AND ")
   } else {
-    # 3-way: to.id_segment = bridge.id_segment + bridge ranges contain from.
-    # Range columns are handled by the >= / <= predicates below; strip
-    # them from the equality `by` clause so we don't double-constrain.
+    # 3-way: to.(id_segment, watershed_group_code) = bridge's + bridge ranges
+    # contain from. Range columns are handled by the >= / <= predicates
+    # below; strip them from the equality `by` clause so we don't
+    # double-constrain.
     range_cols <- c("downstream_route_measure", "upstream_route_measure")
     by_eq <- setdiff(by, range_cols)
     if (length(by_eq) == 0) {
@@ -248,7 +268,8 @@ frs_habitat_overlay <- function(conn, from, to,
     from_clause <- sprintf("FROM %s AS s, %s AS k", bridge, from)
     bk_pred <- paste(sprintf("s.%s = k.%s", by_eq, by_eq), collapse = " AND ")
     join_pred <- paste0(
-      "h.id_segment = s.id_segment AND ", bk_pred,
+      "h.id_segment = s.id_segment",
+      " AND h.watershed_group_code = s.watershed_group_code AND ", bk_pred,
       " AND s.downstream_route_measure >= k.downstream_route_measure",
       " AND s.upstream_route_measure   <= k.upstream_route_measure")
   }

@@ -9,20 +9,26 @@
 # coercion accepts integer 1, text 'true'/'t'/'1' (case + whitespace
 # insensitive), boolean.
 
+# A zero-row frame with these columns: what `SELECT * FROM t LIMIT 0`
+# returns, which is how the function reads a table's column names.
+cols0 <- function(cols) {
+  as.data.frame(stats::setNames(rep(list(logical(0)), length(cols)), cols))
+}
+
 # Helper: build a dbGetQuery mock with separate species/target/source
 # branches. `to_cols` and `from_cols` describe column inventories
-# returned by information_schema.columns lookups.
+# returned by the `LIMIT 0` column lookups.
 mk_dbq <- function(species, to_cols, from_cols, bridge_cols = character(0)) {
   function(conn, sql) {
     if (grepl("DISTINCT species_code", sql)) {
       data.frame(species_code = species)
-    } else if (grepl("information_schema", sql)) {
-      if (grepl("table_name = 'h'", sql)) {
-        data.frame(column_name = to_cols)
-      } else if (grepl("table_name = 's'", sql)) {
-        data.frame(column_name = bridge_cols)
+    } else if (grepl("LIMIT 0", sql)) {
+      if (grepl("FROM ws.h LIMIT 0", sql, fixed = TRUE)) {
+        cols0(to_cols)
+      } else if (grepl("FROM ws.s LIMIT 0", sql, fixed = TRUE)) {
+        cols0(bridge_cols)
       } else {
-        data.frame(column_name = from_cols)
+        cols0(from_cols)
       }
     } else {
       data.frame()
@@ -95,8 +101,8 @@ test_that("requires schema-qualified from / to", {
 test_that("rejects habitat_types not in target table", {
   fake <- structure(list(), class = "DBIConnection")
   mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery", function(conn, sql) {
-    if (grepl("information_schema", sql)) {
-      data.frame(column_name = c("id_segment", "species_code", "spawning"))
+    if (grepl("LIMIT 0", sql)) {
+      cols0(c("id_segment", "species_code", "spawning"))
     } else {
       data.frame(species_code = "CO")
     }
@@ -145,10 +151,10 @@ test_that("empty target table -> early return without error", {
   mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery", function(conn, sql) {
     if (grepl("DISTINCT species_code", sql)) {
       data.frame(species_code = character(0))
-    } else if (grepl("information_schema", sql) && grepl("table_name = 'h'", sql)) {
-      data.frame(column_name = TBL_DEFAULT)
+    } else if (grepl("FROM ws.h LIMIT 0", sql, fixed = TRUE)) {
+      cols0(TBL_DEFAULT)
     } else {
-      data.frame(column_name = character(0))
+      cols0(character(0))
     }
   })
   expect_silent(suppressMessages(
@@ -472,29 +478,29 @@ test_that("integration (bridge): range-containment flips contained segments", {
     DBI::dbDisconnect(conn)
   })
 
-  # Target keyed by id_segment only
+  # Target keyed by (id_segment, watershed_group_code)
   DBI::dbExecute(conn,
     "CREATE TABLE working.test_br_h (
-       id_segment integer, species_code text,
+       id_segment integer, watershed_group_code text, species_code text,
        spawning boolean, rearing boolean,
        lake_rearing boolean, wetland_rearing boolean)")
   DBI::dbExecute(conn,
     "INSERT INTO working.test_br_h VALUES
-       (1, 'SK', FALSE, FALSE, FALSE, FALSE),
-       (2, 'SK', FALSE, FALSE, FALSE, FALSE),
-       (3, 'SK', FALSE, FALSE, FALSE, FALSE)")
+       (1, 'TEST', 'SK', FALSE, FALSE, FALSE, FALSE),
+       (2, 'TEST', 'SK', FALSE, FALSE, FALSE, FALSE),
+       (3, 'TEST', 'SK', FALSE, FALSE, FALSE, FALSE)")
 
-  # Bridge: id_segment + range
+  # Bridge: id_segment + group + range
   DBI::dbExecute(conn,
     "CREATE TABLE working.test_br_s (
-       id_segment integer, blue_line_key bigint,
+       id_segment integer, watershed_group_code text, blue_line_key bigint,
        downstream_route_measure double precision,
        upstream_route_measure double precision)")
   DBI::dbExecute(conn,
     "INSERT INTO working.test_br_s VALUES
-       (1, 100,   0,  50),
-       (2, 100,  50, 100),
-       (3, 100, 100, 200)")
+       (1, 'TEST', 100,   0,  50),
+       (2, 'TEST', 100,  50, 100),
+       (3, 'TEST', 100, 100, 200)")
 
   # Source: range [40, 110] for SK spawning
   DBI::dbExecute(conn,
@@ -520,4 +526,87 @@ test_that("integration (bridge): range-containment flips contained segments", {
   # Only segment 2 (50-100) is fully contained in [40, 110]
   expect_equal(result$spawning, c(FALSE, TRUE, FALSE))
   expect_equal(result$rearing,  c(FALSE, FALSE, FALSE))
+})
+
+test_that("integration (bridge): another watershed group sharing an id_segment is left alone", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  for (t in c("ov_h", "ov_s", "ov_k")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS pg_temp.%s", t))
+  }
+  # The bridge holds TEST only: segment 2 is blk 100, 50-100 m. The target is
+  # shared, as fresh.streams_habitat is: OTHR reuses id_segment 2, and its own
+  # segment 2 lies in another working table, nowhere near blk 100.
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov_s AS SELECT * FROM (VALUES
+      (2, 'TEST'::text, 100::bigint, 50::double precision, 100::double precision)
+    ) v(id_segment, watershed_group_code, blue_line_key,
+        downstream_route_measure, upstream_route_measure)")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov_h AS SELECT * FROM (VALUES
+      (2, 'TEST'::text, 'SK'::text, FALSE, FALSE),
+      (2, 'OTHR', 'SK', FALSE, FALSE)
+    ) v(id_segment, watershed_group_code, species_code, spawning, rearing)")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov_k AS SELECT * FROM (VALUES
+      (100::bigint, 40::double precision, 110::double precision, 'SK'::text, 1)
+    ) v(blue_line_key, downstream_route_measure, upstream_route_measure,
+        species_code, spawning)")
+
+  out <- utils::capture.output(frs_habitat_overlay(conn,
+    from = "pg_temp.ov_k", to = "pg_temp.ov_h", bridge = "pg_temp.ov_s",
+    species = "SK", habitat_types = "spawning"))
+  got <- DBI::dbGetQuery(conn, "
+    SELECT watershed_group_code AS wsg, spawning FROM pg_temp.ov_h ORDER BY 1")
+  expect_true(got$spawning[got$wsg == "TEST"])
+  expect_false(got$spawning[got$wsg == "OTHR"])
+  # The per-species line counts this job's flip only
+  expect_gt(length(out), 0)
+  expect_match(out, "SK/spawning: 1 segments flipped", all = FALSE)
+  expect_match(out, "1 total updates", all = FALSE)
+})
+
+test_that("bridge: `to` and `bridge` must carry watershed_group_code", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  for (t in c("ov2_h", "ov2_h_nowsg", "ov2_s", "ov2_s_nowsg", "ov2_k")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS pg_temp.%s", t))
+  }
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov2_h (id_segment integer, watershed_group_code text,
+      species_code text, spawning boolean)")
+  DBI::dbExecute(conn, "INSERT INTO ov2_h VALUES (1, 'TEST', 'SK', FALSE)")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov2_h_nowsg AS SELECT id_segment, species_code, spawning
+    FROM ov2_h")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov2_s (id_segment integer, watershed_group_code text,
+      blue_line_key bigint, downstream_route_measure double precision,
+      upstream_route_measure double precision)")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov2_s_nowsg AS SELECT id_segment, blue_line_key,
+      downstream_route_measure, upstream_route_measure FROM ov2_s")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE ov2_k (blue_line_key bigint,
+      downstream_route_measure double precision,
+      upstream_route_measure double precision, species_code text,
+      spawning integer)")
+
+  expect_error(
+    frs_habitat_overlay(conn, from = "pg_temp.ov2_k", to = "pg_temp.ov2_h_nowsg",
+      bridge = "pg_temp.ov2_s", species = "SK", habitat_types = "spawning",
+      verbose = FALSE),
+    "pg_temp.ov2_h_nowsg.*watershed_group_code")
+  expect_error(
+    frs_habitat_overlay(conn, from = "pg_temp.ov2_k", to = "pg_temp.ov2_h",
+      bridge = "pg_temp.ov2_s_nowsg", species = "SK", habitat_types = "spawning",
+      verbose = FALSE),
+    "pg_temp.ov2_s_nowsg.*watershed_group_code")
+  # Both carrying it: no error, nothing to flip
+  expect_no_error(
+    frs_habitat_overlay(conn, from = "pg_temp.ov2_k", to = "pg_temp.ov2_h",
+      bridge = "pg_temp.ov2_s", species = "SK", habitat_types = "spawning",
+      verbose = FALSE))
 })

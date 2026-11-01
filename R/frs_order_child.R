@@ -118,6 +118,7 @@
 #' SET <label> = TRUE
 #' FROM s
 #' WHERE <habitat>.id_segment = s.id_segment
+#'   AND <habitat>.watershed_group_code = s.watershed_group_code
 #'   AND <habitat>.species_code = '<species>'
 #'   AND <habitat>.accessible = TRUE
 #'   AND <habitat>.<label> IS NOT TRUE
@@ -133,11 +134,17 @@
 #' Bracketed clauses are emitted only when the corresponding parameter
 #' is non-NULL.
 #'
+#' Both tables must carry `watershed_group_code`: `id_segment` is unique
+#' only within a watershed group, so the join matches both, and a shared
+#' `habitat` table holding other groups' rows (as `fresh.streams_habitat`
+#' does) leaves those rows alone. The count returned and the verbose lines
+#' cover the groups present in `table`, not the whole habitat table.
+#'
 #' @param conn DBI connection.
 #' @param table Character. Schema-qualified streams table (e.g.
-#'   `"fresh.streams"`).
+#'   `"fresh.streams"`). Must carry `watershed_group_code`.
 #' @param habitat Character. Schema-qualified habitat table (e.g.
-#'   `"fresh.streams_habitat"`).
+#'   `"fresh.streams_habitat"`). Must carry `watershed_group_code`.
 #' @param species Character. Species code (e.g. `"BT"`).
 #' @param label Character. Habitat-table column to set TRUE. Default
 #'   `"rearing"`. Generic on the column name — pass `"lake_rearing"`,
@@ -168,7 +175,8 @@
 #'   species' rearing gradient maximum. Default `NULL` (no gradient test).
 #' @param verbose Logical. Print before/after counts. Default `TRUE`.
 #'
-#' @return Invisibly, the number of segments newly labeled.
+#' @return Invisibly, the number of segments newly labeled, in the
+#'   watershed groups `table` holds.
 #'
 #' @examples
 #' \dontrun{
@@ -231,6 +239,19 @@ frs_order_child <- function(conn,
   sp_quoted <- .frs_quote_string(species)
   pom <- as.integer(parent_order_min)
 
+  # Both tables must carry watershed_group_code (fresh#218): checked here,
+  # the way the UPDATE will resolve them, so a table without it is named
+  # rather than failing inside the SQL below.
+  for (nm in c("table", "habitat")) {
+    cols <- names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0",
+                                                get(nm))))
+    if (!"watershed_group_code" %in% cols) {
+      stop(sprintf(paste0("%s %s must carry watershed_group_code: ",
+                          "id_segment is unique only within a watershed group"),
+                   nm, get(nm)), call. = FALSE)
+    }
+  }
+
   # Default both child bounds to 1L when neither is set — matches
   # bcfishpass's `stream_order = 1` predicate exactly. Caller can pass
   # one or both to widen (e.g. orders 1-2) or narrow.
@@ -262,6 +283,11 @@ frs_order_child <- function(conn,
   # `stream_order_max` is derived per BLK on the fly. fresh.streams
   # doesn't store it; bcfp's bcfishpass.streams does. The CTE makes
   # the predicate work over either source identically.
+  #
+  # id_segment is unique only within a watershed group (fresh#218), and
+  # `habitat` may hold other groups' rows at the same value, so the join
+  # matches watershed_group_code too: the write and its row count are
+  # then this job's groups' alone.
   sql <- sprintf(
     "WITH s AS (
        SELECT *,
@@ -272,6 +298,7 @@ frs_order_child <- function(conn,
      SET %s = TRUE
      FROM s
      WHERE h.id_segment = s.id_segment
+       AND h.watershed_group_code = s.watershed_group_code
        AND h.species_code = %s
        AND h.accessible = TRUE
        AND h.%s IS NOT TRUE
@@ -288,9 +315,11 @@ frs_order_child <- function(conn,
 
   n_before <- 0L
   if (verbose) {
+    # Counted over the groups in `table`, not the whole habitat table
     n_before <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-       WHERE species_code = %s", label, habitat, sp_quoted))$n
+       WHERE species_code = %s%s", label, habitat, sp_quoted,
+      .frs_wsg_in(table)))$n
     message(sprintf("  %s before: %d segments with %s = TRUE",
                     species, n_before, label))
   }
