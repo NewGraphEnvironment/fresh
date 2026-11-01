@@ -65,7 +65,7 @@ Two limits. A target that carries no \code{linear_feature_id} is not the
 Freshwater Atlas, and the custom-AOI key falls back to \code{id_segment}, which
 is only sound where that column is unique across the whole table; a target
 carrying it while the working table does not, or the reverse, is an error
-rather than a fallback. And a table written by a release before 0.52.0 may
+rather than a fallback. And a table written by a release before 0.53.0 may
 be missing rows: a custom-AOI run then keyed its delete on \code{id_segment}
 alone, which is unique only within a watershed group, so it could remove
 rows no run put back. Re-running an affected group with \code{wsg} repairs it,
