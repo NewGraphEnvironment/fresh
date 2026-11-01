@@ -31,12 +31,15 @@
 #      indistinguishable in a summary line, so a sweep over a skipping
 #      baseline proves nothing). Skips are counted from the reporter, so a
 #      file that skips at its top level, and so adds no test row, counts;
-#   4. per site: applies the one mutation, runs the tests, records how
-#      many tests went red or skipped and the names of the red ones, and
-#      restores the file;
+#   4. per site: applies the one mutation, runs the tests, and when any
+#      test goes red runs them again, still mutated; records how many tests
+#      went red in both runs and their names, how many skipped, and
+#      restores the file. A test red in one run only is reported and not
+#      counted, so a flake cannot credit a site with a catch;
 #   5. runs the unmutated baseline again and REFUSES the whole table unless
 #      it is still 0 red and 0 skipped, since a site's red is only its
-#      mutation's while nothing else has moved (a live database, a flake);
+#      mutation's while nothing else has moved (state a mutation left in a
+#      live database persists to the end; a one-off red is step 4's);
 #   6. prints the table and writes it to results.csv.
 #
 # A site whose mutated copy fails to load (a deleted line that also closed
@@ -130,8 +133,18 @@ sweep_mutate <- function(lines, site) {
 # expectation or an uncaught error (testthat counts those separately).
 sweep_run <- function(copy, filter) {
   rep <- testthat::SilentReporter$new()
-  res <- testthat::test_local(copy, filter = filter, reporter = rep,
-                              stop_on_failure = FALSE, stop_on_warning = FALSE)
+  # A skip() at the top of a setup-*.R or helper-*.R file is raised outside
+  # any test, as a `skip` condition rather than an error, and would escape
+  # every tryCatch(error = ) here and halt Rscript with status 1, which
+  # means "swept, a site uncaught". Make it an error, so the baseline
+  # refuses (2) and a site run records an ERROR row.
+  res <- tryCatch(
+    testthat::test_local(copy, filter = filter, reporter = rep,
+                         stop_on_failure = FALSE, stop_on_warning = FALSE),
+    skip = function(e) {
+      stop("a skip outside any test (a setup or helper file): ",
+           conditionMessage(e), call. = FALSE)
+    })
   df <- as.data.frame(res)
   # A skip at a file's top level (skip_if_no_conn() before any test_that())
   # drops the whole file and adds no row to `df`, so skips are counted from
@@ -213,6 +226,15 @@ sweep_main <- function(args) {
     # a call) is a mis-specified site, not a caught one: record it and go
     # on, so one such site does not throw the rest of the sweep away.
     r <- tryCatch(sweep_run(copy, filter), error = function(e) e)
+    # A test that goes red once, for a reason other than the mutation (a
+    # flake, a live database's state), would credit this site with a catch
+    # that the after-sweep baseline cannot see, since it is gone by then.
+    # So a run with any red is repeated, still mutated, and only the tests
+    # red in both runs count.
+    r2 <- NULL
+    if (!inherits(r, "error") && any(r$red)) {
+      r2 <- tryCatch(sweep_run(copy, filter), error = function(e) e)
+    }
     writeLines(originals[[site$file]], f)
     if (inherits(r, "error")) {
       # rlang chains the parse error under $parent; keep both first lines
@@ -227,9 +249,19 @@ sweep_main <- function(args) {
                               stringsAsFactors = FALSE)
       next
     }
-    caught_by <- r$test[r$red]
-    cat(sprintf("[%d/%d] %s: %d red, %d skipped\n", k, nrow(sites), site$label,
-                length(caught_by), attr(r, "n_skip")))
+    caught_by <- character(0)
+    once <- character(0)
+    if (!is.null(r2)) {
+      key1 <- paste(r$file, r$test, sep = "\r")[r$red]
+      key2 <- if (inherits(r2, "error")) character(0) else
+        paste(r2$file, r2$test, sep = "\r")[r2$red]
+      caught_by <- r$test[r$red][key1 %in% key2]
+      once <- r$test[r$red][!key1 %in% key2]
+    }
+    cat(sprintf("[%d/%d] %s: %d red in both runs, %d skipped%s\n", k, nrow(sites),
+                site$label, length(caught_by), attr(r, "n_skip"),
+                if (length(once)) paste0("; red in one run only, not counted: ",
+                                         paste(once, collapse = "; ")) else ""))
     rows[[k]] <- data.frame(label = site$label, file = site$file,
                             action = site$action, occurrence = site$occurrence,
                             red = length(caught_by), skipped = attr(r, "n_skip"),
