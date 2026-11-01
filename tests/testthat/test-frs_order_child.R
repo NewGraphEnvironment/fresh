@@ -44,7 +44,9 @@ test_that("frs_order_child default emits the direct-child SQL", {
   expect_match(s, "FROM fresh\\.streams\\s*\\n")
   expect_match(s, "FROM s\\b")
 
-  # Required guards
+  # Required guards. The group match keeps a shared habitat table's other
+  # groups, which reuse id_segment values, out of the write.
+  expect_match(s, "h\\.watershed_group_code = s\\.watershed_group_code")
   expect_match(s, "h\\.species_code = 'BT'")
   expect_match(s, "h\\.accessible = TRUE")
   expect_match(s, "h\\.rearing IS NOT TRUE")
@@ -206,8 +208,11 @@ test_that("frs_order_child admits only a known, narrow enough, gentle line (live
      ) v(id_segment, blue_line_key, stream_order, stream_order_parent,
          downstream_route_measure, channel_width, gradient)", st))
   DBI::dbExecute(conn, sprintf(
-    "CREATE TABLE %s AS SELECT id_segment, 'BT'::text AS species_code,
-       TRUE AS accessible, FALSE AS rearing FROM %s", hab, st))
+    "ALTER TABLE %s ADD COLUMN watershed_group_code text DEFAULT 'TEST'", st))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT id_segment, watershed_group_code,
+       'BT'::text AS species_code, TRUE AS accessible, FALSE AS rearing
+     FROM %s", hab, st))
 
   n <- frs_order_child(conn, st, hab, species = "BT",
                        channel_width_max = 1.5, gradient_max = 0.1049,
@@ -221,4 +226,49 @@ test_that("frs_order_child admits only a known, narrow enough, gentle line (live
   DBI::dbExecute(conn, sprintf("UPDATE %s SET rearing = FALSE", hab))
   n_all <- frs_order_child(conn, st, hab, species = "BT", verbose = FALSE)
   expect_equal(n_all, 6L)
+})
+
+test_that("frs_order_child writes and counts one watershed group only", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # The streams table holds TEST only: one order-1 child, id_segment 7, off an
+  # order-6 parent. The habitat table is shared, as fresh.streams_habitat is:
+  # OTHR reuses id_segment 7 (its own streams live in another working table)
+  # and already rears at 8, so the before count can tell the groups apart.
+  for (t in c("oc_streams", "oc_habitat")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS pg_temp.%s", t))
+  }
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE oc_streams AS SELECT * FROM (VALUES
+      (7, 101, 1, 6, 0::double precision, 'TEST'::text)
+    ) v(id_segment, blue_line_key, stream_order, stream_order_parent,
+        downstream_route_measure, watershed_group_code)")
+  DBI::dbExecute(conn, "
+    CREATE TEMP TABLE oc_habitat AS SELECT * FROM (VALUES
+      (7, 'TEST'::text, 'BT'::text, TRUE, FALSE),
+      (7, 'OTHR', 'BT', TRUE, FALSE),
+      (8, 'OTHR', 'BT', TRUE, TRUE)
+    ) v(id_segment, watershed_group_code, species_code, accessible, rearing)")
+
+  msgs <- character(0)
+  n <- withCallingHandlers(
+    frs_order_child(conn, "pg_temp.oc_streams", "pg_temp.oc_habitat",
+                    species = "BT", parent_order_min = 5),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    })
+  got <- DBI::dbGetQuery(conn, "
+    SELECT watershed_group_code AS wsg, id_segment, rearing
+    FROM pg_temp.oc_habitat ORDER BY 1, 2")
+  # TEST's child is labelled; OTHR's rows are as they were
+  expect_true(got$rearing[got$wsg == "TEST"])
+  expect_equal(got$rearing[got$wsg == "OTHR"], c(FALSE, TRUE))
+  # The count returned and the two lines printed are this job's, not the
+  # table's: OTHR's rearing at 8 is not "before", and its 7 is not "added"
+  expect_equal(n, 1L)
+  expect_gt(length(msgs), 0)
+  expect_match(msgs, "BT before: 0 segments with rearing = TRUE", all = FALSE)
+  expect_match(msgs, "\\+1 segments labeled rearing = TRUE", all = FALSE)
 })
