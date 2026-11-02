@@ -49,7 +49,32 @@
 #'   Auto-generated from `wsg` when available. Required when `wsg` is
 #'   `NULL` and `aoi` is provided.
 #' @param to_streams Character or `NULL`. Schema-qualified table for
-#'   persistent stream segments. Accumulates across runs.
+#'   persistent stream segments. Accumulates across runs, and must not be the
+#'   working table `working.streams_<label>` that this call builds.
+#'
+#'   Each run overwrites its own partition of the table and inserts its rows in
+#'   one transaction, so a run that fails leaves the partition as it was. With
+#'   `wsg` and no `aoi`, the partition is the watershed group. Otherwise — a
+#'   custom `aoi`, or `wsg` **and** `aoi` together, where a character `aoi` is
+#'   ANDed into the group filter and an `sf` or list `aoi` replaces it, so the
+#'   run covers part of the group or ground outside it — the partition is the
+#'   FWA segments the run covers, keyed on `linear_feature_id`. An AOI selects whole segments, never part of one, so
+#'   every row the run is about to replace goes, including sub-segments an
+#'   earlier run broke at different measures. Rows for ground the run does not
+#'   cover are untouched, whichever watershed group they belong to.
+#'
+#'   Two limits. A target that carries no `linear_feature_id` is not the
+#'   Freshwater Atlas, and the custom-AOI key falls back to `id_segment`, which
+#'   is only sound where that column is unique across the whole table; a target
+#'   carrying it while the working table does not, or the reverse, is an error
+#'   rather than a fallback. And a table written by a release before 0.53.0 may
+#'   be missing rows: a custom-AOI run then keyed its delete on `id_segment`
+#'   alone, which is unique only within a watershed group, so it could remove
+#'   rows no run put back. Re-running an affected group with `wsg` and no `aoi`
+#'   repairs it, the whole-group overwrite being self-healing — but a table
+#'   that must also gain `linear_feature_id` is repaired one group at a time,
+#'   and a custom-AOI run refuses a target still holding NULL-keyed rows from
+#'   the groups not yet re-run.
 #' @param to_habitat Character or `NULL`. Schema-qualified table for
 #'   habitat classifications. Long format: one row per segment x species.
 #' @param break_sources List of additional break source specs (falls,
@@ -303,7 +328,12 @@ frs_habitat <- function(conn, wsg = NULL,
       }
       job_label <- tolower(w)
 
-      list(label = job_label, aoi = job_aoi, species = sp, wsg = w)
+      # wsg names the group; partition_wsg says whether this job owns all of
+      # it, which is what decides the persist delete key. An aoi narrows the
+      # job to a subset, so the whole-group overwrite would delete rows the
+      # insert does not put back.
+      list(label = job_label, aoi = job_aoi, species = sp, wsg = w,
+           partition_wsg = .frs_partition_wsg(w, aoi))
     })
     wsg_specs <- Filter(Negate(is.null), wsg_specs)
   } else {
@@ -331,7 +361,8 @@ frs_habitat <- function(conn, wsg = NULL,
     }
 
     wsg_specs <- list(list(label = label, aoi = aoi,
-                           species = valid_sp, wsg = NULL))
+                           species = valid_sp, wsg = NULL,
+                           partition_wsg = NULL))
   }
 
   if (length(wsg_specs) == 0) {
@@ -371,7 +402,7 @@ frs_habitat <- function(conn, wsg = NULL,
     job_label <- spec$label
     job_aoi <- spec$aoi
     species <- spec$species
-    wsg_code <- spec$wsg  # NULL for custom AOI mode
+    wsg_code <- spec$partition_wsg  # NULL for a custom AOI or a subset job
     t0 <- proc.time()
 
     # 1. Determine gradient thresholds at which to break the network
@@ -501,23 +532,7 @@ frs_habitat <- function(conn, wsg = NULL,
 
     # 5. Persist streams (if to_streams provided)
     if (!is.null(to_streams)) {
-      .frs_db_execute(w_conn, sprintf(
-        "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
-        to_streams, streams_tbl))
-      cols_insert <- .frs_persist_columns(w_conn, to_streams, streams_tbl)
-      # Partition delete: by WSG if available, otherwise by id_segment
-      if (!is.null(wsg_code)) {
-        .frs_db_execute(w_conn, sprintf(
-          "DELETE FROM %s WHERE watershed_group_code = %s",
-          to_streams, .frs_quote_string(wsg_code)))
-      } else {
-        .frs_db_execute(w_conn, sprintf(
-          "DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
-          to_streams, streams_tbl))
-      }
-      .frs_db_execute(w_conn, sprintf(
-        "INSERT INTO %s (%s) SELECT %s FROM %s",
-        to_streams, cols_insert, cols_insert, streams_tbl))
+      .frs_persist_streams(w_conn, to_streams, streams_tbl, wsg_code)
     }
 
     # 5b. Persist gradient barriers (if to_barriers provided)
@@ -569,7 +584,7 @@ frs_habitat <- function(conn, wsg = NULL,
       job_label <- spec$label
       job_aoi <- spec$aoi
       species <- spec$species
-      wsg_code <- spec$wsg
+      wsg_code <- spec$partition_wsg
       t0 <- proc.time()
 
       # Access thresholds (always) + extra thresholds (configurable).
@@ -662,22 +677,7 @@ frs_habitat <- function(conn, wsg = NULL,
         species, params, params_fresh, verbose = FALSE)
 
       if (!is.null(to_streams)) {
-        DBI::dbExecute(w_conn, sprintf(
-          "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
-          to_streams, streams_tbl))
-        cols_insert <- .frs_persist_columns(w_conn, to_streams, streams_tbl)
-        if (!is.null(wsg_code)) {
-          DBI::dbExecute(w_conn, sprintf(
-            "DELETE FROM %s WHERE watershed_group_code = '%s'",
-            to_streams, wsg_code))
-        } else {
-          DBI::dbExecute(w_conn, sprintf(
-            "DELETE FROM %s WHERE id_segment IN (SELECT id_segment FROM %s)",
-            to_streams, streams_tbl))
-        }
-        DBI::dbExecute(w_conn, sprintf(
-          "INSERT INTO %s (%s) SELECT %s FROM %s",
-          to_streams, cols_insert, cols_insert, streams_tbl))
+        .frs_persist_streams(w_conn, to_streams, streams_tbl, wsg_code)
       }
 
       # Persist gradient barriers
