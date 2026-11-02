@@ -1222,11 +1222,19 @@
 #' @noRd
 .frs_persist_delete_key <- function(to, from, wsg_code, cols_to, cols_from) {
   if (!is.null(wsg_code)) {
-    if (!"watershed_group_code" %in% cols_to) {
+    # Both sides, as the linear_feature_id branch below does and for the same
+    # reason: the delete reads the column on the target and the insert writes
+    # it from the source, so one side carrying it is not enough. Not reachable
+    # through frs_habitat() today, whose working table always has it; this is
+    # the helper's contract, which has other callers ahead of it.
+    lacking <- c(to, from)[!c("watershed_group_code" %in% cols_to,
+                              "watershed_group_code" %in% cols_from)]
+    if (length(lacking) > 0) {
       stop(sprintf(
         "%s has no watershed_group_code column, so a watershed-group job
-         cannot scope its delete. Drop or migrate %s and re-run.", to, to),
-        call. = FALSE)
+         cannot scope its delete. Drop or migrate %s and re-run.",
+        paste(lacking, collapse = " and "),
+        paste(lacking, collapse = " and ")), call. = FALSE)
     }
     return("watershed_group_code")
   }
@@ -1362,9 +1370,13 @@
     }
     stop(sprintf(
       "%s %d row(s) hold NULL for it and the partition delete would match
-       none of them -- they would survive this run and every later one.
-       Backfill %s in %s, or drop %s and re-run.",
-      why, n_null, key, to, to), call. = FALSE)
+       none of them -- they would survive this run and every later one. The
+       check is over the whole of %s, not just this run's partition, because a
+       row with no %s is one no run can ever address. If %s is part-way through
+       gaining the column, finish it -- re-run every watershed group with wsg
+       and no aoi, which backfills each group in turn -- or backfill %s
+       directly, or drop %s and re-run.",
+      why, n_null, to, key, to, key, to), call. = FALSE)
   }
 
   # The delete and the insert are one unit of work: autocommitted separately,
@@ -1378,21 +1390,32 @@
   # `WITH del AS (<delete>) INSERT ...`, shipped here first and is wrong: every
   # sub-statement runs under one command id, so the insert's uniqueness check
   # still sees the rows the same statement's delete is removing. On a target
-  # with a unique index over the inserted columns -- `fresh.streams` has
-  # `streams_pkey` on `(id_segment, watershed_group_code)`, and so does every
-  # sibling schema's `streams` -- the second run of any ground aborts with a
-  # duplicate-key violation, on the whole-group key as well as the custom-AOI
-  # one. Measured both ways; the two-statement form passes the same fixture.
+  # with a unique index over the inserted columns, the second run of any
+  # ground aborts with a duplicate-key violation, on the whole-group key as
+  # well as the custom-AOI one. Measured both ways; the two-statement form
+  # passes the same fixture. Every persisted streams table is such a target:
+  # of 296 `streams` relations on the instance this was measured on, 0 carry
+  # no unique index -- 198 unique on `(id_segment)` alone and 98 on
+  # `(id_segment, watershed_group_code)`, `fresh.streams` among them.
   # Separate commands in a transaction see each other, which is the whole
   # point.
   #
   # dbBegin() refuses a nested transaction, and a caller who already has one
-  # open has already made this pair atomic with respect to their commit, so a
-  # failure to begin is not an error here.
+  # open has already made this pair atomic with respect to their commit, so
+  # that one failure is not an error here. Only that one: treating every
+  # failure as "already in a transaction" would silently fall back to the
+  # autocommitted pair this block exists to replace, which is the same shape
+  # as the one-shot guard above -- inferring a condition from a failure
+  # instead of measuring it. Anything else raises.
   began <- tryCatch({
     DBI::dbBegin(conn)
     TRUE
-  }, error = function(e) FALSE)
+  }, error = function(e) {
+    if (grepl("nested transaction", conditionMessage(e), ignore.case = TRUE)) {
+      return(FALSE)
+    }
+    stop(e)
+  })
   committed <- FALSE
   if (began) {
     on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),

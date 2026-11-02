@@ -167,3 +167,23 @@ the resume instruction is given.
   `.frs_persist_streams()`; and the audit script's `n_missing` was a difference
   of two differently-filtered counts, now a `NOT EXISTS` set difference.
   Re-derived: 98 groups, 3 short, 34 segments — unchanged.
+- **Round 3 named the mechanism and enumerated against it.** The mechanism: a
+  property of the *code* standing in for a property of the *database* — every
+  finding in rounds 1-3 is an instance, and each proxy was decidable from the
+  source alone, which is why each survived into a live run. Enumeration: 15
+  guards (1 with no test that could fail), 8 fixtures (constraint-free), 14
+  prose claims (4 unsupported).
+- Round 3's bug: `data-raw/audit_persist_282.R` took its reference set from
+  `.frs_stream_guards()` and attributed those guards to `frs_extract()`, **which
+  applies none** — so on a table built by current code the audit would have
+  called a real loss of placeholder segments clean (BULK: 2,426 of 32,472 FWA
+  segments fail the guards). It now reports both reference sets; on
+  `fresh.streams` the pair shows 151,038 "missing" against all FWA and 34
+  against the guarded set, which is the filter the legacy pass applied, and all
+  34 are still `edge_type` 6010.
+- Round 3 also: the `regclass` guard round 2 added had no test and no sweep row
+  (now both); `tryCatch(dbBegin)` read every failure as nesting (now only the
+  nesting message, both branches tested); the NULL-key guard's whole-target
+  scope documented with its staged-migration escape; the `wsg` column check
+  made two-sided; three prose claims corrected, including a loose "every
+  sibling schema" replaced by 296 relations / 0 without a unique index.

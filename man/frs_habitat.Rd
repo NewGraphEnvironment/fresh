@@ -56,9 +56,10 @@ working table \verb{working.streams_<label>} that this call builds.
 Each run overwrites its own partition of the table and inserts its rows in
 one transaction, so a run that fails leaves the partition as it was. With
 \code{wsg} and no \code{aoi}, the partition is the watershed group. Otherwise — a
-custom \code{aoi}, or \code{wsg} \strong{and} \code{aoi} together, which narrows the job to a
-subset of the group — it is the FWA segments the run covers, keyed on
-\code{linear_feature_id}. An AOI selects whole segments, never part of one, so
+custom \code{aoi}, or \code{wsg} \strong{and} \code{aoi} together, where a character \code{aoi} is
+ANDed into the group filter and an \code{sf} or list \code{aoi} replaces it, so the
+run covers part of the group or ground outside it — the partition is the
+FWA segments the run covers, keyed on \code{linear_feature_id}. An AOI selects whole segments, never part of one, so
 every row the run is about to replace goes, including sub-segments an
 earlier run broke at different measures. Rows for ground the run does not
 cover are untouched, whichever watershed group they belong to.
@@ -70,8 +71,11 @@ carrying it while the working table does not, or the reverse, is an error
 rather than a fallback. And a table written by a release before 0.53.0 may
 be missing rows: a custom-AOI run then keyed its delete on \code{id_segment}
 alone, which is unique only within a watershed group, so it could remove
-rows no run put back. Re-running an affected group with \code{wsg} repairs it,
-the whole-group overwrite being self-healing.}
+rows no run put back. Re-running an affected group with \code{wsg} and no \code{aoi}
+repairs it, the whole-group overwrite being self-healing — but a table
+that must also gain \code{linear_feature_id} is repaired one group at a time,
+and a custom-AOI run refuses a target still holding NULL-keyed rows from
+the groups not yet re-run.}
 
 \item{to_habitat}{Character or \code{NULL}. Schema-qualified table for
 habitat classifications. Long format: one row per segment x species.}

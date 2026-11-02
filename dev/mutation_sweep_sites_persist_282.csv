@@ -4,6 +4,8 @@
 "282 wsg column required","R/utils.R","    if (!""watershed_group_code"" %in% cols_to) {","1","substitute","    if (FALSE) {",".frs_persist_delete_key"
 "282 no key errors","R/utils.R","  if (!(""id_segment"" %in% cols_to && ""id_segment"" %in% cols_from)) {","1","substitute","  if (FALSE) {",".frs_persist_delete_key"
 "282 target not source","R/utils.R","  if (.frs_same_relation(to, from)) {","1","substitute","  if (FALSE) {",".frs_persist_delete_sql"
+"282 target not source by regclass","R/utils.R","  if (length(same) == 1 && !is.na(same) && same) {","1","substitute","  if (FALSE) {",".frs_persist_streams"
+"282 only a nested txn skips the transaction","R/utils.R","    if (grepl(""nested transaction"", conditionMessage(e), ignore.case = TRUE)) {","1","substitute","    if (TRUE) {",".frs_persist_streams"
 "282 wsg code quoted","R/utils.R","      to, .frs_quote_string(wsg_code)))","1","substitute","      to, paste0(""'"", wsg_code, ""'"")))",".frs_persist_delete_sql"
 "282 guard asks the chooser","R/utils.R",".frs_persist_delete_key(to, from, wsg_code, cols$cols_to, cols$cols_from)","1","substitute","""watershed_group_code""",".frs_persist_streams"
 "282 null-key guard","R/utils.R","  if (length(n_null) == 1 && !is.na(n_null) && n_null > 0) {","1","substitute","  if (FALSE) {",".frs_persist_streams"

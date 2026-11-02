@@ -683,6 +683,17 @@ test_that("custom-AOI persist keeps another group's row at a colliding id_segmen
   n1 <- length(ids1)
   expect_gt(n1, 0)
 
+  # Give the target the unique index every persisted streams table carries
+  # (296 measured on the shared instance, none without one; fresh.streams has
+  # streams_pkey on these two columns). The helper creates an absent target
+  # with CREATE TABLE ... AS SELECT * ... LIMIT 0, which copies no
+  # constraints, so without this the fixture cannot tell a correct overwrite
+  # from one whose delete does not free the key for its insert -- which is
+  # exactly the defect a one-statement version of this had.
+  DBI::dbExecute(conn, sprintf(
+    "CREATE UNIQUE INDEX persist_282_streams_pkey
+       ON %s (id_segment, watershed_group_code)", tgt))
+
   # 2. A decoy standing for another watershed group's row that happens to share
   #    an id_segment. It must carry a DIFFERENT linear_feature_id: no FWA
   #    linear_feature_id spans a watershed group (measured, 0 province-wide), so

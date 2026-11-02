@@ -497,6 +497,109 @@ test_that(".frs_same_relation compares folded names", {
 })
 
 
+test_that(".frs_persist_streams works inside a caller's transaction", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_282_txn_src"
+  dst <- "working.test_282_txn_dst"
+  on.exit({
+    try(DBI::dbRollback(conn), silent = TRUE)
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s (id_segment integer, linear_feature_id bigint)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 11::integer AS id_segment,
+       42::bigint AS linear_feature_id", src))
+
+  # dbBegin() refuses a nested transaction, and a caller holding one open has
+  # already made the pair atomic with respect to their own commit, so the
+  # helper must proceed rather than raise.
+  DBI::dbBegin(conn)
+  expect_no_error(.frs_persist_streams(conn, dst, src, NULL))
+  DBI::dbCommit(conn)
+  expect_equal(
+    DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", dst))$n,
+    1L)
+})
+
+test_that(".frs_persist_streams raises on a dbBegin failure that is not nesting", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  skip_if_not_installed("mockery")
+  conn <- frs_db_conn()
+  src <- "working.test_282_bgn_src"
+  dst <- "working.test_282_bgn_dst"
+  on.exit({
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s (id_segment integer, linear_feature_id bigint)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 11::integer AS id_segment,
+       42::bigint AS linear_feature_id", src))
+
+  # Reading every dbBegin() failure as "already in a transaction" would fall
+  # back to the autocommitted pair the transaction exists to replace, which is
+  # the shape of the one-shot guard above: inferring a condition from a
+  # failure instead of measuring it. Only the nesting message may proceed.
+  mockery::stub(.frs_persist_streams, "DBI::dbBegin",
+                function(...) stop("server closed the connection unexpectedly"))
+  expect_error(.frs_persist_streams(conn, dst, src, NULL),
+               "server closed the connection")
+  expect_equal(
+    DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", dst))$n,
+    0L)
+})
+
+test_that(".frs_persist_streams refuses a target that RESOLVES to its source", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_282_rc_src"
+  on.exit({
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", src))
+    DBI::dbExecute(conn, "SET search_path TO DEFAULT")
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", src))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 11::integer AS id_segment,
+       42::bigint AS linear_feature_id", src))
+
+  # .frs_same_relation() compares strings, which is exact only for two
+  # schema-qualified names. An unqualified name resolves through the
+  # connection's search_path, so these two name ONE table and compare
+  # unequal -- and a delete whose subselect reads the table it deletes from
+  # matches every row, emptying it, with the insert then reading what it just
+  # emptied. The regclass test in .frs_persist_streams() is what catches it;
+  # without that test this call empties the table and returns quietly.
+  DBI::dbExecute(conn, "SET search_path TO working, public")
+  expect_error(.frs_persist_streams(conn, "test_282_rc_src", src, NULL),
+               "resolve to the same table")
+  expect_equal(
+    DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", src))$n,
+    1L)
+
+  # And the string compare still catches the qualified spelling, with no
+  # database reached, which is why both exist.
+  expect_error(.frs_persist_delete_sql(src, src, NULL, "a", "a"),
+               "same table")
+})
+
 test_that(".frs_partition_wsg keeps the group only for a whole-group job", {
   # The persist delete removes the whole group, so the group is the partition
   # only when the job segmented all of it. frs_habitat() accepts wsg AND aoi

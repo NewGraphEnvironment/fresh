@@ -808,3 +808,116 @@ cannot change what `frs_extract()` or `frs_network_segment()` see;
 `Suggests` is harmless because `data-raw/` is `.Rbuildignore`d. `DELETE FROM`
 occurs exactly twice in `R/frs_habitat.R`, both `blue_line_key`, so pinning that
 count is a live tripwire.
+
+## Round 3 of `/code-check branch`, 2026-11-01 — the mechanism, enumerated
+
+Round 3 was asked for the **mechanism** behind rounds 1 and 2 and an
+enumeration of what it implies, because round 2 found a defect inside round 1's
+fix and the stopping rule then requires an enumeration rather than a quiet
+round.
+
+### The mechanism
+
+**A property of the *code* stood in for a property of the *database*.** Every
+finding so far is one instance, and in each the proxy was decidable from the
+source alone — which is exactly why each survived into a live run:
+
+| property wanted | predicate shipped |
+|---|---|
+| the target holds no row the delete cannot reach | *this call just added the key column* |
+| the job covers every row of the group | `wsg = w`, the group the **call named** |
+| delete + insert are one unit of work | *one SQL statement* |
+| the insert sees the delete's effect | *a CTE is atomic, therefore sequential* |
+| `to` is not `from` | `tolower(a) != tolower(b)` |
+| the fixture has the target's shape | `CREATE TABLE ... LIMIT 0` |
+| `n_missing` is the absent set | a difference of two differently-filtered counts |
+
+Round 3 then found the same mechanism in two places the earlier fixes had not
+reached, which is the enumeration earning its keep.
+
+### Enumeration
+
+| set | walked | verdict |
+|---|---|---|
+| guards / `stop()`s / decisions added or changed | 15 | 9 are the property; 5 are documented proxies, 4 of them sound; 1 was the property with **no test that could fail if removed** |
+| test fixtures added | 8 | 3 carried the target's unique index; 0 carried geometry, generated columns, triggers, RLS or FKs; the integration fixture carried none |
+| prose claims asserting a quantity, a universal or a behaviour | 14 | 8 supported, 4 **not** supported, 1 caveated, 1 incomplete |
+
+### The bug it found: the audit's reference set names guards nothing applies
+
+`frs_extract()` applies **no** guards — read it: `R/frs_extract.R:74-113` builds
+its WHERE from `.frs_resolve_aoi()` and the caller's `where`, nothing else, and
+`.frs_stream_guards()` is called only from the `frs_network*` and
+`frs_stream_fetch` family. The `edge_type != 6010` predicates at
+`R/frs_break.R:192` and `:314` sit inside the break-detection lookahead, not on
+the write path. So a current-code run writes placeholder and unmapped segments
+into `to_streams`, while the audit's reference set excluded them — and the
+comment and NEWS both attributed those guards to `frs_extract()`.
+
+Measured, `BULK`: 32,472 FWA segments, 30,046 passing the guards, **2,426
+(7.5%) failing them**. A partition that had lost only guard-failing rows would
+have reported `n_missing = 0`, and a healthy current-code partition would have
+reported more rows in the table than in the reference set. The tool that decides
+whether production data is damaged failed toward clean.
+
+It now reports **both** reference sets, because which one is right depends on
+who wrote the table and reporting one decides that for the reader. On
+`fresh.streams`, 2026-11-01:
+
+```
+Groups in table: 98
+Rows with a NULL watershed group (not auditable): 0
+Against every FWA segment  — groups short: 98  segments: 151038
+Against guarded segments   — groups short:  3  segments:     34
+```
+
+That pair is the whole answer. `n_in_table` equals `n_fwa_guarded` exactly, for
+every group — so the legacy table was written by a pass that applied the
+guards, and the 151,038 "missing" segments are that filter, not a loss. Against
+the guarded set the shortfall is the same 34 as before, in LPCE (17), KETL (11)
+and CHWK (6), and **all 34 are `edge_type` 6010**, re-checked on the guarded
+subset alone. The earlier conclusion survives; the number it rested on now comes
+from a reference set that says which generation it is about.
+
+### The rest of round 3, each verified before acting
+
+- **The `regclass` same-relation test had no test and no sweep row** — round
+  2's own fix, unpinned. It now has both: a test that puts `working` on the
+  `search_path` and passes the target as a bare `test_282_rc_src`, which names
+  one relation with the source and compares unequal as a string, and two
+  mutation sites.
+- **`tryCatch(dbBegin, error = ) → FALSE` read every failure as nesting**,
+  silently reverting to the autocommitted pair the transaction replaces — the
+  round-1 shape again, inferring a condition from a failure. Only the nesting
+  message proceeds now; anything else raises. Both branches have a test: one
+  calls the helper inside a caller's open transaction, the other stubs
+  `DBI::dbBegin` to a connection failure and asserts it raises with nothing
+  written.
+- **The NULL-key guard is scoped to the whole target, not the partition.** That
+  is deliberate — a row with no key is one no run can ever address — but it has
+  a consequence nothing said: a table gaining `linear_feature_id` is repaired
+  one group at a time, and until every group has been re-run a custom-AOI run
+  refuses the target. The error now names that escape ("finish the migration —
+  re-run every group with `wsg` and no `aoi`"), and so do the roxygen and NEWS.
+- **The `wsg` branch checked `cols_to` only** where the `linear_feature_id`
+  branch checks both sides, for the reason the latter documents. Not reachable
+  through `frs_habitat()` today; made symmetric, since the helper's contract is
+  what the next caller reads.
+- **`NEWS.md` still said the overwrite is "one statement"** — the design round 2
+  removed, with `R/utils.R` four lines away saying "NOT one statement". Fixed.
+- **"and so does every sibling schema's `streams`"** was a loose quantifier.
+  Measured: **296** `streams` relations on the instance, **0 without a unique
+  index** — 198 unique on `(id_segment)` alone and 98 on `(id_segment,
+  watershed_group_code)`. Stronger than the claim, and the sharper fact is that
+  the 198 keyed on `id_segment` alone would also have been broken by the CTE,
+  whatever key the delete used. Round 3's own counter-claim, that
+  `bcfishpass.streams` is the only other such table, is wrong; this is measured
+  from `pg_indexes`.
+- **`@param to_streams` said `wsg` + `aoi` "narrows the job to a subset of the
+  group"**, which is false for an `sf`/list AOI: that arm replaces the group
+  predicate, so the run can cover ground outside the group. The key chosen is
+  right either way; the sentence now says both arms.
+- **The integration fixture's target carried no constraints**, since the helper
+  creates it with `CREATE TABLE ... AS SELECT * ... LIMIT 0`. It now gains the
+  unique index the real tables carry, so the end-to-end test can also tell a
+  correct overwrite from one whose delete does not free its key.
