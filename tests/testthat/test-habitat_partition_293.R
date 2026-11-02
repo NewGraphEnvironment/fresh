@@ -120,8 +120,9 @@ test_that("a custom-AOI classify keeps the group's rows for ground outside the A
   for (t in tbls) {
     DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", t))
   }
-  n_of <- function(t) DBI::dbGetQuery(conn, sprintf(
-    "SELECT count(*)::int AS n FROM %s", t))$n
+  n_of <- function(t) {
+    DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", t))$n
+  }
   run <- function(label, aoi, streams, habitat) {
     frs_habitat(conn, aoi = aoi, species = "CO", label = label,
       to_streams = streams, to_habitat = habitat, verbose = FALSE)
@@ -222,9 +223,11 @@ test_that("a network with no linear_feature_id still classifies on id_segment", 
   params <- frs_params(csv = system.file("extdata",
     "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
 
-  run <- function() frs_habitat_classify(conn, table = "pg_temp.p293_nofwa",
-    to = "pg_temp.p293_nofwa_habitat", species = "CO", params = params,
-    gate = FALSE, verbose = FALSE)
+  run <- function() {
+    frs_habitat_classify(conn, table = "pg_temp.p293_nofwa",
+      to = "pg_temp.p293_nofwa_habitat", species = "CO", params = params,
+      gate = FALSE, verbose = FALSE)
+  }
   expect_no_error(run())
   # No column invented on either side, and re-running replaces rather than
   # appends — on id_segment, the only identity such a network has.
@@ -314,12 +317,16 @@ test_that("classifying one species leaves another species' rows for the same gro
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_sp")
   params <- frs_params(csv = system.file("extdata",
     "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
-  run <- function(sp) frs_habitat_classify(conn, table = "pg_temp.nr_streams",
-    to = "pg_temp.p293_sp", species = sp, params = params, gate = FALSE,
-    verbose = FALSE)
-  n_of <- function(sp) DBI::dbGetQuery(conn, sprintf(
-    "SELECT count(*)::int AS n FROM pg_temp.p293_sp WHERE species_code = '%s'",
-    sp))$n
+  run <- function(sp) {
+    frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+      to = "pg_temp.p293_sp", species = sp, params = params, gate = FALSE,
+      verbose = FALSE)
+  }
+  n_of <- function(sp) {
+    DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*)::int AS n FROM pg_temp.p293_sp
+        WHERE species_code = '%s'", sp))$n
+  }
 
   run(c("CO", "BT"))
   n_co <- n_of("CO")
@@ -342,9 +349,11 @@ test_that("a failure during classify leaves the partition as it was", {
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_tx")
   params <- frs_params(csv = system.file("extdata",
     "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
-  run <- function() frs_habitat_classify(conn, table = "pg_temp.nr_streams",
-    to = "pg_temp.p293_tx", species = "CO", params = params, gate = FALSE,
-    verbose = FALSE)
+  run <- function() {
+    frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+      to = "pg_temp.p293_tx", species = "CO", params = params, gate = FALSE,
+      verbose = FALSE)
+  }
   run()
   n0 <- DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.p293_tx")$n

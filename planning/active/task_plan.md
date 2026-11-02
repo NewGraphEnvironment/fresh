@@ -212,7 +212,10 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
       and skips are `main`'s (fwapg migration gates, no bcfishpass schema).
 - [ ] `workers = 2L` through the mirai path, with two jobs over overlapping ground into
       one shared `to_habitat`.
-- [ ] `lintr::lint_package()` against `origin/main`'s count in a worktree.
+- [x] `lintr::lint_package()` against `origin/main`'s count in a worktree: 1598 vs
+      1473. The +125 is 69 `indentation_linter` (1396 on `main`), 50
+      `object_usage_linter` from an installed `fresh` **0.52.0**, and 6
+      `brace_linter` that were mine and are fixed. `findings.md` has the table.
 - [x] `devtools::document()`; `pkgdown::check_pkgdown()` if an export changes.
 - [ ] Mutation sweep: a committed site list (`dev/mutation_sweep_sites_habitat_293.csv`)
       run with `dev/mutation_sweep.R`, each site credited only on red → green → red.

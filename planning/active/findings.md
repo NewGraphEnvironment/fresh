@@ -237,3 +237,43 @@ Measured with the same `integer64` trap as above: `count(*)::bigint` printed
 through `cat()` came out `1.87884e-317`. The row count in the table is the
 plan's `rows=3725058`, which agrees with the 3,802,814 that
 `research/id_segment_identity.md` records.
+
+## The mutation sweep and the integration tests collide (2026-11-02)
+
+Running `dev/mutation_sweep.R` and `test-habitat_partition_293.R` at the same
+time makes the end-to-end test error: both drive `frs_habitat()` with the same
+`label`s, so both create `working.streams_p293a/b/c` and the barrier and tmp
+tables derived from them. The sweep works in a copy of the **package**, not of
+the **database**, so the copy does not separate them. This is fresh#279, met
+here rather than reasoned about.
+
+So the sweep and that test file run one at a time. Nothing to fix in the
+branch; the lesson is that the sweep is not safe to overlap with any
+integration test that names a working table as a literal.
+
+## Lint, measured against `origin/main` in a worktree (2026-11-02)
+
+```
+               linter main branch delta
+   indentation_linter 1396   1465    69
+  object_usage_linter   34     84    50
+         brace_linter   17     23     6   -> 0 after fixing the new test file
+   line_length_linter    6      6     0
+   (others)                            0
+TOTAL delta: 125
+```
+
+- **69 `indentation_linter`** is the class the package carries 1396 of before the
+  branch; #282 accepted +70 of the same.
+- **50 `object_usage_linter`** is the stale install, not the code: the installed
+  `fresh` is **0.52.0**, and `exists(x, asNamespace("fresh"))` is `FALSE` for
+  `.frs_lfid_pair`, `.frs_key_match`, `.frs_wsg_code_check`, `.frs_habitat_target`
+  **and for `.frs_persist_streams` and `.frs_partition_wsg`, which shipped in
+  0.53.0** — so the linter is answering about a release two versions back
+  (`code-check-r.md`, "`lintr` also resolves against the installed package").
+- **6 `brace_linter`** were mine, all in the new test file: multi-line function
+  bodies without braces. Fixed; the delta is now 0.
+- `line_length_linter` delta is 0: the 134-character `INSERT` template was already
+  over 120 on `main` at 132, so widening it added no lint. A dead `params_sp` local
+  that `object_usage_linter` flags in `frs_habitat_classify()` is also pre-existing
+  (`origin/main` line 343) and is left alone.
