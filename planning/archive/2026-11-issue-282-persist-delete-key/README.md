@@ -92,4 +92,4 @@ a data-modifying CTE is not an atomic overwrite.
   review and the four `/code-check branch` rounds, each with my verdict beside
   the reviewer's finding.
 
-Closed by: PR to follow on branch `282-custom-aoi-persist-deletes-other-watersh`
+Closed by: [PR #298](https://github.com/NewGraphEnvironment/fresh/pull/298) (open; the merge is the owner's call), final commit `f1eb13e`, released as 0.53.0
