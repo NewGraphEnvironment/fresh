@@ -3474,14 +3474,26 @@ linters: linters_with_defaults(
     commented_code_linter = NULL
   )
 exclusions: list(
-    "renv" = list(linters = "all")
+    "renv"
   )
 ```
 
 - 120 char line length (default 80 is too strict for data pipelines)
 - Allow dotted.case (common in base R and legacy code)
 - Suppress commented code lints (exploratory R scripts often have commented alternatives)
-- Exclude renv directory entirely
+- Exclude renv directory entirely: an **unnamed** entry excludes a file or directory whole.
+  A **named** entry's value must be line numbers or `Inf`, never a string: lintr's
+  `validate_named_exclusion()` aborts `lint_package()` in `read_settings()`, before any file is
+  read, so a `.lintr` carrying `"renv" = list(linters = "all")` lints nothing at all (lintr
+  3.3.0.1, measured 2026-11-01; the snippet matched no documented form at any version). The named form is
+  for excluding particular linters from particular files:
+
+  ```r
+  exclusions: list(
+      "renv",
+      "R/legacy.R" = list(pipe_consistency_linter = Inf)
+    )
+  ```
 
 ## Dependencies
 
@@ -3663,6 +3675,9 @@ Open every public piece with what the product does for the reader and why it mat
 
 ### Let visuals carry the story where they land better
 Put the story in a map, figure or table whenever the reader takes it in faster there than from prose, and keep the prose to what the visual cannot say.
+
+### Review a rendered article where the reader will read it
+Offer the rendered page in a form that opens on a phone, before the merge, without being asked.
 
 ### Cut any number or caveat that does not change what the reader understands
 Drop a number, a precision or a caveat that leaves the reader's understanding of the product where it was, because detail the reader does not need walls them off.
