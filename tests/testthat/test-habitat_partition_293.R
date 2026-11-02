@@ -236,6 +236,22 @@ test_that("a network with no linear_feature_id still classifies on id_segment", 
   expect_no_error(run())
   expect_identical(DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.p293_nofwa_habitat")$n, n1)
+
+  # fresh#225: a row with NO watershed group. The old delete built
+  # `watershed_group_code = 'NA'` from an R NA, which matches no SQL NULL, so
+  # each re-run appended a second copy of every such row. The key is no longer
+  # the group, so the row is addressed like any other.
+  DBI::dbExecute(conn, "INSERT INTO pg_temp.p293_nofwa VALUES
+    (2, NULL, 1, 1000, '100'::ltree, '100'::ltree, 1000, NULL, 0.01, 5)")
+  expect_no_error(run())
+  n2 <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nofwa_habitat
+      WHERE watershed_group_code IS NULL")$n
+  expect_gt(n2, 0)
+  expect_no_error(run())
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nofwa_habitat
+      WHERE watershed_group_code IS NULL")$n, n2)
 })
 
 test_that("wsg_code must be the one group the table holds", {

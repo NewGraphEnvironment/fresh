@@ -190,8 +190,10 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
       numbering, so they are ambiguous *within* a parent (`F1`), and no call now
       removes an orphaned species' rows (`F3`).
 - [ ] `NEWS.md` + version bump as the final commit.
-- [ ] Verify #225 (the same DELETE, `'NA'` never matching SQL NULL) is closed by the
-      restructure and close it with a test, or say why not.
+- [x] #225 **is closed by the restructure**, with a regression case in
+      `test-habitat_partition_293.R`: the delete no longer keys on the group, so a
+      row with a NULL `watershed_group_code` is addressed like any other and a
+      re-run replaces it instead of appending a second copy.
 - [x] File: the `F1`/`F3` residual as a sibling of #218; link's
       `cols_streams_near_river` mirror (`link/R/lnk_persist_init.R:189`) now one column
       behind — link's INSERT names columns explicitly, so nothing breaks, but the
@@ -201,7 +203,8 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 ## Owed at the end (reported, done after merge)
 
 - [x] link issue for the `near_river` schema mirror.
-- [ ] #225 closed, or a comment saying why it survives.
+- [x] #225 closed, or a comment saying why it survives. — fixed and tested here;
+      the issue is closed at the merge.
 
 ## Validation
 
