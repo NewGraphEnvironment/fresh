@@ -15,10 +15,14 @@
 #' @param habitat Character. Schema-qualified habitat table with boolean
 #'   label columns (from [frs_habitat_classify()]). Must carry
 #'   `watershed_group_code`: `id_segment` is unique only within a watershed
-#'   group, so every join matches both. A shared habitat table holding other
-#'   groups' rows is therefore safe — they are never read or cleared, and
-#'   `species = NULL` resolves only the species present in `table`'s groups
-#'   (fresh#242).
+#'   group. Every join also matches `linear_feature_id` where both tables
+#'   carry it, because a shared habitat table can hold **another job's rows
+#'   for other ground in the same group** since fresh#293 scoped the partition
+#'   delete to the ground a job reinserts, and the parent segment is what
+#'   separates them. With the parent, a shared table is safe — other rows are
+#'   never read or cleared, and `species = NULL` resolves only the species
+#'   present on `table`'s own ground (fresh#242, fresh#293). On a network with
+#'   no `linear_feature_id` the pair is the only key there is.
 #' @param label_cluster Character. Boolean column name in `habitat` to
 #'   cluster on. Default `"rearing"`.
 #' @param label_connect Character. Boolean column name in `habitat` that

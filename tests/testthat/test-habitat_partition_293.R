@@ -52,6 +52,19 @@ test_that("the near_river predicate keys on the parent segment when it can", {
   }
 })
 
+test_that("an empty pair list narrows the delete to nothing, not to everything", {
+  # .frs_persist_delete_sql() reads a NULL extra_subset as "do not narrow", so
+  # returning NULL here would widen the delete to every pair on the job's
+  # ground while the loop wrote none back — this issue's loss, produced by the
+  # helper added to prevent it (round 2 of /code-check). The sibling in
+  # frs_habitat_classify() skips the delete instead; both refuse to widen.
+  expect_identical(
+    .frs_near_river_pairs_in(character(0), numeric(0), numeric(0)), "FALSE")
+  one <- .frs_near_river_pairs_in("discharge", 3, 1000)
+  expect_match(one, "(measure, threshold, distance_max) IN (('discharge'",
+               fixed = TRUE)
+})
+
 # --- The read side, on a synthetic network ----------------------------------
 
 test_that("a stale same-group near_river row for another parent is not read", {
@@ -485,6 +498,84 @@ test_that("a near_river walk replaces only the pairs it walks", {
     threshold = 3, distance_max = 1000, verbose = FALSE)
   expect_identical(n_pair(1000), n1)
   expect_identical(n_pair(5000), n5)
+})
+
+test_that("a parent-segment network with no watershed group is refused", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  for (t in c("pg_temp.p293_grp", "pg_temp.p293_grp_near")) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  DBI::dbExecute(conn, "UPDATE pg_temp.nr_streams
+                        SET watershed_group_code = NULL WHERE id_segment = 15")
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
+
+  # Every match against these tables equates the group as well as the parent,
+  # so a row with no group is written and then can never be read or replaced.
+  # Refused once, here, rather than handled three different ways in three
+  # places (round 2 of /code-check).
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_grp", species = "CO", params = params,
+    gate = FALSE, verbose = FALSE), "no watershed_group_code")
+  expect_error(frs_near_river(conn, "pg_temp.nr_streams",
+    "pg_temp.p293_grp_near", threshold = 3, distance_max = 1000,
+    verbose = FALSE), "no watershed_group_code")
+
+  # And a whole-group delete says so in its own terms rather than letting the
+  # NULL-key guard abort later about a column that is not the one at fault.
+  expect_error(.frs_wsg_code_check(conn, "pg_temp.nr_streams", "TEST"),
+               "rows with no watershed_group_code")
+  # Refused before anything was created: the check runs ahead of the target's
+  # own pre-flight, so a refused call does not leave an empty table behind.
+  expect_true(is.na(DBI::dbGetQuery(conn,
+    "SELECT to_regclass('pg_temp.p293_grp')::text AS r")$r))
+
+  # The same network without the parent column keys on id_segment, where the
+  # group plays no part — the fresh#225 case, which must still work.
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams
+                        DROP COLUMN linear_feature_id")
+  expect_no_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_grp", species = "CO", params = params,
+    gate = FALSE, verbose = FALSE))
+})
+
+test_that("a failure during a near_river walk leaves its pairs as they were", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_nrt")
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrt",
+    threshold = c(3, 3), distance_max = c(1000, 5000), verbose = FALSE)
+  n0 <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nrt")$n
+  expect_gt(n0, 0)
+
+  # The delete and the per-pair inserts are one transaction, as classify's
+  # are: a failure in walk i must not leave pairs i..n deleted and not
+  # written back (round 2 of /code-check).
+  deletes <- 0L
+  inserts <- 0L
+  local_mocked_bindings(.frs_db_execute = function(conn, sql) {
+    if (grepl("DELETE FROM pg_temp.p293_nrt", sql, fixed = TRUE)) {
+      deletes <<- deletes + 1L
+    }
+    if (grepl("INSERT INTO pg_temp.p293_nrt", sql, fixed = TRUE)) {
+      inserts <<- inserts + 1L
+      if (inserts == 2L) stop("boom")
+    }
+    DBI::dbExecute(conn, sql)
+  })
+  expect_error(frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrt",
+    threshold = c(3, 3), distance_max = c(1000, 5000), verbose = FALSE),
+    "boom")
+  expect_identical(deletes, 1L)
+  expect_identical(inserts, 2L)
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nrt")$n, n0)
 })
 
 # --- Nothing is left reading these tables on the short key ------------------

@@ -313,3 +313,41 @@ Four guards the fixes introduced had no test, so they have one now: the empty-sp
 skip, an open transaction the caller owns, the `near_river` guard firing before the
 delete, and the pair scope. The transaction test also now counts the DELETE, so
 "rolled back" is distinguishable from "never ran".
+
+## `/code-check branch` round 2 — five findings, one inside a round-1 fix (2026-11-02)
+
+Full text in `planning/active/review-round2.md`. The predicted shape appeared:
+
+- **`.frs_near_river_pairs_in()` — round 1's finding 5, one axis over, inside the
+  fix for finding 7.** The helper added to stop a delete removing rows nothing
+  replaces returned `NULL` for an empty pair list, and `.frs_persist_delete_sql()`
+  reads `NULL` as *do not narrow*. So the degenerate input would have **widened** the
+  delete to every pair on the job's ground. The sibling fix in the same commit met
+  the identical R idiom and chose to skip the delete, so the two coupled stores had
+  opposite degenerate-input policies. Unreachable today (`ok_num()` refuses an empty
+  `threshold` two frames up) — the fail-open was in the helper's own contract.
+  Returns `"FALSE"` now.
+
+The other four:
+
+| finding | resolution |
+|---|---|
+| `frs_near_river()`'s delete + per-pair inserts were **still not one transaction**, while the branch gave exactly that to both siblings — and `.frs_null_key_guard()`'s own roxygen names the three-writer set | wrapped, same shape, same nested-transaction tolerance |
+| round 1's fix 6 did not achieve its purpose: the writer stopped equating a nullable `watershed_group_code`, but the **reader** still equates it, so a NULL-group row is written and then unreadable — and for a whole-group run the relocated guard aborts on it offering only "backfill or drop" | refuse the combination once: `.frs_group_required()` stops a network that carries `linear_feature_id` and leaves the group empty, ahead of any write. A network with neither populated is the #225 case and still works. `.frs_wsg_code_check()` refuses a NULL group in its own terms rather than dropping the NA and letting the key guard abort about the wrong column |
+| fix 3 falsified the comment the same commit rewrote: with `ignore.case` the caller's-transaction path works, and on it the `CREATE`, the `ALTER` and the indexes run **inside the caller's** transaction and hold to *their* commit | the comment states that case and whose choice it is |
+| fix 9 corrected `CLAUDE.md` and left three **exported** functions' pkgdown pages asserting the superseded key — `frs_cluster()`'s even saying a shared table is "therefore safe", the claim the branch disproves — plus two `@noRd` siblings | all five corrected |
+
+Round 2 also verified clean, by replication rather than reading: every `sprintf()`
+spec against its args in the eight changed files (0 mismatches) and the argument
+order of every changed template by hand; the new enumeration test's scan over all
+172 parsed functions, matching the allowlist exactly; fix 7's number formatting
+traced end to end; and that fix 4's guard cannot be skipped when it should fire.
+
+### Three near_river tests encoded the pre-#293 behaviour
+
+The full suite after round 1 went FAIL 3, all in `test-frs_near_river.R`, and all
+because a call now replaces **only the pairs it walks**: the tests re-ran with a
+different `distance_max` into the same table and read the result without filtering
+on it, so an earlier pair's rows were still there. The old whole-ground delete is
+what made the unfiltered read work. Each assertion now names its own pair's
+distance — the fix was right and the tests were asserting the defect.

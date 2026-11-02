@@ -279,6 +279,8 @@ frs_habitat_classify <- function(conn, table, to,
   # can never address. Up here rather than beside the delete because the walk
   # writes <to>_near_river, so a legacy target refused down there would be
   # refused only after that write (fresh#293 review, O2).
+  .frs_group_required(conn, table,
+                      "linear_feature_id" %in% .frs_cols_of(conn, table))
   tgt <- .frs_habitat_target(conn, table, to, wsg_code, overwrite)
 
   # Ensure input tables are indexed — critical when called directly
@@ -384,7 +386,12 @@ frs_habitat_classify <- function(conn, table, to,
   # statement_timeout it surfaces as a cancelled statement
   # (code-check-infra.md, "Set statement_timeout + lock_timeout on long DB
   # ops"). Inside the transaction the DDL would be far worse: the lock would
-  # then be held to commit.
+  # then be held to commit. One case fresh does not control: a caller who
+  # opened a transaction before calling us -- the `began == FALSE` branch
+  # below -- has the CREATE, the ALTER and the indexes inside it, so those
+  # locks are held to THEIR commit. That is the caller's choice to make, and
+  # the alternative is refusing such a caller outright, which is what the
+  # branch below exists to stop doing.
   #
   # dbBegin() refuses a nested transaction, and a caller who already has one
   # open has already made the pair atomic with respect to their commit, so

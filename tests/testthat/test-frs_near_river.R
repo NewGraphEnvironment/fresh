@@ -32,12 +32,15 @@ test_that("distance_max caps at the bank distance, inclusive", {
   .nr_fixture(conn, .nr_tributary(), scale = 0.01)
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   # 950 m: t3 is 900 m from the bank but 1000 m from the centreline.
+  # Each assertion names its own pair's distance. Since fresh#293 a call
+  # replaces only the pairs it walks, so an earlier distance's rows are still
+  # in the table and an unfiltered read would see them all.
   nr_run(conn, d = 950)
-  expect_identical(names(.nr_dist(conn)), c("10", "11", "12", "13"))
+  expect_identical(names(.nr_dist(conn, d = 950)), c("10", "11", "12", "13"))
   nr_run(conn, d = 1900)
-  expect_true("14" %in% names(.nr_dist(conn)))
+  expect_true("14" %in% names(.nr_dist(conn, d = 1900)))
   nr_run(conn, d = 1899.9)
-  expect_false("14" %in% names(.nr_dist(conn)))
+  expect_false("14" %in% names(.nr_dist(conn, d = 1899.9)))
 })
 
 test_that("the bank subtraction holds with the straight-line prefilter live", {
@@ -228,12 +231,13 @@ test_that("a stretch outside the table counts at its straight length", {
   .nr_fixture(conn, .nr_offtable())
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn, d = 5000)
-  expect_identical(.nr_dist(conn), c(`51` = 2000, `52` = 2500))
-  # One discharge and distance gets one answer, whatever else is asked.
+  expect_identical(.nr_dist(conn, d = 5000), c(`51` = 2000, `52` = 2500))
+  # One discharge and distance gets one answer, whatever else is asked --
+  # read at its own distance, since a call now replaces only its own pairs.
   nr_run(conn, q = c(3, 1), d = c(1000, 9000))
-  expect_length(.nr_dist(conn), 0)
+  expect_length(.nr_dist(conn, d = 1000), 0)
   nr_run(conn, q = 3, d = 1000)
-  expect_length(.nr_dist(conn), 0)
+  expect_length(.nr_dist(conn, d = 1000), 0)
 })
 
 test_that("bank = FALSE measures to the centreline", {

@@ -1344,9 +1344,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' Spawning on a sibling tributary (neither upstream nor downstream of the
 #' polygon) does not connect, and neither does spawning outside `table`
 #' (e.g. in the next watershed group). Subtractive: only clears flags,
-#' never sets them. `habitat` may hold other watershed groups' rows (a
-#' shared `to_habitat`): every join matches `watershed_group_code` too, so
-#' they are never read or cleared.
+#' never sets them. `habitat` may hold other watershed groups' rows, and
+#' since fresh#293 other jobs' rows for other ground in the same group (a
+#' shared `to_habitat`): every join is built by `.frs_key_match()`, which
+#' matches `watershed_group_code` and, where both tables carry it, the parent
+#' segment, so neither is read or cleared.
 #'
 #' @param column Character. `"lake_rearing"` or `"wetland_rearing"`.
 #' @param distance_max Numeric. Network distance cap in metres.
@@ -1741,8 +1743,10 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #'
 #' `habitat` may hold other watershed groups' rows (a shared `to_habitat`):
 #' every join matches `watershed_group_code` too, and the subtractive and
-#' additive UPDATEs are confined to the groups present in `table`, so other
-#' groups are never read or written (fresh#242).
+#' additive UPDATEs are confined to the ground present in `table` — the
+#' groups, and since fresh#293 the parent segments within them where both
+#' tables carry `linear_feature_id` — so no other job's rows are read or
+#' written (fresh#242, fresh#293).
 #'
 #' @param conn DBI connection.
 #' @param table Character. Schema-qualified streams table.

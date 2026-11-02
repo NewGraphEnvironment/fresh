@@ -177,6 +177,31 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   # the species it classifies: a call for one rule's pair must not remove the
   # rows another rule's pair wrote for the same ground, because it writes none
   # back and the predicate reading them then matches nothing (fresh#293).
+  # One transaction, as .frs_persist_streams() and frs_habitat_classify() are:
+  # autocommitted separately, a failure in walk i leaves pairs i..n deleted and
+  # not written back, and this walk is the pipeline's most timeout-prone
+  # statement (code-check-infra.md, "Two-statement DELETE/INSERT into a persist
+  # table is not atomic"). The CREATE and the indexes stay outside, above.
+  # dbBegin() refuses a nested transaction, and a caller who already holds one
+  # has made the pair atomic with respect to their own commit.
+  began <- FALSE
+  if (inherits(conn, "DBIConnection")) {
+    began <- tryCatch({
+      DBI::dbBegin(conn)
+      TRUE
+    }, error = function(e) {
+      if (grepl("nested transaction", conditionMessage(e), ignore.case = TRUE)) {
+        FALSE
+      } else {
+        stop(e)
+      }
+    })
+  }
+  if (began) {
+    committed <- FALSE
+    on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
+            add = TRUE)
+  }
   .frs_db_execute(conn, .frs_persist_delete_sql(
     to, table, wsg_code, cols_to, cols_from,
     extra_subset = .frs_near_river_pairs_in(measure, threshold, distance_max)))
@@ -219,6 +244,11 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
           " with no local code did not walk\n", sep = "")
     }
   }
+  if (began) {
+    DBI::dbCommit(conn)
+    committed <- TRUE
+  }
+
   if (verbose) {
     cat("  Near river walk: ",
         round((proc.time() - t0)["elapsed"], 1), "s\n", sep = "")
@@ -298,6 +328,8 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
          call. = FALSE)
   }
   .frs_wsg_code_check(conn, table, wsg_code)
+  .frs_group_required(conn, table,
+                      "linear_feature_id" %in% .frs_cols_of(conn, table))
   .frs_near_river_check_shape(conn, table, to)
   # Before the delete, not after it: a guard that raises once the partition
   # has been removed has already lost the rows it exists to protect, and the
@@ -321,10 +353,20 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
 #'
 #' @param measure,threshold,distance_max The call's vectors, `measure`
 #'   already recycled to one per threshold.
-#' @return Character SQL, or `NULL` when there are no pairs.
+#' No pairs returns `"FALSE"`, not `NULL`: [.frs_persist_delete_sql()] reads a
+#' `NULL` `extra_subset` as "do not narrow", so the degenerate input would
+#' *widen* the delete to every pair on the job's ground while the loop writes
+#' none back -- this issue's loss, produced by the helper added to prevent it.
+#' `.frs_near_river_check()`'s `ok_num()` already refuses an empty `threshold`
+#' two frames up, so this is not reachable today; the fail-open was in this
+#' function's own contract, and [frs_habitat_classify()] met the same R idiom
+#' and chose to skip the delete, so the two coupled stores would otherwise
+#' have had opposite degenerate-input policies (fresh#293 review, round 2).
+#'
+#' @return Character SQL; `"FALSE"` when there are no pairs.
 #' @noRd
 .frs_near_river_pairs_in <- function(measure, threshold, distance_max) {
-  if (length(threshold) == 0) return(NULL)
+  if (length(threshold) == 0) return("FALSE")
   rows <- sprintf("(%s, %s, %s)",
                   vapply(measure, .frs_quote_string, character(1)),
                   vapply(threshold, .frs_sql_num, character(1)),

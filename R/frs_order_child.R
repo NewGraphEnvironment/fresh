@@ -119,6 +119,7 @@
 #' FROM s
 #' WHERE <habitat>.id_segment = s.id_segment
 #'   AND <habitat>.watershed_group_code = s.watershed_group_code
+#'   AND <habitat>.linear_feature_id = s.linear_feature_id  -- both carry it
 #'   AND <habitat>.species_code = '<species>'
 #'   AND <habitat>.accessible = TRUE
 #'   AND <habitat>.<label> IS NOT TRUE

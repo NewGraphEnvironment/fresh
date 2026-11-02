@@ -17,3 +17,7 @@
 "293 connected_waterbody origins key","R/frs_habitat.R","    table, habitat, .frs_key_match(""hr"", ""s2"", lfid), sp_quoted)","1","substitute","    table, habitat, .frs_key_match(""hr"", ""s2"", FALSE), sp_quoted)",".frs_connected_waterbody"
 "293 connected_waterbody rearing key","R/frs_habitat.R","    table, habitat, .frs_key_match(""hr"", ""s2"", lfid), sp_quoted,","1","substitute","    table, habitat, .frs_key_match(""hr"", ""s2"", FALSE), sp_quoted,",".frs_connected_waterbody"
 "293 connected_waterbody spawn key","R/frs_habitat.R","    table, habitat, .frs_key_match(""hs"", ""s3"", lfid), sp_quoted)","1","substitute","    table, habitat, .frs_key_match(""hs"", ""s3"", FALSE), sp_quoted)",".frs_connected_waterbody"
+"293 empty pair list narrows to nothing","R/frs_near_river.R","  if (length(threshold) == 0) return(""FALSE"")","1","substitute","  if (length(threshold) == 0) return(NULL)",".frs_near_river_pairs_in"
+"293 near_river walk is one transaction","R/frs_near_river.R","      DBI::dbBegin(conn)","1","delete","","frs_near_river"
+"293 group required with the parent key","R/utils.R","  if (!isTRUE(lfid)) return(invisible(NULL))","1","substitute","  if (TRUE) return(invisible(NULL))",".frs_group_required"
+"293 wsg_code refuses a NULL group","R/utils.R","  if (anyNA(have)) {","1","substitute","  if (FALSE) {",".frs_wsg_code_check"

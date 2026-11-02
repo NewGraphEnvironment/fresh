@@ -1441,7 +1441,15 @@
   }
   have <- DBI::dbGetQuery(conn, sprintf(
     "SELECT DISTINCT watershed_group_code AS w FROM %s", table))$w
-  have <- have[!is.na(have)]
+  if (anyNA(have)) {
+    # Dropping the NA and comparing the rest would let the whole-group delete
+    # run and then leave those rows for the NULL-key guard to abort on, with a
+    # message about backfilling a column that is not the one at fault.
+    stop(sprintf(paste0(
+      "wsg_code is %s but %s holds rows with no watershed_group_code, which a ",
+      "whole-group delete cannot address. Populate it, or pass ",
+      "wsg_code = NULL."), sQuote(wsg_code), table), call. = FALSE)
+  }
   if (length(have) == 0) return(invisible(NULL))
   if (!setequal(have, wsg_code)) {
     stop(sprintf(paste0(
@@ -1450,6 +1458,43 @@
       "AOI, or segment the whole group."),
       paste(sQuote(wsg_code), collapse = ", "), table,
       paste(sQuote(sort(have)), collapse = ", ")), call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+
+#' Refuse a parent-segment network whose watershed group is not populated
+#'
+#' Where `linear_feature_id` is the identity, every match built by
+#' [.frs_key_match()] and the `near_river` predicate still equates
+#' `watershed_group_code` as well, and a row with none satisfies neither: it is
+#' written, and then no read can see it and no whole-group delete can address
+#' it. The FWA's column is `NOT NULL`, so this reaches only a network that
+#' carries the parent segment and leaves the group empty -- a combination every
+#' path in fresh treats differently, which is why it is refused here rather
+#' than handled three ways (fresh#293 review, round 2).
+#'
+#' A network with **neither** column populated is unaffected: `id_segment` is
+#' then the key and the group plays no part, which is the fresh#225 case.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param table Character. Schema-qualified working streams table.
+#' @param lfid Logical. Whether `table` carries `linear_feature_id`.
+#' @return NULL invisibly, or `stop()`.
+#' @noRd
+.frs_group_required <- function(conn, table, lfid) {
+  if (!isTRUE(lfid)) return(invisible(NULL))
+  n <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s WHERE watershed_group_code IS NULL",
+    table))$n
+  if (length(n) == 1 && !is.na(n) && n > 0) {
+    stop(sprintf(paste0(
+      "%s carries linear_feature_id but %d row(s) have no ",
+      "watershed_group_code. Every match against the habitat and near_river ",
+      "tables equates the group as well as the parent segment, so such a row ",
+      "is written and then can never be read or replaced. Populate ",
+      "watershed_group_code in %s, or drop linear_feature_id from it to key ",
+      "on id_segment alone."), table, n, table), call. = FALSE)
   }
   invisible(NULL)
 }
