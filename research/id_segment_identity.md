@@ -1,8 +1,10 @@
 # What `id_segment` is, and why the persisted table disagrees with the code
 
-**Verified:** 2026-10-28 · **Issues:** #282 (found here), #218, #231, #277, #242 ·
-**Produced by:** reading `R/utils.R` and `R/frs_break.R`, and four aggregates over
-`fresh.streams` on the database `frs_db_conn()` reaches, with
+**Verified:** 2026-11-01 · **Issues:** #282 (found here, and settled the delete
+key), #293, #294, #295, #218, #231, #277, #242 · **Produced by:** reading
+`R/utils.R` and `R/frs_break.R`, four aggregates over `fresh.streams`, and the
+Phase 0 measurements in `planning/archive/2026-11-issue-282-persist-delete-key/`,
+all on the database `frs_db_conn()` reaches, with
 `SET statement_timeout = 240000`
 
 ## The short version
@@ -79,12 +81,65 @@ them is wrong about the other:
   table, so a different AOI over the same ground numbers its sub-segments
   differently.
 - **Which delete key is correct for a partition overwrite depends on which
-  artifact is being written.** Against a `fresh.streams`-era table the pair key
-  confines a custom-AOI overwrite to its own group; against a freshly built table
-  the residual collisions are same-group, and the pair key neither helps nor is
-  safe to assume unique. `(linear_feature_id, downstream_route_measure)` is the
-  physical identity of a sub-segment and was measured with 0 duplicates on a real
-  working table (434 rows, 189 base / 245 derived). #282 carries that decision.
+  artifact is being written** — and the answer is neither of the two keys #282
+  first proposed. Against a `fresh.streams`-era table the pair key confines a
+  custom-AOI overwrite to its own group; against a freshly built table the
+  residual collisions are **same-group**, so it neither helps nor is safe to
+  assume unique: of one run's 275 derived ids, 81 each equalled a real
+  `linear_feature_id` in the run's own watershed group and **0** fell in another
+  group. `(linear_feature_id, downstream_route_measure)` is the physical identity
+  of a sub-segment and was measured with 0 duplicates on a real working table
+  (434 rows, 189 base / 245 derived), and a float equality on the measure is
+  exact here — derived measures are integral and base measures are copied
+  `double precision` to `double precision` — but it rests on break detection
+  reproducing the same measures, which a key that never names one does not need.
+
+## The key that shipped: the parent segment
+
+`fresh` 0.53.0 overwrites a custom AOI's partition of `to_streams` by
+**`linear_feature_id`**, the parent FWA segment, and it is the only candidate
+correct against both artifacts. Three measured facts decide it:
+
+- **An AOI is a row predicate, never a cut.** Every arm of `.frs_resolve_aoi()`
+  (`R/utils.R`) returns a WHERE clause, so a job holds whole FWA segments; nothing
+  in the extract clips geometry at the AOI boundary. Breaking subdivides those
+  segments *within* the run, so deleting the target's rows for a parent and
+  inserting the run's own is a complete replace of the ground it covers.
+- **No `linear_feature_id` spans a watershed group** — 0, measured across
+  `whse_basemapping.fwa_stream_networks_sp` — so the overwrite cannot reach
+  another group whatever the AOI covers. This is the property the `id_segment`
+  keys lack, and it does not depend on which pipeline wrote the table.
+- **It is the only key that clears stale sub-segments.** A re-run at different
+  break measures leaves the previous run's sub-segments behind under either
+  `id_segment` key; keying on the parent removes them.
+
+`id_segment` remains the key only where neither table carries
+`linear_feature_id` — a network that is not the FWA. One table carrying it while
+the other does not is an error naming the table to migrate, not a silent fall
+back to a key measured wrong.
+
+**The sibling tables cannot use it.** `frs_habitat_classify()`'s and
+`frs_near_river()`'s targets carry only `id_segment` and `watershed_group_code`
+(measured), so neither the parent segment nor physical identity is available
+there without widening the habitat schema — which is why #293 is a separate
+issue rather than the same fix applied twice.
+
+## Two things that make a persisted streams table unforgiving
+
+Both measured while #282 was fixed, and both are properties of the database that
+no reading of the source reveals:
+
+- **Every persisted `streams` table has a unique index to violate.** 296 `streams`
+  relations measured across the instance's schemas, **0** without one (198 on
+  `id_segment` alone, 98 on the pair). `CREATE TABLE ... LIMIT 0` copies no
+  constraints, so a test fixture built that way cannot reach the failure mode a
+  real target reaches — a fixture needs the index added explicitly.
+- **A data-modifying CTE is not an atomic overwrite.** All sub-statements of
+  `WITH del AS (DELETE ...) INSERT ...` run under one snapshot and one command id,
+  so the INSERT's uniqueness check still sees the rows the DELETE is removing:
+  measured on a keyed target, run 1 succeeded and run 2 raised a duplicate-key
+  violation, under both candidate keys. The overwrite is one **transaction** with
+  two statements instead.
 
 ## How to re-derive
 
