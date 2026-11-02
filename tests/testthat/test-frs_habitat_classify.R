@@ -523,7 +523,16 @@ test_that("the per-species progress line counts only this job's groups", {
       data.frame(acc = 1L, spn = 1L, rr = 1L)
     })
   counts <- tryCatch({
-    local_mocked_bindings(.frs_db_execute = function(conn, sql) 0L)
+    local_mocked_bindings(
+      .frs_db_execute = function(conn, sql) 0L,
+      # The partition key is chosen from the two tables' columns and the
+      # count is scoped by that key, so the lookup is mocked rather than the
+      # scope being assumed. Both tables carry the parent segment in reality
+      # (fresh#293), and the NULL-key guard's count comes back 0 from the
+      # stub above.
+      .frs_cols_of = function(conn, tbl) {
+        c("id_segment", "watershed_group_code", "linear_feature_id")
+      })
     frs_habitat_classify("mock", table = "working.streams",
       to = "fresh.streams_habitat", species = "CO", gate = FALSE,
       verbose = TRUE)
@@ -533,6 +542,10 @@ test_that("the per-species progress line counts only this job's groups", {
   # Loud, not a skip: a guard that fails toward skip would turn this pin green
   # the moment a real DB call is added upstream of the count.
   expect_gt(length(counts), 0)
-  expect_match(counts[1], "watershed_group_code IN", fixed = TRUE)
+  # Scoped by the key the delete used, not by the watershed group: since
+  # fresh#293 a group can hold another job's rows, so counting by group
+  # over-reports what this job wrote -- the same defect one column narrower.
+  expect_match(counts[1], "linear_feature_id IN", fixed = TRUE)
+  expect_false(grepl("watershed_group_code IN", counts[1], fixed = TRUE))
   expect_match(counts[1], "FROM working.streams s", fixed = TRUE)
 })

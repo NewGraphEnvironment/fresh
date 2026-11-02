@@ -267,20 +267,35 @@ test_that("on the origin's own line a row upstream is never on the path", {
   expect_identical(.nr_dist(conn)[c("13", "14")], c(`13` = 900, `14` = 1900))
 })
 
-test_that("only the table's groups are replaced", {
+test_that("only the ground the walk covers is replaced", {
   skip_if_no_conn()
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
   .nr_fixture(conn, .nr_tributary())
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn)
-  DBI::dbExecute(conn, "INSERT INTO pg_temp.nr_near VALUES
-                          (999, 'TEST', 'discharge', 3, 1000, 1),
-                          (999, 'OTHR', 'discharge', 3, 1000, 1)")
+
+  # Three decoys, distinguished by the parent segment the delete keys on
+  # (fresh#293). Before 0.54.0 the delete removed every group the streams
+  # table mentioned, so the first two went and only the third survived --
+  # which is the loss, since a custom AOI never puts them back.
+  held <- DBI::dbGetQuery(conn,
+    "SELECT min(linear_feature_id) AS l FROM pg_temp.nr_streams")$l
+  DBI::dbExecute(conn, sprintf(
+    "INSERT INTO pg_temp.nr_near
+       (id_segment, linear_feature_id, watershed_group_code, measure,
+        threshold, distance_max, dist_m)
+     VALUES (901, -999, 'TEST', 'discharge', 3, 1000, 1),
+            (902, -998, 'OTHR', 'discharge', 3, 1000, 1),
+            (903, %.0f, 'TEST', 'discharge', 3, 1000, 1)", held))
   nr_run(conn)
-  kept <- DBI::dbGetQuery(conn, "SELECT watershed_group_code w
-                                 FROM pg_temp.nr_near WHERE id_segment = 999")
-  expect_identical(kept$w, "OTHR")
+
+  kept <- DBI::dbGetQuery(conn,
+    "SELECT id_segment FROM pg_temp.nr_near
+      WHERE id_segment IN (901, 902, 903) ORDER BY 1")$id_segment
+  # Same group, other ground: kept. Other group: kept. Ground this walk
+  # holds: replaced, and the walk writes no row at that id_segment.
+  expect_identical(as.integer(kept), c(901L, 902L))
   expect_length(.nr_dist(conn), 4)
 })
 

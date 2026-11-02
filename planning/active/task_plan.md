@@ -165,10 +165,11 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
       claims one shape for all habitat fixtures: add the column and update its
       positional inserts (`:75-80`, `:91-95`), plus
       `test-frs_connectivity_wsg.R:351`, `:684`.
-- [ ] `test-frs_near_river.R:270` ("only the table's groups are replaced") — rewrite
+- [x] `test-frs_near_river.R:270` ("only the table's groups are replaced") — rewrite
       for the new key; its positional 6-value `INSERT` fails on a 7-column DDL.
-- [ ] `test-near_river_rules.R:19` and `test-near_river_inherit.R:48` pin the exact
-      `EXISTS` string.
+- [x] ~~`test-near_river_rules.R:19` and `test-near_river_inherit.R:48` pin the exact
+      `EXISTS` string.~~ — **no change needed**: `near_river_lfid` defaults to
+      `FALSE`, which builds byte-identically to 0.53.0, so both pins stay green.
 - [ ] `test-frs_habitat_classify.R:443` — add the column to the `pg_temp.nr_hab`
       fixture so its "nothing is touched before the walk" case stays non-vacuous.
 - [ ] Add the #293 decoy to the #282 integration test (`test-frs_habitat.R:647`): a

@@ -65,6 +65,13 @@ test_that("upstream SQL includes FWA_Upstream and confluence check", {
     .frs_db_execute = function(conn, sql) {
       sql_log <<- c(sql_log, sql)
       0L
+    },
+    # The habitat-to-streams key is chosen from the two tables' columns, one
+    # call deeper than the stub above reaches, so the column lookup is mocked
+    # too. Both tables carry the parent segment in reality, which is the case
+    # worth asserting the SQL for (fresh#293).
+    .frs_cols_of = function(conn, tbl) {
+      c("id_segment", "watershed_group_code", "linear_feature_id")
     }
   )
 
@@ -84,6 +91,12 @@ test_that("upstream SQL includes FWA_Upstream and confluence check", {
   expect_match(sql_log[1], "subpath")
   expect_match(sql_log[1], "cluster_minimums")
   expect_match(sql_log[1], "SET rearing = FALSE")
+  # Every habitat match carries the parent segment, and the cluster rows carry
+  # it so the write-back can pin on it too (fresh#293).
+  expect_match(sql_log[1], "h.linear_feature_id = s.linear_feature_id",
+               fixed = TRUE)
+  expect_match(sql_log[1], "h.linear_feature_id = c.linear_feature_id",
+               fixed = TRUE)
 })
 
 # --- Unit tests: downstream SQL pattern ---
@@ -94,6 +107,13 @@ test_that("downstream SQL includes fwa_downstreamtrace and gradient bridge", {
     .frs_db_execute = function(conn, sql) {
       sql_log <<- c(sql_log, sql)
       0L
+    },
+    # The habitat-to-streams key is chosen from the two tables' columns, one
+    # call deeper than the stub above reaches, so the column lookup is mocked
+    # too. Both tables carry the parent segment in reality, which is the case
+    # worth asserting the SQL for (fresh#293).
+    .frs_cols_of = function(conn, tbl) {
+      c("id_segment", "watershed_group_code", "linear_feature_id")
     }
   )
 
@@ -115,6 +135,10 @@ test_that("downstream SQL includes fwa_downstreamtrace and gradient bridge", {
   expect_match(sql_log[1], "nearest_barrier")
   expect_match(sql_log[1], "0.05")
   expect_match(sql_log[1], "10000")
+  expect_match(sql_log[1], "h.linear_feature_id = s.linear_feature_id",
+               fixed = TRUE)
+  expect_match(sql_log[1], "h.linear_feature_id = c.linear_feature_id",
+               fixed = TRUE)
 })
 
 # --- Unit tests: both direction uses temp tables ---
@@ -125,6 +149,9 @@ test_that("both direction creates temp table and evaluates independently", {
     .frs_db_execute = function(conn, sql) {
       sql_log <<- c(sql_log, sql)
       0L
+    },
+    .frs_cols_of = function(conn, tbl) {
+      c("id_segment", "watershed_group_code", "linear_feature_id")
     },
     .frs_cluster_both = function(conn, table, habitat, label_cluster,
                                  label_connect, species, confluence_m,

@@ -32,3 +32,10 @@
   key helpers, the delete scope and its transaction, and the read side.
   `tests/testthat/test-habitat_partition_293.R` 9 tests / 37 assertions, all
   passing. Next: the full suite, for what the narrowed key broke.
+- Phase 5: the 10 full-suite failures were the ones the plan review predicted.
+  Nine were mock-connection tests stubbing `DBI::dbGetQuery` on an outer
+  function, one call shallower than the new column lookup; each now mocks
+  `.frs_cols_of` and asserts the new key rather than assuming the old one.
+  The tenth was `test-frs_near_river.R`'s positional six-value INSERT against
+  a seven-column table; that test is rewritten around what the new key means
+  — same group, other ground survives; the ground the walk holds is replaced.
