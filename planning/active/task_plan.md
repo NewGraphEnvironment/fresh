@@ -180,18 +180,19 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 
 ## Phase 6 — Docs, measurement and follow-ups
 
-- [ ] `A3`: the documented whole-table call (`frs_habitat_classify.R:99-102`) becomes
-      `linear_feature_id IN (SELECT ... FROM fresh.streams)` over 3.8M values where it
-      was 98 column filters. Measure it; document `wsg_code` as the whole-group opt-in
-      for direct callers, and update the example.
-- [ ] roxygen: `overwrite`'s mode-dependent species semantics (decision 4); the two
+- [x] `A3`: **measured and disproved** — one semi-join plans at ~1.03M against 98
+      group filters at ~80K each (~7.9M total), so the new form is cheaper for a
+      whole-province run and more expensive per group, which is what `wsg_code` is
+      for. `findings.md` has the plans. The example gains a `wsg_code` block and the
+      view's join key gains the parent segment.
+- [x] roxygen: `overwrite`'s mode-dependent species semantics (decision 4); the two
       residual limits — a stale species' rows keep an `id_segment` from an earlier
       numbering, so they are ambiguous *within* a parent (`F1`), and no call now
       removes an orphaned species' rows (`F3`).
 - [ ] `NEWS.md` + version bump as the final commit.
 - [ ] Verify #225 (the same DELETE, `'NA'` never matching SQL NULL) is closed by the
       restructure and close it with a test, or say why not.
-- [ ] File: the `F1`/`F3` residual as a sibling of #218; link's
+- [x] File: the `F1`/`F3` residual as a sibling of #218; link's
       `cols_streams_near_river` mirror (`link/R/lnk_persist_init.R:189`) now one column
       behind — link's INSERT names columns explicitly, so nothing breaks, but the
       mirror should follow; `research/id_segment_identity.md` revised with what this
@@ -199,17 +200,17 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 
 ## Owed at the end (reported, done after merge)
 
-- [ ] link issue for the `near_river` schema mirror.
+- [x] link issue for the `near_river` schema mirror.
 - [ ] #225 closed, or a comment saying why it survives.
 
 ## Validation
 
-- [ ] `Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5`
-      — FAIL 0, against `main`'s skip/warn baseline.
+- [x] `devtools::test()` — **FAIL 0 | WARN 21 | SKIP 6 | PASS 2596**; the warnings
+      and skips are `main`'s (fwapg migration gates, no bcfishpass schema).
 - [ ] `workers = 2L` through the mirai path, with two jobs over overlapping ground into
       one shared `to_habitat`.
 - [ ] `lintr::lint_package()` against `origin/main`'s count in a worktree.
-- [ ] `devtools::document()`; `pkgdown::check_pkgdown()` if an export changes.
+- [x] `devtools::document()`; `pkgdown::check_pkgdown()` if an export changes.
 - [ ] Mutation sweep: a committed site list (`dev/mutation_sweep_sites_habitat_293.csv`)
       run with `dev/mutation_sweep.R`, each site credited only on red → green → red.
       Every guard this plan adds gets a row.

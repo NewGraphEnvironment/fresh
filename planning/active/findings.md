@@ -202,3 +202,38 @@ watershed_group_code)` key could not tell the difference.
 The second is `code-check-r.md`, "A database driver's value is not a base R
 type". The first is the sharper one: a fixture that could not reach the failure
 mode, and the narrowed key is what made it visible.
+
+## A3: the whole-province delete is cheaper than the 98 it replaces (2026-11-02)
+
+The plan review's assumption A3 was that `frs_habitat_classify(table =
+"fresh.streams")` — the shipped whole-table example — becomes an expensive
+delete, because a 3.8M-value semi-join replaces 98 cheap column filters.
+Measured with `EXPLAIN` (no `ANALYZE`; these are planner costs, not wall clock)
+on the database `frs_db_conn()` reaches, `statement_timeout = 120000`:
+
+```
+DELETE FROM <target> WHERE linear_feature_id IN (SELECT linear_feature_id FROM fresh.streams)
+  Delete on streams  (cost=496772.14..1032265.26 rows=0)
+    -> Hash Join (rows=3725058): seq scan + HashAggregate over the same 3.7M rows
+
+DELETE FROM <target> WHERE watershed_group_code = 'BULK'          -- one of 98
+  Delete on streams  (cost=0.43..80255.91 rows=0)
+    -> Index Scan using streams_wsg_idx (rows=84062)
+```
+
+**One semi-join at ~1.03M beats 98 group filters at ~80K each (~7.9M).** So the
+new form is cheaper in total for a whole-province run, not more expensive, and
+A3's concern does not hold. It is more expensive per *group*, which is why
+`wsg_code` exists — a one-group job should pass it, and `frs_habitat()` does.
+
+Two caveats on the numbers. The target here is `fresh.streams` itself, because
+no habitat table on the instance carries `linear_feature_id` yet, so the real
+delete will run against a wider table with an index on the key, where the plan
+will differ. And the hash side estimates 141,596 distinct `linear_feature_id`
+out of 3.7M rows, which is statistics rather than the truth; it does not change
+the direction.
+
+Measured with the same `integer64` trap as above: `count(*)::bigint` printed
+through `cat()` came out `1.87884e-317`. The row count in the table is the
+plan's `rows=3725058`, which agrees with the 3,802,814 that
+`research/id_segment_identity.md` records.

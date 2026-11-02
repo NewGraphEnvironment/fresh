@@ -50,3 +50,8 @@
   code (`findings.md`). Also removed a second read of both tables' columns in
   classify, so the key the NULL-key guard checked and the key the delete uses
   come from one read.
+- Third full suite clean: FAIL 0 | WARN 21 | SKIP 6 | PASS 2596. The warnings
+  and skips are `main`'s (fwapg migration gates, no bcfishpass schema).
+- A3 measured and disproved; the example gains a `wsg_code` block and the
+  view's join key gains the parent segment. Filed #300 (the residual this
+  narrows but does not close) and link#452 (the near_river schema mirror).
