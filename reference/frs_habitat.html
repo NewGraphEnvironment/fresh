@@ -11,7 +11,7 @@ habitat via frs_habitat_classify(), and persist results."><meta property="og:ima
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.52.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.53.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@ habitat via frs_habitat_classify(), and persist results."><meta property="og:ima
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Run Habitat Pipeline</h1>
-      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.52.0/R/frs_habitat.R" class="external-link"><code>R/frs_habitat.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/R/frs_habitat.R" class="external-link"><code>R/frs_habitat.R</code></a></small>
       <div class="d-none name"><code>frs_habitat.Rd</code></div>
     </div>
 
@@ -111,7 +111,30 @@ Auto-generated from <code>wsg</code> when available. Required when <code>wsg</co
 
 <dt id="arg-to-streams">to_streams<a class="anchor" aria-label="anchor" href="#arg-to-streams"></a></dt>
 <dd><p>Character or <code>NULL</code>. Schema-qualified table for
-persistent stream segments. Accumulates across runs.</p></dd>
+persistent stream segments. Accumulates across runs, and must not be the
+working table <code>working.streams_&lt;label&gt;</code> that this call builds.</p>
+<p>Each run overwrites its own partition of the table and inserts its rows in
+one transaction, so a run that fails leaves the partition as it was. With
+<code>wsg</code> and no <code>aoi</code>, the partition is the watershed group. Otherwise — a
+custom <code>aoi</code>, or <code>wsg</code> <strong>and</strong> <code>aoi</code> together, where a character <code>aoi</code> is
+ANDed into the group filter and an <code>sf</code> or list <code>aoi</code> replaces it, so the
+run covers part of the group or ground outside it — the partition is the
+FWA segments the run covers, keyed on <code>linear_feature_id</code>. An AOI selects whole segments, never part of one, so
+every row the run is about to replace goes, including sub-segments an
+earlier run broke at different measures. Rows for ground the run does not
+cover are untouched, whichever watershed group they belong to.</p>
+<p>Two limits. A target that carries no <code>linear_feature_id</code> is not the
+Freshwater Atlas, and the custom-AOI key falls back to <code>id_segment</code>, which
+is only sound where that column is unique across the whole table; a target
+carrying it while the working table does not, or the reverse, is an error
+rather than a fallback. And a table written by a release before 0.53.0 may
+be missing rows: a custom-AOI run then keyed its delete on <code>id_segment</code>
+alone, which is unique only within a watershed group, so it could remove
+rows no run put back. Re-running an affected group with <code>wsg</code> and no <code>aoi</code>
+repairs it, the whole-group overwrite being self-healing — but a table
+that must also gain <code>linear_feature_id</code> is repaired one group at a time,
+and a custom-AOI run refuses a target still holding NULL-keyed rows from
+the groups not yet re-run.</p></dd>
 
 
 <dt id="arg-to-habitat">to_habitat<a class="anchor" aria-label="anchor" href="#arg-to-habitat"></a></dt>
