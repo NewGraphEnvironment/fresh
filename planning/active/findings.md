@@ -277,3 +277,39 @@ TOTAL delta: 125
   over 120 on `main` at 132, so widening it added no lint. A dead `params_sp` local
   that `object_usage_linter` flags in `frs_habitat_classify()` is also pre-existing
   (`origin/main` line 343) and is left alone.
+
+## `/code-check branch` round 1 — nine findings, all verified (2026-11-02)
+
+Full text in `planning/active/review-round1.md`. Every one reproduced before being
+fixed; none dismissed. The two that matter most:
+
+- **Three habitat-to-streams joins were still inline in `.frs_connected_waterbody()`**
+  (`R/frs_habitat.R`, `origins_sql`, `rearing_segs`, `spawn_upstream`), written with
+  the aliases reversed — `s2.id_segment = hr.id_segment`. The same function's
+  subtractive UPDATE and its counts *were* converted, so the parent segment was
+  enforced when clearing `spawning` and not when choosing rearing origins or spawn
+  candidates.
+- **And my enumeration test could not see them.** It grepped each parsed body for the
+  literal `"id_segment = s.id_segment"`; `grep -c` of that against
+  `R/frs_habitat.R` is **0**, so the assertion was `0 == 0` for the one file that
+  still had the defect — a proxy for the property, in the instrument built to prove
+  the property. It is now a count over the namespace of every
+  `<a>.id_segment = <b>.id_segment` against a named, justified allowlist of four, and
+  it asserts the regex matches both alias orders before trusting the count.
+
+The other seven:
+
+| finding | why it mattered |
+|---|---|
+| `grepl("nested transaction", …, fixed = TRUE)` in classify | RPostgres says "Nested transactions not supported." — capital N, plural — so the tolerance the comment promises never fired and any caller already in a transaction was refused. The 0.53.0 sibling in `.frs_persist_streams()` uses `ignore.case`; this copy dropped it |
+| `frs_near_river()`'s NULL-key guard ran **after** the delete | when it fires the partition is already gone and the walk never writes it back. Moved into `.frs_near_river_check()`, the writes-nothing pre-flight built for exactly this |
+| `extra_subset = if (length(sp_classify) > 0)` | an `if` with no `else` is NULL, which reads as "every species": with no classifiable species the delete wiped the job's ground for all of them while the loop wrote nothing. Reachable — `frs_habitat()` passes an explicit `species` through unfiltered |
+| the parent fetch equated `watershed_group_code` | nullable on a non-FWA network, so an equality join silently dropped a NULL-group walk row. `origin_id` alone is exact, which the comment already said |
+| the `near_river` delete carried no pair scope | a call for one rule's `(measure, threshold, distance_max)` removed another rule's rows for the same ground and wrote none back, so the other rule's predicate matched nothing. Now scoped to the triples the call walks |
+| the lock comment claimed a **deadlock** | there is no cycle: each DDL is its own transaction, so it blocks. Corrected, with what the longer hold actually costs |
+| `CLAUDE.md` still said to join on `(id_segment, watershed_group_code)` | the one place left telling the next reader to use the key this branch proves insufficient on a shared table |
+
+Four guards the fixes introduced had no test, so they have one now: the empty-species
+skip, an open transaction the caller owns, the `near_river` guard firing before the
+delete, and the pair scope. The transaction test also now counts the DELETE, so
+"rolled back" is distinguishable from "never ran".

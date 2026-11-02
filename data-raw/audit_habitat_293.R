@@ -165,6 +165,12 @@ for (i in seq_len(nrow(cand))) {
     stringsAsFactors = FALSE)
 }
 tables <- do.call(rbind, rows)
+if (is.null(tables) || nrow(tables) == 0) {
+  # do.call(rbind, list()) is NULL, not a 0-row frame, and every line below
+  # would then fail on a NULL rather than reporting that nothing was audited.
+  stop("no habitat- or near_river-shaped table could be read on this instance",
+       call. = FALSE)
+}
 
 out_tables <- file.path(out_dir, "tables.csv")
 utils::write.csv(tables, out_tables, row.names = FALSE)

@@ -173,10 +173,13 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   # the whole group, which is what a non-NULL wsg_code asserts.
   cols_to <- .frs_cols_of(conn, to)
   cols_from <- .frs_cols_of(conn, table)
+  # Scoped to the pairs this call walks, as the habitat delete is scoped to
+  # the species it classifies: a call for one rule's pair must not remove the
+  # rows another rule's pair wrote for the same ground, because it writes none
+  # back and the predicate reading them then matches nothing (fresh#293).
   .frs_db_execute(conn, .frs_persist_delete_sql(
-    to, table, wsg_code, cols_to, cols_from))
-  .frs_null_key_guard(conn, to, .frs_persist_delete_key(
-    to, table, wsg_code, cols_to, cols_from))
+    to, table, wsg_code, cols_to, cols_from,
+    extra_subset = .frs_near_river_pairs_in(measure, threshold, distance_max)))
   # One walk per (measure, threshold, distance_max), so each answer is a
   # function of its own numbers: the cap and prefilter come from the pair
   # alone, never from another rule's distance.
@@ -189,8 +192,11 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
       table, walk_tbl, q, d, conn_max, entry_max = lens$side, col = col))
     # The parent segment comes from the streams table rather than through the
     # walk: `origin_id` is an id_segment, unique within the working table, so
-    # the join is exact and `.frs_near_river_walk_sql()` keeps the signature
-    # its other callers use positionally.
+    # the join is exact on it alone and `.frs_near_river_walk_sql()` keeps the
+    # signature its other callers use positionally. Not also on
+    # `watershed_group_code`: that column is nullable on a network that is not
+    # the FWA, and an equality join on it would silently drop a NULL-group
+    # row from the insert rather than carrying its parent.
     .frs_db_execute(conn, sprintf(
       "INSERT INTO %s (id_segment, watershed_group_code%s, measure, threshold,
          distance_max, dist_m)
@@ -201,8 +207,7 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
       if (lfid) ", s.linear_feature_id" else "",
       .frs_quote_string(measure[i]), .frs_sql_num(d), walk_tbl,
       if (lfid) sprintf("
-       JOIN %s s ON s.id_segment = w.origin_id
-         AND s.watershed_group_code = w.watershed_group_code", table) else ""))
+       JOIN %s s ON s.id_segment = w.origin_id", table) else ""))
     if (verbose) {
       stats <- DBI::dbGetQuery(conn, sprintf(
         "SELECT count(*)::int AS near,
@@ -294,7 +299,38 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   }
   .frs_wsg_code_check(conn, table, wsg_code)
   .frs_near_river_check_shape(conn, table, to)
+  # Before the delete, not after it: a guard that raises once the partition
+  # has been removed has already lost the rows it exists to protect, and the
+  # walk never writes them back (fresh#293 review, round 1). The target may
+  # not exist yet, in which case there is nothing to refuse.
+  if (length(.frs_cols_of(conn, to)) > 0) {
+    .frs_null_key_guard(conn, to, .frs_persist_delete_key(
+      to, table, wsg_code, .frs_cols_of(conn, to),
+      .frs_cols_of(conn, table)))
+  }
   measure
+}
+
+
+#' The pairs a near_river call walks, as a SQL predicate
+#'
+#' Scopes the partition delete to this call's own `(measure, threshold,
+#' distance_max)` triples. Both numbers go through [.frs_sql_num()], the
+#' formatter that writes them into the table and the one the predicate
+#' compares against, so each equality compares one literal with itself.
+#'
+#' @param measure,threshold,distance_max The call's vectors, `measure`
+#'   already recycled to one per threshold.
+#' @return Character SQL, or `NULL` when there are no pairs.
+#' @noRd
+.frs_near_river_pairs_in <- function(measure, threshold, distance_max) {
+  if (length(threshold) == 0) return(NULL)
+  rows <- sprintf("(%s, %s, %s)",
+                  vapply(measure, .frs_quote_string, character(1)),
+                  vapply(threshold, .frs_sql_num, character(1)),
+                  vapply(distance_max, .frs_sql_num, character(1)))
+  sprintf("(measure, threshold, distance_max) IN (%s)",
+          paste(rows, collapse = ", "))
 }
 
 

@@ -1407,7 +1407,6 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     "CREATE TEMP TABLE %s (id_segment bigint)", spawn_tbl))
 
   # Segments of this species carrying the bucket / spawning flag
-  key <- .frs_key_match("h", "s", .frs_lfid_pair(conn, habitat, table))
   hab_join <- sprintf("INNER JOIN %s h ON %s", habitat, key)
   bucket_segs <- sprintf(
     "SELECT s.* FROM %s s
@@ -1818,12 +1817,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        s2.blue_line_key, s2.downstream_route_measure,
        s2.wscode_ltree, s2.localcode_ltree
      FROM %s s2
-     INNER JOIN %s hr ON s2.id_segment = hr.id_segment
-       AND hr.watershed_group_code = s2.watershed_group_code
+     INNER JOIN %s hr ON %s
      WHERE hr.species_code = %s AND hr.rearing IS TRUE
      ORDER BY s2.waterbody_key, s2.wscode_ltree, s2.localcode_ltree,
              s2.downstream_route_measure",
-    table, habitat, sp_quoted)
+    table, habitat, .frs_key_match("hr", "s2", lfid), sp_quoted)
 
   .frs_trace_downstream(conn, table, origins_sql, lfid_tbl,
                          distance_max, bridge_gradient)
@@ -1850,15 +1848,13 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        SELECT s2.wscode_ltree, s2.localcode_ltree,
               s2.blue_line_key, s2.downstream_route_measure
        FROM %s s2
-       INNER JOIN %s hr ON s2.id_segment = hr.id_segment
-         AND hr.watershed_group_code = s2.watershed_group_code
+       INNER JOIN %s hr ON %s
        WHERE hr.species_code = %s AND hr.rearing IS TRUE
      ),
      spawn_upstream AS (
        SELECT s3.id_segment, s3.geom
        FROM %s s3
-       INNER JOIN %s hs ON s3.id_segment = hs.id_segment
-         AND hs.watershed_group_code = s3.watershed_group_code
+       INNER JOIN %s hs ON %s
        WHERE hs.species_code = %s AND hs.spawning IS TRUE
          AND EXISTS (
            SELECT 1 FROM rearing_segs r
@@ -1867,8 +1863,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
              OR (r.blue_line_key = s3.blue_line_key
                  AND s3.downstream_route_measure >= r.downstream_route_measure))
      )",
-    table, habitat, sp_quoted,
-    table, habitat, sp_quoted)
+    table, habitat, .frs_key_match("hr", "s2", lfid), sp_quoted,
+    table, habitat, .frs_key_match("hs", "s3", lfid), sp_quoted)
 
   if (lake_adjacent) {
     # Build EXISTS clause that checks all waterbody polygon tables

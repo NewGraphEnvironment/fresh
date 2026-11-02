@@ -364,7 +364,11 @@ test_that("a failure during classify leaves the partition as it was", {
   # species' insert fail after the first has run: a two-species call deletes
   # once and then inserts per species.
   calls <- 0L
+  deletes <- 0L
   local_mocked_bindings(.frs_db_execute = function(conn, sql) {
+    if (grepl("DELETE FROM pg_temp.p293_tx", sql, fixed = TRUE)) {
+      deletes <<- deletes + 1L
+    }
     if (grepl("INSERT INTO pg_temp.p293_tx", sql, fixed = TRUE)) {
       calls <<- calls + 1L
       if (calls == 2L) stop("boom")
@@ -374,31 +378,169 @@ test_that("a failure during classify leaves the partition as it was", {
   expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
     to = "pg_temp.p293_tx", species = c("CO", "BT"), params = params,
     gate = FALSE, verbose = FALSE), "boom")
-  # The condition the assertion rests on: the delete and one insert did run.
+  # The conditions the assertion rests on: a delete ran and was rolled back,
+  # which is not the same as no delete running at all, and one insert ran.
+  expect_identical(deletes, 1L)
   expect_identical(calls, 2L)
   expect_identical(DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.p293_tx")$n, n0)
 })
 
+test_that("a call that classifies no species deletes nothing", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_none")
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
+  frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_none", species = "CO", params = params,
+    gate = FALSE, verbose = FALSE)
+  n0 <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_none")$n
+  expect_gt(n0, 0)
+
+  # A species with no parameters classifies nothing, so the loop writes
+  # nothing — and a delete that removes rows nothing replaces is the whole of
+  # this issue. `extra_subset` from an `if` with no `else` would be NULL here,
+  # which reads as "every species" (round 1 of /code-check).
+  expect_no_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_none", species = "ZZZ", params = params,
+    gate = FALSE, verbose = FALSE))
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_none")$n, n0)
+})
+
+test_that("classify runs inside a transaction the caller already opened", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit({
+    try(DBI::dbRollback(conn), silent = TRUE)
+    DBI::dbDisconnect(conn)
+  })
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_nest")
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
+  # RPostgres refuses a nested dbBegin() with "Nested transactions not
+  # supported." — capital N, plural — so a fixed, lower-case, singular match
+  # never fires and a caller already holding a transaction was refused
+  # outright (round 1 of /code-check).
+  DBI::dbBegin(conn)
+  expect_no_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_nest", species = "CO", params = params,
+    gate = FALSE, verbose = FALSE))
+  expect_gt(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nest")$n, 0)
+  DBI::dbRollback(conn)
+})
+
+test_that("a near_river row the delete cannot address is refused before the delete", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_nrg")
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrg",
+    threshold = 3, distance_max = 1000, verbose = FALSE)
+  n0 <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nrg")$n
+  expect_gt(n0, 0)
+  # A row with no parent is one no partition delete can ever address. The
+  # guard has to run before the delete, not after: raising afterwards has
+  # already lost the rows it exists to protect, and the walk never writes
+  # them back (round 1 of /code-check).
+  DBI::dbExecute(conn, "INSERT INTO pg_temp.p293_nrg
+    (id_segment, linear_feature_id, watershed_group_code, measure, threshold,
+     distance_max, dist_m)
+    VALUES (950, NULL, 'TEST', 'discharge', 3, 1000, 1)")
+  expect_error(frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrg",
+    threshold = 3, distance_max = 1000, verbose = FALSE),
+    "hold NULL for it")
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nrg")$n, n0 + 1L)
+})
+
+test_that("a near_river walk replaces only the pairs it walks", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_nrp")
+  # Two pairs in one call, then one of them on its own. The other's rows are
+  # for the same ground, so a delete keyed on ground alone would remove them
+  # and write none back — and a habitat rule reading that pair would then
+  # match nothing (round 1 of /code-check).
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrp",
+    threshold = c(3, 3), distance_max = c(1000, 5000), verbose = FALSE)
+  n_pair <- function(d) DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nrp WHERE distance_max = %s",
+    d))$n
+  n1 <- n_pair(1000)
+  n5 <- n_pair(5000)
+  expect_gt(n1, 0)
+  expect_gt(n5, 0)
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrp",
+    threshold = 3, distance_max = 1000, verbose = FALSE)
+  expect_identical(n_pair(1000), n1)
+  expect_identical(n_pair(5000), n5)
+})
+
 # --- Nothing is left reading these tables on the short key ------------------
 
-test_that("every habitat-to-streams join is built by the one key helper", {
-  # Enumeration over the parsed functions, not over R/: devtools::test() runs
-  # from tests/testthat and R CMD check has no R/ at all, so a list.files()
-  # sweep counts zero over zero and passes. Terminating on an enumeration is
-  # what closes a review loop (planning.md), so this is the instrument.
-  fns <- list(
-    .frs_run_connectivity = .frs_run_connectivity,
-    .frs_connected_waterbody = .frs_connected_waterbody,
-    frs_cluster = frs_cluster,
-    frs_order_child = frs_order_child,
-    frs_habitat_overlay = frs_habitat_overlay)
-  for (nm in names(fns)) {
-    txt <- paste(deparse(body(fns[[nm]])), collapse = "\n")
-    hits <- gregexpr("id_segment = s.id_segment", txt, fixed = TRUE)[[1]]
-    n_hits <- if (length(hits) == 1 && hits[[1]] == -1) 0L else length(hits)
-    expect_identical(n_hits, 0L,
-      info = paste(nm, "still spells a habitat-to-streams join inline;",
-                   "build it with .frs_key_match()"))
+test_that("no habitat-to-streams join is left spelled inline", {
+  # Round 1 of /code-check found three such joins still inline in
+  # .frs_connected_waterbody(), written alias-reversed —
+  # `s2.id_segment = hr.id_segment` — and the first version of this test could
+  # not see them: it grepped for the literal `"id_segment = s.id_segment"`,
+  # which matches none of them, so it asserted 0 == 0 for the one file that
+  # still had the defect. A proxy, not the property (code-check.md).
+  #
+  # The property: every `<a>.id_segment = <b>.id_segment` written as text in
+  # the package is one of a named, justified set. .frs_key_match() builds its
+  # own with sprintf from parts, so it contributes no literal and a site
+  # converted to it drops out of the count. Anything new fails here.
+  #
+  # Over the namespace, not over R/: devtools::test() runs from tests/testthat
+  # and R CMD check has no R/ at all, where a list.files() sweep would count
+  # zero over zero and pass.
+  allowed <- c(
+    # s.id_segment = a.id_segment — the per-threshold accessibility temp
+    # table, built from `table` inside this call. Nothing else writes it.
+    frs_habitat_classify = 1L,
+    # Two joins of `table` to a downstream-trace output, streams to streams;
+    # the habitat side of the same statements is `hab_join`, built by
+    # .frs_key_match().
+    .frs_bucket_connected = 2L,
+    # c.id_segment = su.id_segment, two CTEs of one statement; and
+    # q.id_segment = h.id_segment, where `h` is already pinned to a row of
+    # `table` by the key, so id_segment alone is exact there.
+    .frs_connected_waterbody = 2L,
+    # n.id_segment = s.id_segment, which carries the parent segment too when
+    # `lfid` is TRUE — the one site where the short key is an option rather
+    # than a mistake.
+    .frs_near_river_sql = 1L)
+
+  ns <- asNamespace("fresh")
+  pat <- "[A-Za-z0-9_]+[.]id_segment = [A-Za-z0-9_]+[.]id_segment"
+  found <- integer(0)
+  for (nm in ls(ns, all.names = TRUE)) {
+    f <- get(nm, envir = ns)
+    if (!is.function(f)) next
+    txt <- paste(deparse(f), collapse = "\n")
+    m <- gregexpr(pat, txt)[[1]]
+    n <- if (length(m) == 1 && m[[1]] == -1) 0L else length(m)
+    if (n > 0) found[[nm]] <- n
   }
+
+  # The regex has to be able to see the shape it is policing, or this test is
+  # the same proxy as the one it replaces: both alias orders, matched against
+  # the text the fixed sites used to carry.
+  expect_match("     INNER JOIN %s hr ON s2.id_segment = hr.id_segment",
+               pat)
+  expect_match("       INNER JOIN %s h ON h.id_segment = s.id_segment", pat)
+
+  expect_identical(found[order(names(found))],
+                   allowed[order(names(allowed))])
 })

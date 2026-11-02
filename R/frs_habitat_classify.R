@@ -375,9 +375,16 @@ frs_habitat_classify <- function(conn, table, to,
   # not atomic"). NOT one statement: a data-modifying CTE runs every
   # sub-statement under one command id, so an insert's uniqueness check still
   # sees the rows the same statement's delete is removing (fresh#282,
-  # measured). The CREATE and .frs_index_working() stay outside, because
-  # CREATE INDEX takes SHARE on the shared target and would deadlock against
-  # another worker holding ROW EXCLUSIVE on it.
+  # measured). The CREATE, the ALTER and .frs_index_working() stay outside,
+  # each its own transaction: CREATE INDEX takes SHARE on the shared target
+  # and ALTER TABLE ACCESS EXCLUSIVE, both of which conflict with another
+  # worker's open ROW EXCLUSIVE. There is no lock cycle, so this is blocking
+  # rather than deadlock -- but holding the row lock for the whole species
+  # loop makes the wait longer than 0.53.0's per-statement one, and under a
+  # statement_timeout it surfaces as a cancelled statement
+  # (code-check-infra.md, "Set statement_timeout + lock_timeout on long DB
+  # ops"). Inside the transaction the DDL would be far worse: the lock would
+  # then be held to commit.
   #
   # dbBegin() refuses a nested transaction, and a caller who already has one
   # open has already made the pair atomic with respect to their commit, so
@@ -389,7 +396,11 @@ frs_habitat_classify <- function(conn, table, to,
       DBI::dbBegin(conn)
       TRUE
     }, error = function(e) {
-      if (grepl("nested transaction", conditionMessage(e), fixed = TRUE)) {
+      # ignore.case, as the sibling in .frs_persist_streams() has: RPostgres
+      # says "Nested transactions not supported." and a fixed match on the
+      # lower-case singular never fires, so a caller already in a transaction
+      # would have been refused outright.
+      if (grepl("nested transaction", conditionMessage(e), ignore.case = TRUE)) {
         FALSE
       } else {
         stop(e)
@@ -402,7 +413,11 @@ frs_habitat_classify <- function(conn, table, to,
             add = TRUE)
   }
 
-  if (overwrite) {
+  # No species classifies, so the loop below writes nothing -- and a delete
+  # that removes rows nothing replaces is the whole of fresh#293. An `if` with
+  # no `else` would hand `extra_subset` a NULL here, which reads as "every
+  # species" and would wipe the job's ground for all of them.
+  if (overwrite && length(sp_classify) > 0) {
     # Only the ground this job will put back. The species predicate narrows a
     # subset delete to the species actually classified, which is what the
     # `overwrite` contract above promises; .frs_persist_delete_sql() drops it
@@ -410,11 +425,9 @@ frs_habitat_classify <- function(conn, table, to,
     # the repair path.
     .frs_db_execute(conn, .frs_persist_delete_sql(
       to, table, wsg_code, tgt$cols_to, tgt$cols_from,
-      extra_subset = if (length(sp_classify) > 0) {
-        sprintf("species_code IN (%s)",
-                paste(vapply(sp_classify, .frs_quote_string, character(1)),
-                      collapse = ", "))
-      }))
+      extra_subset = sprintf("species_code IN (%s)",
+        paste(vapply(sp_classify, .frs_quote_string, character(1)),
+              collapse = ", "))))
   }
 
   # -- Classify each species using pre-computed accessibility -----------------
