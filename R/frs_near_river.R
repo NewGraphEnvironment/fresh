@@ -172,10 +172,11 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   # puts back (fresh#293); the group delete is right only where the job holds
   # the whole group, which is what a non-NULL wsg_code asserts.
   cols_to <- .frs_cols_of(conn, to)
+  cols_from <- .frs_cols_of(conn, table)
   .frs_db_execute(conn, .frs_persist_delete_sql(
-    to, table, wsg_code, cols_to, .frs_cols_of(conn, table)))
+    to, table, wsg_code, cols_to, cols_from))
   .frs_null_key_guard(conn, to, .frs_persist_delete_key(
-    to, table, wsg_code, cols_to, .frs_cols_of(conn, table)))
+    to, table, wsg_code, cols_to, cols_from))
   # One walk per (measure, threshold, distance_max), so each answer is a
   # function of its own numbers: the cap and prefilter come from the pair
   # alone, never from another rule's distance.

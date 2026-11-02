@@ -347,11 +347,15 @@ test_that("distance_filter is not rescued by another group's connect rows", {
        WHERE species_code = '%s' AND id_segment IN (%s)",
       col, species, paste(ids, collapse = ", ")))
   }
-  for (i in segs$id_segment) {
-    DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, 'TEST', '%s', TRUE,
-         FALSE, FALSE, FALSE, FALSE)", i, i, species))
-  }
+  # From the streams table, not a loop over ids: `id_segment` here is a
+  # row_number() while `linear_feature_id` is the real FWA one, so a
+  # hand-built pair gave the habitat row a parent that matches no segment, and
+  # every match keyed on the parent then found nothing (fresh#293).
+  DBI::dbExecute(conn, sprintf("
+    INSERT INTO pg_temp.bkt_habitat
+    SELECT id_segment, linear_feature_id, watershed_group_code, '%s',
+           TRUE, FALSE, FALSE, FALSE, FALSE
+    FROM pg_temp.bkt_streams", species))
   flag(a[1], "spawning")
   flag(a[2], "rearing")
   flag(b[-1], "rearing")

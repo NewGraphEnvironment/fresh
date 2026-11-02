@@ -279,15 +279,21 @@ test_that("only the ground the walk covers is replaced", {
   # (fresh#293). Before 0.54.0 the delete removed every group the streams
   # table mentioned, so the first two went and only the third survived --
   # which is the loss, since a custom AOI never puts them back.
-  held <- DBI::dbGetQuery(conn,
-    "SELECT min(linear_feature_id) AS l FROM pg_temp.nr_streams")$l
+  # as.character(), not %d or %.0f: a bigint comes back from the driver as an
+  # integer64, whose underlying bits a numeric format reinterprets -- 1 became
+  # 0 here, so the third decoy named ground the table does not hold and
+  # survived for the wrong reason (code-check-r.md, "A database driver's value
+  # is not a base R type").
+  held <- as.character(DBI::dbGetQuery(conn,
+    "SELECT min(linear_feature_id) AS l FROM pg_temp.nr_streams")$l)
+  expect_match(held, "^[0-9]+$")
   DBI::dbExecute(conn, sprintf(
     "INSERT INTO pg_temp.nr_near
        (id_segment, linear_feature_id, watershed_group_code, measure,
         threshold, distance_max, dist_m)
      VALUES (901, -999, 'TEST', 'discharge', 3, 1000, 1),
             (902, -998, 'OTHR', 'discharge', 3, 1000, 1),
-            (903, %.0f, 'TEST', 'discharge', 3, 1000, 1)", held))
+            (903, %s, 'TEST', 'discharge', 3, 1000, 1)", held))
   nr_run(conn)
 
   kept <- DBI::dbGetQuery(conn,
@@ -296,7 +302,11 @@ test_that("only the ground the walk covers is replaced", {
   # Same group, other ground: kept. Other group: kept. Ground this walk
   # holds: replaced, and the walk writes no row at that id_segment.
   expect_identical(as.integer(kept), c(901L, 902L))
-  expect_length(.nr_dist(conn), 4)
+  # The walk's own rows are replaced, not duplicated. Decoy 901 is in this
+  # group at the same measure and distance, so it is counted too and is
+  # excluded here rather than the count being loosened.
+  walked <- .nr_dist(conn)
+  expect_length(walked[!names(walked) %in% "901"], 4)
 })
 
 test_that("frs_near_river reports rows measured and rows with no local code", {

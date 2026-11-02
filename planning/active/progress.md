@@ -46,3 +46,7 @@
   for guards nothing covered: the near_river shape refusal in both directions,
   species scoping end to end, and that a failure mid-classify leaves the
   partition as it was. `test-habitat_partition_293.R` 12 tests / 48 assertions.
+- Second full suite: FAIL 8 of 2587, all three causes test bugs rather than
+  code (`findings.md`). Also removed a second read of both tables' columns in
+  classify, so the key the NULL-key guard checked and the key the delete uses
+  come from one read.

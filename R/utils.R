@@ -84,8 +84,12 @@
 #' @param wsg_code Character or `NULL`. See [.frs_wsg_code_check()].
 #' @param overwrite Logical. When `FALSE` no delete runs, so the NULL-key
 #'   guard has nothing to refuse.
-#' @return List with `key` (the delete key) and `lfid` (whether both tables
-#'   carry `linear_feature_id`).
+#' @return List with `key` (the delete key), `lfid` (whether both tables carry
+#'   `linear_feature_id`), and `cols_to` / `cols_from`, the column lists the
+#'   key was chosen from. The caller builds its `DELETE` from those rather
+#'   than reading the two tables again: the guard that ran here and the
+#'   statement that runs later would otherwise rest on two separate reads,
+#'   which is the drift [.frs_persist_delete_key()]'s roxygen warns about.
 #' @noRd
 .frs_habitat_target <- function(conn, table, to, wsg_code = NULL,
                                 overwrite = TRUE) {
@@ -117,7 +121,8 @@
 
   key <- .frs_persist_delete_key(to, table, wsg_code, cols_to, cols_from)
   if (overwrite) .frs_null_key_guard(conn, to, key, cols_added)
-  list(key = key, lfid = lfid && "linear_feature_id" %in% cols_to)
+  list(key = key, lfid = lfid && "linear_feature_id" %in% cols_to,
+       cols_to = cols_to, cols_from = cols_from)
 }
 
 

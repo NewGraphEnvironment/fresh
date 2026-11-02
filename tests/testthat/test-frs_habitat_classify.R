@@ -536,6 +536,12 @@ test_that("the per-species progress line counts only this job's groups", {
       # stub above.
       .frs_cols_of = function(conn, tbl) {
         c("id_segment", "watershed_group_code", "linear_feature_id")
+      },
+      # The guard reads the target itself, through its own DBI call rather
+      # than one lexically inside frs_habitat_classify(), so the stub above
+      # does not reach it and a mock connection would raise.
+      .frs_null_key_guard = function(conn, to, key, cols_added = character()) {
+        invisible(NULL)
       })
     frs_habitat_classify("mock", table = "working.streams",
       to = "fresh.streams_habitat", species = "CO", gate = FALSE,

@@ -396,7 +396,7 @@ frs_habitat_classify <- function(conn, table, to,
     # from a whole-group delete, where a wholesale replace is both correct and
     # the repair path.
     .frs_db_execute(conn, .frs_persist_delete_sql(
-      to, table, wsg_code, .frs_cols_of(conn, to), .frs_cols_of(conn, table),
+      to, table, wsg_code, tgt$cols_to, tgt$cols_from,
       extra_subset = if (length(sp_classify) > 0) {
         sprintf("species_code IN (%s)",
                 paste(vapply(sp_classify, .frs_quote_string, character(1)),

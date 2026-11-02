@@ -187,3 +187,18 @@ The read-side hazard the plan review found (B1) is unreachable today on every on
 these tables, and becomes reachable the moment the delete is narrowed — a whole-group
 run followed by a custom-AOI run **in the same group** is the shipped repair path and
 produces exactly two jobs' rows in one group on a single-group table. Phase 4 stands.
+
+## Three test bugs the narrowed key exposed (2026-11-02)
+
+All three were green before #293 because the old `(id_segment,
+watershed_group_code)` key could not tell the difference.
+
+| error | resolution |
+|-------|------------|
+| `.cds_fixture()` built habitat rows as `(i, i, ...)` while its streams table's `id_segment` is a `row_number()` and its `linear_feature_id` is the real FWA one, so a parent-keyed match found nothing and three connectivity tests reported the flag uncleared | insert the habitat rows **from** `pg_temp.bkt_streams`, so the pair cannot drift |
+| a decoy's `linear_feature_id` written with `sprintf("%.0f", held)` came out **0**: `min(linear_feature_id)` on a bigint reaches R as an `integer64`, whose bits a numeric format reinterprets, so the decoy named ground the table does not hold and survived for the wrong reason | `as.character()` and `%s`, with `expect_match(held, "^[0-9]+$")` so a non-digit value fails rather than passing | 
+| the progress-line pin stubs `DBI::dbGetQuery` on `frs_habitat_classify` only, and the NULL-key guard reads the target through its own DBI call, so a mock connection raised before the count was built | mock `.frs_null_key_guard` too, and assert the count is scoped by the delete key |
+
+The second is `code-check-r.md`, "A database driver's value is not a base R
+type". The first is the sharper one: a fixture that could not reach the failure
+mode, and the narrowed key is what made it visible.
