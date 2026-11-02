@@ -153,7 +153,7 @@ Those rows keep an `id_segment` from the numbering of the run that wrote them,
 so within a parent segment they are ambiguous, and nothing in fresh deletes
 them. Adding the parent narrowed this from "wrong parent" to "ambiguous inside
 one parent"; closing it is the `id_segment`-at-assignment work, the sibling of
-#218.
+#218, tracked in #300.
 
 ## Two things that make a persisted streams table unforgiving
 
