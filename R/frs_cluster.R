@@ -133,16 +133,22 @@ frs_cluster <- function(conn, table, habitat,
   stopifnot(is.numeric(bridge_distance), length(bridge_distance) == 1)
   stopifnot(is.numeric(confluence_m), length(confluence_m) == 1)
 
-  # Resolve species list. Scoped to the watershed groups `table` holds: a
-  # shared `habitat` can carry species that only occur in another group, and
-  # each would otherwise cost a full pass that can match nothing.
+  # Resolve species list. Scoped to the ground `table` holds: a shared
+  # `habitat` can carry species that only occur elsewhere, and each would
+  # otherwise cost a full pass that can match nothing. Since fresh#293 the
+  # scope is the job's own parent segments where both tables carry them, not
+  # the whole watershed group -- a group can now hold a species another job
+  # wrote, which this job has no streams for.
+  lfid <- .frs_lfid_pair(conn, habitat, table)
+  part_col <- if (lfid) "linear_feature_id" else "watershed_group_code"
+  part <- .frs_wsg_in(table, part_col)
   if (is.null(species)) {
     species <- DBI::dbGetQuery(conn, sprintf(
       "SELECT DISTINCT h.species_code FROM %s h
        WHERE EXISTS (
          SELECT 1 FROM %s s
-         WHERE s.watershed_group_code = h.watershed_group_code)",
-      habitat, table
+         WHERE s.%s = h.%s)",
+      habitat, table, part_col, part_col
     ))$species_code
   }
 
@@ -155,7 +161,7 @@ frs_cluster <- function(conn, table, habitat,
         "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
          WHERE species_code = %s%s",
         label_cluster, habitat, .frs_quote_string(sp),
-        .frs_wsg_in(table)))$n
+        part))$n
     }
 
     if (direction == "both") {
@@ -178,7 +184,7 @@ frs_cluster <- function(conn, table, habitat,
         "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
          WHERE species_code = %s%s",
         label_cluster, habitat, .frs_quote_string(sp),
-        .frs_wsg_in(table)))$n
+        part))$n
       elapsed <- round((proc.time() - t0)["elapsed"], 1)
       cat("  ", sp, ": ", n_before - n_after, " disconnected removed (",
           n_after, " ", label_cluster, " remaining, ", elapsed, "s)\n",
@@ -211,20 +217,26 @@ frs_cluster <- function(conn, table, habitat,
                                   species, confluence_m) {
   sp_quoted <- .frs_quote_string(species)
   conf_m <- .frs_sql_num(confluence_m)
+  # The habitat table is shared, and since fresh#293 narrowed the partition
+  # delete one watershed group can hold two jobs' rows with independently
+  # derived id_segments. Every match against it goes through the one builder,
+  # and the cluster rows carry the parent segment so the write-back can pin on
+  # it too.
+  lfid <- .frs_lfid_pair(conn, habitat, table)
+  lfid_col <- if (lfid) "\n         s.linear_feature_id," else ""
 
   sql <- sprintf(
     "WITH clustering AS (
        SELECT
          h.id_segment,
-         s.watershed_group_code,
+         s.watershed_group_code,%s
          ST_ClusterDBSCAN(s.geom, 1, 1) OVER () AS cluster_id,
          s.wscode_ltree,
          s.localcode_ltree,
          s.blue_line_key,
          s.downstream_route_measure
        FROM %s h
-       INNER JOIN %s s ON h.id_segment = s.id_segment
-         AND h.watershed_group_code = s.watershed_group_code
+       INNER JOIN %s s ON %s
        WHERE h.species_code = %s
          AND h.%s IS TRUE
      ),
@@ -248,8 +260,7 @@ frs_cluster <- function(conn, table, habitat,
        FROM cluster_minimums cm
        INNER JOIN %s h2 ON h2.species_code = %s
          AND h2.%s IS TRUE
-       INNER JOIN %s st ON h2.id_segment = st.id_segment
-         AND h2.watershed_group_code = st.watershed_group_code
+       INNER JOIN %s st ON %s
        WHERE
          FWA_Upstream(
            cm.blue_line_key, cm.downstream_route_measure,
@@ -269,14 +280,15 @@ frs_cluster <- function(conn, table, habitat,
      UPDATE %s h
      SET %s = FALSE
      FROM clustering c
-     WHERE h.id_segment = c.id_segment
-       AND h.watershed_group_code = c.watershed_group_code
+     WHERE %s
        AND h.species_code = %s
        AND c.cluster_id NOT IN (SELECT cluster_id FROM valid_clusters)",
-    habitat, table, sp_quoted, label_cluster,
+    lfid_col, habitat, table, .frs_key_match("h", "s", lfid),
+    sp_quoted, label_cluster,
     habitat, sp_quoted, label_connect, table,
+    .frs_key_match("h2", "st", lfid),
     conf_m,
-    habitat, label_cluster, sp_quoted)
+    habitat, label_cluster, .frs_key_match("h", "c", lfid), sp_quoted)
 
   .frs_db_execute(conn, sql)
 }
@@ -297,20 +309,21 @@ frs_cluster <- function(conn, table, habitat,
   sp_quoted <- .frs_quote_string(species)
   bg <- .frs_sql_num(bridge_gradient)
   bd <- .frs_sql_num(bridge_distance)
+  lfid <- .frs_lfid_pair(conn, habitat, table)
+  lfid_col <- if (lfid) "\n         s.linear_feature_id," else ""
 
   sql <- sprintf(
     "WITH clustering AS (
        SELECT
          h.id_segment,
-         s.watershed_group_code,
+         s.watershed_group_code,%s
          ST_ClusterDBSCAN(s.geom, 1, 1) OVER () AS cluster_id,
          s.wscode_ltree,
          s.localcode_ltree,
          s.blue_line_key,
          s.downstream_route_measure
        FROM %s h
-       INNER JOIN %s s ON h.id_segment = s.id_segment
-         AND h.watershed_group_code = s.watershed_group_code
+       INNER JOIN %s s ON %s
        WHERE h.species_code = %s
          AND h.%s IS TRUE
      ),
@@ -339,8 +352,7 @@ frs_cluster <- function(conn, table, habitat,
          t.gradient,
          EXISTS (
            SELECT 1 FROM %s s
-           INNER JOIN %s h2 ON s.id_segment = h2.id_segment
-             AND h2.watershed_group_code = s.watershed_group_code
+           INNER JOIN %s h2 ON %s
            WHERE s.linear_feature_id = t.linear_feature_id
              AND h2.species_code = %s
              AND h2.%s IS TRUE
@@ -392,15 +404,16 @@ frs_cluster <- function(conn, table, habitat,
      UPDATE %s h
      SET %s = FALSE
      FROM clustering c
-     WHERE h.id_segment = c.id_segment
-       AND h.watershed_group_code = c.watershed_group_code
+     WHERE %s
        AND h.species_code = %s
        AND c.cluster_id NOT IN (SELECT cluster_id FROM valid_clusters)",
-    habitat, table, sp_quoted, label_cluster,
-    table, habitat, sp_quoted, label_connect,
+    lfid_col, habitat, table, .frs_key_match("h", "s", lfid),
+    sp_quoted, label_cluster,
+    table, habitat, .frs_key_match("h2", "s", lfid),
+    sp_quoted, label_connect,
     bd,
     bg,
-    habitat, label_cluster, sp_quoted)
+    habitat, label_cluster, .frs_key_match("h", "c", lfid), sp_quoted)
 
   .frs_db_execute(conn, sql)
 }
@@ -431,6 +444,7 @@ frs_cluster <- function(conn, table, habitat,
   conf_m <- .frs_sql_num(confluence_m)
   bg <- .frs_sql_num(bridge_gradient)
   bd <- .frs_sql_num(bridge_distance)
+  lfid <- .frs_lfid_pair(conn, habitat, table)
 
   tmp_clusters <- sprintf("pg_temp.frs_clusters_%s",
     gsub("[^a-z0-9]", "", tolower(species)))
@@ -460,18 +474,19 @@ frs_cluster <- function(conn, table, habitat,
     "CREATE TEMP TABLE %s AS
      SELECT
        h.id_segment,
-       s.watershed_group_code,
+       s.watershed_group_code,%s
        ST_ClusterDBSCAN(s.geom, 1, 1) OVER () AS cluster_id,
        s.wscode_ltree,
        s.localcode_ltree,
        s.blue_line_key,
        s.downstream_route_measure
      FROM %s h
-     INNER JOIN %s s ON h.id_segment = s.id_segment
-       AND h.watershed_group_code = s.watershed_group_code
+     INNER JOIN %s s ON %s
      WHERE h.species_code = %s
        AND h.%s IS TRUE",
-    tmp_clusters, habitat, table, sp_quoted, label_cluster))
+    tmp_clusters, if (lfid) "\n       s.linear_feature_id," else "",
+    habitat, table, .frs_key_match("h", "s", lfid),
+    sp_quoted, label_cluster))
 
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX ON %s (cluster_id)", tmp_clusters))
@@ -490,8 +505,7 @@ frs_cluster <- function(conn, table, habitat,
      FROM cluster_minimums cm
      INNER JOIN %s h2 ON h2.species_code = %s
        AND h2.%s IS TRUE
-     INNER JOIN %s st ON h2.id_segment = st.id_segment
-       AND h2.watershed_group_code = st.watershed_group_code
+     INNER JOIN %s st ON %s
      WHERE
        FWA_Upstream(
          cm.blue_line_key, cm.downstream_route_measure,
@@ -508,6 +522,7 @@ frs_cluster <- function(conn, table, habitat,
        )",
     tmp_clusters,
     habitat, sp_quoted, label_connect, table,
+    .frs_key_match("h2", "st", lfid),
     conf_m)
 
   valid_phase2 <- DBI::dbGetQuery(conn, sql_phase2)$cluster_id
@@ -547,8 +562,7 @@ frs_cluster <- function(conn, table, habitat,
          cm.wscode_ltree, cm.localcode_ltree,
          st.blue_line_key, st.downstream_route_measure,
          st.wscode_ltree, st.localcode_ltree)
-       LEFT JOIN %s h2 ON st.id_segment = h2.id_segment
-         AND h2.watershed_group_code = st.watershed_group_code
+       LEFT JOIN %s h2 ON %s
          AND h2.species_code = %s
        WHERE st.blue_line_key = st.watershed_key
      ),
@@ -580,7 +594,7 @@ frs_cluster <- function(conn, table, habitat,
      WHERE b.rn IS NULL OR b.rn > a.rn",
     tmp_clusters,
     label_connect,
-    table, habitat, sp_quoted,
+    table, habitat, .frs_key_match("h2", "st", lfid), sp_quoted,
     bd,
     bg)
 
@@ -605,12 +619,12 @@ frs_cluster <- function(conn, table, habitat,
   .frs_db_execute(conn, sprintf(
     "UPDATE %s h SET %s = FALSE
      FROM %s c
-     WHERE h.id_segment = c.id_segment
-       AND h.watershed_group_code = c.watershed_group_code
+     WHERE %s
        AND h.species_code = %s
        AND h.%s IS NOT TRUE
        %s",
-    habitat, label_cluster, tmp_clusters, sp_quoted, label_connect,
+    habitat, label_cluster, tmp_clusters, .frs_key_match("h", "c", lfid),
+    sp_quoted, label_connect,
     valid_clause))
 
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", tmp_clusters))

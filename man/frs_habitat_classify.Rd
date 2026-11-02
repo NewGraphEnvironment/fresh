@@ -15,6 +15,7 @@ frs_habitat_classify(
   gate = TRUE,
   label_block = "blocked",
   barrier_overrides = NULL,
+  wsg_code = NULL,
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -71,10 +72,34 @@ gating — observations or habitat confirmations upstream have
 overridden the barrier for that species. Default \code{NULL} (no
 overrides; every blocking break restricts access).}
 
-\item{overwrite}{Logical. If \code{TRUE}, replace existing rows for
-these species in the output table. Default \code{TRUE}. The
-\verb{<to>_near_river} table (below) is rebuilt for the table's groups
-whatever \code{overwrite} says.}
+\item{wsg_code}{Character or \code{NULL}. The watershed group this call covers
+\strong{in its entirety}. \code{NULL} (default) is the safe case and the one a
+custom AOI needs: only the ground \code{table} holds is replaced, so rows
+another job wrote for other ground in the same group survive. Pass a code
+only where the job segmented the whole group -- \code{\link[=frs_habitat]{frs_habitat()}} does, via
+\code{.frs_partition_wsg()} -- and the call refuses a code that is not the one
+group \code{table} holds. Before 0.54.0 every group \code{table} mentioned was
+deleted whole, so a custom-AOI job removed rows it never put back
+(fresh#293).}
+
+\item{overwrite}{Logical. If \code{TRUE}, replace this job's rows in the output
+table. Default \code{TRUE}. What "this job's rows" means depends on
+\code{wsg_code}: with \code{NULL} it is the ground \code{table} holds \strong{and only the
+species this call classifies}, so a run for one species leaves another's
+rows alone; with a group code it is that whole watershed group, every
+species included, because a whole-group run is a wholesale replace and
+the repair path for a group whose rows an earlier release removed. The
+\verb{<to>_near_river} table (below) is rebuilt for the same ground whatever
+\code{overwrite} says.
+
+Two limits. A target written before 0.54.0 carries no
+\code{linear_feature_id}; the column is added, and the call then refuses while
+any row still holds NULL for it, because such a row is one no partition
+delete can address. Re-running each watershed group with \code{wsg_code} set
+backfills them one group at a time. And a species' rows that no later run
+classifies are never removed, so they keep an \code{id_segment} from the
+numbering of the run that wrote them: within a parent segment they are
+ambiguous, and nothing in fresh deletes them.}
 
 \item{verbose}{Logical. Print progress. Default \code{TRUE}.}
 }

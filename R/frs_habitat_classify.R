@@ -72,10 +72,33 @@
 #'   gating — observations or habitat confirmations upstream have
 #'   overridden the barrier for that species. Default `NULL` (no
 #'   overrides; every blocking break restricts access).
-#' @param overwrite Logical. If `TRUE`, replace existing rows for
-#'   these species in the output table. Default `TRUE`. The
-#'   `<to>_near_river` table (below) is rebuilt for the table's groups
-#'   whatever `overwrite` says.
+#' @param wsg_code Character or `NULL`. The watershed group this call covers
+#'   **in its entirety**. `NULL` (default) is the safe case and the one a
+#'   custom AOI needs: only the ground `table` holds is replaced, so rows
+#'   another job wrote for other ground in the same group survive. Pass a code
+#'   only where the job segmented the whole group -- [frs_habitat()] does, via
+#'   `.frs_partition_wsg()` -- and the call refuses a code that is not the one
+#'   group `table` holds. Before 0.54.0 every group `table` mentioned was
+#'   deleted whole, so a custom-AOI job removed rows it never put back
+#'   (fresh#293).
+#' @param overwrite Logical. If `TRUE`, replace this job's rows in the output
+#'   table. Default `TRUE`. What "this job's rows" means depends on
+#'   `wsg_code`: with `NULL` it is the ground `table` holds **and only the
+#'   species this call classifies**, so a run for one species leaves another's
+#'   rows alone; with a group code it is that whole watershed group, every
+#'   species included, because a whole-group run is a wholesale replace and
+#'   the repair path for a group whose rows an earlier release removed. The
+#'   `<to>_near_river` table (below) is rebuilt for the same ground whatever
+#'   `overwrite` says.
+#'
+#'   Two limits. A target written before 0.54.0 carries no
+#'   `linear_feature_id`; the column is added, and the call then refuses while
+#'   any row still holds NULL for it, because such a row is one no partition
+#'   delete can address. Re-running each watershed group with `wsg_code` set
+#'   backfills them one group at a time. And a species' rows that no later run
+#'   classifies are never removed, so they keep an `id_segment` from the
+#'   numbering of the run that wrote them: within a parent segment they are
+#'   ambiguous, and nothing in fresh deletes them.
 #' @param verbose Logical. Print progress. Default `TRUE`.
 #'
 #' @return `conn` invisibly, for pipe chaining.
@@ -138,6 +161,7 @@ frs_habitat_classify <- function(conn, table, to,
                                  gate = TRUE,
                                  label_block = "blocked",
                                  barrier_overrides = NULL,
+                                 wsg_code = NULL,
                                  overwrite = TRUE,
                                  verbose = TRUE) {
   .frs_validate_identifier(table, "streams table")
@@ -166,10 +190,33 @@ frs_habitat_classify <- function(conn, table, to,
       stringsAsFactors = FALSE)
   }
 
-  # Get WSG codes from streams table (for idempotent delete)
+  # Get WSG codes from streams table (for the habitat size model, and to
+  # check wsg_code against the ground the job actually holds)
   wsg_codes <- DBI::dbGetQuery(conn, sprintf(
     "SELECT DISTINCT watershed_group_code FROM %s", table
   ))$watershed_group_code
+  .frs_wsg_code_check(conn, table, wsg_code)
+
+  # The species that classify, and their parameters. Derived once, here,
+  # because three things need the set: the near_river pairs below, the delete
+  # scope, and the classify loop. Two derivations of one set is the drift
+  # .frs_persist_delete_key()'s roxygen warns about.
+  species_params <- lapply(species, function(sp) {
+    ps <- params[[sp]]
+    fp <- params_fresh[params_fresh$species_code == sp, ]
+    if (is.null(ps) || nrow(fp) == 0) return(NULL)
+    list(
+      species_code = sp,
+      access_gradient = fp$access_gradient_max,
+      spawn_gradient_max = ps$spawn_gradient_max,
+      spawn_gradient_min = if (is.null(fp$spawn_gradient_min) ||
+                               is.na(fp$spawn_gradient_min)) 0 else
+        fp$spawn_gradient_min,
+      params_sp = ps)
+  })
+  species_params <- Filter(Negate(is.null), species_params)
+  sp_classify <- vapply(species_params, function(x) x$species_code,
+                        character(1))
 
   # Habitat size model per WSG (cw / mad). Checked before any writes so
   # a mad group on a table without mad_m3s fails cleanly.
@@ -201,9 +248,6 @@ frs_habitat_classify <- function(conn, table, to,
   # (#263), under each model applied. Pairs come only from species that
   # classify (a params_fresh row), so no walk is wasted, and the columns
   # are checked here, before any write.
-  sp_classify <- species[vapply(species, function(sp) {
-    !is.null(params[[sp]]) && any(params_fresh$species_code == sp)
-  }, logical(1))]
   near_specs <- .frs_near_river_specs(params, sp_classify, pred_models)
   near_tbl <- if (nrow(near_specs) > 0) paste0(to, "_near_river")
   if (!is.null(near_tbl)) {
@@ -212,8 +256,17 @@ frs_habitat_classify <- function(conn, table, to,
     # habitat rows were deleted.
     .frs_near_river_check(conn, table, near_tbl,
       threshold = near_specs$threshold,
-      distance_max = near_specs$distance_max, measure = near_specs$measure)
+      distance_max = near_specs$distance_max, measure = near_specs$measure,
+      wsg_code = wsg_code)
   }
+
+  # The target's own pre-flight, after the near_river checks and before the
+  # walk writes anything: create it, give it linear_feature_id when `table`
+  # has one, choose the delete key, and refuse a target holding rows that key
+  # can never address. Up here rather than beside the delete because the walk
+  # writes <to>_near_river, so a legacy target refused down there would be
+  # refused only after that write (fresh#293 review, O2).
+  tgt <- .frs_habitat_target(conn, table, to, wsg_code, overwrite)
 
   # Ensure input tables are indexed — critical when called directly
   # (bypassing frs_habitat which indexes during frs_network_segment)
@@ -229,49 +282,15 @@ frs_habitat_classify <- function(conn, table, to,
     frs_near_river(conn, table, near_tbl,
       threshold = near_specs$threshold,
       distance_max = near_specs$distance_max,
-      measure = near_specs$measure, verbose = verbose)
+      measure = near_specs$measure, wsg_code = wsg_code, verbose = verbose)
   }
 
-  # Create output table if not exists
-  .frs_db_execute(conn, sprintf(
-    "CREATE TABLE IF NOT EXISTS %s (
-       id_segment integer,
-       watershed_group_code character varying(4),
-       species_code text,
-       accessible boolean,
-       spawning boolean,
-       rearing boolean,
-       lake_rearing boolean,
-       wetland_rearing boolean
-     )", to))
-
-  # Delete existing rows for these WSGs — fast column filter, no subquery
-  if (overwrite) {
-    for (wsg in wsg_codes) {
-      .frs_db_execute(conn, sprintf(
-        "DELETE FROM %s WHERE watershed_group_code = %s",
-        to, .frs_quote_string(wsg)))
-    }
-  }
+  # The delete is no longer here: it runs with the inserts, in one
+  # transaction, after the accessibility tables are built (see below).
 
   # -- Pre-compute accessibility per unique threshold -------------------------
   # Species sharing the same access_gradient_max get identical accessibility.
   # Compute once per threshold, store in temp tables, reuse across species.
-  species_params <- lapply(species, function(sp) {
-    ps <- params[[sp]]
-    fp <- params_fresh[params_fresh$species_code == sp, ]
-    if (is.null(ps) || nrow(fp) == 0) return(NULL)
-    list(
-      species_code = sp,
-      access_gradient = fp$access_gradient_max,
-      spawn_gradient_max = ps$spawn_gradient_max,
-      spawn_gradient_min = if (is.null(fp$spawn_gradient_min) ||
-                               is.na(fp$spawn_gradient_min)) 0 else
-        fp$spawn_gradient_min,
-      params_sp = ps)
-  })
-  species_params <- Filter(Negate(is.null), species_params)
-
   access_thresholds <- sort(unique(vapply(species_params,
     function(x) x$access_gradient, numeric(1))))
 
@@ -334,6 +353,57 @@ frs_habitat_classify <- function(conn, table, to,
   }
   }  # end gate if/else
 
+  # -- Overwrite this job's partition, then write it --------------------------
+  # The delete and the inserts are one unit of work. Autocommitted separately,
+  # anything that stops them in between -- a statement_timeout, a cancelled
+  # query, a dropped connection -- leaves the partition deleted and not
+  # written back, which is the loss this issue is about reached another way
+  # (code-check-infra.md, "Two-statement DELETE/INSERT into a persist table is
+  # not atomic"). NOT one statement: a data-modifying CTE runs every
+  # sub-statement under one command id, so an insert's uniqueness check still
+  # sees the rows the same statement's delete is removing (fresh#282,
+  # measured). The CREATE and .frs_index_working() stay outside, because
+  # CREATE INDEX takes SHARE on the shared target and would deadlock against
+  # another worker holding ROW EXCLUSIVE on it.
+  #
+  # dbBegin() refuses a nested transaction, and a caller who already has one
+  # open has already made the pair atomic with respect to their commit, so
+  # that one failure is not an error here. Only that one. A non-DBI connection
+  # (the mock ones the unit tests use) has no transaction to begin.
+  began <- FALSE
+  if (inherits(conn, "DBIConnection")) {
+    began <- tryCatch({
+      DBI::dbBegin(conn)
+      TRUE
+    }, error = function(e) {
+      if (grepl("nested transaction", conditionMessage(e), fixed = TRUE)) {
+        FALSE
+      } else {
+        stop(e)
+      }
+    })
+  }
+  if (began) {
+    committed <- FALSE
+    on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
+            add = TRUE)
+  }
+
+  if (overwrite) {
+    # Only the ground this job will put back. The species predicate narrows a
+    # subset delete to the species actually classified, which is what the
+    # `overwrite` contract above promises; .frs_persist_delete_sql() drops it
+    # from a whole-group delete, where a wholesale replace is both correct and
+    # the repair path.
+    .frs_db_execute(conn, .frs_persist_delete_sql(
+      to, table, wsg_code, .frs_cols_of(conn, to), .frs_cols_of(conn, table),
+      extra_subset = if (length(sp_classify) > 0) {
+        sprintf("species_code IN (%s)",
+                paste(vapply(sp_classify, .frs_quote_string, character(1)),
+                      collapse = ", "))
+      }))
+  }
+
   # -- Classify each species using pre-computed accessibility -----------------
   for (sp_params in species_params) {
     t0 <- proc.time()
@@ -349,11 +419,13 @@ frs_habitat_classify <- function(conn, table, to,
     preds <- .frs_preds_by_model(
       list(cw = if ("cw" %in% pred_models) {
              frs_habitat_predicates(sp_params, model = "cw",
-                                    near_river_table = near_tbl)
+                                    near_river_table = near_tbl,
+                                    near_river_lfid = tgt$lfid)
            },
            mad = if ("mad" %in% pred_models) {
              frs_habitat_predicates(sp_params, model = "mad",
-                                    near_river_table = near_tbl)
+                                    near_river_table = near_tbl,
+                                    near_river_lfid = tgt$lfid)
            }),
       models)
     spawn_cond        <- preds$spawn
@@ -376,9 +448,10 @@ frs_habitat_classify <- function(conn, table, to,
 
     # INSERT joining pre-computed accessibility
     sql <- sprintf(
-      "INSERT INTO %s (id_segment, watershed_group_code, species_code, accessible, spawning, rearing, lake_rearing, wetland_rearing)
+      "INSERT INTO %s (id_segment, %swatershed_group_code, species_code, accessible, spawning, rearing, lake_rearing, wetland_rearing)
        SELECT
          s.id_segment,
+         %s
          s.watershed_group_code,
          %s,
          a.accessible,
@@ -388,7 +461,10 @@ frs_habitat_classify <- function(conn, table, to,
          CASE WHEN a.accessible AND (%s) THEN TRUE ELSE FALSE END
        FROM %s s
        INNER JOIN %s a ON s.id_segment = a.id_segment",
-      to, .frs_quote_string(sp),
+      to,
+      if (tgt$lfid) "linear_feature_id, " else "",
+      if (tgt$lfid) "s.linear_feature_id," else "",
+      .frs_quote_string(sp),
       spawn_cond, rear_cond, lake_rear_cond, wetland_rear_cond,
       table, acc_tbl_sp)
 
@@ -406,12 +482,17 @@ frs_habitat_classify <- function(conn, table, to,
                 count(*) FILTER (WHERE spawning)::int AS spn,
                 count(*) FILTER (WHERE rearing)::int AS rr
          FROM %s WHERE species_code = %s%s",
-        to, .frs_quote_string(sp), .frs_wsg_in(table)))
+        to, .frs_quote_string(sp), .frs_wsg_in(table, tgt$key)))
       cat("  ", sp, ": ", elapsed, "s (",
           stats$acc, " accessible, ",
           stats$spn, " spawning, ",
           stats$rr, " rearing)\n", sep = "")
     }
+  }
+
+  if (began) {
+    DBI::dbCommit(conn)
+    committed <- TRUE
   }
 
   # Clean up accessibility temp tables

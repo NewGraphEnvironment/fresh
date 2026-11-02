@@ -28,3 +28,7 @@
   issue's magnitude claim is wrong: measured 0.38 rows lost per row written on
   the documented AOI, not a multiple. Issue body corrected.
   Commits: see `data-raw/audit_habitat_293.R`.
+- Phases 1-4 landed in one commit: failing tests first, then the schema and
+  key helpers, the delete scope and its transaction, and the read side.
+  `tests/testthat/test-habitat_partition_293.R` 9 tests / 37 assertions, all
+  passing. Next: the full suite, for what the narrowed key broke.

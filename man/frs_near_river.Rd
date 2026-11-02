@@ -11,6 +11,7 @@ frs_near_river(
   threshold,
   distance_max,
   measure = "discharge",
+  wsg_code = NULL,
   verbose = TRUE
 )
 }
@@ -26,14 +27,20 @@ frs_near_river(
 
 \item{to}{Character. Schema-qualified output table, created if it does
 not exist, with columns \code{id_segment}, \code{watershed_group_code},
-\code{measure}, \code{threshold}, \code{distance_max} and \code{dist_m}. A \code{near_river}
+\code{measure}, \code{threshold}, \code{distance_max} and \code{dist_m}, plus
+\code{linear_feature_id} when \code{table} carries it. A \code{near_river}
 rule reads only rows of its own exact measure, threshold and
 distance, so build the table with the pairs the rules carry
 (\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} does): a walk at a longer distance does
-not serve a rule with a shorter one. Rows for the watershed groups
-in \code{table} are replaced on every call; other groups' rows are kept.
-A table written by fresh 0.41.0 (with a \code{discharge_min} column and
-no \code{measure}) stops the call; drop it and re-run.}
+not serve a rule with a shorter one. \strong{Rows for the ground this walk
+covers are replaced on every call; rows for other ground are kept} --
+including other ground in the same watershed group, which is what makes
+the table safe to share with a custom-AOI job (fresh#293). Before 0.54.0
+every group \code{table} mentioned was deleted whole, so a custom AOI removed
+rows it never put back. A table written by fresh 0.41.0 (with a
+\code{discharge_min} column and no \code{measure}), or one whose
+\code{linear_feature_id} disagrees with \code{table}'s, stops the call; drop it and
+re-run, which rebuilds it from \code{table}.}
 
 \item{threshold}{Numeric vector. River sizes to find, each finite and
 above zero, in the measure's unit: m3/s for \code{"discharge"}, m for
@@ -46,6 +53,15 @@ pairs must be distinct.}
 
 \item{measure}{Character, length 1 or one per \code{threshold}:
 \code{"discharge"} (default), \code{"channel_width"} or \code{"stream_order"}.}
+
+\item{wsg_code}{Character or \code{NULL}. The watershed group this call covers
+\strong{in its entirety}, which makes the replace a whole-group one. \code{NULL}
+(default) is the safe case and the one a custom AOI needs: only the
+ground \code{table} holds is replaced. Pass a code only where the job
+segmented the whole group -- \code{\link[=frs_habitat]{frs_habitat()}} does, via
+\code{.frs_partition_wsg()} -- and the call refuses a code that is not the one
+group \code{table} holds, because a whole-group delete on a subset is the
+defect this parameter exists to avoid.}
 
 \item{verbose}{Logical. Print rows written, segments with no local
 code, and timing. Default \code{TRUE}.}

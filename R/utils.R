@@ -42,13 +42,82 @@
 #' @param table Character. Schema-qualified working streams table.
 #' @return Character. ` AND watershed_group_code IN (SELECT ... )`.
 #' @noRd
-.frs_wsg_in <- function(table) {
+.frs_wsg_in <- function(table, key = "watershed_group_code") {
   # The inner column is qualified deliberately. Unqualified it resolves
   # outward to the habitat row when `table` has no such column, which makes
   # the subquery a correlated no-op: every row matches, the clause reads as
   # applied, and the count is the whole table's again with no error raised.
-  sprintf(" AND watershed_group_code IN (
-         SELECT s.watershed_group_code FROM %s s)", table)
+  #
+  # `key` is the partition key the job's delete used. Once that delete stops
+  # removing whole watershed groups (fresh#293), a group can hold another
+  # job's rows, so counting by group over-reports what this job wrote --
+  # which is the same defect the group scope was added to fix, one column
+  # narrower.
+  stopifnot(is.character(key), length(key) == 1,
+            key %in% c("watershed_group_code", "linear_feature_id",
+                       "id_segment"))
+  sprintf(" AND %s IN (
+         SELECT s.%s FROM %s s)", key, key, table)
+}
+
+
+#' Prepare a long-format habitat target and choose its partition key
+#'
+#' The pre-flight [frs_habitat_classify()] runs before anything is written:
+#' create the target, give it `linear_feature_id` when the streams table has
+#' one, choose the delete key through the one chooser, and refuse a target
+#' holding rows that key can never address.
+#'
+#' The column is added **only when the source carries it**. A network that is
+#' not the Freshwater Atlas has no `linear_feature_id` and
+#' [frs_habitat_classify()] does not require one, so creating it
+#' unconditionally would make [.frs_persist_delete_key()]'s one-sided-mismatch
+#' error fire for every such network (fresh#293 review, B2).
+#'
+#' [.frs_persist_columns()] is deliberately not used: it aligns the target to
+#' *all* of the source's columns, and a habitat table is a projection of the
+#' streams table, so it would `ALTER` `geom` and `gradient` onto it.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param table Character. Schema-qualified working streams table.
+#' @param to Character. Schema-qualified habitat target. Created if absent.
+#' @param wsg_code Character or `NULL`. See [.frs_wsg_code_check()].
+#' @param overwrite Logical. When `FALSE` no delete runs, so the NULL-key
+#'   guard has nothing to refuse.
+#' @return List with `key` (the delete key) and `lfid` (whether both tables
+#'   carry `linear_feature_id`).
+#' @noRd
+.frs_habitat_target <- function(conn, table, to, wsg_code = NULL,
+                                overwrite = TRUE) {
+  .frs_validate_identifier(table, "streams table")
+  .frs_validate_identifier(to, "output table")
+  cols_from <- .frs_cols_of(conn, table)
+  lfid <- "linear_feature_id" %in% cols_from
+
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE IF NOT EXISTS %s (
+       id_segment integer,%s
+       watershed_group_code character varying(4),
+       species_code text,
+       accessible boolean,
+       spawning boolean,
+       rearing boolean,
+       lake_rearing boolean,
+       wetland_rearing boolean
+     )", to, if (lfid) "\n       linear_feature_id bigint," else ""))
+
+  cols_to <- .frs_cols_of(conn, to)
+  cols_added <- character()
+  if (lfid && !("linear_feature_id" %in% cols_to)) {
+    .frs_db_execute(conn, sprintf(
+      "ALTER TABLE %s ADD COLUMN IF NOT EXISTS linear_feature_id bigint", to))
+    cols_added <- "linear_feature_id"
+    cols_to <- c(cols_to, "linear_feature_id")
+  }
+
+  key <- .frs_persist_delete_key(to, table, wsg_code, cols_to, cols_from)
+  if (overwrite) .frs_null_key_guard(conn, to, key, cols_added)
+  list(key = key, lfid = lfid && "linear_feature_id" %in% cols_to)
 }
 
 
@@ -270,12 +339,15 @@
 #' @param near_river_table Character or `NULL`. Schema-qualified table
 #'   written by [frs_near_river()]. Required when the rule carries
 #'   `near_river`.
+#' @param near_river_lfid Logical. Passed to [.frs_near_river_sql()]; see
+#'   there for why a shared table needs the parent segment in the match.
 #' @return Character. A parenthesized SQL predicate.
 #'   Returns `"(TRUE)"` if the rule has no predicates and no
 #'   thresholds to inherit (a wide-open rule).
 #' @noRd
 .frs_rule_to_sql <- function(rule, csv_thresholds = NULL,
-                             near_river_table = NULL) {
+                             near_river_table = NULL,
+                             near_river_lfid = FALSE) {
   parts <- character(0)
 
   # Use [[ ]] not $ to avoid partial matching: rule$edge_types
@@ -350,7 +422,8 @@
   if (is.null(nr)) {
     parts <- c(parts, size_parts)
   } else {
-    near_sql <- .frs_near_river_sql(nr, near_river_table)
+    near_sql <- .frs_near_river_sql(nr, near_river_table,
+                                    lfid = near_river_lfid)
     parts <- c(parts, if (length(size_parts) == 0) near_sql else
       sprintf("(%s OR %s)", paste(size_parts, collapse = " AND "), near_sql))
   }
@@ -463,9 +536,17 @@
 #' @param nr A near_river mapping, in rule-key or stored form
 #'   (`.frs_near_river_normalize()`).
 #' @param near_river_table Character or `NULL`.
+#' @param lfid Logical. Whether the walk's table and the streams table both
+#'   carry `linear_feature_id`, in which case the match keys on the parent
+#'   segment too. A shared `near_river` table can hold another job's rows for
+#'   other ground at a colliding `id_segment` once the delete stops removing
+#'   whole groups, and without the parent a segment then passes `near_river`
+#'   on a distance measured for a different segment (fresh#293). `FALSE`
+#'   builds exactly the predicate fresh 0.53.0 built, so a caller that does
+#'   not pass it is unaffected.
 #' @return Character SQL.
 #' @noRd
-.frs_near_river_sql <- function(nr, near_river_table) {
+.frs_near_river_sql <- function(nr, near_river_table, lfid = FALSE) {
   nr <- .frs_near_river_normalize(nr)
   if (is.null(near_river_table)) {
     stop(paste0(
@@ -477,9 +558,10 @@
   sprintf(paste0(
     "EXISTS (SELECT 1 FROM %s n WHERE n.id_segment = s.id_segment ",
     "AND n.watershed_group_code = s.watershed_group_code ",
-    "AND n.measure = %s AND n.threshold = %s AND n.distance_max = %s ",
+    "%sAND n.measure = %s AND n.threshold = %s AND n.distance_max = %s ",
     "AND n.dist_m <= %s)"),
     near_river_table,
+    if (lfid) "AND n.linear_feature_id = s.linear_feature_id " else "",
     .frs_quote_string(nr[["measure"]]),
     .frs_sql_num(nr[["threshold"]]),
     .frs_sql_num(nr[["distance_max"]]),
@@ -495,16 +577,19 @@
 #' @param rules List of rule lists. Empty list → `"FALSE"`.
 #' @param csv_thresholds Same as for [.frs_rule_to_sql()].
 #' @param near_river_table Same as for [.frs_rule_to_sql()].
+#' @param near_river_lfid Same as for [.frs_rule_to_sql()].
 #' @return Character. A parenthesized SQL predicate, or `"FALSE"`.
 #' @noRd
 .frs_rules_to_sql <- function(rules, csv_thresholds = NULL,
-                              near_river_table = NULL) {
+                              near_river_table = NULL,
+                              near_river_lfid = FALSE) {
   if (is.null(rules) || length(rules) == 0) {
     return("FALSE")
   }
   rule_sqls <- vapply(rules, .frs_rule_to_sql, character(1),
                       csv_thresholds = csv_thresholds,
-                      near_river_table = near_river_table)
+                      near_river_table = near_river_table,
+                      near_river_lfid = near_river_lfid)
   paste0("(", paste(rule_sqls, collapse = " OR "), ")")
 }
 
@@ -1264,6 +1349,180 @@
 }
 
 
+#' Refuse a target holding rows the partition delete can never address
+#'
+#' A row whose key is NULL is matched by no partition delete, so it survives
+#' every run while the job's own rows are replaced beside it. Same shape as
+#' fresh#225. Ask the target for that condition directly, on every call: the
+#' obvious predicate -- "this call added the key column" -- is a proxy for it,
+#' and a one-shot one, because the `ALTER` has already run by the time we get
+#' here. A re-run after the error would find the column present, nothing newly
+#' added, and proceed to exactly the outcome the guard exists to prevent
+#' (measured: run 1 errors, run 2 writes the duplicate and every later run
+#' leaves it there).
+#'
+#' One function of its own because three writers need it --
+#' [.frs_persist_streams()], [frs_habitat_classify()] and [frs_near_river()]
+#' (fresh#293) -- and two readers of one rule drifting is what fresh#237 was.
+#' `key` is always passed in from [.frs_persist_delete_key()], the chooser the
+#' statement itself was built from, so the guard cannot end up checking a
+#' different column than the delete uses.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param to Character. Schema-qualified target the delete runs against.
+#' @param key Character scalar. The column the delete is keyed on.
+#' @param cols_added Character vector of columns this call added to `to`;
+#'   used only to word the message.
+#' @return NULL invisibly, or `stop()`.
+#' @noRd
+.frs_null_key_guard <- function(conn, to, key, cols_added = character()) {
+  .frs_validate_identifier(to, "persist target")
+  n_null <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s WHERE %s IS NULL",
+    to, DBI::dbQuoteIdentifier(conn, key)))$n
+  if (length(n_null) == 1 && !is.na(n_null) && n_null > 0) {
+    why <- if (key %in% cols_added) {
+      sprintf("%s was missing %s, which has just been added, so", to, key)
+    } else {
+      sprintf("%s holds rows with no %s, so", to, key)
+    }
+    # The staged-migration escape only works for a key a whole-group run does
+    # not itself delete on. Where the NULL column IS watershed_group_code,
+    # every wsg run meets this same guard, so offering that route would send
+    # the reader in a circle.
+    staged <- if (identical(key, "watershed_group_code")) {
+      ""
+    } else {
+      sprintf(" If %s is part-way through gaining the column, finish it --
+         re-run every watershed group with wsg and no aoi, which backfills
+         each group in turn.", to)
+    }
+    stop(sprintf(
+      "%s %d row(s) hold NULL for it and the partition delete would match
+       none of them -- they would survive this run and every later one. The
+       check is over the whole of %s, not just this run's partition, because a
+       row with no %s is one no run can ever address.%s Backfill %s in %s, or
+       drop %s and re-run.",
+      why, n_null, to, key, staged, key, to, to), call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+
+#' Refuse a whole-group delete key that is not the group the table holds
+#'
+#' A non-NULL `wsg_code` asserts that the job covers its watershed group in
+#' full, because the delete then removes the group whole and the insert after
+#' it writes back what the job segmented. Nothing else checks that assertion,
+#' and getting it wrong is fresh#293 reintroduced through the parameter meant
+#' to fix it -- so it is checked against the table itself, which
+#' [.frs_persist_delete_key()] cannot do (it is a pure chooser with no
+#' connection, so its proof runs on CI).
+#'
+#' An empty table resolves no groups and classifies nothing, so any code is
+#' accepted there: the delete removes that group's rows, which is what a
+#' caller asking for a whole-group replace of a group with no segments means.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param table Character. Schema-qualified working streams table.
+#' @param wsg_code Character scalar or `NULL`.
+#' @return NULL invisibly, or `stop()`.
+#' @noRd
+.frs_wsg_code_check <- function(conn, table, wsg_code) {
+  if (is.null(wsg_code)) return(invisible(NULL))
+  if (!is.character(wsg_code) || length(wsg_code) != 1L || is.na(wsg_code)) {
+    stop("wsg_code must be one watershed group code, or NULL for a custom AOI",
+         call. = FALSE)
+  }
+  have <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT DISTINCT watershed_group_code AS w FROM %s", table))$w
+  have <- have[!is.na(have)]
+  if (length(have) == 0) return(invisible(NULL))
+  if (!setequal(have, wsg_code)) {
+    stop(sprintf(paste0(
+      "wsg_code is %s but %s holds %s, so a whole-group delete would remove ",
+      "rows this job does not put back. Pass wsg_code = NULL for a custom ",
+      "AOI, or segment the whole group."),
+      paste(sQuote(wsg_code), collapse = ", "), table,
+      paste(sQuote(sort(have)), collapse = ", ")), call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+
+#' The columns a relation has, or none when it does not exist
+#'
+#' `information_schema` lookups by literal name miss what Postgres resolves --
+#' a mixed-case unquoted name folds to lower case, a temp table lives in a
+#' `pg_temp_N` schema, and an unqualified name goes through `search_path`
+#' (fresh#220). `to_regclass()` resolves the name exactly as the statements
+#' that follow will, and returns NULL rather than raising when there is
+#' nothing there.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param tbl Character. Table name, schema-qualified or not.
+#' @return Character vector of column names; `character(0)` if `tbl` is absent.
+#' @noRd
+.frs_cols_of <- function(conn, tbl) {
+  .frs_validate_identifier(tbl, "table")
+  d <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT a.attname AS col
+     FROM pg_attribute a
+     WHERE a.attrelid = to_regclass(%s)
+       AND a.attnum > 0 AND NOT a.attisdropped
+     ORDER BY a.attnum", .frs_quote_string(tbl)))
+  as.character(d$col)
+}
+
+
+#' Do both tables carry the parent segment
+#'
+#' The one test behind every [.frs_key_match()] call and every partition
+#' delete: `linear_feature_id` is usable only when both sides have it. One
+#' side only is the mismatch [.frs_persist_delete_key()] refuses; neither side
+#' is a network that is not the Freshwater Atlas, where `id_segment` is the
+#' only identity there is.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param a,b Character. Two table names.
+#' @return Logical scalar.
+#' @noRd
+.frs_lfid_pair <- function(conn, a, b) {
+  "linear_feature_id" %in% .frs_cols_of(conn, a) &&
+    "linear_feature_id" %in% .frs_cols_of(conn, b)
+}
+
+
+#' The join predicate matching a habitat-style row to its stream segment
+#'
+#' `(id_segment, watershed_group_code)` was a sound key on a shared habitat or
+#' `near_river` table only because the partition delete removed whole
+#' watershed groups: after a job ran, the table held no other job's rows for
+#' that job's groups. Scoping the delete to the ground the job reinserts
+#' (fresh#293) ends that, so one group can hold two jobs' rows with
+#' independently derived ids -- and of one measured job's 275 derived ids, 81
+#' equalled a real `linear_feature_id` **in its own group**
+#' (`research/id_segment_identity.md`). The parent segment separates them,
+#' because no `linear_feature_id` spans a watershed group.
+#'
+#' One builder for every such join, so a site cannot be left on the short key:
+#' `test-habitat_partition_293.R` enumerates the functions and fails on any
+#' that still spells one inline.
+#'
+#' @param hab,streams Character. The two table aliases in the statement.
+#' @param lfid Logical. Whether both tables carry `linear_feature_id`. A
+#'   network that is not the Freshwater Atlas has only `id_segment`.
+#' @return Character scalar: a SQL conjunction, no leading or trailing `AND`.
+#' @noRd
+.frs_key_match <- function(hab, streams, lfid) {
+  stopifnot(is.logical(lfid), length(lfid) == 1, !is.na(lfid))
+  parts <- c("id_segment", "watershed_group_code",
+             if (lfid) "linear_feature_id")
+  paste(sprintf("%s.%s = %s.%s", hab, parts, streams, parts),
+        collapse = "\n       AND ")
+}
+
+
 #' Build the partition-overwrite DELETE for a persist target
 #'
 #' The statement for the key [.frs_persist_delete_key()] chose. Pure string
@@ -1273,9 +1532,18 @@
 #' @param from Character. Schema-qualified source table.
 #' @param wsg_code Character or `NULL`. Watershed group being written.
 #' @param cols_to,cols_from Character vectors of column names.
+#' @param extra_subset Character or `NULL`. A further predicate to AND into a
+#'   **subset** delete -- the long-format habitat table's `species_code`, so a
+#'   job classifying one species stops removing another's rows (fresh#293).
+#'   Deliberately dropped from the whole-group branch: a whole-group delete is
+#'   a wholesale replace and the repair path for damage already done, and
+#'   scoping it by species makes the staged backfill un-completable, because
+#'   rows for a species no longer modelled would keep a NULL key for ever. The
+#'   rule lives here rather than in each caller so the two cannot disagree.
 #' @return Character scalar: one `DELETE` statement.
 #' @noRd
-.frs_persist_delete_sql <- function(to, from, wsg_code, cols_to, cols_from) {
+.frs_persist_delete_sql <- function(to, from, wsg_code, cols_to, cols_from,
+                                    extra_subset = NULL) {
   .frs_validate_identifier(to, "persist target")
   .frs_validate_identifier(from, "persist source")
   # DELETE ... WHERE col IN (SELECT col FROM <same table>) matches every row
@@ -1295,8 +1563,11 @@
       "DELETE FROM %s WHERE watershed_group_code = %s",
       to, .frs_quote_string(wsg_code)))
   }
-  sprintf("DELETE FROM %s WHERE %s IN (SELECT %s FROM %s)",
-          to, key, key, from)
+  sprintf("DELETE FROM %s WHERE %s IN (SELECT %s FROM %s)%s",
+          to, key, key, from,
+          if (is.null(extra_subset)) "" else {
+            sprintf(" AND (%s)", extra_subset)
+          })
 }
 
 
@@ -1359,34 +1630,7 @@
   # the statement above was built from, so the guard cannot end up checking a
   # different column than the delete uses.
   key <- .frs_persist_delete_key(to, from, wsg_code, cols$cols_to, cols$cols_from)
-  n_null <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT count(*)::int AS n FROM %s WHERE %s IS NULL",
-    to, DBI::dbQuoteIdentifier(conn, key)))$n
-  if (length(n_null) == 1 && !is.na(n_null) && n_null > 0) {
-    why <- if (key %in% cols$cols_added) {
-      sprintf("%s was missing %s, which has just been added, so", to, key)
-    } else {
-      sprintf("%s holds rows with no %s, so", to, key)
-    }
-    # The staged-migration escape only works for a key a whole-group run does
-    # not itself delete on. Where the NULL column IS watershed_group_code,
-    # every wsg run meets this same guard, so offering that route would send
-    # the reader in a circle.
-    staged <- if (identical(key, "watershed_group_code")) {
-      ""
-    } else {
-      sprintf(" If %s is part-way through gaining the column, finish it --
-         re-run every watershed group with wsg and no aoi, which backfills
-         each group in turn.", to)
-    }
-    stop(sprintf(
-      "%s %d row(s) hold NULL for it and the partition delete would match
-       none of them -- they would survive this run and every later one. The
-       check is over the whole of %s, not just this run's partition, because a
-       row with no %s is one no run can ever address.%s Backfill %s in %s, or
-       drop %s and re-run.",
-      why, n_null, to, key, staged, key, to, to), call. = FALSE)
-  }
+  .frs_null_key_guard(conn, to, key, cols$cols_added)
 
   # The delete and the insert are one unit of work: autocommitted separately,
   # anything that stops the pair between them -- a statement_timeout, a

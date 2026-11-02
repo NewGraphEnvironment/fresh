@@ -75,59 +75,61 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 
 ## Phase 1 — Tests first (failing)
 
-- [ ] Defect 1: a shared habitat target holding one group's rows for ground **outside**
+- [x] Defect 1: a shared habitat target holding one group's rows for ground **outside**
       a custom AOI survives a custom-AOI classify.
-- [ ] Defect 2: a same-group row at an `id_segment` the job's derived ids reach, on a
+- [x] Defect 2: a same-group row at an `id_segment` the job's derived ids reach, on a
       **different** `linear_feature_id`, survives. Assert the collision is live before
       asserting survival, as `test-frs_habitat.R:647` does.
-- [ ] Both again for `near_river`.
-- [ ] Read side: a surviving same-group row for other ground must not satisfy a
+- [x] Both again for `near_river`.
+- [x] Read side: a surviving same-group row for other ground must not satisfy a
       `near_river` predicate, nor be read by `.frs_run_connectivity()`, for this job's
       segments.
-- [ ] Non-FWA: a streams table without `linear_feature_id` still classifies
+- [x] Non-FWA: a streams table without `linear_feature_id` still classifies
       (`id_segment` key), and the targets gain no column.
-- [ ] Migration: a legacy habitat table raises, naming the repair; the `wsg` re-run
+- [x] Migration: a legacy habitat table raises, naming the repair; the `wsg` re-run
       backfills it; a legacy `near_river` table is refused by the shape check.
 
 ## Phase 2 — Schema and key
 
-- [ ] `linear_feature_id bigint` on the habitat DDL (`frs_habitat_classify.R:236-246`)
+- [x] `linear_feature_id bigint` on the habitat DDL (`frs_habitat_classify.R:236-246`)
       and `.frs_near_river_table()` (`frs_near_river.R:316`), **only when the source
       carries it**; written from the working table in both INSERTs. For the walk, join
       the walk table back to `table` on `(id_segment, watershed_group_code)` rather
       than threading the column through `.frs_near_river_walk_sql()`, whose signature
       two callers use positionally.
-- [ ] `(linear_feature_id)` index in `.frs_near_river_table()`; the habitat table gets
+- [x] `(linear_feature_id)` index in `.frs_near_river_table()`; the habitat table gets
       one free from `.frs_index_working()` (`utils.R:640-644`).
-- [ ] `linear_feature_id` into `.frs_near_river_check()`'s `cols_need`
-      (`frs_near_river.R:233-237`) when enforcing, so the refusal is the existing
-      named-column error rather than the chooser's late one.
-- [ ] Extend `.frs_near_river_check_shape()` to refuse a table without the column —
+- [x] ~~`linear_feature_id` into `.frs_near_river_check()`'s `cols_need`~~ —
+      **not done, and should not be**: the column is conditional on the source
+      carrying it, so requiring it would refuse every non-FWA network. The
+      refusal it was meant to give is in `.frs_near_river_check_shape()`
+      instead, which compares the two tables rather than demanding a column.
+- [x] Extend `.frs_near_river_check_shape()` to refuse a table without the column —
       remedy "drop it and re-run", which is cheap for a derived cache.
-- [ ] Reuse `.frs_persist_delete_key()` / `.frs_persist_delete_sql()`; the latter gains
+- [x] Reuse `.frs_persist_delete_key()` / `.frs_persist_delete_sql()`; the latter gains
       a nullable extra-predicate argument for `species_code`. Do **not** reuse
       `.frs_persist_columns()`: it aligns *all* of the source's columns and would
       `ALTER` `geom` and friends onto the habitat table. Explicit
       `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` instead.
-- [ ] Factor the NULL-key guard out of `.frs_persist_streams()` into one shared
+- [x] Factor the NULL-key guard out of `.frs_persist_streams()` into one shared
       internal helper taking `key` and `cols_added`, so the three sites cannot drift.
       Keep the chooser call inside `.frs_persist_streams()` — `test-frs_habitat.R:774`
       pins it — and preserve both message branches, which `test-utils.R:673-689` pins.
 
 ## Phase 3 — Delete scope, ordering and atomicity
 
-- [ ] `wsg_code = NULL` on `frs_habitat_classify()` and `frs_near_river()`;
+- [x] `wsg_code = NULL` on `frs_habitat_classify()` and `frs_near_river()`;
       `frs_habitat()` passes its existing `wsg_code` local (`frs_habitat.R:405`, `:587`)
       at both classify sites, which keeps `test-frs_habitat.R:783`'s pin at 2.
-- [ ] Validate it: `length(wsg_code) == 1` and `setequal(wsg_codes, wsg_code)`, or a
+- [x] Validate it: `length(wsg_code) == 1` and `setequal(wsg_codes, wsg_code)`, or a
       whole-group delete on a table spanning groups reintroduces #293 through the new
       parameter.
-- [ ] Replace both deletes with the chosen key; species predicate on the custom-AOI key
+- [x] Replace both deletes with the chosen key; species predicate on the custom-AOI key
       only (gate decision 4).
-- [ ] Derive `species_params` once, above the near_river checks, and define
+- [x] Derive `species_params` once, above the near_river checks, and define
       `sp_classify` (`:204-206`) from it — the two compute the same set with the same
       predicate today.
-- [ ] Move the delete down to immediately precede the inserts, and wrap delete +
+- [x] Move the delete down to immediately precede the inserts, and wrap delete +
       per-species inserts in one transaction, following `.frs_persist_streams()`'s
       `dbBegin` / nested-transaction / `on.exit` rollback handling exactly. Keep
       `CREATE TABLE` and `.frs_index_working()` **outside** it: `CREATE INDEX` takes
@@ -135,26 +137,27 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
       open ROW EXCLUSIVE. Guard the transaction on `inherits(conn, "DBIConnection")`,
       the precedent at `utils.R:572`, or `test-frs_habitat_classify.R:508` breaks on
       its mock connection.
-- [ ] Hoist the habitat pre-flight (create, ALTER, column read, chooser, NULL count)
+- [x] Hoist the habitat pre-flight (create, ALTER, column read, chooser, NULL count)
       up beside the other checks at `:209-233`, after the near_river shape check, so a
       legacy table is refused before the walk writes anything and before
       `test-frs_habitat_classify.R:435` stops seeing the four messages it matches.
-- [ ] No guard when `overwrite = FALSE` — no delete runs.
-- [ ] Key the per-species progress count (`:404-409`) on the delete key, not the group:
+- [x] No guard when `overwrite = FALSE` — no delete runs.
+- [x] Key the per-species progress count (`:404-409`) on the delete key, not the group:
       surviving rows from other jobs in the group would otherwise inflate it.
 
 ## Phase 4 — The read side
 
-- [ ] One internal builder for the habitat↔streams join predicate, conditional on both
+- [x] One internal builder for the habitat↔streams join predicate, conditional on both
       tables carrying `linear_feature_id`, applied at all 13 sites enumerated above.
-- [ ] `.frs_near_river_sql()` (`utils.R:468`) gains the same key; thread the choice
+- [x] `.frs_near_river_sql()` (`utils.R:468`) gains the same key; thread the choice
       through `frs_habitat_predicates()` as one new defaulted argument (exported, so
       backward compatible, and link checks only for named formals).
-- [ ] Enumeration test over the parsed functions: no habitat↔streams join is left on
+- [x] Enumeration test over the parsed functions: no habitat↔streams join is left on
       `id_segment` + `watershed_group_code` alone where the lfid key is available.
       Terminate on the enumeration, not on a quiet review round.
-- [ ] Decide per site whether `frs_order_child()` and `frs_habitat_overlay()` direct
-      mode are fixed here or filed against #277; file rather than half-fix.
+- [x] `frs_order_child()` and `frs_habitat_overlay()`'s **bridge** mode are fixed
+      here (both take a streams table, so the key is available). Overlay's
+      **direct** mode keys on the caller's `by` and stays #277's question.
 
 ## Phase 5 — Fixtures and the test sweep
 
