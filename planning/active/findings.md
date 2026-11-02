@@ -131,3 +131,59 @@ Relates to #282, #231, #277, #225, and #163 (closed), which audited exactly this
 
 | Error | Resolution |
 |-------|------------|
+
+## Phase 0 measurement — `frs_db_conn()`'s instance (2026-11-02)
+
+`data-raw/audit_habitat_293.R`, 326 schemas, `statement_timeout = 900000`. Candidates
+found by **shape**, not name, so link's `<schema>.streams_habitat` and fresh's own
+targets are both counted. Results in `data-raw/audit_habitat_293_tables.csv` and
+`data-raw/audit_habitat_293_ratio.csv`.
+
+| shape | tables | multi-group | carry `linear_feature_id` | max groups | rows needing backfill |
+|---|---|---|---|---|---|
+| habitat | 199 | **0** | 0 | 1 | 23,459,196 |
+| near_river | 98 | **21** | 0 | 125 | 1,660,683 |
+
+The row counts move between runs — a second run 20 minutes later read 23,549,635 and
+1,661,709 — because other sessions write these schemas while the audit runs. The script
+takes 21 s, so re-run it rather than citing a stale figure.
+
+**Every habitat table on the instance is single-group.** So none can have suffered the
+loss — a whole-group delete and the job's reinsert cover the same ground — and the
+habitat exposure is the shipped documented example rather than anything realised. The
+**realised** exposure is `near_river`: 21 tables are shared across 2 to 125 groups, and
+every one is reached by the same unscoped group delete (`frs_near_river.R:156-158`).
+Its consequence is not a permanent data loss, because the table is a cache a later run
+of that group rebuilds, but between those runs a classify over another group reads a
+table missing its rows, so every `near_river` predicate silently fails and the habitat
+it writes is under-classified.
+
+`seg_ratio_min` / `seg_ratio_max` in the CSV are a loss signature for **habitat** tables
+only. On a `near_river` table a low ratio is the expected shape — only segments that
+found a river within the distance get a row — so the 0.0049 on
+`fresh_default.streams_near_river` (125 groups) says nothing about damage.
+
+### The issue's magnitude claim is wrong, measured
+
+The body says the rows deleted and not replaced "outnumber the rows written, by roughly
+the ratio of those groups to the sub-basin". On the documented AOI
+(`man/frs_habitat.Rd`, `wscode_ltree <@ '100.190442.999098'`), from the FWA alone:
+
+```
+segments inside the AOI                        50,808
+segments in the 5 groups it touches            69,956   (ADMS SHUL STHM THOM USHU)
+deleted and not replaced, per species          19,148
+lost per row written                             0.38
+```
+
+The AOI is **73% of the ground of the groups it touches**, not a sub-basin inside them,
+so the loss is a fraction of what the job writes rather than a multiple. The defect and
+the fix are unchanged; the stated size is not. The issue body is corrected to the
+measured figure.
+
+### What this does not change
+
+The read-side hazard the plan review found (B1) is unreachable today on every one of
+these tables, and becomes reachable the moment the delete is narrowed — a whole-group
+run followed by a custom-AOI run **in the same group** is the shipped repair path and
+produces exactly two jobs' rows in one group on a single-group table. Phase 4 stands.

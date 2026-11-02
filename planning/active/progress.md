@@ -22,3 +22,9 @@
   `832f0cc`.
 - Scaffolded the PWF baseline with the approved phases.
 - Next: Phase 0 against `frs_db_conn()`'s instance, then Phase 1 failing tests.
+- Phase 0 complete. 199 habitat tables on the shared instance, every one
+  single-group, so no habitat table has suffered the loss; 21 of 98 near_river
+  tables are shared across 2-125 groups and are the realised exposure. The
+  issue's magnitude claim is wrong: measured 0.38 rows lost per row written on
+  the documented AOI, not a multiple. Issue body corrected.
+  Commits: see `data-raw/audit_habitat_293.R`.

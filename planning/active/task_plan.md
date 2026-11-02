@@ -60,14 +60,14 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 
 ## Phase 0 — Measure the exposure
 
-- [ ] `data-raw/audit_habitat_293.R`, in the shape of `data-raw/audit_persist_282.R`:
+- [x] `data-raw/audit_habitat_293.R`, in the shape of `data-raw/audit_persist_282.R`:
       every habitat and `near_river` table reachable through `frs_db_conn()`, its
       columns, row count, group count, species count; and for any multi-group one, the
       per-group shortfall against `to_streams` that the loss would leave.
-- [ ] The issue's unmeasured ratio: rows a custom-AOI job over the documented AOI would
+- [x] The issue's unmeasured ratio: rows a custom-AOI job over the documented AOI would
       delete vs. reinsert.
-- [ ] Rows that would need `linear_feature_id` backfilled, per table.
-- [ ] Record in `findings.md`. (Measured already on the `bcfishpass` instance: four
+- [x] Rows that would need `linear_feature_id` backfilled, per table.
+- [x] Record in `findings.md`. (Measured already on the `bcfishpass` instance: four
       fresh-written habitat tables, all single-group, none carrying
       `linear_feature_id`, no `near_river` table at all — so no loss there, and the
       migration cost on it is nil. `frs_db_conn()`'s instance, which holds
