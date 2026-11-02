@@ -349,8 +349,8 @@ test_that("distance_filter is not rescued by another group's connect rows", {
   }
   for (i in segs$id_segment) {
     DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, 'TEST', '%s', TRUE,
-         FALSE, FALSE, FALSE, FALSE)", i, species))
+      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, 'TEST', '%s', TRUE,
+         FALSE, FALSE, FALSE, FALSE)", i, i, species))
   }
   flag(a[1], "spawning")
   flag(a[2], "rearing")
@@ -543,7 +543,7 @@ test_that("species = NULL resolves only the species in this job's groups", {
                          y = 20000))
   .bkt_fixture(conn, segs, species_other = character(0))
   DBI::dbExecute(conn, "INSERT INTO pg_temp.bkt_habitat VALUES
-    (2, 'OTHR', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
+    (2, -2, 'OTHR', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
   out <- paste(utils::capture.output(
     frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
       label_cluster = "rearing", label_connect = "spawning", species = NULL,
@@ -681,8 +681,8 @@ test_that("another group's spawning does not lend lake adjacency to this group's
                                 ST_MakePoint(%.6f, %.6f)), 3005))",
       id, id, drm, a[1], a[2], b[1], b[2]))
     DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, 'TEST', 'BT', TRUE, %s, %s,
-         FALSE, FALSE)", id, spawn, rear))
+      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, 'TEST', 'BT', TRUE, %s, %s,
+         FALSE, FALSE)", id, id, spawn, rear))
   }
   add(4, 0, 30000, 31000, "FALSE", "TRUE")
   add(6, 1000, 0, 500, "FALSE", "FALSE")

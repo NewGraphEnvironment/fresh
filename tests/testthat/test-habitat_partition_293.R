@@ -260,6 +260,101 @@ test_that("wsg_code must be the one group the table holds", {
     "one watershed group")
 })
 
+test_that("a near_river target that cannot carry the key is refused", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_nr")
+  # A near_river table written before #293: the right measure columns, no
+  # linear_feature_id, against a streams table that has one.
+  DBI::dbExecute(conn, "CREATE TABLE pg_temp.p293_nr (id_segment integer,
+    watershed_group_code varchar(4), measure text, threshold double precision,
+    distance_max double precision, dist_m double precision)")
+  DBI::dbExecute(conn, "INSERT INTO pg_temp.p293_nr VALUES
+    (1, 'TEST', 'discharge', 3, 1000, 1)")
+  expect_error(
+    frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nr",
+      threshold = 3, distance_max = 1000, verbose = FALSE),
+    "Drop pg_temp.p293_nr and re-run")
+  # Refused before anything was written.
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nr")$n, 1L)
+  # And the reverse: a target carrying the key against a streams table that
+  # does not is the same mismatch, not a silent fall back to id_segment.
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.p293_nr ADD COLUMN linear_feature_id bigint")
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams DROP COLUMN linear_feature_id")
+  expect_error(
+    frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nr",
+      threshold = 3, distance_max = 1000, verbose = FALSE),
+    "has no key both tables share")
+})
+
+test_that("classifying one species leaves another species' rows for the same ground", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_sp")
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
+  run <- function(sp) frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_sp", species = sp, params = params, gate = FALSE,
+    verbose = FALSE)
+  n_of <- function(sp) DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM pg_temp.p293_sp WHERE species_code = '%s'",
+    sp))$n
+
+  run(c("CO", "BT"))
+  n_co <- n_of("CO")
+  n_bt <- n_of("BT")
+  expect_gt(n_co, 0)
+  expect_gt(n_bt, 0)
+
+  # A CO-only re-run replaces CO's rows and leaves BT's, which is what
+  # `overwrite` documents. Before #293 the whole group went.
+  run("CO")
+  expect_identical(n_of("CO"), n_co)
+  expect_identical(n_of("BT"), n_bt)
+})
+
+test_that("a failure during classify leaves the partition as it was", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_tx")
+  params <- frs_params(csv = system.file("extdata",
+    "parameters_habitat_thresholds.csv", package = "fresh"), rules_yaml = NULL)
+  run <- function() frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_tx", species = "CO", params = params, gate = FALSE,
+    verbose = FALSE)
+  run()
+  n0 <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_tx")$n
+  expect_gt(n0, 0)
+
+  # The delete and the inserts are one transaction, so an insert that fails
+  # cannot leave the partition deleted and not written back. Make the second
+  # species' insert fail after the first has run: a two-species call deletes
+  # once and then inserts per species.
+  calls <- 0L
+  local_mocked_bindings(.frs_db_execute = function(conn, sql) {
+    if (grepl("INSERT INTO pg_temp.p293_tx", sql, fixed = TRUE)) {
+      calls <<- calls + 1L
+      if (calls == 2L) stop("boom")
+    }
+    DBI::dbExecute(conn, sql)
+  })
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+    to = "pg_temp.p293_tx", species = c("CO", "BT"), params = params,
+    gate = FALSE, verbose = FALSE), "boom")
+  # The condition the assertion rests on: the delete and one insert did run.
+  expect_identical(calls, 2L)
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_tx")$n, n0)
+})
+
 # --- Nothing is left reading these tables on the short key ------------------
 
 test_that("every habitat-to-streams join is built by the one key helper", {

@@ -36,9 +36,15 @@
       waterbody_key integer, watershed_group_code text,
       channel_width double precision, edge_type integer,
       geom geometry(LineString, 3005))")
+  # linear_feature_id as frs_habitat_classify() writes it since fresh#293:
+  # the shared habitat table carries the parent segment whenever the streams
+  # table does, and every match against it keys on the parent as well, so a
+  # fixture without the column would exercise the id_segment path instead of
+  # the one a real run takes.
   DBI::dbExecute(conn, "
     CREATE TEMP TABLE bkt_habitat (
-      id_segment integer, watershed_group_code text, species_code text,
+      id_segment integer, linear_feature_id bigint,
+      watershed_group_code text, species_code text,
       accessible boolean, spawning boolean, rearing boolean,
       lake_rearing boolean, wetland_rearing boolean)")
   invisible(conn)
@@ -73,9 +79,9 @@
     for (sp in unique(c(species, species_other))) {
       own <- sp == species
       DBI::dbExecute(conn, sprintf(
-        "INSERT INTO pg_temp.bkt_habitat VALUES (%d, '%s', '%s', %s,
+        "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, '%s', '%s', %s,
            %s, %s, %s, %s)",
-        r$id, wsg, sp, r$access,
+        r$id, r$id, wsg, sp, r$access,
         own && r$spawn, own && r$rear, r$lake, r$wet))
     }
   }
@@ -85,13 +91,18 @@
 # fixture's own group already uses. `segs` is a spec whose `id` values collide
 # on purpose; nothing is added to bkt_streams, which is the point — the other
 # group's streams live in its own working table, not this job's.
+#
+# Their `linear_feature_id` is negated, so it collides with nothing: no
+# linear_feature_id spans a watershed group (0, measured province-wide), which
+# is the property that makes it a safe key, so a decoy sharing one would not
+# be another group's row at all.
 .bkt_habitat_add <- function(conn, segs, species = "BT", wsg = "OTHR") {
   for (i in seq_len(nrow(segs))) {
     r <- segs[i, ]
     DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, '%s', '%s', %s, %s, %s,
+      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, '%s', '%s', %s, %s, %s,
          %s, %s)",
-      r$id, wsg, species, r$access, r$spawn, r$rear, r$lake, r$wet))
+      r$id, -r$id, wsg, species, r$access, r$spawn, r$rear, r$lake, r$wet))
   }
 }
 

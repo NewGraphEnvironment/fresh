@@ -39,3 +39,10 @@
   The tenth was `test-frs_near_river.R`'s positional six-value INSERT against
   a seven-column table; that test is rewritten around what the new key means
   — same group, other ground survives; the ground the walk holds is replaced.
+- The synthetic habitat fixture carries `linear_feature_id` too, so the
+  connectivity and cluster tests run against the shape a real job writes
+  rather than the id_segment path; `.bkt_habitat_add()`'s other-group decoys
+  negate theirs, since no `linear_feature_id` spans a group. Three tests added
+  for guards nothing covered: the near_river shape refusal in both directions,
+  species scoping end to end, and that a failure mid-classify leaves the
+  partition as it was. `test-habitat_partition_293.R` 12 tests / 48 assertions.

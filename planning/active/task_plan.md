@@ -161,7 +161,7 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 
 ## Phase 5 — Fixtures and the test sweep
 
-- [ ] `tests/testthat/helper-synthetic.R:39-43` is a second habitat DDL whose comment
+- [x] `tests/testthat/helper-synthetic.R:39-43` is a second habitat DDL whose comment
       claims one shape for all habitat fixtures: add the column and update its
       positional inserts (`:75-80`, `:91-95`), plus
       `test-frs_connectivity_wsg.R:351`, `:684`.
@@ -170,10 +170,13 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 - [x] ~~`test-near_river_rules.R:19` and `test-near_river_inherit.R:48` pin the exact
       `EXISTS` string.~~ — **no change needed**: `near_river_lfid` defaults to
       `FALSE`, which builds byte-identically to 0.53.0, so both pins stay green.
-- [ ] `test-frs_habitat_classify.R:443` — add the column to the `pg_temp.nr_hab`
+- [x] `test-frs_habitat_classify.R:443` — add the column to the `pg_temp.nr_hab`
       fixture so its "nothing is touched before the walk" case stays non-vacuous.
-- [ ] Add the #293 decoy to the #282 integration test (`test-frs_habitat.R:647`): a
-      second same-group AOI job whose rows must survive.
+- [x] ~~Add the #293 decoy to the #282 integration test~~ — done instead as its own
+      end-to-end test in `test-habitat_partition_293.R` (outer AOI, then inner AOI,
+      into one shared pair), which asserts the surviving rows **and** that two jobs'
+      rows now coexist in one group. Three more landed with it: the near_river shape
+      refusal both ways, species scoping, and the delete/insert transaction.
 
 ## Phase 6 — Docs, measurement and follow-ups
 

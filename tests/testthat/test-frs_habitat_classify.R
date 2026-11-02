@@ -440,12 +440,16 @@ test_that("a 0.41.0 near-river table stops classify before any write (round 1)",
   for (t in c("pg_temp.nr_hab", "pg_temp.nr_hab_near_river")) {
     DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
   }
+  # linear_feature_id, and a real one: without it the target's own pre-flight
+  # refuses the call before the walk, and every case below would then be
+  # testing that refusal rather than what it says it tests (fresh#293).
   DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_hab (id_segment integer,
+    linear_feature_id bigint,
     watershed_group_code varchar(4), species_code text, accessible boolean,
     spawning boolean, rearing boolean, lake_rearing boolean,
     wetland_rearing boolean)")
   DBI::dbExecute(conn, "INSERT INTO pg_temp.nr_hab VALUES
-    (1, 'TEST', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
+    (1, 1, 'TEST', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
   DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_hab_near_river (id_segment
     integer, watershed_group_code varchar(4), discharge_min double precision,
     distance_max double precision, dist_m double precision)")
