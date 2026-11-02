@@ -1141,9 +1141,17 @@
 #' Does one table name denote the same relation as another
 #'
 #' [.frs_validate_identifier()] admits only `[A-Za-z_][A-Za-z0-9_.]*`, so a
-#' name carries no quoting or whitespace and Postgres folds it to lower case.
-#' A plain case-insensitive comparison is therefore exact for the names fresh
-#' accepts.
+#' name carries no quoting or whitespace and Postgres folds it to lower case,
+#' which makes a case-insensitive string comparison exact for two
+#' *schema-qualified* names.
+#'
+#' It is a pre-filter, not the whole test: an unqualified name resolves through
+#' the connection's `search_path`, so `streams_bulk` and `working.streams_bulk`
+#' can be one relation and compare unequal here. The exact test needs the
+#' database, and [.frs_persist_streams()] makes it once both tables exist, by
+#' comparing their `regclass`. This one runs in [.frs_persist_delete_sql()],
+#' which is a pure string builder with no connection so that the delete-key
+#' proof runs on CI.
 #'
 #' @param a,b Character. Schema-qualified table names.
 #' @return Logical scalar.
@@ -1309,6 +1317,23 @@
 
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0", to, from))
+
+  # The exact same-relation test, which the string compare in
+  # .frs_persist_delete_sql() cannot make: an unqualified name resolves
+  # through the connection's search_path, so two unequal strings can name one
+  # table -- and a delete whose subselect reads the table it is deleting from
+  # matches every row, emptying it, with the insert then reading what it just
+  # emptied. Both exist by now, so regclass answers it.
+  same <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT (%s::regclass = %s::regclass) AS same",
+    .frs_quote_string(to), .frs_quote_string(from)))$same
+  if (length(same) == 1 && !is.na(same) && same) {
+    stop(sprintf(
+      "persist target and source resolve to the same table (%s and %s). Pass
+       a to_streams that differs from the working table
+       working.streams_<label>.", to, from), call. = FALSE)
+  }
+
   cols <- .frs_persist_columns(conn, to, from)
 
   sql_delete <- .frs_persist_delete_sql(to, from, wsg_code,
@@ -1342,18 +1367,47 @@
       why, n_null, key, to, to), call. = FALSE)
   }
 
-  # One statement, not two. A DELETE and an INSERT autocommitted separately
-  # lose the partition if anything stops the pair between them -- a
-  # statement_timeout, a cancelled query, a dropped connection -- which is the
-  # same loss this issue is about, reached another way
+  # The delete and the insert are one unit of work: autocommitted separately,
+  # anything that stops the pair between them -- a statement_timeout, a
+  # cancelled query, a dropped connection -- leaves the partition deleted and
+  # not written back, which is the loss this issue is about reached another way
   # (code-check-infra.md, "Two-statement DELETE/INSERT into a persist table is
-  # not atomic"). A data-modifying CTE runs the delete exactly once, to
-  # completion, against the statement's own snapshot, so the insert's rows are
-  # not visible to it; one statement is atomic whether or not the caller holds
-  # a transaction open, which BEGIN/COMMIT here would not be.
+  # not atomic"). So: one transaction, two statements.
+  #
+  # NOT one statement. A data-modifying CTE,
+  # `WITH del AS (<delete>) INSERT ...`, shipped here first and is wrong: every
+  # sub-statement runs under one command id, so the insert's uniqueness check
+  # still sees the rows the same statement's delete is removing. On a target
+  # with a unique index over the inserted columns -- `fresh.streams` has
+  # `streams_pkey` on `(id_segment, watershed_group_code)`, and so does every
+  # sibling schema's `streams` -- the second run of any ground aborts with a
+  # duplicate-key violation, on the whole-group key as well as the custom-AOI
+  # one. Measured both ways; the two-statement form passes the same fixture.
+  # Separate commands in a transaction see each other, which is the whole
+  # point.
+  #
+  # dbBegin() refuses a nested transaction, and a caller who already has one
+  # open has already made this pair atomic with respect to their commit, so a
+  # failure to begin is not an error here.
+  began <- tryCatch({
+    DBI::dbBegin(conn)
+    TRUE
+  }, error = function(e) FALSE)
+  committed <- FALSE
+  if (began) {
+    on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
+            add = TRUE)
+  }
+
+  .frs_db_execute(conn, sql_delete)
   .frs_db_execute(conn, sprintf(
-    "WITH del AS (%s) INSERT INTO %s (%s) SELECT %s FROM %s",
-    sql_delete, to, cols$cols_sql, cols$cols_sql, from))
+    "INSERT INTO %s (%s) SELECT %s FROM %s",
+    to, cols$cols_sql, cols$cols_sql, from))
+
+  if (began) {
+    DBI::dbCommit(conn)
+    committed <- TRUE
+  }
   invisible(NULL)
 }
 

@@ -772,8 +772,12 @@ test_that("both frs_habitat paths persist streams through the one helper", {
   expect_equal(n_of("spec$partition_wsg", body_txt), 2L)
   expect_equal(n_of("wsg_code <- spec$wsg", body_txt), 0L)
 
-  # The overwrite is one statement, so a failure cannot leave the partition
-  # deleted and not written back.
-  expect_true(grepl("WITH del AS", persist, fixed = TRUE))
-  expect_equal(n_of(".frs_db_execute", persist), 2L)
+  # The overwrite is one transaction, so a failure cannot leave the partition
+  # deleted and not written back -- and NOT one statement, because a
+  # data-modifying CTE makes the insert's uniqueness check see the rows the
+  # delete is removing.
+  expect_false(grepl("WITH del AS", persist, fixed = TRUE))
+  expect_true(grepl("dbBegin", persist, fixed = TRUE))
+  expect_true(grepl("dbCommit", persist, fixed = TRUE))
+  expect_true(grepl("dbRollback", persist, fixed = TRUE))
 })

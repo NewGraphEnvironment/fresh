@@ -574,18 +574,75 @@ test_that(".frs_persist_streams replaces its partition atomically", {
   # anything stops the pair between them. Force the insert half to fail with a
   # constraint the source violates, and the row the delete would have removed
   # must still be there.
+  #
+  # The target carries a unique index, as every persisted streams table does
+  # (fresh.streams has streams_pkey on (id_segment, watershed_group_code)).
+  # Without one this fixture cannot reach the failure mode that the first fix
+  # here introduced: a data-modifying CTE puts the delete and the insert under
+  # one command id, so the insert's uniqueness check still sees the rows the
+  # delete is removing and the second run of any ground aborts. An unkeyed
+  # target is idempotent under both forms and so tells them apart not at all.
   DBI::dbExecute(conn, sprintf(
-    "CREATE TABLE %s (linear_feature_id bigint, tag text NOT NULL)", dst))
-  DBI::dbExecute(conn, sprintf("INSERT INTO %s VALUES (42, 'mine')", dst))
+    "CREATE TABLE %s (id_segment integer, watershed_group_code varchar(4),
+       linear_feature_id bigint, tag text NOT NULL)", dst))
   DBI::dbExecute(conn, sprintf(
-    "CREATE TABLE %s AS SELECT 42::bigint AS linear_feature_id,
-       NULL::text AS tag", src))
+    "CREATE UNIQUE INDEX test_282_atomic_pkey
+       ON %s (id_segment, watershed_group_code)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "INSERT INTO %s VALUES (11, 'BULK', 42, 'mine')", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 11::integer AS id_segment,
+       'BULK'::varchar(4) AS watershed_group_code,
+       42::bigint AS linear_feature_id, NULL::text AS tag", src))
 
   expect_error(.frs_persist_streams(conn, dst, src, NULL), "not-null|null value")
   res <- DBI::dbGetQuery(conn, sprintf(
     "SELECT linear_feature_id, tag FROM %s", dst))
   expect_equal(nrow(res), 1L)
   expect_equal(res$tag, "mine")
+})
+
+test_that(".frs_persist_streams re-runs over a target with a unique index", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  src <- "working.test_282_uniq_src"
+  dst <- "working.test_282_uniq_dst"
+  on.exit({
+    for (t in c(src, dst)) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    }
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  for (t in c(src, dst)) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+  }
+  # The shape of a real persist target, which the other fixtures here lack:
+  # `CREATE TABLE ... AS SELECT ... LIMIT 0` copies no constraints, so a
+  # target this helper created itself can never carry the unique index the
+  # tables it is actually run against do. Re-running the same ground must
+  # replace, under either key, which is what the first atomicity fix broke.
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s (id_segment integer, watershed_group_code varchar(4),
+       linear_feature_id bigint)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE UNIQUE INDEX test_282_uniq_pkey
+       ON %s (id_segment, watershed_group_code)", dst))
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TABLE %s AS SELECT 11::integer AS id_segment,
+       'BULK'::varchar(4) AS watershed_group_code,
+       42::bigint AS linear_feature_id", src))
+
+  n_of <- function() DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s", dst))$n
+  for (i in 1:3) {
+    expect_no_error(.frs_persist_streams(conn, dst, src, NULL))
+    expect_equal(n_of(), 1L)
+  }
+  for (i in 1:3) {
+    expect_no_error(.frs_persist_streams(conn, dst, src, "BULK"))
+    expect_equal(n_of(), 1L)
+  }
 })
 
 test_that(".frs_persist_streams allows an empty target gaining the key", {

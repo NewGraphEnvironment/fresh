@@ -701,3 +701,110 @@ no `sprintf()` placeholder mismatch, and `.frs_persist_columns()` with exactly
 one non-test caller. The three accepted tradeoffs stand: `to_barriers` is #294,
 the `indentation_linter` lints match their neighbours, and `NEWS.md` 0.46.0 is
 history.
+
+## Round 2 of `/code-check branch`, 2026-11-01
+
+Three findings. The first is a defect **inside round 1's own fix**, which is the
+pattern that keeps the review loop open: from here only an enumeration ends it,
+not a quiet round.
+
+### The data-modifying CTE was wrong, and `fresh.streams` is exactly where it breaks
+
+Round 1 made the overwrite one statement,
+`WITH del AS (<delete>) INSERT INTO <to> ... SELECT ... FROM <from>`. Every
+sub-statement of a data-modifying CTE runs under **one command id**, so the
+insert's uniqueness check still sees the rows the same statement's delete is
+removing. The delete does run to completion — that part was right — but it
+cannot free a key for the insert.
+
+`fresh.streams` carries `CREATE UNIQUE INDEX streams_pkey ON fresh.streams
+(id_segment, watershed_group_code)`, and so does every sibling schema's
+`streams`. Reproduced on a target shaped the same way:
+
+| form | key | run 1 | run 2 |
+|---|---|---|---|
+| CTE | `linear_feature_id` | OK | **duplicate key violates `ck_dst_pkey`** |
+| CTE | `watershed_group_code` | OK | **duplicate key violates `ck_dst_pkey`** |
+| two statements | `linear_feature_id` | OK | OK |
+
+Both keys regress, the whole-group one included — and that is the key the
+`@param to_streams` text and the NEWS entry name as **the repair** for a table
+damaged by an earlier release. On a populated `fresh.streams` the repair would
+have aborted.
+
+**Why nothing on the branch caught it.** `.frs_persist_streams()` creates an
+absent target with `CREATE TABLE IF NOT EXISTS ... AS SELECT * ... LIMIT 0`,
+which copies no constraints. Every fixture — the three `.frs_persist_streams()`
+tests, `working.persist_282_streams`, and the scratch pair this file cited as
+having verified the CTE "idempotent across runs" — is therefore structurally
+incapable of carrying a unique index, and an unkeyed target is idempotent under
+both forms. Textbook `code-check.md`, "A fixture that cannot reach the failure
+mode": the verification could not have disagreed with the code. The mutation
+sweep shares the blind axis, since it mutates guards rather than the statement
+form.
+
+**What shipped instead.** One transaction, two statements — which is what
+`code-check-infra.md` prescribed in the first place. Separate commands inside a
+transaction do see each other, so the delete frees the key. `dbBegin()` refuses
+a nested transaction (measured: `Nested transactions not supported.`), and a
+caller who already holds one open has already made the pair atomic with respect
+to their commit, so a failure to begin is not an error: begin if we can, roll
+back on the way out unless we committed.
+
+**The fixtures now carry a unique index**, as the real targets do, and one new
+test re-runs the same ground three times under each key. Restoring the CTE in a
+copy of the package reddens it — 5 failures, `duplicate key value violates
+unique constraint "test_282_uniq_pkey"` — so the new fixture discriminates
+where the old one could not.
+
+One documentation claim went with it: "overwrites its own partition **before**
+inserting, in one statement". A CTE's sub-statement order is explicitly
+unpredictable, so that sentence was wrong on both halves; it now says one
+transaction.
+
+### `.frs_same_relation()` is a pre-filter, and its roxygen said it was exact
+
+`.frs_validate_identifier()` admits an unqualified name, so `to_streams =
+"streams_bulk"` against `working.streams_bulk` is one relation whenever
+`working` is on the `search_path`, and the two strings compare unequal — the
+self-delete guard passes and the target empties, since a delete whose subselect
+reads the table it deletes from matches every row. Not reachable as this
+database is configured (`search_path = public, whse_basemapping, usgs,
+hydrosheds`, measured), and `search_path` is database state rather than
+anything the package controls, so it is latent rather than live.
+
+The string comparison stays where it is: it runs inside
+`.frs_persist_delete_sql()`, which is a pure builder with no connection so that
+the delete-key proof runs on CI. The exact test is now made in
+`.frs_persist_streams()`, where both tables exist by then, by comparing their
+`regclass`. The roxygen says which is which.
+
+### The audit script compared counts where it needed a set difference
+
+`n_missing` was `n_fwa - n_present`, with `n_fwa` counted under
+`.frs_stream_guards()` and `n_present` counted without them. A
+`linear_feature_id` in the table outside the guarded set therefore inflated
+`n_present` and cancelled a segment that really was absent — in the column that
+decides whether production data is damaged. `NOT EXISTS` against the guarded
+set answers the question the header asks. The `LEFT JOIN` also ran from `fwa`,
+dropping a group present in the table with no guarded FWA rows, so "Groups in
+table" meant groups in FWA ∩ table; it now drives from the groups.
+
+Re-derived on `fresh.streams` with the set difference, 2026-11-01: **98 groups,
+3 with a shortfall, 34 segments**, LPCE 17 / KETL 11 / CHWK 6 — identical to the
+count method, so nothing was masked in this table and the figure quoted above
+stands. It is now derived the way that cannot mask.
+
+### Confirmed clean by round 2
+
+Round 1's other fixes were checked and hold: the NULL-key guard is correct for
+all three keys and both the cold and warm paths (`cols_to` is the post-`ALTER`
+union, so a just-added key is a legal key and the guard rather than the chooser
+stops the run, and the message switches wording exactly when `cols_added`
+empties); `.frs_partition_wsg()` is reached on every persisting path, and
+`wsg_code` feeds nothing but `.frs_persist_streams()` at all four sites, so it
+cannot change what `frs_extract()` or `frs_network_segment()` see;
+`withr::defer(envir = globalenv())` is right and `withr`'s absence from
+`Suggests` is harmless because `data-raw/` is `.Rbuildignore`d. `DELETE FROM`
+occurs exactly twice in `R/frs_habitat.R`, both `blue_line_key`, so pinning that
+count is a live tripwire.

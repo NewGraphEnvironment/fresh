@@ -53,8 +53,8 @@ Auto-generated from \code{wsg} when available. Required when \code{wsg} is
 persistent stream segments. Accumulates across runs, and must not be the
 working table \verb{working.streams_<label>} that this call builds.
 
-Each run overwrites its own partition of the table before inserting, in
-one statement, so a run that fails leaves the partition as it was. With
+Each run overwrites its own partition of the table and inserts its rows in
+one transaction, so a run that fails leaves the partition as it was. With
 \code{wsg} and no \code{aoi}, the partition is the watershed group. Otherwise — a
 custom \code{aoi}, or \code{wsg} \strong{and} \code{aoi} together, which narrows the job to a
 subset of the group — it is the FWA segments the run covers, keyed on

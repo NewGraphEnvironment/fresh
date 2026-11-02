@@ -153,3 +153,17 @@ the resume instruction is given.
   `code-check-infra.md` names; `withr::defer()` in the audit script; and the
   `IS NOT DISTINCT FROM` claim in three planning files reconciled with the `=`
   that shipped.
+- **Round 2 found a defect inside round 1's fix**, which keeps the review loop
+  open past three rounds: the data-modifying CTE put the delete and the insert
+  under one command id, so the insert's uniqueness check still saw the rows the
+  delete was removing. `fresh.streams` has `streams_pkey` UNIQUE on
+  `(id_segment, watershed_group_code)`, so the **second run of any ground**
+  aborted — on the whole-group key too, which is the documented repair.
+  Reproduced both ways. Replaced with one transaction around two statements,
+  which is what `code-check-infra.md` prescribed; the fixtures now carry a
+  unique index as the real targets do, and restoring the CTE reddens them.
+- Round 2 also: `.frs_same_relation()`'s roxygen claimed exactness it cannot
+  have for an unqualified name, so the exact `regclass` test now runs in
+  `.frs_persist_streams()`; and the audit script's `n_missing` was a difference
+  of two differently-filtered counts, now a `NOT EXISTS` set difference.
+  Re-derived: 98 groups, 3 short, 34 segments — unchanged.

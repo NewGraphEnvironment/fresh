@@ -52,8 +52,8 @@
 #'   persistent stream segments. Accumulates across runs, and must not be the
 #'   working table `working.streams_<label>` that this call builds.
 #'
-#'   Each run overwrites its own partition of the table before inserting, in
-#'   one statement, so a run that fails leaves the partition as it was. With
+#'   Each run overwrites its own partition of the table and inserts its rows in
+#'   one transaction, so a run that fails leaves the partition as it was. With
 #'   `wsg` and no `aoi`, the partition is the watershed group. Otherwise — a
 #'   custom `aoi`, or `wsg` **and** `aoi` together, which narrows the job to a
 #'   subset of the group — it is the FWA segments the run covers, keyed on

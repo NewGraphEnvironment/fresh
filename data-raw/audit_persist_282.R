@@ -48,29 +48,51 @@ for (needed in c("linear_feature_id", "watershed_group_code")) {
 }
 
 guards <- paste(.frs_stream_guards("s"), collapse = " AND ")
+# n_missing is a set difference, not a difference of two counts. The table can
+# hold a linear_feature_id outside the guarded FWA set -- a placeholder or
+# unmapped segment written by some other pass -- and under subtraction each one
+# cancels a segment that really is absent, so the column that decides whether
+# production data is damaged could read 0 with rows missing. Driving from
+# `groups` rather than from `fwa` also keeps a group that is in the table but
+# has no guarded FWA rows, which a LEFT JOIN the other way round dropped.
 res <- DBI::dbGetQuery(conn, sprintf(
   "WITH groups AS (
-     SELECT DISTINCT watershed_group_code AS wsg FROM %s
+     SELECT DISTINCT watershed_group_code AS wsg FROM %1$s
    ),
    fwa AS (
      SELECT s.watershed_group_code AS wsg,
             count(DISTINCT s.linear_feature_id) AS n_fwa
      FROM whse_basemapping.fwa_stream_networks_sp s
-     WHERE %s
+     WHERE %2$s
        AND s.watershed_group_code IN (SELECT wsg FROM groups)
      GROUP BY 1
    ),
    present AS (
      SELECT watershed_group_code AS wsg,
             count(DISTINCT linear_feature_id) AS n_present
-     FROM %s GROUP BY 1
+     FROM %1$s GROUP BY 1
+   ),
+   missing AS (
+     SELECT s.watershed_group_code AS wsg,
+            count(DISTINCT s.linear_feature_id) AS n_missing
+     FROM whse_basemapping.fwa_stream_networks_sp s
+     WHERE %2$s
+       AND s.watershed_group_code IN (SELECT wsg FROM groups)
+       AND NOT EXISTS (
+         SELECT 1 FROM %1$s t
+          WHERE t.linear_feature_id = s.linear_feature_id
+            AND t.watershed_group_code = s.watershed_group_code)
+     GROUP BY 1
    )
-   SELECT f.wsg AS watershed_group_code,
-          f.n_fwa::bigint AS n_fwa_segments,
+   SELECT g.wsg AS watershed_group_code,
+          coalesce(f.n_fwa, 0)::bigint AS n_fwa_segments,
           coalesce(p.n_present, 0)::bigint AS n_in_table,
-          (f.n_fwa - coalesce(p.n_present, 0))::bigint AS n_missing
-   FROM fwa f LEFT JOIN present p USING (wsg)
-   ORDER BY 4 DESC, 1", tbl, guards, tbl))
+          coalesce(m.n_missing, 0)::bigint AS n_missing
+   FROM groups g
+   LEFT JOIN fwa f USING (wsg)
+   LEFT JOIN present p USING (wsg)
+   LEFT JOIN missing m USING (wsg)
+   ORDER BY 4 DESC, 1", tbl, guards))
 
 res$n_fwa_segments <- as.numeric(res$n_fwa_segments)
 res$n_in_table <- as.numeric(res$n_in_table)
