@@ -201,3 +201,11 @@ the resume instruction is given.
   remaining unreachable objects (triggers, RLS, partitioning, generated
   columns, geometry/SRID constraints, defaults) do not matter here: only a
   unique index and a NOT NULL change the outcome of this delete-plus-insert.
+- **The sweep on the final shape closed the loop**, 2026-11-01, against
+  `d1122e5`: 16 sites, **0 with no test catching them**, baseline 0 red / 0 skip.
+  The earlier "0 of 10" is void — it was measured against `f1f649b` and round 4
+  found the committed site list no longer resolved. The two arms round 4 reported
+  as covered by nothing each redden one test now. No round 5: three rounds found
+  a defect inside the previous fix, so only an enumeration ends the loop, and the
+  sweep is that enumeration's measured verdict. Cost reported to the owner: four
+  reviewer agents, three sweeps.

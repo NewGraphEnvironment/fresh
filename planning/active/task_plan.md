@@ -242,9 +242,19 @@ Queries, verdicts and the reconciliation with #218 are in `review-plan.md`.
       the #282 scenario through `R/frs_habitat.R:668` passes all six assertions
       (no test in the suite exercises `workers`, and a `load_all()` run could
       not, since the daemon resolves internals in the installed namespace).
-- [ ] `devtools::test()` and `lintr::lint_package()` clean; `/code-check branch`,
+- [x] `devtools::test()` and `lintr::lint_package()` clean; `/code-check branch`,
       three rounds minimum, continuing while a round finds a defect inside the
-      previous fix.
+      previous fix. Four rounds ran; three of them found a defect inside the
+      previous round's fix, so the loop closed on round 4's enumeration and the
+      16-site mutation sweep that measures it (0 uncaught), not on a quiet round.
+      Full suite against the reinstalled branch, 2026-11-01: **FAIL 0 | WARN 21 |
+      SKIP 6 | PASS 2542** (21 warnings and 6 skips are `main`'s, unchanged).
+      `workers = 2L` re-run after the helper's four revisions: PASS, all six
+      assertions. `lintr::lint_package()` 1471 on the branch against 1400 on
+      `origin/main`, measured in a worktree: +70 `indentation_linter` on the
+      added lines, which this package carries 1400 of before the branch, and one
+      `brace_linter` that was mine and is fixed. 0 of either on the changed files
+      that `origin/main` does not already have in kind.
 
 ## Phase 4: Docs, repair, release
 
@@ -284,9 +294,10 @@ Nothing. Every sibling is filed as an issue inside Phase 0 or Phase 4.
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean (once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass — FAIL 0 | PASS 2542, plus the `workers = 2L` path
+- [x] `/code-check` clean (once over the branch with `/code-check branch`) —
+      four rounds, closed by enumeration
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 **How each change is proved:**

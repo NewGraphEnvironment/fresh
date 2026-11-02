@@ -770,8 +770,10 @@ test_that(".frs_persist_streams re-runs over a target with a unique index", {
        'BULK'::varchar(4) AS watershed_group_code,
        42::bigint AS linear_feature_id", src))
 
-  n_of <- function() DBI::dbGetQuery(conn, sprintf(
-    "SELECT count(*)::int AS n FROM %s", dst))$n
+  n_of <- function() {
+    DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*)::int AS n FROM %s", dst))$n
+  }
   for (i in 1:3) {
     expect_no_error(.frs_persist_streams(conn, dst, src, NULL))
     expect_equal(n_of(), 1L)

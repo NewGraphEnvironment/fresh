@@ -998,3 +998,70 @@ One scope correction it made, which I verified: `R/frs_feature_index.R` appears
 in `git diff main...HEAD` only because this branch merged `origin/main` ahead of
 `main`'s tip. The review range is the merge-base, `783c04c`, and that file is
 0.52.0's work, not this branch's.
+
+## Mutation sweep on the final shape — the enumeration's closing measurement
+
+The sweep above is against `f1f649b` and is void: it predates rounds 1-4 and six
+of the sixteen rows now in the site list, and round 4 found the committed list no
+longer resolved at all. Re-run 2026-11-01 against `d1122e5`, the full 16 rows,
+every site confirmed to resolve before the baseline, `'^(frs_habitat|utils)$'`:
+
+| site | file:line | red | caught by |
+|---|---|---|---|
+| the defect itself — parent-segment key | `R/utils.R:1254` | 4 | #282 integration test + 3 |
+| key-mismatch error | `R/utils.R:1247` | 1 | pure-string |
+| WSG column required | `R/utils.R:1232` | 2 | pure-string × 2 |
+| WSG column **both sides** (`cols_from` arm) | `R/utils.R:1231` | 1 | pure-string |
+| `id_segment` **both sides** (`cols_from` arm) | `R/utils.R:1257` | 1 | pure-string |
+| no key at all | `R/utils.R:1257` | 2 | pure-string × 2 |
+| target ≠ source, by string | `R/utils.R:1285` | 2 | pure-string + `regclass` |
+| target ≠ source, by `regclass` | `R/utils.R:1338` | 1 | live `search_path` test |
+| only a nested txn skips the transaction | `R/utils.R:1423` | 1 | `dbBegin` failure test |
+| WSG code quoted, not pasted | `R/utils.R:1296` | 1 | pure-string |
+| the guard asks the chooser (one fact, once) | `R/utils.R:1361` | 5 | 5 live tests |
+| NULL-key guard | `R/utils.R:1365` | 1 | warm-path NULL test |
+| subset job is not a whole group | `R/utils.R:1180` | 1 | `.frs_partition_wsg` unit |
+| habitat asks the partition decision | `R/frs_habitat.R:336` | 1 | enumeration test |
+| sequential path uses the helper | `R/frs_habitat.R:535` | 3 | enumeration + #282 + #110 |
+| mirai path uses the helper | `R/frs_habitat.R:680` | 1 | enumeration test |
+
+**Sites with no test catching them: 0 of 16.** Baseline 0 red / 0 skip; a site is
+credited only on red → green → red. The two arms round 4 found uncovered now
+redden one test each, and the two rows round 4 added for them resolve.
+
+This is what closes the review loop. Three consecutive rounds found a defect
+inside the previous round's fix, so by `code-check.md`'s stopping rule a quiet
+round could not end it — only an enumeration. Round 4's enumeration named four
+candidate sets; the sweep is the measured verdict on two of them (24 guard sites,
+16 sweep rows), the five added pure-string cases close the third gap, and the
+conditional remedy clause closes the fourth. No round 5 was spawned: a fifth
+reviewer could only re-assert what the sweep measures.
+
+**Cost:** four reviewer agents over four rounds, three mutation sweeps (the first
+discarded as superseded by the `.frs_persist_delete_key()` restructure, the
+second stopped when round 2 exposed the CTE defect, the third above). Past the
+`agent-operations.md` §2 bound of about five agents per task, which is reported to
+the owner rather than used as a reason to have stopped at three.
+
+### The closing runs, 2026-11-01
+
+Against the reinstalled branch at `d1122e5` plus one lint fix:
+
+| run | result |
+|---|---|
+| `devtools::test()`, full | FAIL 0 \| WARN 21 \| SKIP 6 \| PASS 2542 |
+| `workers = 2L`, #282 scenario end to end | PASS, 6/6 assertions, 464 rows both runs |
+| `lintr::lint_package()` | 1471 branch / **1400 `origin/main`** (worktree) |
+
+The warning and skip counts are `main`'s and unchanged; the pass count rose from
+2501 at the pre-review measurement, which is rounds 1-4's added tests.
+
+The lint delta is +71, and all of it is on the branch's own files: 338 lints
+there against 267 for the same files on `origin/main`. Broken down, +70 are
+`indentation_linter`, of which this package carries 1400 before the branch — its
+multi-line `sprintf()` SQL templates do not match lintr's expected continuation
+indent, which is the house style `CLAUDE.md` describes and not something this
+branch introduced. The remaining +1 was a `brace_linter` of mine
+(`tests/testthat/test-utils.R:773`, a multi-line function body with no braces);
+fixed, and the file is now at 0 brace lints. So no new lint class on the changed
+files that `origin/main` does not already carry in kind.
