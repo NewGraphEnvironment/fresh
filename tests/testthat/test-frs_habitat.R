@@ -640,3 +640,155 @@ test_that("frs_habitat_access forwards only arguments its finders accept", {
                 info = cl$fn)
   }
 })
+
+
+# --- #282: custom-AOI persist must not delete other groups' rows -------------
+
+test_that("custom-AOI persist keeps another group's row at a colliding id_segment", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+
+  tgt <- "working.persist_282_streams"
+  hab <- "working.persist_282_habitat"
+  # to_streams must NOT collide with the auto-generated working.streams_<label>
+  on.exit({
+    for (tbl in c(tgt, hab, paste0(hab, "_near_river"),
+                  "working.streams_p282a", "working.streams_p282b")) {
+      DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+    }
+    DBI::dbExecute(conn, "DROP TABLE IF EXISTS decoy_282")
+    DBI::dbDisconnect(conn)
+  })
+  for (tbl in c(tgt, hab, paste0(hab, "_near_river"))) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
+  }
+
+  aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
+  run <- function(label) {
+    frs_habitat(conn, aoi = aoi, species = "CO", label = label,
+      to_streams = tgt, to_habitat = hab, verbose = FALSE)
+  }
+  ids_of <- function(where) {
+    sort(DBI::dbGetQuery(conn, sprintf(
+      "SELECT id_segment FROM %s WHERE %s", tgt, where))$id_segment)
+  }
+  n_where <- function(where) {
+    DBI::dbGetQuery(conn, sprintf(
+      "SELECT count(*)::int AS n FROM %s WHERE %s", tgt, where))$n
+  }
+
+  # 1. First run establishes the job's own rows.
+  invisible(run("p282a"))
+  ids1 <- ids_of("TRUE")
+  n1 <- length(ids1)
+  expect_gt(n1, 0)
+
+  # Give the target the unique index every persisted streams table carries
+  # (296 measured on the shared instance, none without one; fresh.streams has
+  # streams_pkey on these two columns). The helper creates an absent target
+  # with CREATE TABLE ... AS SELECT * ... LIMIT 0, which copies no
+  # constraints, so without this the fixture cannot tell a correct overwrite
+  # from one whose delete does not free the key for its insert -- which is
+  # exactly the defect a one-statement version of this had.
+  DBI::dbExecute(conn, sprintf(
+    "CREATE UNIQUE INDEX persist_282_streams_pkey
+       ON %s (id_segment, watershed_group_code)", tgt))
+
+  # 2. A decoy standing for another watershed group's row that happens to share
+  #    an id_segment. It must carry a DIFFERENT linear_feature_id: no FWA
+  #    linear_feature_id spans a watershed group (measured, 0 province-wide), so
+  #    a same-lfid row would not be another group's row at all — and a decoy
+  #    sharing it would be deleted by a correctly scoped physical-identity or
+  #    parent-segment key, making this test pass or fail on the key rather than
+  #    on the defect.
+  decoy_id <- ids1[1]
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS decoy_282")
+  DBI::dbExecute(conn, sprintf(
+    "CREATE TEMPORARY TABLE decoy_282 AS
+       SELECT * FROM %s WHERE id_segment = %d LIMIT 1", tgt, decoy_id))
+  DBI::dbExecute(conn,
+    "UPDATE decoy_282
+        SET watershed_group_code = 'OTHR', linear_feature_id = -999")
+  DBI::dbExecute(conn, sprintf("INSERT INTO %s SELECT * FROM decoy_282", tgt))
+  expect_equal(n_where("watershed_group_code = 'OTHR'"), 1L)
+
+  # 3. Second run over the same ground, into the same shared table.
+  invisible(run("p282b"))
+  ids2 <- ids_of("watershed_group_code IS DISTINCT FROM 'OTHR'")
+
+  # 4. The collision is live — assert it before asserting survival, or a
+  #    no-op delete would satisfy the test.
+  expect_true(decoy_id %in% ids2)
+
+  # 5. The other group's row survives.
+  expect_equal(n_where("watershed_group_code = 'OTHR'"), 1L)
+
+  # 6. The job's own rows are replaced, not duplicated.
+  expect_equal(length(ids2), n1)
+
+  # 7. The determinism the above rests on, asserted rather than assumed.
+  expect_setequal(ids2, ids1)
+})
+
+
+test_that("both frs_habitat paths persist streams through the one helper", {
+  # Enumeration over the parsed function, not over R/: devtools::test() runs
+  # from tests/testthat, and under R CMD check there is no R/ at all, so a
+  # list.files("R") check counts zero over zero and passes. The mirai closure
+  # is lexically inside frs_habitat's body, so this covers both paths with no
+  # database and no file paths.
+  body_txt <- paste(deparse(body(frs_habitat)), collapse = "\n")
+  n_of <- function(pat, x) {
+    m <- gregexpr(pat, x, fixed = TRUE)[[1]]
+    if (length(m) == 1 && m[[1]] == -1) 0L else length(m)
+  }
+
+  # Both paths call the helper.
+  expect_equal(n_of(".frs_persist_streams(", body_txt), 2L)
+
+  # Neither path carries a streams partition delete of its own.
+  expect_false(grepl("id_segment IN (SELECT id_segment", body_txt,
+                     fixed = TRUE))
+  expect_false(grepl("DELETE FROM %s WHERE watershed_group_code", body_txt,
+                     fixed = TRUE))
+
+  # Every DELETE left in the body is the to_barriers blue_line_key one, which
+  # is fresh#294's scope and deliberately untouched here. Pinning the count
+  # means a new unscoped delete cannot be added without reddening this.
+  expect_equal(n_of("DELETE FROM", body_txt),
+               n_of("blue_line_key IN", body_txt))
+  expect_equal(n_of("DELETE FROM", body_txt), 2L)
+
+  # Positive controls, each against the function that owns the string: a
+  # renamed or deleted helper fails loudly here rather than passing because
+  # the text it was matched on is simply absent. The builder writes the
+  # statement; the chooser is the one place the key column is named.
+  builder <- paste(deparse(body(.frs_persist_delete_sql)), collapse = "\n")
+  chooser <- paste(deparse(body(.frs_persist_delete_key)), collapse = "\n")
+  expect_true(grepl("DELETE FROM", builder, fixed = TRUE))
+  expect_true(grepl(".frs_persist_delete_key", builder, fixed = TRUE))
+  expect_true(grepl("linear_feature_id", chooser, fixed = TRUE))
+  expect_true(grepl("watershed_group_code", chooser, fixed = TRUE))
+  # The guard in .frs_persist_streams() asks the chooser rather than
+  # recomputing the key, so the two cannot drift apart.
+  persist <- paste(deparse(body(.frs_persist_streams)), collapse = "\n")
+  expect_true(grepl(".frs_persist_delete_key", persist, fixed = TRUE))
+
+  # The partition key comes from .frs_partition_wsg(), not from spec$wsg. The
+  # two differ exactly when wsg and aoi are given together: the job then holds
+  # a subset of the group, so a whole-group delete would remove rows the
+  # insert does not put back. .frs_partition_wsg() has its own unit test; this
+  # pins the wiring, which that test cannot see.
+  expect_equal(n_of(".frs_partition_wsg(", body_txt), 1L)
+  expect_equal(n_of("spec$partition_wsg", body_txt), 2L)
+  expect_equal(n_of("wsg_code <- spec$wsg", body_txt), 0L)
+
+  # The overwrite is one transaction, so a failure cannot leave the partition
+  # deleted and not written back -- and NOT one statement, because a
+  # data-modifying CTE makes the insert's uniqueness check see the rows the
+  # delete is removing.
+  expect_false(grepl("WITH del AS", persist, fixed = TRUE))
+  expect_true(grepl("dbBegin", persist, fixed = TRUE))
+  expect_true(grepl("dbCommit", persist, fixed = TRUE))
+  expect_true(grepl("dbRollback", persist, fixed = TRUE))
+})

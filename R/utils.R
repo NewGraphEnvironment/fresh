@@ -1074,15 +1074,24 @@
 #' appended to per run. When the source gains a column (e.g. `mad_m3s`,
 #' fresh#114), a positional `INSERT ... SELECT *` into a target built by an
 #' older run fails — after the partition DELETE has already run. This adds
-#' any source columns the target lacks (same type) and returns the source
-#' column names, for use as an explicit `INSERT (cols) SELECT cols` list.
+#' any source columns the target lacks (same type) and reports the columns,
+#' for use as an explicit `INSERT (cols) SELECT cols` list.
 #' Errors if a column both tables share has a different type.
+#'
+#' A pasted string alone cannot answer the two questions
+#' [.frs_persist_streams()] has to ask before it deletes anything: whether a
+#' key column is present on each side, and whether it was one this call just
+#' added (in which case the target's pre-existing rows hold NULL for it, and a
+#' delete keyed on it matches none of them — fresh#282, same family as #225).
+#' So the return is a list.
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param to Character. Schema-qualified persist target (must exist).
 #' @param from Character. Schema-qualified source table.
-#' @return Character scalar: the source column names, quoted and
-#'   comma-joined, ready to splice into SQL.
+#' @return List with `cols_sql` (the source column names, quoted and
+#'   comma-joined, ready to splice into SQL), `cols_from`, `cols_to` (the
+#'   target's columns *after* alignment) and `cols_added` (those this call
+#'   added to the target), each an unquoted character vector.
 #' @noRd
 .frs_persist_columns <- function(conn, to, from) {
   .frs_validate_identifier(to, "persist target")
@@ -1119,7 +1128,319 @@
       to, DBI::dbQuoteIdentifier(conn, cols_missing$col[i]),
       cols_missing$type[i]))
   }
-  paste(DBI::dbQuoteIdentifier(conn, cols_from$col), collapse = ", ")
+  list(
+    cols_sql = paste(DBI::dbQuoteIdentifier(conn, cols_from$col),
+                     collapse = ", "),
+    cols_from = cols_from$col,
+    cols_to = union(cols_to, cols_missing$col),
+    cols_added = cols_missing$col
+  )
+}
+
+
+#' Does one table name denote the same relation as another
+#'
+#' [.frs_validate_identifier()] admits only `[A-Za-z_][A-Za-z0-9_.]*`, so a
+#' name carries no quoting or whitespace and Postgres folds it to lower case,
+#' which makes a case-insensitive string comparison exact for two
+#' *schema-qualified* names.
+#'
+#' It is a pre-filter, not the whole test: an unqualified name resolves through
+#' the connection's `search_path`, so `streams_bulk` and `working.streams_bulk`
+#' can be one relation and compare unequal here. The exact test needs the
+#' database, and [.frs_persist_streams()] makes it once both tables exist, by
+#' comparing their `regclass`. This one runs in [.frs_persist_delete_sql()],
+#' which is a pure string builder with no connection so that the delete-key
+#' proof runs on CI.
+#'
+#' @param a,b Character. Schema-qualified table names.
+#' @return Logical scalar.
+#' @noRd
+.frs_same_relation <- function(a, b) {
+  identical(tolower(a), tolower(b))
+}
+
+
+#' Which watershed group a job owns outright
+#'
+#' [.frs_persist_delete_key()] keys a delete on `watershed_group_code` only
+#' where the job holds every row of that group, because the delete removes the
+#' whole group and the insert after it writes back what the job segmented.
+#' `frs_habitat()` accepts `wsg` **and** `aoi` together, and then the job holds
+#' a subset: a character `aoi` is ANDed into the group filter, and an `sf` or
+#' list `aoi` replaces the group predicate altogether, so the working table can
+#' even span groups. Both are subset jobs and key on the parent segment like
+#' any other custom AOI.
+#'
+#' @param wsg Character scalar. The watershed group the job is for.
+#' @param aoi The call's `aoi` argument, or `NULL`.
+#' @return `wsg` when the job covers the whole group, otherwise `NULL`.
+#' @noRd
+.frs_partition_wsg <- function(wsg, aoi) {
+  if (is.null(aoi)) wsg else NULL
+}
+
+
+#' Choose the partition-overwrite delete key for a persist target
+#'
+#' The single place the key is decided. [.frs_persist_delete_sql()] builds the
+#' statement from what this returns and [.frs_persist_streams()] checks its
+#' added-column guard against it, so the two cannot disagree about which column
+#' the delete is keyed on.
+#'
+#' Three keys, by what the tables carry:
+#'
+#' * **Watershed group**, when `wsg_code` is given. Deleting the group and
+#'   reinserting is a clean replace only where the job segmented the whole
+#'   group, so the caller passes `wsg_code` for exactly that case:
+#'   [.frs_partition_wsg()] is what decides it, and `frs_habitat()` passes
+#'   `NULL` whenever an `aoi` narrows a watershed-group job to a subset of it.
+#' * **Parent segment** (`linear_feature_id`), for a custom AOI. Every
+#'   `.frs_resolve_aoi()` arm is a row predicate, so an AOI selects whole FWA
+#'   segments and never truncates one at its boundary: a job holds all of the
+#'   ground each segment it touches covers, subdivided by [frs_break_apply()]
+#'   but not cut short. Deleting the target's rows for those segments is
+#'   therefore a complete replace, and it clears sub-segments an earlier run
+#'   broke at other measures as well. No `linear_feature_id` spans a watershed
+#'   group (0, measured province-wide), so it can never reach another group's
+#'   rows.
+#' * **`id_segment`**, only when neither table carries `linear_feature_id` — a
+#'   network that is not the Freshwater Atlas, where `id_segment` is the only
+#'   identity there is.
+#'
+#' `id_segment` alone is **not** a fallback for an FWA table. It is unique only
+#' within a watershed group on a persisted table (fresh#218), and on a table
+#' built by current code a job's derived ids collide with real same-group
+#' `linear_feature_id`s (81 of 275 on a measured 464-row AOI), so keying on it
+#' deletes rows the job will not put back. That is fresh#282.
+#'
+#' @param to Character. Schema-qualified persist target.
+#' @param from Character. Schema-qualified source table.
+#' @param wsg_code Character or `NULL`. Watershed group being written.
+#' @param cols_to,cols_from Character vectors of column names.
+#' @return Character scalar: the column name to key the delete on.
+#' @noRd
+.frs_persist_delete_key <- function(to, from, wsg_code, cols_to, cols_from) {
+  if (!is.null(wsg_code)) {
+    # Both sides, as the linear_feature_id branch below does and for the same
+    # reason: the delete reads the column on the target and the insert writes
+    # it from the source, so one side carrying it is not enough. Not reachable
+    # through frs_habitat() today, whose working table always has it; this is
+    # the helper's contract, which has other callers ahead of it.
+    lacking <- c(to, from)[!c("watershed_group_code" %in% cols_to,
+                              "watershed_group_code" %in% cols_from)]
+    if (length(lacking) > 0) {
+      stop(sprintf(
+        "%s has no watershed_group_code column, so a watershed-group job
+         cannot scope its delete. Drop or migrate %s and re-run.",
+        paste(lacking, collapse = " and "),
+        paste(lacking, collapse = " and ")), call. = FALSE)
+    }
+    return("watershed_group_code")
+  }
+
+  in_to <- "linear_feature_id" %in% cols_to
+  in_from <- "linear_feature_id" %in% cols_from
+  # One side only is a mismatch, not a reason to fall back: the fallback key is
+  # the one fresh#282 showed to be wrong, so say so instead of silently using
+  # it. CLAUDE.md names a workaround as the signal to build a function.
+  if (in_to != in_from) {
+    lacking <- if (in_to) from else to
+    stop(sprintf(
+      "%s carries linear_feature_id and %s does not, so a custom-AOI delete
+       has no key both tables share. Drop or migrate %s and re-run.",
+      if (in_to) to else from, lacking, lacking), call. = FALSE)
+  }
+  if (in_to) return("linear_feature_id")
+
+  # Neither carries it — not an FWA network. id_segment is the only identity.
+  if (!("id_segment" %in% cols_to && "id_segment" %in% cols_from)) {
+    stop(sprintf(
+      "neither %s nor %s carries linear_feature_id, and id_segment is missing
+       from at least one of them, so there is no key to delete on.", to, from),
+      call. = FALSE)
+  }
+  "id_segment"
+}
+
+
+#' Build the partition-overwrite DELETE for a persist target
+#'
+#' The statement for the key [.frs_persist_delete_key()] chose. Pure string
+#' builder, so the one proof of this that runs on CI needs no database.
+#'
+#' @param to Character. Schema-qualified persist target.
+#' @param from Character. Schema-qualified source table.
+#' @param wsg_code Character or `NULL`. Watershed group being written.
+#' @param cols_to,cols_from Character vectors of column names.
+#' @return Character scalar: one `DELETE` statement.
+#' @noRd
+.frs_persist_delete_sql <- function(to, from, wsg_code, cols_to, cols_from) {
+  .frs_validate_identifier(to, "persist target")
+  .frs_validate_identifier(from, "persist source")
+  # DELETE ... WHERE col IN (SELECT col FROM <same table>) matches every row
+  # against itself, so the target would empty and the INSERT then read from the
+  # table it just emptied. The existing integration test carried this hazard as
+  # a comment only.
+  if (.frs_same_relation(to, from)) {
+    stop(sprintf(
+      "persist target and source are the same table (%s). Pass a to_streams
+       that differs from the working table working.streams_<label>.", to),
+      call. = FALSE)
+  }
+
+  key <- .frs_persist_delete_key(to, from, wsg_code, cols_to, cols_from)
+  if (identical(key, "watershed_group_code")) {
+    return(sprintf(
+      "DELETE FROM %s WHERE watershed_group_code = %s",
+      to, .frs_quote_string(wsg_code)))
+  }
+  sprintf("DELETE FROM %s WHERE %s IN (SELECT %s FROM %s)",
+          to, key, key, from)
+}
+
+
+#' Persist a working streams table into a shared target
+#'
+#' The `to_streams` half of [frs_habitat()], for both the sequential and the
+#' mirai path — they ran two copies of this before fresh#282, and the copies
+#' had already drifted (one quoted `wsg_code` through
+#' [.frs_quote_string()], the other interpolated `'%s'` raw).
+#'
+#' Order is CREATE, then align columns, then DELETE, then INSERT, and it has to
+#' stay that way: [.frs_persist_columns()] raises on a column whose type
+#' differs between the tables, and an INSERT that failed *after* the partition
+#' DELETE had already run is what its own roxygen records.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param to Character. Schema-qualified persist target. Created if absent.
+#' @param from Character. Schema-qualified working table to persist.
+#' @param wsg_code Character or `NULL`. The watershed group being written, or
+#'   `NULL` for a custom AOI.
+#' @return NULL invisibly.
+#' @noRd
+.frs_persist_streams <- function(conn, to, from, wsg_code = NULL) {
+  .frs_validate_identifier(to, "persist target")
+  .frs_validate_identifier(from, "persist source")
+
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0", to, from))
+
+  # The exact same-relation test, which the string compare in
+  # .frs_persist_delete_sql() cannot make: an unqualified name resolves
+  # through the connection's search_path, so two unequal strings can name one
+  # table -- and a delete whose subselect reads the table it is deleting from
+  # matches every row, emptying it, with the insert then reading what it just
+  # emptied. Both exist by now, so regclass answers it.
+  same <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT (%s::regclass = %s::regclass) AS same",
+    .frs_quote_string(to), .frs_quote_string(from)))$same
+  if (length(same) == 1 && !is.na(same) && same) {
+    stop(sprintf(
+      "persist target and source resolve to the same table (%s and %s). Pass
+       a to_streams that differs from the working table
+       working.streams_<label>.", to, from), call. = FALSE)
+  }
+
+  cols <- .frs_persist_columns(conn, to, from)
+
+  sql_delete <- .frs_persist_delete_sql(to, from, wsg_code,
+                                        cols$cols_to, cols$cols_from)
+
+  # A row whose key is NULL is matched by no partition delete, so it survives
+  # every run while the job's own rows are replaced beside it. Same shape as
+  # fresh#225. Ask the target for that condition directly, on every call: the
+  # obvious predicate -- "this call added the key column" -- is a proxy for it,
+  # and a one-shot one, because .frs_persist_columns() has already run the
+  # ALTER by the time we get here. A re-run after the error would find the
+  # column present, nothing newly added, and proceed to exactly the outcome the
+  # guard exists to prevent (measured: run 1 errors, run 2 writes the duplicate
+  # and every later run leaves it there). The key comes from the one chooser
+  # the statement above was built from, so the guard cannot end up checking a
+  # different column than the delete uses.
+  key <- .frs_persist_delete_key(to, from, wsg_code, cols$cols_to, cols$cols_from)
+  n_null <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s WHERE %s IS NULL",
+    to, DBI::dbQuoteIdentifier(conn, key)))$n
+  if (length(n_null) == 1 && !is.na(n_null) && n_null > 0) {
+    why <- if (key %in% cols$cols_added) {
+      sprintf("%s was missing %s, which has just been added, so", to, key)
+    } else {
+      sprintf("%s holds rows with no %s, so", to, key)
+    }
+    # The staged-migration escape only works for a key a whole-group run does
+    # not itself delete on. Where the NULL column IS watershed_group_code,
+    # every wsg run meets this same guard, so offering that route would send
+    # the reader in a circle.
+    staged <- if (identical(key, "watershed_group_code")) {
+      ""
+    } else {
+      sprintf(" If %s is part-way through gaining the column, finish it --
+         re-run every watershed group with wsg and no aoi, which backfills
+         each group in turn.", to)
+    }
+    stop(sprintf(
+      "%s %d row(s) hold NULL for it and the partition delete would match
+       none of them -- they would survive this run and every later one. The
+       check is over the whole of %s, not just this run's partition, because a
+       row with no %s is one no run can ever address.%s Backfill %s in %s, or
+       drop %s and re-run.",
+      why, n_null, to, key, staged, key, to, to), call. = FALSE)
+  }
+
+  # The delete and the insert are one unit of work: autocommitted separately,
+  # anything that stops the pair between them -- a statement_timeout, a
+  # cancelled query, a dropped connection -- leaves the partition deleted and
+  # not written back, which is the loss this issue is about reached another way
+  # (code-check-infra.md, "Two-statement DELETE/INSERT into a persist table is
+  # not atomic"). So: one transaction, two statements.
+  #
+  # NOT one statement. A data-modifying CTE,
+  # `WITH del AS (<delete>) INSERT ...`, shipped here first and is wrong: every
+  # sub-statement runs under one command id, so the insert's uniqueness check
+  # still sees the rows the same statement's delete is removing. On a target
+  # with a unique index over the inserted columns, the second run of any
+  # ground aborts with a duplicate-key violation, on the whole-group key as
+  # well as the custom-AOI one. Measured both ways; the two-statement form
+  # passes the same fixture. Every persisted streams table is such a target:
+  # of 296 `streams` relations on the instance this was measured on, 0 carry
+  # no unique index -- 198 unique on `(id_segment)` alone and 98 on
+  # `(id_segment, watershed_group_code)`, `fresh.streams` among them.
+  # Separate commands in a transaction see each other, which is the whole
+  # point.
+  #
+  # dbBegin() refuses a nested transaction, and a caller who already has one
+  # open has already made this pair atomic with respect to their commit, so
+  # that one failure is not an error here. Only that one: treating every
+  # failure as "already in a transaction" would silently fall back to the
+  # autocommitted pair this block exists to replace, which is the same shape
+  # as the one-shot guard above -- inferring a condition from a failure
+  # instead of measuring it. Anything else raises.
+  began <- tryCatch({
+    DBI::dbBegin(conn)
+    TRUE
+  }, error = function(e) {
+    if (grepl("nested transaction", conditionMessage(e), ignore.case = TRUE)) {
+      return(FALSE)
+    }
+    stop(e)
+  })
+  committed <- FALSE
+  if (began) {
+    on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
+            add = TRUE)
+  }
+
+  .frs_db_execute(conn, sql_delete)
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (%s) SELECT %s FROM %s",
+    to, cols$cols_sql, cols$cols_sql, from))
+
+  if (began) {
+    DBI::dbCommit(conn)
+    committed <- TRUE
+  }
+  invisible(NULL)
 }
 
 
