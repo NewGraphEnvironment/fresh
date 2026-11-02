@@ -921,3 +921,80 @@ from a reference set that says which generation it is about.
   creates it with `CREATE TABLE ... AS SELECT * ... LIMIT 0`. It now gains the
   unique index the real tables carry, so the end-to-end test can also tell a
   correct overwrite from one whose delete does not free its key.
+
+## Round 4 of `/code-check branch`, 2026-11-01 — the enumeration, re-walked
+
+Round 4 re-walked the four candidate sets on the current tree and named four
+gaps. All four are closed below. Counts are its, verified where they were
+actionable.
+
+| set | walked | verdict |
+|---|---|---|
+| guards / `stop()`s / decisions | **24** (arm granularity; round 3's own fix split one arm in two) | 22 are the property, 2 are declared proxies backed by the `regclass` test, 20 had a test that fails if removed, **2 arms had neither test nor a resolving sweep row** |
+| test fixtures | 12 | unique index and NOT NULL now reachable; triggers, RLS, partitioning, generated columns, geometry/SRID constraints and defaults still not, and **none of them matters here** — the only database objects that change the outcome of `DELETE ... WHERE <key>` + `INSERT (cols) SELECT cols` are a unique index and a NOT NULL |
+| prose claims | 26 | 24 supported, 1 on narrower evidence than the sentence names, **1 not supported for one of the three keys** |
+| mutation-sweep rows | 14 | **13 resolved** |
+
+### The bug: my own proof instrument could not run
+
+Round 3 replaced the one-sided watershed-group column check with the two-sided
+`lacking <- c(to, from)[!c(...)]` form and **did not update the sweep's site
+list**. Row 3's pattern matches 0 lines of `R/utils.R` now (confirmed: 0
+occurrences of the old text, 1 of the new), and the sweep validates every site
+before it runs a test, so it refuses with exit 2 before the baseline — the
+instrument for "restore the bug and prove the guard fires" could not be run on
+the tree it ships with. It fails toward refuse, which is the right direction,
+but the sweep result recorded earlier in this file is against `f1f649b` and
+predates both the current code and four of the rows now in the list.
+
+This is the inside-a-fix pattern for the third consecutive round: round 2 found
+a defect in round 1's fix, round 3 in round 2's, round 4 in round 3's.
+
+### The two untested arms, and why they were invisible
+
+The `cols_from` arm of the watershed-group guard and the `cols_from` half of the
+`id_segment` `&&` were each caught by nothing: round 4 measured that substituting
+`"watershed_group_code" %in% cols_from` with `TRUE` leaves the filtered suite at
+83 passes, 0 failures. Neither arm is reachable through `frs_habitat()` today —
+its working table always carries both columns — so this was unproven coverage
+rather than a live defect. It matters because the guard's stated purpose is the
+helper's contract for the next caller, and without the arm that caller gets a
+delete keyed on a column its `INSERT` cannot supply.
+
+Five pure-string cases now cover both arms of both guards, including the
+both-sides-lacking case, and two mutation rows address the arms directly.
+
+### The circular remedy
+
+The NULL-key guard's message offered "finish the migration — re-run every
+watershed group with `wsg` and no `aoi`". That is right for the
+`linear_feature_id` and `id_segment` keys: a whole-group run keys on
+`watershed_group_code`, so NULL `linear_feature_id` rows do not block it and the
+staged migration genuinely works. It is wrong when the NULL column **is**
+`watershed_group_code` — every whole-group run then meets the same guard, so the
+message sent the reader in a circle. The clause is now conditional on the key.
+Unreachable on `fresh.streams`, whose `watershed_group_code` is `NOT NULL`.
+
+### What round 4 confirmed by walking rather than assuming
+
+All three earlier fixes hold on the current tree and are each pinned: the
+NULL-key guard measures the target every call and is tested cold **and** warm
+(three consecutive calls); the overwrite is two statements in one transaction
+with a rollback on the way out, tested against a `NOT NULL` violation and
+against three idempotent re-runs under both keys on a target carrying a unique
+index; the `dbBegin` `tryCatch` matches only the nesting message, with both
+branches tested. `.frs_persist_columns()`'s widened return was grepped across
+`R/`, `tests/`, `data-raw/` and `dev/` — one production caller and three test
+sites, all updated. The new explicit transaction takes only `RowExclusiveLock`,
+with the `CREATE`/`ALTER` still autocommitted ahead of it, and concurrent
+workers touch disjoint rows under either key, so `workers > 1` cannot deadlock
+on the pair. Two load-bearing design facts were re-derived from code rather than
+recalled: broken sub-segments keep the parent `linear_feature_id`
+(`R/frs_break.R:683-688`, `sid = "id_segment"` from
+`R/frs_network_segment.R:220`, so `linear_feature_id` lands in `cols_carry`),
+and `.frs_add_id_segment()` sets base rows to `linear_feature_id`.
+
+One scope correction it made, which I verified: `R/frs_feature_index.R` appears
+in `git diff main...HEAD` only because this branch merged `origin/main` ahead of
+`main`'s tip. The review range is the merge-base, `783c04c`, and that file is
+0.52.0's work, not this branch's.

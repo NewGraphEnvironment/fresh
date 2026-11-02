@@ -187,3 +187,17 @@ the resume instruction is given.
   scope documented with its staged-migration escape; the `wsg` column check
   made two-sided; three prose claims corrected, including a loose "every
   sibling schema" replaced by 296 relations / 0 without a unique index.
+- **Round 4 re-walked the enumeration and found my own proof instrument broken**:
+  round 3 changed the watershed-group guard and did not update
+  `dev/mutation_sweep_sites_persist_282.csv`, so the sweep refused with exit 2
+  before its baseline — the restore-the-defect instrument could not run on the
+  tree it ships with. Third consecutive round to find a defect inside the
+  previous round's fix. Also: two guard arms (`cols_from` on both the wsg and
+  `id_segment` checks) were caught by nothing, and the NULL-key guard's remedy
+  was circular when the NULL column is itself `watershed_group_code`. All three
+  fixed, with five pure-string cases and two new mutation rows.
+- Round 4's enumeration: 24 guard sites, 12 fixtures, 26 prose claims, 14 sweep
+  rows — with exactly four gaps named, all now closed. The fixture set's
+  remaining unreachable objects (triggers, RLS, partitioning, generated
+  columns, geometry/SRID constraints, defaults) do not matter here: only a
+  unique index and a NOT NULL change the outcome of this delete-plus-insert.

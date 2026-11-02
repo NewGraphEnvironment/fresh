@@ -600,6 +600,40 @@ test_that(".frs_persist_streams refuses a target that RESOLVES to its source", {
                "same table")
 })
 
+test_that(".frs_persist_delete_key needs its key on BOTH sides", {
+  # The delete reads the key on the target and the insert writes it from the
+  # source, so one side carrying it is not enough. Each arm separately: a
+  # mutation that drops either `cols_from` half must redden something.
+  expect_error(
+    .frs_persist_delete_sql("fresh.t", "working.f", "BULK",
+                            cols_to = c("watershed_group_code", "id_segment"),
+                            cols_from = "id_segment"),
+    "working.f has no watershed_group_code")
+  expect_error(
+    .frs_persist_delete_sql("fresh.t", "working.f", "BULK",
+                            cols_to = "id_segment",
+                            cols_from = c("watershed_group_code",
+                                          "id_segment")),
+    "fresh.t has no watershed_group_code")
+  # Both sides lacking it names both tables.
+  expect_error(
+    .frs_persist_delete_sql("fresh.t", "working.f", "BULK",
+                            cols_to = "id_segment",
+                            cols_from = "id_segment"),
+    "fresh.t and working.f has no watershed_group_code")
+
+  # Same for the id_segment fallback, which is the last key available when
+  # neither table is the Freshwater Atlas.
+  expect_error(
+    .frs_persist_delete_sql("fresh.t", "working.f", NULL,
+                            cols_to = "id_segment", cols_from = "other"),
+    "id_segment is missing")
+  expect_error(
+    .frs_persist_delete_sql("fresh.t", "working.f", NULL,
+                            cols_to = "other", cols_from = "id_segment"),
+    "id_segment is missing")
+})
+
 test_that(".frs_partition_wsg keeps the group only for a whole-group job", {
   # The persist delete removes the whole group, so the group is the partition
   # only when the job segmented all of it. frs_habitat() accepts wsg AND aoi

@@ -1368,15 +1368,24 @@
     } else {
       sprintf("%s holds rows with no %s, so", to, key)
     }
+    # The staged-migration escape only works for a key a whole-group run does
+    # not itself delete on. Where the NULL column IS watershed_group_code,
+    # every wsg run meets this same guard, so offering that route would send
+    # the reader in a circle.
+    staged <- if (identical(key, "watershed_group_code")) {
+      ""
+    } else {
+      sprintf(" If %s is part-way through gaining the column, finish it --
+         re-run every watershed group with wsg and no aoi, which backfills
+         each group in turn.", to)
+    }
     stop(sprintf(
       "%s %d row(s) hold NULL for it and the partition delete would match
        none of them -- they would survive this run and every later one. The
        check is over the whole of %s, not just this run's partition, because a
-       row with no %s is one no run can ever address. If %s is part-way through
-       gaining the column, finish it -- re-run every watershed group with wsg
-       and no aoi, which backfills each group in turn -- or backfill %s
-       directly, or drop %s and re-run.",
-      why, n_null, to, key, to, key, to), call. = FALSE)
+       row with no %s is one no run can ever address.%s Backfill %s in %s, or
+       drop %s and re-run.",
+      why, n_null, to, key, staged, key, to, to), call. = FALSE)
   }
 
   # The delete and the insert are one unit of work: autocommitted separately,
