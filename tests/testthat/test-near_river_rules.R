@@ -157,7 +157,8 @@ test_that("near_river ORs the inherited channel width with the EXISTS", {
   rule <- list(edge_types_explicit = c(1000, 1100), near_river = nr)
   sql <- .frs_rule_to_sql(rule,
     list(gradient = c(0, 0.05), channel_width = c(4, 9999)),
-    near_river_table = nr_tbl)
+    near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_identical(sql, paste0(
     "(s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.05 AND ",
     "(s.channel_width BETWEEN 4 AND 9999 OR ", nr_exists, "))"))
@@ -167,7 +168,8 @@ test_that("near_river groups channel width AND mad before the OR", {
   rule <- list(channel_width = c(2, 9999), mad = c(0.5, 100),
                near_river = nr)
   sql <- .frs_rule_to_sql(rule, list(gradient = c(0, 0.05)),
-                          near_river_table = nr_tbl)
+                          near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_identical(sql, paste0(
     "(s.gradient BETWEEN 0 AND 0.05 AND ",
     "(s.channel_width BETWEEN 2 AND 9999 AND s.mad_m3s BETWEEN 0.5 AND 100 OR ",
@@ -178,7 +180,8 @@ test_that("near_river rescues a mad species with no MAD range", {
   rule <- list(edge_types_explicit = 1000, near_river = nr)
   sql <- .frs_rule_to_sql(rule,
     list(gradient = c(0, 0.05), mad_m3s = c(NA_real_, NA_real_)),
-    near_river_table = nr_tbl)
+    near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_identical(sql, paste0(
     "(s.edge_type IN (1000) AND s.gradient BETWEEN 0 AND 0.05 AND ",
     "(FALSE OR ", nr_exists, "))"))
@@ -189,7 +192,8 @@ test_that("near_river with no size part is the rule's only size test", {
                thresholds = FALSE, near_river = nr)
   sql <- .frs_rule_to_sql(rule, list(gradient = c(0, 0.1),
                                      channel_width = c(4, 9999)),
-                          near_river_table = nr_tbl)
+                          near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_identical(sql, paste0(
     "(s.edge_type IN (1000) AND s.gradient BETWEEN 0 AND 0.05 AND ",
     nr_exists, ")"))
@@ -202,7 +206,8 @@ test_that("thresholds: false + near_river carries no gradient test", {
                near_river = nr)
   sql <- .frs_rule_to_sql(rule, list(gradient = c(0, 0.05),
                                      channel_width = c(4, 9999)),
-                          near_river_table = nr_tbl)
+                          near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_identical(sql, paste0("(s.edge_type IN (1050, 1150) AND ",
                                nr_exists, ")"))
   expect_false(grepl("gradient", sql))
@@ -232,7 +237,8 @@ test_that("rules without near_river compile byte-identically", {
     list(waterbody_type = "R", channel_width = c(0, 9999)))
   for (r in rules) {
     a <- .frs_rule_to_sql(r, csv)
-    b <- .frs_rule_to_sql(r, csv, near_river_table = nr_tbl)
+    b <- .frs_rule_to_sql(r, csv, near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
     expect_identical(a, b)
     expect_false(grepl("EXISTS|OR", a))
   }
@@ -247,7 +253,8 @@ test_that(".frs_rules_to_sql threads near_river_table to every rule", {
                 list(edge_types_explicit = 2000,
                      near_river = list(discharge_min = 10, distance_max = 50)))
   sql <- .frs_rules_to_sql(rules, list(channel_width = c(4, 9999)),
-                           near_river_table = nr_tbl)
+                           near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_match(sql, "n.threshold = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000",
                fixed = TRUE)
   expect_match(sql, "n.threshold = 10 AND n.distance_max = 50 AND n.dist_m <= 50",
@@ -273,7 +280,8 @@ sp_nr <- function(rules, rear_mad = NULL) {
 test_that("frs_habitat_predicates threads the table to spawn and rear", {
   rules <- list(spawn = list(list(edge_types_explicit = 1000, near_river = nr)),
                 rear = list(list(edge_types_explicit = 1000, near_river = nr)))
-  preds <- frs_habitat_predicates(sp_nr(rules), near_river_table = nr_tbl)
+  preds <- frs_habitat_predicates(sp_nr(rules), near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_match(preds$spawn, "(s.channel_width BETWEEN 4 AND 9999 OR EXISTS",
                fixed = TRUE)
   expect_match(preds$rear, "(s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS",
@@ -284,11 +292,13 @@ test_that("frs_habitat_predicates threads the table to spawn and rear", {
 test_that("under mad, near_river keeps a mad range or rescues a missing one", {
   rules <- list(rear = list(list(edge_types_explicit = 1000, near_river = nr)))
   with_range <- frs_habitat_predicates(sp_nr(rules, rear_mad = c(0.28, 100)),
-                                       model = "mad", near_river_table = nr_tbl)
+                                       model = "mad", near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_match(with_range$rear, "(s.mad_m3s BETWEEN 0.28 AND 100 OR EXISTS",
                fixed = TRUE)
   no_range <- frs_habitat_predicates(sp_nr(rules), model = "mad",
-                                     near_river_table = nr_tbl)
+                                     near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_match(no_range$rear, "(FALSE OR EXISTS", fixed = TRUE)
   # A river rule's channel_width is stripped under mad; with
   # thresholds: false nothing is left, so near_river stands alone.
@@ -296,7 +306,8 @@ test_that("under mad, near_river keeps a mad range or rescues a missing one", {
                                    channel_width = c(0, 9999),
                                    thresholds = FALSE, near_river = nr)))
   r_mad <- frs_habitat_predicates(sp_nr(rules_r), model = "mad",
-                                  near_river_table = nr_tbl)
+                                  near_river_table = nr_tbl,
+    near_river_lfid = FALSE)
   expect_false(grepl("channel_width|mad_m3s|OR", r_mad$rear))
   expect_match(r_mad$rear, "EXISTS", fixed = TRUE)
 })

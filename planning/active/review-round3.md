@@ -148,11 +148,34 @@ producer — see Notes.
 
 ## Findings
 
-- **[severity: fragile]** `R/frs_near_river.R:146` (with `:202`) — the walk-table cleanup is
+- **[severity: fragile]** `R/frs_near_river.R:199-210` (working tree, uncommitted) — **the
+  defect below was fixed by another session while I was writing this, with `after = FALSE`,
+  and the fix is correct. Its new comment's stated mechanism is not.** The comment says the
+  unfixed code *"leaves the rollback unrun and the connection stuck for every later
+  statement (measured: it broke four tests two files away)"*. Measured here on R 4.5.2, in
+  both handler orders, **the rollback runs**: an error in one `on.exit` expression does not
+  skip the others.
+
+  ```
+  after=TRUE   order: DROP,ROLLBACK    caller sees: 25P02 current transaction is aborted
+  after=FALSE  order: ROLLBACK,DROP    caller sees: canceling statement due to statement timeout
+  ```
+
+  So what the old order lost was the **error message**, not the rollback — and that is
+  already enough to explain four tests failing elsewhere, since any `expect_error()` on the
+  real cause would have met `25P02` instead. The fix works for a reason the comment does not
+  give: rolling back first *ends* the transaction, so the `DROP TABLE IF EXISTS` that follows
+  succeeds and raises nothing, which is why the body's error survives (second line above).
+  Worth correcting, because as written it teaches the next reader that an error in `on.exit`
+  skips later handlers, which is false, and it attributes a connection-state failure that was
+  a message-matching one.
+  - **Rule:** code-check.md "A guard's scope, escape hatches, and remedies"
+
+  The defect as found, for the record. The walk-table cleanup was
   registered on `on.exit()` **before** the rollback handler, so on a real mid-transaction
-  failure it runs first, inside the aborted transaction, raises, and **replaces the error the
-  caller sees**. The transaction this branch added is for exactly that failure, and its
-  diagnosis is what gets destroyed.
+  failure it ran first, inside the aborted transaction, raised, and **replaced the error the
+  caller saw**. The transaction this branch added is for exactly that failure, and its
+  diagnosis was what got destroyed.
 
   ```r
   on.exit(.frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl)),
@@ -234,6 +257,10 @@ producer — see Notes.
   `planning/active/task_plan.md:220` still has the sweep unchecked, so it has not run yet and
   the list is free to widen now. Six more sites with the same property, also unlisted:
   `.frs_wsg_in()`'s `key` at its six call sites (Axis 5).
+
+  Re-checked after the concurrent edit: the list grew to 23 rows, the new one being
+  `"293 rollback runs before the walk DROP"` for the fix in Finding 1. The 16 uncovered
+  `.frs_key_match()` call sites are unchanged, so this finding stands as written.
   - **Rule:** code-check.md "Restore the bug and prove the guard fires"
 
 ## Notes (not findings)

@@ -185,6 +185,9 @@ summary_rows <- lapply(split(tables, tables$shape), function(d) {
     n_tables = nrow(d),
     n_multi_group = nrow(sh),
     n_with_lfid = sum(d$has_lfid),
+    # Both ends, because a published range needs a producer for each: the
+    # findings and NEWS quote "2 to 125 groups" for the shared tables.
+    groups_min_shared = if (nrow(sh) == 0) NA_integer_ else min(sh$n_groups),
     groups_max = max(d$n_groups),
     n_rows = sum(d$n_rows),
     n_null_lfid = sum(d$n_null_lfid),

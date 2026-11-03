@@ -61,7 +61,11 @@ ground \code{table} holds is replaced. Pass a code only where the job
 segmented the whole group -- \code{\link[=frs_habitat]{frs_habitat()}} does, via
 \code{.frs_partition_wsg()} -- and the call refuses a code that is not the one
 group \code{table} holds, because a whole-group delete on a subset is the
-defect this parameter exists to avoid.}
+defect this parameter exists to avoid. Note what a whole-group replace
+means here: it removes \strong{every} \verb{(measure, threshold, distance_max)}
+the group holds, not only the pairs this call walks, so a direct caller
+accumulating two measures in one table (as the examples above do) should
+leave \code{wsg_code} at \code{NULL}.}
 
 \item{verbose}{Logical. Print rows written, segments with no local
 code, and timing. Default \code{TRUE}.}

@@ -107,7 +107,11 @@
 #'   segmented the whole group -- [frs_habitat()] does, via
 #'   `.frs_partition_wsg()` -- and the call refuses a code that is not the one
 #'   group `table` holds, because a whole-group delete on a subset is the
-#'   defect this parameter exists to avoid.
+#'   defect this parameter exists to avoid. Note what a whole-group replace
+#'   means here: it removes **every** `(measure, threshold, distance_max)`
+#'   the group holds, not only the pairs this call walks, so a direct caller
+#'   accumulating two measures in one table (as the examples above do) should
+#'   leave `wsg_code` at `NULL`.
 #' @param verbose Logical. Print rows written, segments with no local
 #'   code, and timing. Default `TRUE`.
 #'

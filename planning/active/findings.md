@@ -139,14 +139,19 @@ found by **shape**, not name, so link's `<schema>.streams_habitat` and fresh's o
 targets are both counted. Results in `data-raw/audit_habitat_293_tables.csv` and
 `data-raw/audit_habitat_293_ratio.csv`.
 
-| shape | tables | multi-group | carry `linear_feature_id` | max groups | rows needing backfill |
+| shape | tables | multi-group | carry `linear_feature_id` | groups | rows needing backfill |
 |---|---|---|---|---|---|
-| habitat | 199 | **0** | 0 | 1 | 23,459,196 |
-| near_river | 98 | **21** | 0 | 125 | 1,660,683 |
+| habitat | 221 | **0** | 0 | 1 | 23,504,961 |
+| near_river | 114 | **20** | 0 | 2 to 125 | 1,695,816 |
 
-The row counts move between runs — a second run 20 minutes later read 23,549,635 and
-1,661,709 — because other sessions write these schemas while the audit runs. The script
-takes 21 s, so re-run it rather than citing a stale figure.
+**Every count here moves; only the shapes hold.** Three runs over one afternoon read 199,
+199 and 221 habitat tables and 23.46M, 23.55M and 23.50M rows, because other work creates
+and writes these schemas while the audit runs. What did not move across all three: no
+habitat table is shared across watershed groups, every shared table is a `near_river` one,
+and **nothing** carries `linear_feature_id`. The script takes 21 s — re-run it rather than
+citing a figure from this table. Both ends of the shared-group range have a producer in
+`summary.csv` (`groups_min_shared`, `groups_max`); the per-table detail does not, by
+design, because it names every schema on the instance.
 
 **Every habitat table on the instance is single-group.** So none can have suffered the
 loss — a whole-group delete and the job's reinsert cover the same ground — and the
@@ -366,3 +371,54 @@ table anyway, so the `DROP` is then a no-op.
 
 The suite caught this, not a reviewer — which is the argument for running it
 between rounds rather than only at the end.
+
+## `/code-check branch` round 3 — the mechanism, an enumeration, and three findings
+
+Full text in `planning/active/review-round3.md`.
+
+**The mechanism behind all fourteen earlier findings: one policy written out in
+several places, with each round's fix landing on the copy the finding arrived
+through.** Two forms:
+
+- **N implementations of one rule across N writers.** `.frs_null_key_guard()`'s own
+  roxygen names the set — three writers — and each carried its own copy of five
+  policies. The two older writers agreed, so the third read as the exception, and
+  the rounds found one policy at a time: nested-transaction tolerance, guard
+  placement, reinsert scope, degenerate scope, one transaction.
+- **N restatements of one fact.** The read key, written in `CLAUDE.md`, three
+  exported roxygen blocks, two `@noRd` siblings, a research note and two comments.
+
+**Why it did not terminate earlier:** the branch's own termination instrument asks
+a narrower question than the property it certifies. It counts literal
+`<a>.id_segment = <b>.id_segment`, while the property is "every match of a
+segment-level row to a stream segment" — which can also be a `GROUP BY`, a
+`USING`, an `IN (SELECT …)`, or a second helper's output.
+
+**The enumeration, seven axes, measured.** Round 3 widened the sweep to five SQL
+shapes rather than one; **the superset finds nothing the narrow regex misses
+today**, so the count is correct now and it is the question that is narrow. 23
+habitat↔streams match sites: 19 built by `.frs_key_match()`, 4 allowlisted inline
+functions re-justified, and `.frs_near_river_sql()` as a second implementation.
+All three writers now agree on all five policies. No third member of the fail-open
+class. All six `.frs_wsg_in()` sites pass the job's own key. `to_barriers` is the
+fourth persist target and remains unscoped — that is #294, already filed.
+
+### Three findings, all acted on
+
+| finding | resolution |
+|---|---|
+| my round-2 comment stated a **false fact about `on.exit`** — that a failing handler leaves the rollback unrun. Measured on R 4.5.2: it does not; the rollback ran in both orders. What the old order lost was the *error message*, 25P02 replacing the real one, which is what broke the four tests | comment corrected to the measured mechanism: rolling back first **ends** the transaction, so the following `DROP` raises nothing |
+| `frs_habitat_predicates(near_river_lfid = FALSE)` defaulted on the **exported** entry point, so a caller re-deriving the predicate got 0.53.0's short key by omission while the table had begun holding two jobs' rows. link's validator calls it exactly that way (`lnk_habitat_validate.R`) | the argument is now **required** when `near_river_table` is given, with a message naming both answers. 14 test call sites and 4 internal ones say which they mean; link#452 extended |
+| the sweep list covers 3 of the 19 `.frs_key_match()` call sites, and those 3 are round 1's found instances — written from the instances, not the population | recorded; the 16 remaining are named in `review-round3.md` and the gap is stated rather than papered over |
+
+### Probed and disproved, recorded because it was the strongest remaining candidate
+
+`frs_feature_index()` does `GROUP BY s.id_segment, s.watershed_group_code` and
+carries no `linear_feature_id`, so on this branch's premise two jobs' rows would
+merge into one row with the union of both segments' feature arrays — and the
+enumeration test cannot see it, because it counts equalities and this is a
+`GROUP BY`. **It cannot happen:** `fresh.streams` carries a UNIQUE index on the
+pair, so a colliding insert aborts and #282's transaction rolls it back. Over the
+population of relations carrying all six columns it reads: 322 relations, 3 without
+that unique index, and a collision needs a *shared* one among those three. Same
+verdict for `frs_network_features()`.
