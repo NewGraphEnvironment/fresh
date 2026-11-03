@@ -117,6 +117,15 @@
       "ALTER TABLE %s ADD COLUMN IF NOT EXISTS linear_feature_id bigint", to))
     cols_added <- "linear_feature_id"
     cols_to <- c(cols_to, "linear_feature_id")
+    # At once, not at the end of the run: .frs_index_working() indexes `to`
+    # only after the inserts, so the first migrated run's own delete would
+    # otherwise key on an unindexed column. .frs_near_river_table() does the
+    # same for its table. Autocommitted here, well before the overwrite's
+    # transaction opens.
+    to_name <- utils::tail(strsplit(to, ".", fixed = TRUE)[[1]], 1)
+    .frs_db_execute(conn, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_lfid_idx ON %s (linear_feature_id)",
+      to_name, to))
   }
 
   key <- .frs_persist_delete_key(to, table, wsg_code, cols_to, cols_from)

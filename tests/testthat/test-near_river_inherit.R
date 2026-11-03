@@ -296,8 +296,13 @@ test_that("NA or absent columns compile every fixture rule as 0.41.0 did", {
       for (sp in names(params)) {
         for (model in c("cw", "mad")) {
           key <- paste(k, sp, model, sep = "/")
+          # FALSE explicitly: `frozen` was built by
+          # data-raw/predicates_fixture_0410.R against a v0.41.0 worktree,
+          # which has no near_river_lfid formal, so the frozen text is the
+          # short-key predicate. The argument is required from 0.54.0.
           now <- frs_habitat_predicates(sp_of(params, sp), model = model,
-            near_river_table = "w.streams_near_river")
+            near_river_table = "w.streams_near_river",
+            near_river_lfid = FALSE)
           expect_identical(now, frozen[[key]],
                            info = paste(key, "with_cols", with_cols))
         }

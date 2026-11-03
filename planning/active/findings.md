@@ -156,7 +156,7 @@ design, because it names every schema on the instance.
 **Every habitat table on the instance is single-group.** So none can have suffered the
 loss — a whole-group delete and the job's reinsert cover the same ground — and the
 habitat exposure is the shipped documented example rather than anything realised. The
-**realised** exposure is `near_river`: 21 tables are shared across 2 to 125 groups, and
+**realised** exposure is `near_river`: 20 tables are shared across 2 to 125 groups, and
 every one is reached by the same unscoped group delete (`frs_near_river.R:156-158`).
 Its consequence is not a permanent data loss, because the table is a cache a later run
 of that group rebuilds, but between those runs a classify over another group reads a
@@ -407,7 +407,7 @@ fourth persist target and remains unscoped — that is #294, already filed.
 
 | finding | resolution |
 |---|---|
-| my round-2 comment stated a **false fact about `on.exit`** — that a failing handler leaves the rollback unrun. Measured on R 4.5.2: it does not; the rollback ran in both orders. What the old order lost was the *error message*, 25P02 replacing the real one, which is what broke the four tests | comment corrected to the measured mechanism: rolling back first **ends** the transaction, so the following `DROP` raises nothing |
+| my round-2 comment stated a **false fact about `on.exit`** — that a failing handler leaves the rollback unrun. Measured on R 4.5.2: it does not; the rollback ran in both orders. What the old order lost was the *error message*, 25P02 replacing the real one, which is what broke the four tests | comment corrected to the measured mechanism: rolling back first **ends** the transaction, so the following `DROP` raises nothing. **Landed in round 4's commit, not round 3's — see below** |
 | `frs_habitat_predicates(near_river_lfid = FALSE)` defaulted on the **exported** entry point, so a caller re-deriving the predicate got 0.53.0's short key by omission while the table had begun holding two jobs' rows. link's validator calls it exactly that way (`lnk_habitat_validate.R`) | the argument is now **required** when `near_river_table` is given, with a message naming both answers. 14 test call sites and 4 internal ones say which they mean; link#452 extended |
 | the sweep list covers 3 of the 19 `.frs_key_match()` call sites, and those 3 are round 1's found instances — written from the instances, not the population | recorded; the 16 remaining are named in `review-round3.md` and the gap is stated rather than papered over |
 
@@ -445,3 +445,66 @@ argument and the pipeline aborted. So the parallel path cannot be validated unti
 the branch is installed, and the same stale install is why `lintr` reported 50
 phantom `object_usage_linter` hits (`code-check-r.md`, "`lintr` also resolves
 against the installed package"). Installed the branch, re-ran, green.
+
+
+## `/code-check branch` round 4 — two of round 3's three fixes were never written
+
+Full text in `planning/active/review-round4.md`. This is the worst finding of the
+review, and it is about me rather than the code.
+
+**What happened.** Round 3's fixes went in as one `python3` script with three
+file-writing sections, each guarded by `assert old in s` and each writing at the
+end of its section. The second assertion in the **first** section failed, on
+whitespace in a roxygen paragraph. So that file was never written, and the two
+later sections — the `near_river_lfid` guard and `.frs_habitat_target()`'s index —
+were never reached. I then fixed only the paragraph the assertion had named, saw
+`parse OK`, and committed a message claiming all three fixes. `findings.md` said
+so too.
+
+So for one commit the branch's own record was ahead of its code:
+
+| claimed in `c4edd3d` | actually in `c4edd3d` |
+|---|---|
+| the `on.exit` comment corrected | still stating the false mechanism |
+| `near_river_lfid` required with `near_river_table` | still `= FALSE` at three sites, `man/` rendering the default, `NEWS.md` publishing it |
+| the habitat target's `linear_feature_id` indexed when added | absent |
+
+**The mechanism is round 3's own, one axis over:** a fix recorded as made is what
+the next enumeration reads instead of re-deriving it. Round 4 caught it only
+because its brief named each of the six things round 3 was supposed to have
+changed and it checked the tree for each, rather than reading the diff for what
+was there.
+
+**What to do differently:** a multi-edit script that asserts must report which
+edits it applied, and the edits must be verified against the tree — not against
+`parse OK`, which passes on a file nothing was written to. Every fix in this
+commit was grepped for after writing.
+
+### Round 4's other findings, all fixed here
+
+- **`after = FALSE` closed only the branch where fresh opens the transaction.**
+  Where the **caller** holds one, `began` is `FALSE`, the rollback handler is never
+  registered, and the walk-table `DROP` is the only handler — so a mid-walk failure
+  raises 25P02 out of it inside the caller's aborted transaction and replaces the
+  real error, which is the failure the ordering was meant to fix. The `DROP` is
+  wrapped in `try()` now, which covers both branches and is order-independent;
+  `after = FALSE` stays because rolling back first is still tidier.
+- **Three call sites the mechanical substitution missed**, which is also the proof
+  the guard had never run against the suite. One matters: the 0.41.0 byte-identity
+  test, whose frozen fixture was built against a v0.41.0 worktree with no such
+  formal, so it now asks for `FALSE` explicitly. `data-raw/predicates_fixture_0410.R`
+  must stay as it is for the same reason. The third is an internal
+  `.frs_rule_to_sql()` call, where the default is deliberate — the guard is on the
+  exported boundary.
+- **The re-measurement landed on two of four copies of the counts.** The same commit
+  that rewrote the table above to 221/114 left a paragraph fifteen lines below
+  saying "21 tables are shared", and the durable note still said "199 habitat tables
+  and 98 `near_river` tables" under a header dated the day of the 221/114
+  measurement. Both corrected, and the note now says the counts move while the `0`
+  does not. Round 4 checked `NEWS.md`'s published figures value by value against the
+  two committed CSVs: those were correct.
+
+And my own new test for the guard could not fail on its first two attempts: the
+fixture species carried no `near_river` rule, so both keys compiled to the same
+text. It carries one now, and the "no table, no question" case uses a separate
+plain species, because a rule with a pair refuses a NULL table for its own reason.

@@ -120,9 +120,12 @@
 #'   watershed_group_code)`. A shared `near_river` table can hold another
 #'   job's rows for other ground at a colliding `id_segment`, and without the
 #'   parent a segment passes on a distance measured for a different segment
-#'   (fresh#293). Default `FALSE`, which builds exactly the predicate fresh
-#'   0.53.0 built; [frs_habitat_classify()] passes `TRUE` when both tables
-#'   carry the column.
+#'   (fresh#293). **Required whenever `near_river_table` is given**, and with
+#'   no default there: this function is pure and cannot look at the tables, so
+#'   a default would hand a caller re-deriving the predicate 0.53.0's short
+#'   key by omission while the table it reads has begun holding two jobs'
+#'   rows. `FALSE` builds exactly the predicate 0.53.0 built, and
+#'   [frs_habitat_classify()] passes `TRUE` when both tables carry the column.
 #' @return A named list with four character scalars: `spawn`, `rear`,
 #'   `lake_rear`, `wetland_rear`. Each is an SQL boolean expression
 #'   suitable for embedding in `CASE WHEN ... THEN TRUE ELSE FALSE
@@ -163,7 +166,16 @@
 #'   near_river_table = "working.streams_habitat_near_river")$rear
 frs_habitat_predicates <- function(sp_params, model = "cw",
                                    near_river_table = NULL,
-                                   near_river_lfid = FALSE) {
+                                   near_river_lfid = NULL) {
+  if (!is.null(near_river_table) && is.null(near_river_lfid)) {
+    stop(paste0(
+      "near_river_lfid must be given with near_river_table: TRUE where that ",
+      "table and the streams table both carry linear_feature_id, as ",
+      "frs_habitat_classify() passes from fresh 0.54.0, and FALSE for the ",
+      "key fresh 0.53.0 used. This function cannot look at the tables, and a ",
+      "default would read a shared table on the shorter key."), call. = FALSE)
+  }
+  near_river_lfid <- isTRUE(near_river_lfid)
   stopifnot(is.list(sp_params),
             !is.null(sp_params[["species_code"]]))
   if (!is.character(model) || length(model) != 1L ||

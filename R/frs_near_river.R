@@ -147,8 +147,15 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
 
   t0 <- proc.time()
   walk_tbl <- "pg_temp.frs_near_river_walk"
-  on.exit(.frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl)),
-          add = TRUE)
+  # try(): this DROP runs on the way out of a failure as well as a success, and
+  # on the failure path the transaction below may be aborted, where any
+  # statement raises 25P02 -- which would become the error the caller sees in
+  # place of the one that actually failed. Wrapping it covers that whichever
+  # transaction is open, including the one a CALLER opened, where this is the
+  # only handler registered (fresh#293 review, round 4).
+  on.exit(try(.frs_db_execute(conn,
+                              sprintf("DROP TABLE IF EXISTS %s", walk_tbl)),
+              silent = TRUE), add = TRUE)
 
   # The straight-line prefilter prunes the join only with a GiST on geom,
   # and the plan needs current statistics (see .frs_bucket_connected()).
@@ -204,12 +211,18 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   if (began) {
     committed <- FALSE
     # after = FALSE, so this runs BEFORE the walk table's DROP registered
-    # above. Handlers run in registration order, and a DROP issued inside an
-    # aborted transaction raises "current transaction is aborted", which
-    # propagates out of on.exit and leaves the rollback unrun and the
-    # connection stuck for every later statement (measured: it broke four
-    # tests two files away). Rolling back first drops the temp table anyway,
-    # so the DROP is then a no-op.
+    # above: rolling back first ENDS the transaction, so the DROP raises
+    # nothing and the real error is what the caller sees. Without the ordering
+    # the DROP's own 25P02 replaced it, which is what broke four tests two
+    # files away -- each expected a particular message and got "current
+    # transaction is aborted" instead.
+    #
+    # NOT because a failing handler would skip the rollback: measured on R
+    # 4.5.2, an error in one on.exit expression does not stop the others, and
+    # the rollback ran in both orders. Round 2's version of this comment said
+    # otherwise and was wrong (fresh#293 review, round 3). The `try()` on the
+    # DROP above is what makes this safe on the branch where the CALLER owns
+    # the transaction and no rollback of ours is registered at all.
     on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
             add = TRUE, after = FALSE)
   }

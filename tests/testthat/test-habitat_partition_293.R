@@ -65,6 +65,46 @@ test_that("an empty pair list narrows the delete to nothing, not to everything",
                fixed = TRUE)
 })
 
+test_that("the predicate builder refuses to guess the near_river key", {
+  # A rule that actually carries a near_river pair, or the predicate never
+  # reaches .frs_near_river_sql() and both keys compile to the same text —
+  # an assertion that cannot fail (code-check.md).
+  sp <- list(species_code = "CH", spawn_gradient_min = 0,
+             spawn_gradient_max = 0.0449,
+             params_sp = list(
+               ranges = list(rear = list(channel_width = c(1.5, 9999),
+                                         gradient = c(0, 0.0549))),
+               rules = list(rear = list(list(
+                 edge_types_explicit = 1000,
+                 near_river = list(discharge_min = 3,
+                                   distance_max = 1000))))))
+  # Pure and with no connection, so it cannot look at the tables. Defaulting
+  # would hand a caller re-deriving the predicate 0.53.0's short key by
+  # omission while the table it reads has begun holding two jobs' rows — which
+  # is exactly how link's habitat validator calls it (round 3 of /code-check).
+  expect_error(
+    frs_habitat_predicates(sp, near_river_table = "w.streams_near_river"),
+    "near_river_lfid must be given")
+  # Both answers are accepted, and they differ.
+  with_key <- frs_habitat_predicates(sp,
+    near_river_table = "w.streams_near_river", near_river_lfid = TRUE)
+  without <- frs_habitat_predicates(sp,
+    near_river_table = "w.streams_near_river", near_river_lfid = FALSE)
+  expect_match(with_key$rear, "n.linear_feature_id = s.linear_feature_id",
+               fixed = TRUE)
+  expect_false(grepl("linear_feature_id", without$rear, fixed = TRUE))
+  expect_false(identical(with_key, without))
+  # And no table means no question to answer, so the common call is unchanged.
+  # A species whose rules carry no near_river pair, since one that does
+  # already refuses a NULL table for its own reason.
+  plain <- list(species_code = "CO", spawn_gradient_min = 0,
+                spawn_gradient_max = 0.05,
+                params_sp = list(spawn_gradient_max = 0.05,
+                                 ranges = list(rear = list(
+                                   gradient = c(0, 0.05)))))
+  expect_no_error(frs_habitat_predicates(plain))
+})
+
 # --- The read side, on a synthetic network ----------------------------------
 
 test_that("a stale same-group near_river row for another parent is not read", {

@@ -8,7 +8,7 @@ frs_habitat_predicates(
   sp_params,
   model = "cw",
   near_river_table = NULL,
-  near_river_lfid = FALSE
+  near_river_lfid = NULL
 )
 }
 \arguments{
@@ -33,9 +33,12 @@ table both carry \code{linear_feature_id}, in which case a rule's \code{near_riv
 match keys on the parent segment as well as on \verb{(id_segment, watershed_group_code)}. A shared \code{near_river} table can hold another
 job's rows for other ground at a colliding \code{id_segment}, and without the
 parent a segment passes on a distance measured for a different segment
-(fresh#293). Default \code{FALSE}, which builds exactly the predicate fresh
-0.53.0 built; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}} passes \code{TRUE} when both tables
-carry the column.}
+(fresh#293). \strong{Required whenever \code{near_river_table} is given}, and with
+no default there: this function is pure and cannot look at the tables, so
+a default would hand a caller re-deriving the predicate 0.53.0's short
+key by omission while the table it reads has begun holding two jobs'
+rows. \code{FALSE} builds exactly the predicate 0.53.0 built, and
+\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} passes \code{TRUE} when both tables carry the column.}
 }
 \value{
 A named list with four character scalars: \code{spawn}, \code{rear},

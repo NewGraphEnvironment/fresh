@@ -122,8 +122,10 @@ back to a key measured wrong.
 
 **The sibling tables were widened to use it, in #293.** Before 0.54.0
 `frs_habitat_classify()`'s and `frs_near_river()`'s targets carried only
-`id_segment` and `watershed_group_code` (measured: 199 habitat tables and 98
-`near_river` tables on the shared instance, **0** with `linear_feature_id`), so
+`id_segment` and `watershed_group_code` (measured 2026-11-02: 221 habitat tables
+and 114 `near_river` tables on the shared instance, **0** with
+`linear_feature_id`; the table counts move as other work creates schemas, the
+`0` does not), so
 neither the parent segment nor physical identity was available there. #293 adds
 `linear_feature_id` to both, **when the streams table carries one**, and keys
 their partition delete on it through the same chooser.
