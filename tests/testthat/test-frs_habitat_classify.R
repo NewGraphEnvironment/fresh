@@ -542,7 +542,9 @@ test_that("the per-species progress line counts only this job's groups", {
       # does not reach it and a mock connection would raise.
       .frs_null_key_guard = function(conn, to, key, cols_added = character()) {
         invisible(NULL)
-      })
+      },
+      # Same reason: it reads the streams table through its own DBI call.
+      .frs_group_required = function(conn, table, lfid) invisible(NULL))
     frs_habitat_classify("mock", table = "working.streams",
       to = "fresh.streams_habitat", species = "CO", gate = FALSE,
       verbose = TRUE)

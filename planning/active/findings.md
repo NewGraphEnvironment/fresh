@@ -351,3 +351,18 @@ different `distance_max` into the same table and read the result without filteri
 on it, so an earlier pair's rows were still there. The old whole-ground delete is
 what made the unfiltered read work. Each assertion now names its own pair's
 distance — the fix was right and the tests were asserting the defect.
+
+### And a defect inside round 2's own fix, found by the suite
+
+Wrapping `frs_near_river()`'s delete and inserts in a transaction (round 2's
+finding 11) broke four tests two files away with `current transaction is
+aborted, commands ignored until end of transaction block`. The function already
+had an `on.exit` that drops its walk temp table, registered **before** the new
+rollback handler, and handlers run in registration order: a `DROP` issued inside
+an aborted transaction raises, that error propagates out of `on.exit`, the
+rollback never runs, and the connection is stuck for every later statement in
+the session. `after = FALSE` puts the rollback first; the rollback drops the temp
+table anyway, so the `DROP` is then a no-op.
+
+The suite caught this, not a reviewer — which is the argument for running it
+between rounds rather than only at the end.

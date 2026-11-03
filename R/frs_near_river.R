@@ -199,8 +199,15 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   }
   if (began) {
     committed <- FALSE
+    # after = FALSE, so this runs BEFORE the walk table's DROP registered
+    # above. Handlers run in registration order, and a DROP issued inside an
+    # aborted transaction raises "current transaction is aborted", which
+    # propagates out of on.exit and leaves the rollback unrun and the
+    # connection stuck for every later statement (measured: it broke four
+    # tests two files away). Rolling back first drops the temp table anyway,
+    # so the DROP is then a no-op.
     on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
-            add = TRUE)
+            add = TRUE, after = FALSE)
   }
   .frs_db_execute(conn, .frs_persist_delete_sql(
     to, table, wsg_code, cols_to, cols_from,

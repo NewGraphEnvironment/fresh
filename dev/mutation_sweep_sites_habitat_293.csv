@@ -21,3 +21,4 @@
 "293 near_river walk is one transaction","R/frs_near_river.R","      DBI::dbBegin(conn)","1","delete","","frs_near_river"
 "293 group required with the parent key","R/utils.R","  if (!isTRUE(lfid)) return(invisible(NULL))","1","substitute","  if (TRUE) return(invisible(NULL))",".frs_group_required"
 "293 wsg_code refuses a NULL group","R/utils.R","  if (anyNA(have)) {","1","substitute","  if (FALSE) {",".frs_wsg_code_check"
+"293 rollback runs before the walk DROP","R/frs_near_river.R","            add = TRUE, after = FALSE)","1","substitute","            add = TRUE)","frs_near_river"
