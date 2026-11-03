@@ -210,8 +210,11 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 
 - [x] `devtools::test()` — **FAIL 0 | WARN 21 | SKIP 6 | PASS 2596**; the warnings
       and skips are `main`'s (fwapg migration gates, no bcfishpass schema).
-- [ ] `workers = 2L` through the mirai path, with two jobs over overlapping ground into
-      one shared `to_habitat`.
+- [x] `workers = 2L` through the mirai path, with two jobs over overlapping ground into
+      one shared `to_habitat`: 464 rows after the outer AOI, 464 after a parallel
+      re-run of the same ground, 464 after the inner AOI's 231-segment job — the
+      outer's rows outside it survived. The workers load the **installed** package,
+      so this needed the branch installed first; `findings.md` has why.
 - [x] `lintr::lint_package()` against `origin/main`'s count in a worktree: 1598 vs
       1473. The +125 is 69 `indentation_linter` (1396 on `main`), 50
       `object_usage_linter` from an installed `fresh` **0.52.0**, and 6

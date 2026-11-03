@@ -422,3 +422,26 @@ pair, so a colliding insert aborts and #282's transaction rolls it back. Over th
 population of relations carrying all six columns it reads: 322 relations, 3 without
 that unique index, and a collision needs a *shared* one among those three. Same
 verdict for `frs_network_features()`.
+
+## `workers = 2L` through the mirai path (2026-11-03)
+
+`data-raw/logs/habitat_293/workers2.log`. Three runs into one shared
+`to_habitat`, on the documented AOI and a tributary strictly inside it:
+
+```
+outer AOI alone                             464 rows, 464 segments
+workers = 2L, same ground again             464      <- replaced, not duplicated
+workers = 2L, the inner AOI (231 segments)  464      <- the outer's rows outside it survived
+```
+
+The third line is #293's promise, proven through the path `frs_habitat()` actually
+uses for a multi-group run: a narrower job over ground the table already covers
+replaces its own partition and leaves the rest.
+
+**The first attempt failed, and the reason is worth keeping.** `frs_habitat()`'s
+mirai workers call `library(fresh)`, so they run the **installed** package, not the
+source tree — with 0.52.0 installed every worker rejected `wsg_code` as an unused
+argument and the pipeline aborted. So the parallel path cannot be validated until
+the branch is installed, and the same stale install is why `lintr` reported 50
+phantom `object_usage_linter` hits (`code-check-r.md`, "`lintr` also resolves
+against the installed package"). Installed the branch, re-ran, green.
