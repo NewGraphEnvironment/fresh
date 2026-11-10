@@ -23,6 +23,6 @@ Test suite at the end: FAIL 0 / WARN 3 / SKIP 2 / PASS 1,499. The warnings and s
 
 `data-raw/logs/point_snap_parity_247/*` (from `data-raw/point_snap_parity_check.R`)
 
-Follow-ups filed: NewGraphEnvironment/link#313, link#314, breaks#13, diggs#25, stewardship_upper_wedzin_kwa#15, wet#55.
+Follow-ups filed: NewGraphEnvironment/link#313, link#314, breaks#13, diggs#25, an internal issue, wet#55.
 
 Closed by: PR for branch `247-bulk-point-snap-one-call-snaps-a-dataset`

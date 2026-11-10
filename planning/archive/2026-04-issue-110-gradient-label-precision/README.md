@@ -20,4 +20,3 @@ PR #111 (commits ad94bc7, 6acfa94)
 
 ## SRED
 
-Relates to NewGraphEnvironment/sred-2025-2026#16
