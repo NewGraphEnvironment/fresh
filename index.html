@@ -155,10 +155,12 @@
 <div class="section level2">
 <h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a>
 </h2>
+<!-- BEGIN ecosystem.yml -->
+<!-- Generated from the source registry; edit the registry, not this block. -->
 <table class="table">
 <colgroup>
-<col width="60%">
-<col width="40%">
+<col width="50%">
+<col width="50%">
 </colgroup>
 <thead><tr>
 <th>Package</th>
@@ -166,29 +168,52 @@
 </tr></thead>
 <tbody>
 <tr>
+<td><a href="https://www.newgraphenvironment.com/link/" class="external-link">link</a></td>
+<td>Build, compare and test fish habitat and access models, every fish habitat definition editable</td>
+</tr>
+<tr>
 <td><strong>fresh</strong></td>
-<td>Stream network modelling engine (this package) — segment, classify, cluster, aggregate</td>
+<td>Splits streams at barriers, classifies habitat by species, traces what’s upstream (this package)</td>
 </tr>
 <tr>
-<td><a href="https://github.com/NewGraphEnvironment/link" class="external-link">link</a></td>
-<td>Feature-to-network interpretation — load + validate override CSVs, score and prioritize crossings, build per-species barrier skip lists, orchestrate bcfishpass-reproducing pipelines</td>
+<td><a href="https://www.newgraphenvironment.com/wet/" class="external-link">wet</a></td>
+<td>Typical flow in nearly every stream, tested against gauges; station flow and temperature</td>
 </tr>
 <tr>
-<td><a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a></td>
-<td>Delineate floodplain extents from DEMs and stream networks</td>
+<td><a href="https://www.newgraphenvironment.com/flooded/" class="external-link">flooded</a></td>
+<td>Maps floodplains from terrain: the valley floor a river can spread across</td>
 </tr>
 <tr>
-<td><a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a></td>
-<td>Track land cover change within floodplains over time</td>
+<td><a href="https://www.newgraphenvironment.com/drift/" class="external-link">drift</a></td>
+<td>Maps what changed in land cover, where and when, in a floodplain or any area, from free satellite maps or your own</td>
 </tr>
 <tr>
-<td><a href="https://github.com/NewGraphEnvironment/wet" class="external-link">wet</a></td>
-<td>Stream discharge per segment and per station — an open source of the mean annual discharge the <code>mad</code> habitat rules read as <code>mad_m3s</code>
-</td>
+<td><a href="https://www.newgraphenvironment.com/fly/" class="external-link">fly</a></td>
+<td>Puts BC’s historic airphotos back on the map from free thumbnails</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/cd/" class="external-link">cd</a></td>
+<td>How far any BC watershed’s climate has shifted from your chosen baseline</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/knowledge/" class="external-link">knowledge</a></td>
+<td>Starts from each species’ life history and tunes its fish habitat definitions from where sampling did and did not catch it</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/floodplains/" class="external-link">floodplains</a></td>
+<td>Maps BC’s floodplains and how the land in them changed, one watershed group at a time</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/crate/" class="external-link">crate</a></td>
+<td>Canonical schemas for data that changes shape, and provenance receipts for outputs</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/stac_floodplains_bc/" class="external-link">stac_floodplains_bc</a></td>
+<td>Floodplains and land-cover change, a screen for where to look; by watershed group</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Pipelines:</strong></p>
+<!-- END ecosystem.yml --><p><strong>Pipelines:</strong></p>
 <ul>
 <li>Fish habitat: <strong>link → fresh</strong>, with discharge from wet</li>
 <li>Land cover change: fresh (network) → flooded (floodplains) → drift (land cover change)</li>
