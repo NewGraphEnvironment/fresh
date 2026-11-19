@@ -223,5 +223,8 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
 - [ ] Mutation sweep: a committed site list (`dev/mutation_sweep_sites_habitat_293.csv`)
       run with `dev/mutation_sweep.R`, each site credited only on red → green → red.
       Every guard this plan adds gets a row.
-- [ ] `/code-check branch`, three rounds floor, continuing while a round finds a defect
+- [x] `/code-check branch`, three rounds floor, continuing while a round finds a defect
       inside the previous round's fix — #282 had three of four rounds do exactly that.
+      — six rounds, each of rounds 2-6 finding a defect inside an earlier fix;
+      ended by round 6's enumeration of the 40 quantified claims the branch
+      makes (35 held, 5 fixed in 9d836a0). `review-verdict.md`.
