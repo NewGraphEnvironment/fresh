@@ -710,12 +710,37 @@ test_that("another group's spawning does not lend lake adjacency to this group's
       pg_temp.bkt_streams b WHERE a.id_segment = 5 AND b.id_segment = 6")$v
   expect_true(isTRUE(adj))   # or 6 cannot lend 5 anything
 
-  .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE))
-  .frs_connected_waterbody(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+  # One closure, called twice below: the two runs have to be the same call or
+  # the second decoy is being measured against a different pass.
+  run <- function() .frs_connected_waterbody(conn, "pg_temp.bkt_streams",
+    "pg_temp.bkt_habitat",
     species = "BT", waterbody_poly = "whse_basemapping.fwa_lakes_poly",
     waterbody_ha_min = 10, bridge_gradient = 0.05, distance_max = 1,
     spawn_connected = NULL, lake_adjacent = TRUE, verbose = FALSE)
 
+  .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE))
+  run()
+
   # 5 is 500 m out, so its own cluster never qualifies.
+  expect_false(.bkt_flags(conn, "spawning")[["5"]])
+
+  # Again with the decoy in THIS group, on another parent segment. Same
+  # rescue, reached through the parent-segment arm of the join rather than the
+  # group arm -- and that arm had no test at all until the mutation sweep
+  # could not credit it (fresh#293). The OTHR row above stays, so this second
+  # assertion fails if either arm is dropped; the first one attributes the
+  # group arm on its own.
+  DBI::dbExecute(conn, "UPDATE pg_temp.bkt_habitat SET spawning = TRUE
+                        WHERE id_segment = 5 AND linear_feature_id = 5")
+  .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE), wsg = "TEST")
+  expect_identical(DBI::dbGetQuery(conn, "
+    SELECT count(*)::int AS n FROM pg_temp.bkt_habitat h
+    INNER JOIN pg_temp.bkt_streams s
+       ON h.id_segment = s.id_segment
+      AND h.watershed_group_code = s.watershed_group_code
+    WHERE h.linear_feature_id <> s.linear_feature_id
+      AND h.spawning IS TRUE")$n, 1L)
+  run()
+
   expect_false(.bkt_flags(conn, "spawning")[["5"]])
 })

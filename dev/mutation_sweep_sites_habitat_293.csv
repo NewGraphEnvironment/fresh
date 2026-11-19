@@ -21,5 +21,6 @@
 "293 near_river walk is one transaction","R/frs_near_river.R","      DBI::dbBegin(conn)","1","delete","","frs_near_river"
 "293 group required with the parent key","R/utils.R","  if (!isTRUE(lfid)) return(invisible(NULL))","1","substitute","  if (TRUE) return(invisible(NULL))",".frs_group_required"
 "293 wsg_code refuses a NULL group","R/utils.R","  if (anyNA(have)) {","1","substitute","  if (FALSE) {",".frs_wsg_code_check"
-"293 rollback runs before the walk DROP","R/frs_near_river.R","            add = TRUE, after = FALSE)","1","substitute","            add = TRUE)","frs_near_river"
 "293 predicate key must be stated","R/frs_habitat_predicates.R","  if (!is.null(near_river_table) && is.null(near_river_lfid)) {","1","substitute","  if (FALSE) {","frs_habitat_predicates"
+"293 walk DROP cannot mask the real error","R/frs_near_river.R","  on.exit(try(.frs_db_execute(conn, walk_drop), silent = TRUE), add = TRUE)","1","substitute","  on.exit(.frs_db_execute(conn, walk_drop), add = TRUE)","frs_near_river"
+"293 subtractive clear keys on the parent","R/frs_habitat.R","  key <- .frs_key_match(""h"", ""s"", lfid)","3","substitute","  key <- .frs_key_match(""h"", ""s"", FALSE)",".frs_connected_waterbody"

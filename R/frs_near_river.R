@@ -153,9 +153,8 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   # place of the one that actually failed. Wrapping it covers that whichever
   # transaction is open, including the one a CALLER opened, where this is the
   # only handler registered (fresh#293 review, round 4).
-  on.exit(try(.frs_db_execute(conn,
-                              sprintf("DROP TABLE IF EXISTS %s", walk_tbl)),
-              silent = TRUE), add = TRUE)
+  walk_drop <- sprintf("DROP TABLE IF EXISTS %s", walk_tbl)
+  on.exit(try(.frs_db_execute(conn, walk_drop), silent = TRUE), add = TRUE)
 
   # The straight-line prefilter prunes the join only with a GiST on geom,
   # and the plan needs current statistics (see .frs_bucket_connected()).
@@ -220,9 +219,21 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
     # NOT because a failing handler would skip the rollback: measured on R
     # 4.5.2, an error in one on.exit expression does not stop the others, and
     # the rollback ran in both orders. Round 2's version of this comment said
-    # otherwise and was wrong (fresh#293 review, round 3). The `try()` on the
-    # DROP above is what makes this safe on the branch where the CALLER owns
-    # the transaction and no rollback of ours is registered at all.
+    # otherwise and was wrong (fresh#293 review, round 3).
+    #
+    # The `try()` on the DROP above is what actually makes the error the
+    # caller's, and it covers the branch where the CALLER owns the transaction
+    # and no rollback of ours is registered at all -- which this ordering
+    # cannot reach. So the ordering is now REDUNDANT, and measurably so: the
+    # mutation sweep cannot credit it, because with the `try()` in place both
+    # orders end the same way. Rolling back first leaves the DROP a no-op on a
+    # table the rollback has already un-created; dropping first raises 25P02
+    # into the `try()` and the rollback un-creates it anyway. It stays because
+    # rolling back before touching the database again is the right shape, not
+    # because anything depends on it -- and it carries no row in
+    # dev/mutation_sweep_sites_habitat_293.csv for the same reason: a row that
+    # no test can turn red is not a guard, and the `try()`'s row measures the
+    # property both of these were aimed at.
     on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
             add = TRUE, after = FALSE)
   }

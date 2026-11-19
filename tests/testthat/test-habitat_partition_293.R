@@ -618,6 +618,121 @@ test_that("a failure during a near_river walk leaves its pairs as they were", {
     "SELECT count(*)::int AS n FROM pg_temp.p293_nrt")$n, n0)
 })
 
+test_that("a near_river failure in a caller's transaction raises its own error", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit({
+    try(DBI::dbRollback(conn), silent = TRUE)
+    DBI::dbDisconnect(conn)
+  })
+  .nr_fixture(conn, .nr_tributary())
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p293_nrx")
+  frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrx",
+    threshold = 3, distance_max = 1000, verbose = FALSE)
+
+  # Where the CALLER owns the transaction, `began` is FALSE and no rollback
+  # of ours is registered, so the walk table's DROP is the only handler
+  # there is. It runs on the way out of the failure with the transaction
+  # already aborted, where every statement raises 25P02 -- and that would
+  # become the error the caller sees in place of the one that actually
+  # failed. The `try()` on the DROP is what keeps it theirs (round 4 of
+  # /code-check). `after = FALSE` cannot cover this branch: there is no
+  # rollback to order the DROP against.
+  DBI::dbBegin(conn)
+  local_mocked_bindings(.frs_db_execute = function(conn, sql) {
+    if (grepl("INSERT INTO pg_temp.p293_nrx", sql, fixed = TRUE)) {
+      # Abort the caller's transaction in Postgres, not just in R: the
+      # 25P02 the DROP would raise only exists once the backend has one.
+      try(DBI::dbExecute(conn, "SELECT 1 / 0"), silent = TRUE)
+      stop("boom")
+    }
+    DBI::dbExecute(conn, sql)
+  })
+  expect_error(frs_near_river(conn, "pg_temp.nr_streams", "pg_temp.p293_nrx",
+    threshold = 3, distance_max = 1000, verbose = FALSE), "boom")
+  DBI::dbRollback(conn)
+})
+
+# --- The read side: connectivity reads only this job's parents --------------
+#
+# Three of the four sites the first mutation sweep could not credit are the
+# .frs_key_match() calls inside .frs_connected_waterbody(), and the wider test
+# filter did not rescue them: 130 tests, 0 red. They were a real hole. Every
+# test that existed pinned the WATERSHED GROUP arm of those joins (fresh#242,
+# test-frs_connectivity_wsg.R), which a same-group row cannot exercise. The
+# parent-segment arm is this issue's, and only a decoy inside the group on
+# another parent can reach it.
+
+test_that("a same-group row for another parent lends connectivity no rearing", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Segment 1 spawns on the mainstem below a waterbody at segment 2. Nothing
+  # in this job's own rows is rearing, so neither phase of
+  # .frs_connected_waterbody() finds an origin and 1's spawning is cleared.
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 0, spawn = TRUE),
+    .bkt_seg(2, 1000, wbk = 11)))
+  # The decoy: this group's code, segment 2's id_segment, another parent
+  # segment (.bkt_habitat_add() negates linear_feature_id), rearing TRUE.
+  # Before fresh#293 the delete was whole-group, so a row like this could not
+  # survive a run; now a second job over other ground in the same group leaves
+  # them, and the parent segment is the only thing separating the two.
+  .bkt_habitat_add(conn, .bkt_seg(2, 1000, rear = TRUE), wsg = "TEST")
+
+  # The collision is live before anything is asserted about it: a mutant that
+  # drops the parent from the join has to have something to go wrong with.
+  expect_identical(DBI::dbGetQuery(conn, "
+    SELECT count(*)::int AS n FROM pg_temp.bkt_habitat h
+    INNER JOIN pg_temp.bkt_streams s
+       ON h.id_segment = s.id_segment
+      AND h.watershed_group_code = s.watershed_group_code
+    WHERE h.linear_feature_id <> s.linear_feature_id
+      AND h.rearing IS TRUE")$n, 1L)
+
+  .frs_connected_waterbody(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    species = "BT", waterbody_poly = "whse_basemapping.fwa_lakes_poly",
+    waterbody_ha_min = 1, bridge_gradient = 0.05, distance_max = 3000,
+    spawn_connected = NULL, lake_adjacent = FALSE, verbose = FALSE)
+
+  # Cleared. Read through either arm the decoy would rescue it: as a trace
+  # origin it sits on segment 2's waterbody and the walk reaches 1 below it,
+  # and as a rearing segment it puts 1 upstream of rearing -- every wscode
+  # "100" segment is upstream of every other under the 4-arg predicate.
+  expect_false(.bkt_flags(conn, "spawning")[["1"]])
+})
+
+test_that("the subtractive clear cannot reach another parent's row", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Rearing at a waterbody on segment 1; segment 3 spawns on a separate river
+  # that neither phase reaches, so this job's own row at 3 is cleared.
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 0, wbk = 11, rear = TRUE),
+    .bkt_seg(3, 0, spawn = TRUE, blk = 2L, wscode = "200", y = 5000)))
+  # Another job's spawning row for this group at that same id_segment, on
+  # another parent. The clear addresses habitat rows through `table`, so the
+  # parent key is the whole of what keeps this one out of reach: its
+  # id_segment is not in the qualifying set, so nothing else protects it.
+  .bkt_habitat_add(conn, .bkt_seg(3, 0, spawn = TRUE), wsg = "TEST")
+
+  spawning_at <- function(lfid) DBI::dbGetQuery(conn, sprintf(
+    "SELECT spawning FROM pg_temp.bkt_habitat
+     WHERE species_code = 'BT' AND watershed_group_code = 'TEST'
+       AND id_segment = 3 AND linear_feature_id = %d", lfid))$spawning
+  expect_true(spawning_at(3L))     # both start spawning, or neither direction
+  expect_true(spawning_at(-3L))    # of the assertion below means anything
+
+  .frs_connected_waterbody(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+    species = "BT", waterbody_poly = "whse_basemapping.fwa_lakes_poly",
+    waterbody_ha_min = 1, bridge_gradient = 0.05, distance_max = 3000,
+    spawn_connected = NULL, lake_adjacent = FALSE, verbose = FALSE)
+
+  expect_false(spawning_at(3L))    # this job's own row: cleared
+  expect_true(spawning_at(-3L))    # the other parent's row: untouched
+})
+
 # --- Nothing is left reading these tables on the short key ------------------
 
 test_that("no habitat-to-streams join is left spelled inline", {
@@ -674,4 +789,70 @@ test_that("no habitat-to-streams join is left spelled inline", {
 
   expect_identical(found[order(names(found))],
                    allowed[order(names(allowed))])
+})
+
+test_that("no habitat key is built with the parent segment switched off", {
+  # The count above proves no join is spelled inline. It says nothing about a
+  # call that builds one through .frs_key_match() with the parent arm turned
+  # OFF -- `.frs_key_match("hr", "s2", FALSE)` passes it, and that is exactly
+  # the mutation the sweep applies at each of these sites. So the arm needs an
+  # enumeration of its own, over the parsed bodies rather than their text:
+  # there are 19 call sites and one guard, and 19 sweep rows of one guard is
+  # not an enumeration of anything.
+  #
+  # This is a check on the SHAPE of the call. What it cannot show is that the
+  # arm changes an answer -- a proxy is not the property (code-check.md). The
+  # three tests under "The read side" above are that half, one per
+  # .frs_connected_waterbody() site, and the subtractive clear's own key is
+  # pinned by "the subtractive clear cannot reach another parent's row".
+  # Its own accumulator per call, so the self-check below cannot add to the
+  # namespace's count. Bodies only: no site sits in a formal default, and
+  # reaching into one would force the empty symbol of every argument that has
+  # no default. The count pinned below is what would catch a site moving there.
+  key_calls <- function(e) {
+    out <- list()
+    rec <- function(x) {
+      if (!is.call(x)) return(invisible(NULL))
+      if (is.name(x[[1]]) && identical(as.character(x[[1]]), ".frs_key_match")) {
+        out[[length(out) + 1L]] <<- x
+      }
+      for (i in seq_along(x)) rec(x[[i]])
+      invisible(NULL)
+    }
+    rec(e)
+    out
+  }
+
+  # The walker has to be able to see a call before its verdict means anything,
+  # and to reach one nested in a sprintf() argument, which is where most of
+  # them sit.
+  expect_identical(
+    length(key_calls(quote(sprintf("%s", .frs_key_match("h", "s", FALSE))))),
+    1L)
+
+  ns <- asNamespace("fresh")
+  calls <- list()
+  for (nm in ls(ns, all.names = TRUE)) {
+    f <- get(nm, envir = ns)
+    if (!is.function(f) || is.null(body(f))) next
+    calls <- c(calls, key_calls(body(f)))
+  }
+
+  # Every site takes the arm from the pair test: the symbol `lfid`, which each
+  # function sets from .frs_lfid_pair(), or that call written in place. Never
+  # a literal, which is what a mutant leaves behind.
+  from_pair_test <- vapply(calls, function(e) {
+    a <- as.list(e)[-1]
+    nm <- names(a)
+    if (is.null(nm)) nm <- rep("", length(a))
+    v <- if ("lfid" %in% nm) a[[which(nm == "lfid")]] else a[[3]]
+    identical(v, quote(lfid)) ||
+      (is.call(v) && is.name(v[[1]]) &&
+         identical(as.character(v[[1]]), ".frs_lfid_pair"))
+  }, logical(1))
+
+  # The count is pinned too, so a site cannot be deleted into compliance. It
+  # moves when a join is added or removed; read the diff before changing it.
+  expect_identical(length(calls), 19L)
+  expect_true(all(from_pair_test))
 })

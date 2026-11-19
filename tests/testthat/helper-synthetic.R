@@ -87,15 +87,19 @@
   }
 }
 
-# Add another watershed group's habitat rows, reusing `id_segment` values the
-# fixture's own group already uses. `segs` is a spec whose `id` values collide
-# on purpose; nothing is added to bkt_streams, which is the point — the other
-# group's streams live in its own working table, not this job's.
+# Add habitat rows that reuse `id_segment` values the fixture's own group
+# already uses. `segs` is a spec whose `id` values collide on purpose; nothing
+# is added to bkt_streams, which is the point — the rows being decoyed live in
+# some other job's working table, not this job's.
 #
-# Their `linear_feature_id` is negated, so it collides with nothing: no
-# linear_feature_id spans a watershed group (0, measured province-wide), which
-# is the property that makes it a safe key, so a decoy sharing one would not
-# be another group's row at all.
+# Their `linear_feature_id` is negated, which serves both decoys this fixture
+# has to be able to build. With `wsg = "OTHR"` (the default) it collides with
+# nothing, because no linear_feature_id spans a watershed group (0, measured
+# province-wide) and a decoy sharing one would not be another group's row at
+# all — that is the group arm of every habitat join (fresh#242). With
+# `wsg = "TEST"` the negation IS the decoy: this group, this id_segment,
+# another parent segment, which is the row shape fresh#293 creates by scoping
+# the delete, and the only one that can reach the parent arm.
 .bkt_habitat_add <- function(conn, segs, species = "BT", wsg = "OTHR") {
   for (i in seq_len(nrow(segs))) {
     r <- segs[i, ]

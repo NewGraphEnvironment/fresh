@@ -508,3 +508,124 @@ And my own new test for the guard could not fail on its first two attempts: the
 fixture species carried no `near_river` rule, so both keys compiled to the same
 text. It carries one now, and the "no table, no question" case uses a separate
 plain species, because a rule with a pair refuses a NULL table for its own reason.
+
+## The mutation sweep: the four uncaught sites were real, not a narrow filter
+
+The 24-site sweep ran 2026-11-08 22:00 to 2026-11-09 01:34 UTC against a clean
+baseline (20 tests, 0 red, 0 skipped, before and after) and returned **exit 1,
+20 of 24 caught**. The four uncaught sites were the three `.frs_key_match()`
+calls in `.frs_connected_waterbody()` (`R/frs_habitat.R:1828`, `:1870`, `:1871`)
+and `after = FALSE` (`R/frs_near_river.R:227`).
+
+I diagnosed all four as artifacts of the narrow `habitat_partition_293` filter,
+on the reasoning that the tests which should pin them live in
+`test-frs_connectivity_wsg.R`, `test-frs_bucket_connected.R` and
+`test-frs_near_river.R`. **That was wrong.** Re-run with a filter spanning all
+seven files — baseline 130 tests, 0 red, 0 skipped, measured clean first
+because the sweep refuses on any skip — all four were still uncaught, `0 red`
+in both mutated runs each.
+
+So the sweep found exactly what it exists to find, and the first reading of its
+output explained the finding away. Two separate holes:
+
+### The parent-segment arm of the read side had no test at all
+
+Every test that touched those three joins pinned their **watershed group** arm
+(fresh#242): a decoy in another group, which the `watershed_group_code`
+equality already excludes whatever `lfid` is. The `linear_feature_id` arm is
+this issue's, and only a decoy **inside** the group on another parent can reach
+it — the row shape fresh#293 creates by narrowing the delete. Nothing built one.
+`.bkt_habitat_add()` negates `linear_feature_id` and defaults to `wsg = "OTHR"`,
+so it was already one argument away from the decoy that was missing.
+
+Three behavioural tests now cover the three sites, plus a fourth for the
+subtractive clear's own key (`:1794`), which had the same hole:
+
+| site | the decoy | what it would do unkeyed |
+|---|---|---|
+| `:1828` origins | rearing TRUE on the waterbody segment | becomes a trace origin, trace keeps the segment below |
+| `:1870` rearing_segs | the same row | puts the spawning segment upstream of rearing |
+| `:1871` spawn_upstream | spawning TRUE on the lake-adjacent segment | lends its cluster's adjacency to the segment 500 m out |
+| `:1794` the clear | spawning TRUE on a stripped segment | the clear reaches another job's row and clears it |
+
+`:1871` is only observable under `lake_adjacent = TRUE`. With it FALSE the
+habitat row contributes nothing but the `spawning IS TRUE` filter — the
+position, the `EXISTS` and the id that reaches the qualifying set all come from
+the streams row — and the subtractive clear requires `h.spawning IS TRUE`,
+which the row it would wrongly protect does not have. The existing test
+"another group's spawning does not lend lake adjacency to this group's cluster"
+already built that fixture for the group arm, so the parent-arm case is a second
+decoy and a second run inside it rather than a second copy of the lake search.
+
+### 19 call sites, one guard
+
+The namespace enumeration test proves no habitat-to-streams join is left
+spelled inline. It says nothing about a join built **through**
+`.frs_key_match()` with the parent arm switched off, which is precisely the
+mutation — `.frs_key_match("hr", "s2", FALSE)` passes it. Parsing the namespace
+finds **19** such calls (measured: 4 in `.frs_connected_waterbody`, 4
+`.frs_cluster_both`, 3 each `.frs_cluster_downstream` / `_upstream`, 2
+`.frs_distance_filter`, 1 each `.frs_bucket_connected`, `frs_habitat_overlay`,
+`frs_order_child`), 18 passing the symbol `lfid` and one passing
+`.frs_lfid_pair(conn, to, bridge)` in place. A test now pins that every one of
+them takes the arm from the pair test and never from a literal, with the count
+pinned so a site cannot be deleted into compliance.
+
+That is the enumeration for the arm. Nineteen sweep rows of one guard would not
+have been one — and the static check cannot show the arm changes an answer,
+which is why the four behavioural tests stand beside it rather than instead of
+it.
+
+### `after = FALSE` was the fourth site, and it is redundant
+
+The sweep could not credit it, and no test can: with round 4's `try()` on the
+walk-table DROP in place, both handler orders end identically. Rolling back
+first leaves the DROP a no-op on a table the rollback has already un-created;
+dropping first raises 25P02 into the `try()`, and the rollback un-creates the
+table anyway. There is no observable difference to assert.
+
+Measured the other way round to be sure which of the two does the work: the
+`try()`'s own site **is** caught — 1 red in both mutated runs against a clean
+99-test baseline, credited to "a near_river failure in a caller's transaction
+raises its own error", the test written for it this session. So the `try()` is
+load-bearing and the ordering is not.
+
+`after = FALSE` stays in the code, because rolling back before touching the
+database again is the right shape; it carries no row in the site list, because
+a row no test can turn red is not a guard. Round 4's note that it "stays
+because rolling back first is still tidier" was right about the conclusion and
+had not yet measured the premise. The code comment now says so.
+
+## The sweep did not hang: the database host stopped answering
+
+The full 25-site run (launched 2026-11-10 04:51:07Z) reached site 9 of 25 at
+07:40:29Z — 9 sites in 2 h 49 min, about 19 minutes each, every one caught, against
+a baseline of 134 tests, 0 red, 0 skipped. It then spent 7 h 31 min inside site 10
+without finishing, and was stopped at 15:11Z.
+
+It was blocked on the network, not looping. Measured at 15:06-15:11Z:
+
+| probe | reading |
+|---|---|
+| driver R process CPU | 10 min 17 s over 10 h 18 m elapsed — 1.7%, so blocked on I/O |
+| its only socket | to the database host, `SYN_SENT` at 15:06Z, `ESTABLISHED` at 15:09Z |
+| ping, that host | 33% loss / 2446 ms avg, then 0% loss / 1524 ms avg / 3241 ms max, then 100% loss |
+| ping, local gateway, same minutes | 0% loss / 37 ms avg — so the local link is not the cause |
+| log output rate | 240 lines/min over sites 1-9, 5 lines/min during site 10 |
+
+A second, independent database client could not acquire a connection
+either, which rules out this process's own state.
+
+**Why it presented as a hang rather than as a suite full of skips.** The integration
+tests gate on `skip_if_no_conn()`, which skips when a connect *fails*.
+`frs_db_conn()` sets no `connect_timeout`, so an unreachable host does not fail — it
+blocks, and every gated test waits behind it forever. Filed as fresh#305: with a
+timeout set, this window would have produced an honest wall of
+skips in minutes instead of a run that could not end. It also means the sweep's
+"refuse unless the baseline is 0 red and 0 skipped" guard cannot see this failure
+mode at all, because nothing is ever reported.
+
+The 9 credited sites are not reusable: `dev/mutation_sweep.R` writes its results
+table only at the end, and a table assembled across a network outage is not evidence
+even where the per-site skip counts read 0. The run is redone whole. The partial log
+is kept outside the repo.
