@@ -17,4 +17,3 @@ These files were stale in `planning/active/` from March 2026. Archived in April 
 
 ## SRED
 
-Relates to NewGraphEnvironment/sred-2025-2026#16

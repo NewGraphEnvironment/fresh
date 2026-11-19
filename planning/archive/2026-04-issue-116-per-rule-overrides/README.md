@@ -8,4 +8,3 @@ PR #117
 
 ## SRED
 
-Relates to NewGraphEnvironment/sred-2025-2026#16

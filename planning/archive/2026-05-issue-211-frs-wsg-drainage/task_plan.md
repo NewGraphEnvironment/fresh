@@ -36,7 +36,7 @@ Param name `watershed_group_code` (not `wsgs`) for fresh-internal vocabulary con
 - [x] `lintr::lint_package()` — **skipped**: fresh hasn't adopted lintr (not in Suggests). Convention is link's, not fresh's. Code follows fresh's existing R style by inspection.
 - [x] `/code-check` — skipped on this Release commit (docs + version bump only; R code already passed `/code-check` clean in Phases 2 + 3)
 - [ ] Atomic commit `"Release v0.32.0"` as final commit of branch
-- [ ] `/planning-archive` → `/gh-pr-push` (PR body: `Closes #211` + `Relates to NewGraphEnvironment/sred-2025-2026#24`)
+- [ ] `/planning-archive` → `/gh-pr-push` (PR body: `Closes #211` + `Relates to an internal issue`)
 
 ## Validation
 
