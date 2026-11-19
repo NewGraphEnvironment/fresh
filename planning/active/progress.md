@@ -55,3 +55,16 @@
 - A3 measured and disproved; the example gains a `wsg_code` block and the
   view's join key gains the parent segment. Filed #300 (the residual this
   narrows but does not close) and link#452 (the near_river schema mirror).
+
+## Session 2026-11-10 to 2026-11-19
+
+- Mutation sweep, 24 sites: 20 caught. The four uncaught were real gaps
+  (`findings.md`, "The mutation sweep"), closed in fc78496 with read-side
+  tests, a second enumeration test over the 19 `.frs_key_match()` calls, and a
+  test for the walk-table DROP's `try()`; the `after = FALSE` row was dropped
+  as redundant.
+- Full 25-site re-run on 2026-11-10 stopped at site 9 when the database host
+  stopped answering; the suite blocked instead of skipping. Filed #305.
+- 2026-11-19: branch pushed for the first time (fc78496); merged `main`
+  (README and planning text only, 9228607); 25-site sweep relaunched in full
+  at 18:09Z on fc78496; `/code-check branch` round 5 spawned at 18:10Z.
