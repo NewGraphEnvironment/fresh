@@ -24,3 +24,5 @@
 "293 predicate key must be stated","R/frs_habitat_predicates.R","  if (!is.null(near_river_table) && is.null(near_river_lfid)) {","1","substitute","  if (FALSE) {","frs_habitat_predicates"
 "293 walk DROP cannot mask the real error","R/frs_near_river.R","  on.exit(try(.frs_db_execute(conn, walk_drop), silent = TRUE), add = TRUE)","1","substitute","  on.exit(.frs_db_execute(conn, walk_drop), add = TRUE)","frs_near_river"
 "293 subtractive clear keys on the parent","R/frs_habitat.R","  key <- .frs_key_match(""h"", ""s"", lfid)","3","substitute","  key <- .frs_key_match(""h"", ""s"", FALSE)",".frs_connected_waterbody"
+"293 key keeps the group","R/utils.R","  parts <- c(""id_segment"", ""watershed_group_code"",","1","substitute","  parts <- c(""id_segment"",",".frs_key_match"
+"293 predicate key is strictly logical","R/frs_habitat_predicates.R","      (!is.logical(near_river_lfid) || length(near_river_lfid) != 1L ||","1","substitute","      (FALSE ||","frs_habitat_predicates"

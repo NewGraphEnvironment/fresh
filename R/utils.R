@@ -1483,8 +1483,11 @@
 #' path in fresh treats differently, which is why it is refused here rather
 #' than handled three ways (fresh#293 review, round 2).
 #'
-#' A network with **neither** column populated is unaffected: `id_segment` is
-#' then the key and the group plays no part, which is the fresh#225 case.
+#' A network with **neither** column populated is not refused here: the
+#' overwrite delete keys on `id_segment` alone, so its rows are replaced rather
+#' than duplicated (fresh#225). They are still not READ: the same joins and the
+#' `near_river` predicate equate the group whatever the key, so no pass sees
+#' them. That predates fresh#293 and is fresh#308.
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param table Character. Schema-qualified working streams table.

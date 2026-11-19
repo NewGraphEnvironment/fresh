@@ -85,6 +85,14 @@ test_that("the predicate builder refuses to guess the near_river key", {
   expect_error(
     frs_habitat_predicates(sp, near_river_table = "w.streams_near_river"),
     "near_river_lfid must be given")
+  # Nor does anything else stand in for an answer: isTRUE() alone would read
+  # each of these as FALSE, the short key (round 5 of /code-check).
+  for (bad in list(NA, "TRUE", c(TRUE, TRUE), 1)) {
+    expect_error(
+      frs_habitat_predicates(sp, near_river_table = "w.streams_near_river",
+                             near_river_lfid = bad),
+      "near_river_lfid must be TRUE or FALSE")
+  }
   # Both answers are accepted, and they differ.
   with_key <- frs_habitat_predicates(sp,
     near_river_table = "w.streams_near_river", near_river_lfid = TRUE)

@@ -155,7 +155,8 @@
 #'   edge_types_explicit = c(1000, 1100),
 #'   near_river = list(discharge_min = 3, distance_max = 1000)))
 #' frs_habitat_predicates(sp_params,
-#'   near_river_table = "working.streams_habitat_near_river")$rear
+#'   near_river_table = "working.streams_habitat_near_river",
+#'   near_river_lfid = TRUE)$rear
 #'
 #' # The same rule with no mapping inherits the stage's pair from the
 #' # thresholds CSV (here a 20 m channel within 1 km, under cw)
@@ -163,7 +164,8 @@
 #' sp_params$params_sp$near_river$rear <- list(measure = "channel_width",
 #'   channel_width_min = 20, distance_max = 1000)
 #' frs_habitat_predicates(sp_params,
-#'   near_river_table = "working.streams_habitat_near_river")$rear
+#'   near_river_table = "working.streams_habitat_near_river",
+#'   near_river_lfid = TRUE)$rear
 frs_habitat_predicates <- function(sp_params, model = "cw",
                                    near_river_table = NULL,
                                    near_river_lfid = NULL) {
@@ -174,6 +176,13 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
       "frs_habitat_classify() passes from fresh 0.54.0, and FALSE for the ",
       "key fresh 0.53.0 used. This function cannot look at the tables, and a ",
       "default would read a shared table on the shorter key."), call. = FALSE)
+  }
+  # Strict, as .frs_key_match() is: isTRUE() would turn NA or "TRUE" into
+  # FALSE, the short key the requirement above exists to prevent.
+  if (!is.null(near_river_lfid) &&
+      (!is.logical(near_river_lfid) || length(near_river_lfid) != 1L ||
+       is.na(near_river_lfid))) {
+    stop("near_river_lfid must be TRUE or FALSE", call. = FALSE)
   }
   near_river_lfid <- isTRUE(near_river_lfid)
   stopifnot(is.list(sp_params),

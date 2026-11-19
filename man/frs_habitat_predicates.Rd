@@ -171,7 +171,8 @@ sp_params$params_sp$rules$rear <- list(list(
   edge_types_explicit = c(1000, 1100),
   near_river = list(discharge_min = 3, distance_max = 1000)))
 frs_habitat_predicates(sp_params,
-  near_river_table = "working.streams_habitat_near_river")$rear
+  near_river_table = "working.streams_habitat_near_river",
+  near_river_lfid = TRUE)$rear
 
 # The same rule with no mapping inherits the stage's pair from the
 # thresholds CSV (here a 20 m channel within 1 km, under cw)
@@ -179,7 +180,8 @@ sp_params$params_sp$rules$rear[[1]]$near_river <- NULL
 sp_params$params_sp$near_river$rear <- list(measure = "channel_width",
   channel_width_min = 20, distance_max = 1000)
 frs_habitat_predicates(sp_params,
-  near_river_table = "working.streams_habitat_near_river")$rear
+  near_river_table = "working.streams_habitat_near_river",
+  near_river_lfid = TRUE)$rear
 }
 \seealso{
 Other habitat: 

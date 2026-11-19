@@ -727,9 +727,11 @@ test_that("another group's spawning does not lend lake adjacency to this group's
   # Again with the decoy in THIS group, on another parent segment. Same
   # rescue, reached through the parent-segment arm of the join rather than the
   # group arm -- and that arm had no test at all until the mutation sweep
-  # could not credit it (fresh#293). The OTHR row above stays, so this second
-  # assertion fails if either arm is dropped; the first one attributes the
-  # group arm on its own.
+  # could not credit it (fresh#293). The OTHR row above differs from its
+  # target in both group and parent segment, so with the column present
+  # neither arm alone is attributed by it; the group arm is pinned on a
+  # habitat table without linear_feature_id ("without linear_feature_id, the
+  # group alone keeps ...", below).
   DBI::dbExecute(conn, "UPDATE pg_temp.bkt_habitat SET spawning = TRUE
                         WHERE id_segment = 5 AND linear_feature_id = 5")
   .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE), wsg = "TEST")
@@ -743,4 +745,52 @@ test_that("another group's spawning does not lend lake adjacency to this group's
   run()
 
   expect_false(.bkt_flags(conn, "spawning")[["5"]])
+})
+
+# --- A habitat table without linear_feature_id: the group is the whole key ---
+#
+# Every block above runs on a fixture carrying the parent segment, and every
+# cross-group decoy differs from its target in that as well as in the group, so
+# none of them can fail when the group arm of .frs_key_match() is dropped
+# (measured, fresh#293 review, round 5). Where the habitat table does not carry
+# the parent, the group is the only thing separating two groups' colliding ids
+# (fresh#218, fresh#242). These two are the first two blocks of this file
+# again, on that shape.
+
+test_that("without linear_feature_id, the group alone keeps another group's spawning", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 0, spawn = TRUE),
+    .bkt_seg(2, 1000, wbk = 11, rear = TRUE),
+    .bkt_seg(3, 0, spawn = TRUE, blk = 2L, wscode = "200", y = 5000)))
+  .bkt_habitat_add(conn, .bkt_seg(3, 0, spawn = TRUE))
+  .bkt_drop_habitat_lfid(conn)
+  expect_false(.frs_lfid_pair(conn, "pg_temp.bkt_habitat",
+                              "pg_temp.bkt_streams"))
+  .cwb_run(conn)
+
+  own <- .bkt_flags(conn, "spawning")
+  expect_true(own[["1"]])
+  expect_false(own[["3"]])
+  expect_true(.bkt_flags(conn, "spawning", wsg = "OTHR")[["3"]])
+})
+
+test_that("without linear_feature_id, another group's rearing lends no origin", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 1000, wbk = 11, rear = TRUE),
+    .bkt_seg(2, 2000, spawn = TRUE),
+    .bkt_seg(3, 1000, wbk = 22, blk = 2L, wscode = "200", y = 5000),
+    .bkt_seg(4, 0, spawn = TRUE, blk = 2L, wscode = "200", y = 5000)))
+  .bkt_habitat_add(conn, .bkt_seg(3, 1000, rear = TRUE))
+  .bkt_drop_habitat_lfid(conn)
+  .cwb_run(conn)
+
+  own <- .bkt_flags(conn, "spawning")
+  expect_true(own[["2"]])
+  expect_false(own[["4"]])
 })

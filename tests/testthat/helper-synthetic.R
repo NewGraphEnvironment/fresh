@@ -110,6 +110,21 @@
   }
 }
 
+# Drop linear_feature_id from the habitat fixture, after any decoys are in.
+# The habitat joins then key on (id_segment, watershed_group_code), and the
+# group is the ONLY thing keeping two groups' colliding ids apart -- the shape
+# of a habitat table written before fresh 0.54.0, or by any writer that does
+# not carry the parent. With the column present, every cross-group decoy above
+# also differs in its parent segment, so no test on that shape can see the
+# group arm of .frs_key_match() (fresh#293 review, round 5). The streams table
+# keeps it: the connectivity trace walks on linear_feature_id, as it did
+# before fresh#293.
+.bkt_drop_habitat_lfid <- function(conn) {
+  DBI::dbExecute(conn,
+    "ALTER TABLE pg_temp.bkt_habitat DROP COLUMN linear_feature_id")
+  invisible(conn)
+}
+
 # One species' flag column, named by id_segment, for one group.
 .bkt_flags <- function(conn, column = "lake_rearing", species = "BT",
                        wsg = "TEST") {
