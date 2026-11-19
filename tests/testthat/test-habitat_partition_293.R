@@ -777,13 +777,20 @@ test_that("no habitat-to-streams join is left spelled inline", {
     .frs_near_river_sql = 1L)
 
   ns <- asNamespace("fresh")
-  pat <- "[A-Za-z0-9_]+[.]id_segment = [A-Za-z0-9_]+[.]id_segment"
+  # Wider than one spelling (round 6 of /code-check): any spacing around the
+  # `=`, a line break inside the SQL string (deparse() writes it as the two
+  # characters backslash-n), a sprintf() placeholder for an alias, and a
+  # `USING (...)` naming id_segment -- the form data-raw/ already uses.
+  ws <- "(\\s|\\\\n)*"
+  pat <- paste0("[A-Za-z0-9_%]+[.]id_segment", ws, "=", ws,
+                "[A-Za-z0-9_%]+[.]id_segment",
+                "|USING", ws, "[(][^)]*id_segment")
   found <- integer(0)
   for (nm in ls(ns, all.names = TRUE)) {
     f <- get(nm, envir = ns)
     if (!is.function(f)) next
     txt <- paste(deparse(f), collapse = "\n")
-    m <- gregexpr(pat, txt)[[1]]
+    m <- gregexpr(pat, txt, perl = TRUE)[[1]]
     n <- if (length(m) == 1 && m[[1]] == -1) 0L else length(m)
     if (n > 0) found[[nm]] <- n
   }
@@ -791,9 +798,20 @@ test_that("no habitat-to-streams join is left spelled inline", {
   # The regex has to be able to see the shape it is policing, or this test is
   # the same proxy as the one it replaces: both alias orders, matched against
   # the text the fixed sites used to carry.
-  expect_match("     INNER JOIN %s hr ON s2.id_segment = hr.id_segment",
-               pat)
-  expect_match("       INNER JOIN %s h ON h.id_segment = s.id_segment", pat)
+  # Probed through deparse(), the text the loop above actually searches.
+  spelled <- function(f) paste(deparse(f), collapse = "\n")
+  probes <- list(
+    function() "INNER JOIN %s hr ON s2.id_segment = hr.id_segment",
+    function() "INNER JOIN %s h ON h.id_segment = s.id_segment",
+    function() "ON h.id_segment=s.id_segment",
+    function() "ON h.id_segment =
+       s.id_segment",
+    function() "ON %s.id_segment = %s.id_segment",
+    function() "JOIN t USING (id_segment, watershed_group_code)")
+  for (f in probes) expect_match(spelled(f), pat, perl = TRUE)
+  # And it does not fire on a single-sided equality, or the count would move.
+  expect_no_match(spelled(function() "WHERE h.id_segment = 5"), pat,
+                  perl = TRUE)
 
   expect_identical(found[order(names(found))],
                    allowed[order(names(allowed))])

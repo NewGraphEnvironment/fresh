@@ -96,10 +96,11 @@ Two limits. A target written before 0.54.0 carries no
 \code{linear_feature_id}; the column is added, and the call then refuses while
 any row still holds NULL for it, because such a row is one no partition
 delete can address. Re-running each watershed group with \code{wsg_code} set
-backfills them one group at a time. And a species' rows that no later run
-classifies are never removed, so they keep an \code{id_segment} from the
-numbering of the run that wrote them: within a parent segment they are
-ambiguous, and nothing in fresh deletes them.}
+backfills them one group at a time. And a species' rows that no later
+custom-AOI run classifies are not removed by one, so they keep an
+\code{id_segment} from the numbering of the run that wrote them: within a
+parent segment they are ambiguous until a whole-group run (\code{wsg_code}
+set) of their group replaces every species' rows.}
 
 \item{verbose}{Logical. Print progress. Default \code{TRUE}.}
 }

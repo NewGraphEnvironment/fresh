@@ -1539,9 +1539,11 @@
 
 #' Do both tables carry the parent segment
 #'
-#' The one test behind every [.frs_key_match()] call and every partition
-#' delete: `linear_feature_id` is usable only when both sides have it. One
-#' side only is the mismatch [.frs_persist_delete_key()] refuses; neither side
+#' The test behind every [.frs_key_match()] call: `linear_feature_id` is
+#' usable only when both sides have it. The partition deletes choose their key
+#' in [.frs_persist_delete_key()] from the two column lists by the same rule,
+#' so it is not called there. One side only is the mismatch
+#' [.frs_persist_delete_key()] refuses; neither side
 #' is a network that is not the Freshwater Atlas, where `id_segment` is the
 #' only identity there is.
 #'

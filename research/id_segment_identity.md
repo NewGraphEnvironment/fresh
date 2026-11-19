@@ -149,11 +149,11 @@ Two things that fix only became safe once the reads changed with it:
   target gets the column only when the source has it, and the `id_segment`
   branch stays reachable for the rest.
 
-**What #293 did not fix.** A species' rows that no later run classifies are
-never removed, because a custom-AOI delete is scoped to the species it writes.
-Those rows keep an `id_segment` from the numbering of the run that wrote them,
-so within a parent segment they are ambiguous, and nothing in fresh deletes
-them. Adding the parent narrowed this from "wrong parent" to "ambiguous inside
+**What #293 did not fix.** A species' rows that no later custom-AOI run
+classifies are not removed by one, because a custom-AOI delete is scoped to the
+species it writes. Those rows keep an `id_segment` from the numbering of the run
+that wrote them, so within a parent segment they are ambiguous until a
+whole-group run (`wsg_code` set) of their group replaces every species' rows. Adding the parent narrowed this from "wrong parent" to "ambiguous inside
 one parent"; closing it is the `id_segment`-at-assignment work, the sibling of
 #218, tracked in #300.
 
