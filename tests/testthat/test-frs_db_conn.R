@@ -144,7 +144,22 @@ test_that("idle-connection bounds default on, and ... overrides them", {
   b <- fresh:::.frs_conn_bounds(keepalives_idle = NULL)
   expect_false("keepalives_idle" %in% names(b))
 
-  expect_error(fresh:::.frs_conn_bounds(1L), "named")
+  # Positional args bind to connect_timeout first, so unnamed means extra
+  expect_error(fresh:::.frs_conn_bounds(NULL, 1L), "named")
+})
+
+test_that("whole doubles reach libpq as integers, never in e-notation", {
+  local_pg_env()
+  b <- fresh:::.frs_conn_bounds(tcp_user_timeout = 300000,
+                                keepalives_idle = 1e5)
+  expect_identical(b$tcp_user_timeout, 300000L)
+  expect_identical(as.character(b$keepalives_idle), "100000")
+  big <- fresh:::.frs_conn_bounds(tcp_user_timeout = 3e10)$tcp_user_timeout
+  expect_identical(big, "30000000000")
+  # Left alone: text and fractional values are libpq's to judge
+  expect_identical(fresh:::.frs_conn_bounds(sslmode = "require")$sslmode,
+                   "require")
+  expect_identical(fresh:::.frs_conn_bounds(x = 2.5)$x, 2.5)
 })
 
 test_that("frs_db_conn passes the bounds under every variable group", {

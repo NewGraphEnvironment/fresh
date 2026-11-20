@@ -37,7 +37,7 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
    `.frs_conn_resolve()` and `.frs_conn_params()` call. Without it, `frs_habitat()`'s mirai
    workers (`R/frs_habitat.R:395`, `:581`) would reconnect through `DBI::dbConnect` with no bounds.
 4. **The test helpers that bypass `frs_db_conn()` get the bounds too:** `bcfp_conn()` in
-   `test-frs_network_features-live.R` (a tunnel, which is the silent-host case exactly) and
+   `test-frs_network_features-live.R` (a tunnel: bounded at connect only, since keepalives are answered by the local ssh end; review finding 4) and
    `frs_fwapg_conn()` in `helper-db.R`. The `data-raw/` scripts that call `DBI::dbConnect`
    directly are left alone (they are interactive one-offs) and listed in the PR.
 5. **NEWS and the version bump** are left to `/gh-pr-merge`.
@@ -50,17 +50,18 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 - [x] A silent host with no database: `serverSocket()` on a free localhost port that is never accepted. The kernel completes the handshake and libpq then waits for a startup reply that never comes. Assert `frs_db_conn(host = "127.0.0.1", port = p, connect_timeout = 2)` errors within 15 s (`skip_on_cran()`)
 
 ## Phase 2: Implement (`R/frs_db_conn.R`)
-- [ ] `.frs_conn_bounds(connect_timeout, ...)` validates the timeout, resolves it (argument, then env, then default) and merges the keepalive defaults with `...`
-- [ ] `frs_db_conn()` gains `connect_timeout` and `...`; `.frs_conn_resolve()` adds the bounds to `params` under every source; `.frs_conn_params()` adds them for the workers
-- [ ] roxygen: `@param connect_timeout`, `@param ...`, and a "Timeouts" section (what each bound does, that long queries are not bounded, that `tcp_user_timeout` is Linux only); `devtools::document()`
+- [x] `.frs_conn_bounds(connect_timeout, ...)` validates the timeout, resolves it (argument, then env, then default) and merges the keepalive defaults with `...`
+- [x] `frs_db_conn()` gains `connect_timeout` and `...` and adds the bounds to the resolved params itself (not inside `.frs_conn_resolve()`, whose share branch keeps identity fields only: review finding 3); `.frs_conn_params()` adds them for the workers
+- [x] Whole doubles reach libpq as integers, never e-notation (`.frs_libpq_whole()`; review finding 2)
+- [x] roxygen: `@param connect_timeout`, `@param ...`, and a "Timeouts" section (what each bound does, that long queries are not bounded, that `tcp_user_timeout` is Linux only, and the limits from review findings 4, 5, 7); `devtools::document()`
 
 ## Phase 3: Test helpers and docs
 - [ ] `bcfp_conn()` and `frs_fwapg_conn()` pass the bounds (`do.call` with `fresh:::.frs_conn_bounds()`)
-- [ ] `CLAUDE.md` "Testing on alternate hosts": a host that goes silent now skips within the bound, the same as one that refuses
+- [ ] `CLAUDE.md` "Testing on alternate hosts": a host that goes silent now skips, each gated test after up to `connect_timeout` per address (review finding 6), the same as one that refuses
 
 ## Validation
 - [ ] Tests pass: full `devtools::test()` against the local fwapg. The existing live test "frs_db_conn returns a DBI connection" then proves libpq accepts every default keyword, `tcp_user_timeout` included
-- [ ] Prove the guard fires: in a worktree, drop the `connect_timeout` default and run the silent-host test under GNU `timeout 60`; it must hang (killed), then pass with the default restored. Record the result in `progress.md`
+- [ ] Prove the guard fires: in a worktree, remove `connect_timeout` from `.frs_conn_bounds()`'s output (dropping only the default cannot work, since the test passes 2 explicitly: review finding 1) and run the silent-host test under GNU `timeout 60`; it must hang (killed), then pass with the default restored. Record the result in `progress.md`
 - [ ] `lintr::lint_package()`: no new lints, compared per file against `origin/main`
 - [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
 - [ ] PWF checkboxes match landed work

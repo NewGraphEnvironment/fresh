@@ -24,11 +24,53 @@
 #' The two variable groups are never mixed, so a legacy database name can
 #' not be paired with a standard host.
 #'
+#' @section Timeouts:
+#' libpq waits without limit by default, so a host that stops answering
+#' blocks the call instead of raising an error. `frs_db_conn()` bounds both
+#' waits, so a silent host fails the same way a refusing one does:
+#'
+#' - **Connecting.** `connect_timeout` seconds per host address tried
+#'   (libpq counts each address, and treats 1 as 2). Resolved like the
+#'   other fields: the argument, then `PGCONNECT_TIMEOUT`, then 10.
+#' - **An established connection that goes silent.** TCP keepalives
+#'   (`keepalives_idle = 60`, `keepalives_interval = 10`,
+#'   `keepalives_count = 6`) drop a dead peer in about two minutes rather
+#'   than the operating system's default of about two hours.
+#'   `tcp_user_timeout = 120000` (milliseconds) drops one that stops
+#'   acknowledging data sent to it; libpq applies it only where the system
+#'   supports `TCP_USER_TIMEOUT` (Linux), and ignores it elsewhere.
+#'
+#' A long-running query is not bounded: the server keeps answering
+#' keepalives and acknowledging data while it works. Bound statements with
+#' a server-side `statement_timeout` if you need to.
+#'
+#' Limits of these bounds:
+#'
+#' - Keepalives probe only a connection with nothing in flight. Once a
+#'   query has been sent and not acknowledged, the operating system's
+#'   retransmission timeout applies instead, which `tcp_user_timeout`
+#'   shortens on Linux only.
+#' - Through a local tunnel (an SSH port forward, say), keepalives and
+#'   acknowledgements come from the local end of the tunnel, so only the
+#'   connect is bounded; a remote end that dies after connecting is
+#'   detected by the tunnel's own settings, if at all.
+#' - None of them apply to a Unix-domain socket.
+#' - Keywords passed here take precedence over the same keywords in a
+#'   `PGSERVICE` service file. Pass `NULL` in `...` to defer to the file
+#'   for a keepalive keyword, or give `connect_timeout` explicitly.
+#'
 #' @param dbname Database name. Default `NULL` (resolved as above).
 #' @param host Host name. Default `NULL`.
 #' @param port Port number. Default `NULL`.
 #' @param user User name. Default `NULL`.
 #' @param password Password. Default `NULL`.
+#' @param connect_timeout Seconds libpq waits for each connection attempt,
+#'   a whole number; `0` waits without limit. Default `NULL`: libpq reads
+#'   `PGCONNECT_TIMEOUT` when it is set, otherwise 10. See Timeouts.
+#' @param ... Further libpq connection keywords, passed to
+#'   [DBI::dbConnect()]. A keyword given here replaces the default of the
+#'   same name (`keepalives = 0` turns keepalives off), and `NULL` removes
+#'   it, leaving the value to libpq and the operating system.
 #'
 #' @return A [DBI::DBIConnection-class] object.
 #'
@@ -46,17 +88,25 @@
 #' # Explicit arguments override the environment per field
 #' conn <- frs_db_conn(port = 63333, dbname = "bcfishpass")
 #' DBI::dbDisconnect(conn)
+#'
+#' # A slow link: wait longer to connect
+#' conn <- frs_db_conn(connect_timeout = 30)
+#' DBI::dbDisconnect(conn)
 #' }
 frs_db_conn <- function(
     dbname = NULL,
     host = NULL,
     port = NULL,
     user = NULL,
-    password = NULL
+    password = NULL,
+    connect_timeout = NULL,
+    ...
 ) {
   res <- .frs_conn_resolve(dbname = dbname, host = host, port = port,
                            user = user, password = password)
-  do.call(DBI::dbConnect, c(list(RPostgres::Postgres()), res$params))
+  bounds <- .frs_conn_bounds(connect_timeout = connect_timeout, ...)
+  do.call(DBI::dbConnect,
+          c(list(RPostgres::Postgres()), res$params, bounds))
 }
 
 
@@ -114,6 +164,62 @@ frs_db_conn <- function(
 }
 
 
+#' Timeout keywords for a libpq connection
+#'
+#' One source for the bounds every connection fresh opens carries:
+#' [frs_db_conn()] and the `frs_habitat()` workers (via
+#' `.frs_conn_params()`). `connect_timeout` resolves explicit argument, then
+#' `PGCONNECT_TIMEOUT` (left for libpq to read, so nothing is returned),
+#' then 10 s. The idle-connection defaults merge with `...`: a named value
+#' replaces a default, `NULL` removes it, and any other keyword passes
+#' through to libpq.
+#'
+#' @return Named list of libpq connection keywords.
+#' @noRd
+.frs_conn_bounds <- function(connect_timeout = NULL, ...) {
+  bounds <- list(keepalives = 1L, keepalives_idle = 60L,
+                 keepalives_interval = 10L, keepalives_count = 6L,
+                 tcp_user_timeout = 120000L)
+
+  if (!is.null(connect_timeout)) {
+    ok <- is.numeric(connect_timeout) && length(connect_timeout) == 1L &&
+      is.finite(connect_timeout) && connect_timeout >= 0 &&
+      connect_timeout == round(connect_timeout)
+    if (!ok) {
+      stop("frs_db_conn(): connect_timeout must be one whole number of ",
+           "seconds, 0 or more (0 waits without limit).", call. = FALSE)
+    }
+    bounds$connect_timeout <- as.integer(connect_timeout)
+  } else if (!nzchar(Sys.getenv("PGCONNECT_TIMEOUT"))) {
+    bounds$connect_timeout <- 10L
+  }
+
+  dots <- list(...)
+  if (length(dots) > 0L &&
+      (is.null(names(dots)) || any(!nzchar(names(dots))))) {
+    stop("frs_db_conn(): arguments in ... must be named libpq connection ",
+         "keywords.", call. = FALSE)
+  }
+  for (nm in names(dots)) {
+    bounds[[nm]] <- dots[[nm]]
+  }
+  # RPostgres hands values to libpq as text, and a whole double such as
+  # 3e5 prints as "3e+05", which libpq refuses as an integer.
+  lapply(bounds, .frs_libpq_whole)
+}
+
+
+.frs_libpq_whole <- function(x) {
+  if (!is.double(x) || length(x) != 1L || !is.finite(x) || x != round(x)) {
+    return(x)
+  }
+  if (abs(x) <= .Machine$integer.max) {
+    return(as.integer(x))
+  }
+  format(x, scientific = FALSE, trim = TRUE)
+}
+
+
 .frs_is_set <- function(x) {
   !is.null(x) && length(x) == 1L && !is.na(x) && nzchar(as.character(x))
 }
@@ -134,18 +240,29 @@ frs_db_conn <- function(
 #' pass `password` to [frs_habitat()] in that case.
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
+#' The timeout keywords from `.frs_conn_bounds()` ride along, so a worker's
+#' connection is bounded the same way. A worker may not share the parent's
+#' environment, so a `PGCONNECT_TIMEOUT` set in the parent is passed as an
+#' explicit value. A `connect_timeout` or `...` the parent's
+#' [frs_db_conn()] call was given cannot be read back from `conn`, so
+#' workers get the defaults.
+#'
 #' @param password Character. Password for reconnection. Required for
 #'   password-authenticated databases. Not needed for trust auth or
 #'   `.pgpass` file.
-#' @return Named list with `dbname`, `host`, `port`, `user`, `password`.
+#' @return Named list with `dbname`, `host`, `port`, `user`, `password`,
+#'   then the timeout keywords.
 #' @noRd
 .frs_conn_params <- function(conn, password = "") {
   info <- DBI::dbGetInfo(conn)
-  list(
+  bounds <- .frs_conn_bounds()
+  ct_env <- Sys.getenv("PGCONNECT_TIMEOUT")
+  if (nzchar(ct_env)) bounds$connect_timeout <- ct_env
+  c(list(
     dbname = info$dbname,
     host = info$host,
     port = info$port,
     user = info$username,
     password = password
-  )
+  ), bounds)
 }

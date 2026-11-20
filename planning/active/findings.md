@@ -96,9 +96,14 @@ connection that is not carrying traffic at all.
 
 | Error | Resolution |
 |-------|------------|
+| `.frs_conn_bounds(1L)` did not error in the unnamed-`...` test | A positional value binds to `connect_timeout` first; the test passes `NULL, 1L` |
 
 ## Fixture and keyword probes (2026-11-20)
 
 - Silent listener (`serverSocket()` never accepted) against `DBI::dbConnect(host = "127.0.0.1", connect_timeout = 2L)`: `timeout expired` after 2.14 s. The same call with no `connect_timeout`, under GNU `timeout 25`: killed (exit 124). So the fixture reaches the unbounded wait and the bound ends it.
 - Live connect to the local fwapg with `connect_timeout`, `keepalives`, `keepalives_idle`, `keepalives_interval`, `keepalives_count`, `tcp_user_timeout`: succeeds on macOS. An unknown keyword is refused (`invalid connection option "not_a_keyword"`), so a successful live connect proves libpq accepts each default.
 - Red phase: before the implementation the silent-host test fails on its `timeout expired` match. `connect_timeout` is an unused argument there, which errors at once and is skipped, so the message assertion is what keeps the test from passing vacuously.
+
+## Plan review (2026-11-20)
+
+Nine findings, in `planning/active/review-305.md` with what was done about each. Two changed the build: the bounds sit in `frs_db_conn()` rather than `.frs_conn_resolve()`, and whole doubles are normalised before libpq sees them. One changed the proof: the mutation removes `connect_timeout` from the bounds, since the test passes it explicitly.

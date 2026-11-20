@@ -9,7 +9,9 @@ frs_db_conn(
   host = NULL,
   port = NULL,
   user = NULL,
-  password = NULL
+  password = NULL,
+  connect_timeout = NULL,
+  ...
 )
 }
 \arguments{
@@ -22,6 +24,15 @@ frs_db_conn(
 \item{user}{User name. Default \code{NULL}.}
 
 \item{password}{Password. Default \code{NULL}.}
+
+\item{connect_timeout}{Seconds libpq waits for each connection attempt,
+a whole number; \code{0} waits without limit. Default \code{NULL}: libpq reads
+\code{PGCONNECT_TIMEOUT} when it is set, otherwise 10. See Timeouts.}
+
+\item{...}{Further libpq connection keywords, passed to
+\code{\link[DBI:dbConnect]{DBI::dbConnect()}}. A keyword given here replaces the default of the
+same name (\code{keepalives = 0} turns keepalives off), and \code{NULL} removes
+it, leaving the value to libpq and the operating system.}
 }
 \value{
 A \link[DBI:DBIConnection-class]{DBI::DBIConnection} object.
@@ -53,6 +64,45 @@ shown once per session.
 The two variable groups are never mixed, so a legacy database name can
 not be paired with a standard host.
 }
+\section{Timeouts}{
+
+libpq waits without limit by default, so a host that stops answering
+blocks the call instead of raising an error. \code{frs_db_conn()} bounds both
+waits, so a silent host fails the same way a refusing one does:
+\itemize{
+\item \strong{Connecting.} \code{connect_timeout} seconds per host address tried
+(libpq counts each address, and treats 1 as 2). Resolved like the
+other fields: the argument, then \code{PGCONNECT_TIMEOUT}, then 10.
+\item \strong{An established connection that goes silent.} TCP keepalives
+(\code{keepalives_idle = 60}, \code{keepalives_interval = 10},
+\code{keepalives_count = 6}) drop a dead peer in about two minutes rather
+than the operating system's default of about two hours.
+\code{tcp_user_timeout = 120000} (milliseconds) drops one that stops
+acknowledging data sent to it; libpq applies it only where the system
+supports \code{TCP_USER_TIMEOUT} (Linux), and ignores it elsewhere.
+}
+
+A long-running query is not bounded: the server keeps answering
+keepalives and acknowledging data while it works. Bound statements with
+a server-side \code{statement_timeout} if you need to.
+
+Limits of these bounds:
+\itemize{
+\item Keepalives probe only a connection with nothing in flight. Once a
+query has been sent and not acknowledged, the operating system's
+retransmission timeout applies instead, which \code{tcp_user_timeout}
+shortens on Linux only.
+\item Through a local tunnel (an SSH port forward, say), keepalives and
+acknowledgements come from the local end of the tunnel, so only the
+connect is bounded; a remote end that dies after connecting is
+detected by the tunnel's own settings, if at all.
+\item None of them apply to a Unix-domain socket.
+\item Keywords passed here take precedence over the same keywords in a
+\code{PGSERVICE} service file. Pass \code{NULL} in \code{...} to defer to the file
+for a keepalive keyword, or give \code{connect_timeout} explicitly.
+}
+}
+
 \examples{
 \dontrun{
 # Standard libpq env vars, e.g. in ~/.Renviron:
@@ -62,6 +112,10 @@ DBI::dbDisconnect(conn)
 
 # Explicit arguments override the environment per field
 conn <- frs_db_conn(port = 63333, dbname = "bcfishpass")
+DBI::dbDisconnect(conn)
+
+# A slow link: wait longer to connect
+conn <- frs_db_conn(connect_timeout = 30)
 DBI::dbDisconnect(conn)
 }
 }
