@@ -12,13 +12,16 @@
 skip_on_cran()
 skip_on_ci()
 
+# Carries frs_db_conn()'s timeout bounds (#305), so a tunnel that accepts and
+# never answers fails the connect, and the gate below skips, instead of
+# blocking the suite.
 bcfp_conn <- function() {
-  DBI::dbConnect(
+  do.call(DBI::dbConnect, c(list(
     RPostgres::Postgres(),
     host = "localhost", port = 63333, dbname = "bcfishpass",
     user = Sys.getenv("PG_USER_SHARE", "newgraph"),
     password = Sys.getenv("PG_PASS_SHARE")
-  )
+  ), fresh:::.frs_conn_bounds()))
 }
 
 skip_if_no_conn(bcfp_conn)

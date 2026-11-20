@@ -56,8 +56,8 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 - [x] roxygen: `@param connect_timeout`, `@param ...`, and a "Timeouts" section (what each bound does, that long queries are not bounded, that `tcp_user_timeout` is Linux only, and the limits from review findings 4, 5, 7); `devtools::document()`
 
 ## Phase 3: Test helpers and docs
-- [ ] `bcfp_conn()` and `frs_fwapg_conn()` pass the bounds (`do.call` with `fresh:::.frs_conn_bounds()`)
-- [ ] `CLAUDE.md` "Testing on alternate hosts": a host that goes silent now skips, each gated test after up to `connect_timeout` per address (review finding 6), the same as one that refuses
+- [x] `bcfp_conn()` and `frs_fwapg_conn()` pass the bounds (`do.call` with `fresh:::.frs_conn_bounds()`)
+- [x] `CLAUDE.md` "Testing on alternate hosts": a host that goes silent now skips, each gated test after up to `connect_timeout` per address (review finding 6), the same as one that refuses
 
 ## Validation
 - [ ] Tests pass: full `devtools::test()` against the local fwapg. The existing live test "frs_db_conn returns a DBI connection" then proves libpq accepts every default keyword, `tcp_user_timeout` included
