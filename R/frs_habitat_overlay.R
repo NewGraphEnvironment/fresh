@@ -42,6 +42,7 @@
 #'   ```
 #'   to.id_segment = bridge.id_segment
 #'   AND to.watershed_group_code = bridge.watershed_group_code
+#'   AND to.linear_feature_id = bridge.linear_feature_id   -- when both carry it
 #'   AND bridge.<by[1]> = from.<by[1]>
 #'   AND bridge.downstream_route_measure >= from.downstream_route_measure
 #'   AND bridge.upstream_route_measure   <= from.upstream_route_measure
@@ -53,7 +54,11 @@
 #'   matches `watershed_group_code` as well as `id_segment`, because
 #'   `id_segment` is unique only within a watershed group: a `to` table
 #'   holding several groups (as `fresh.streams_habitat` does) has other
-#'   groups' rows at the same `id_segment`, and they are left alone.
+#'   groups' rows at the same `id_segment`, and they are left alone. It also
+#'   matches `linear_feature_id` where both tables carry it: since fresh#293
+#'   scoped the partition delete to the ground a job reinserts, one group can
+#'   hold **two jobs'** rows with independently derived `id_segment` values,
+#'   and the parent segment is what separates those.
 #'
 #' Future bridges aren't required to be `fresh.streams` — any table
 #' providing `id_segment` + the join-key columns + range columns
@@ -267,9 +272,13 @@ frs_habitat_overlay <- function(conn, from, to,
     }
     from_clause <- sprintf("FROM %s AS s, %s AS k", bridge, from)
     bk_pred <- paste(sprintf("s.%s = k.%s", by_eq, by_eq), collapse = " AND ")
+    # `to` is shared and, since fresh#293 narrowed the partition delete, one
+    # watershed group can hold two jobs' rows at a colliding id_segment, so
+    # the bridge match adds the parent segment where both tables carry it.
+    # Direct mode's key is the caller's `by` and is fresh#277's question.
     join_pred <- paste0(
-      "h.id_segment = s.id_segment",
-      " AND h.watershed_group_code = s.watershed_group_code AND ", bk_pred,
+      .frs_key_match("h", "s", .frs_lfid_pair(conn, to, bridge)),
+      " AND ", bk_pred,
       " AND s.downstream_route_measure >= k.downstream_route_measure",
       " AND s.upstream_route_measure   <= k.upstream_route_measure")
   }

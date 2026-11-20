@@ -32,12 +32,15 @@ test_that("distance_max caps at the bank distance, inclusive", {
   .nr_fixture(conn, .nr_tributary(), scale = 0.01)
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   # 950 m: t3 is 900 m from the bank but 1000 m from the centreline.
+  # Each assertion names its own pair's distance. Since fresh#293 a call
+  # replaces only the pairs it walks, so an earlier distance's rows are still
+  # in the table and an unfiltered read would see them all.
   nr_run(conn, d = 950)
-  expect_identical(names(.nr_dist(conn)), c("10", "11", "12", "13"))
+  expect_identical(names(.nr_dist(conn, d = 950)), c("10", "11", "12", "13"))
   nr_run(conn, d = 1900)
-  expect_true("14" %in% names(.nr_dist(conn)))
+  expect_true("14" %in% names(.nr_dist(conn, d = 1900)))
   nr_run(conn, d = 1899.9)
-  expect_false("14" %in% names(.nr_dist(conn)))
+  expect_false("14" %in% names(.nr_dist(conn, d = 1899.9)))
 })
 
 test_that("the bank subtraction holds with the straight-line prefilter live", {
@@ -228,12 +231,13 @@ test_that("a stretch outside the table counts at its straight length", {
   .nr_fixture(conn, .nr_offtable())
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn, d = 5000)
-  expect_identical(.nr_dist(conn), c(`51` = 2000, `52` = 2500))
-  # One discharge and distance gets one answer, whatever else is asked.
+  expect_identical(.nr_dist(conn, d = 5000), c(`51` = 2000, `52` = 2500))
+  # One discharge and distance gets one answer, whatever else is asked --
+  # read at its own distance, since a call now replaces only its own pairs.
   nr_run(conn, q = c(3, 1), d = c(1000, 9000))
-  expect_length(.nr_dist(conn), 0)
+  expect_length(.nr_dist(conn, d = 1000), 0)
   nr_run(conn, q = 3, d = 1000)
-  expect_length(.nr_dist(conn), 0)
+  expect_length(.nr_dist(conn, d = 1000), 0)
 })
 
 test_that("bank = FALSE measures to the centreline", {
@@ -267,21 +271,46 @@ test_that("on the origin's own line a row upstream is never on the path", {
   expect_identical(.nr_dist(conn)[c("13", "14")], c(`13` = 900, `14` = 1900))
 })
 
-test_that("only the table's groups are replaced", {
+test_that("only the ground the walk covers is replaced", {
   skip_if_no_conn()
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
   .nr_fixture(conn, .nr_tributary())
   DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.nr_near")
   nr_run(conn)
-  DBI::dbExecute(conn, "INSERT INTO pg_temp.nr_near VALUES
-                          (999, 'TEST', 'discharge', 3, 1000, 1),
-                          (999, 'OTHR', 'discharge', 3, 1000, 1)")
+
+  # Three decoys, distinguished by the parent segment the delete keys on
+  # (fresh#293). Before 0.54.0 the delete removed every group the streams
+  # table mentioned, so the first two went and only the third survived --
+  # which is the loss, since a custom AOI never puts them back.
+  # as.character(), not %d or %.0f: a bigint comes back from the driver as an
+  # integer64, whose underlying bits a numeric format reinterprets -- 1 became
+  # 0 here, so the third decoy named ground the table does not hold and
+  # survived for the wrong reason (code-check-r.md, "A database driver's value
+  # is not a base R type").
+  held <- as.character(DBI::dbGetQuery(conn,
+    "SELECT min(linear_feature_id) AS l FROM pg_temp.nr_streams")$l)
+  expect_match(held, "^[0-9]+$")
+  DBI::dbExecute(conn, sprintf(
+    "INSERT INTO pg_temp.nr_near
+       (id_segment, linear_feature_id, watershed_group_code, measure,
+        threshold, distance_max, dist_m)
+     VALUES (901, -999, 'TEST', 'discharge', 3, 1000, 1),
+            (902, -998, 'OTHR', 'discharge', 3, 1000, 1),
+            (903, %s, 'TEST', 'discharge', 3, 1000, 1)", held))
   nr_run(conn)
-  kept <- DBI::dbGetQuery(conn, "SELECT watershed_group_code w
-                                 FROM pg_temp.nr_near WHERE id_segment = 999")
-  expect_identical(kept$w, "OTHR")
-  expect_length(.nr_dist(conn), 4)
+
+  kept <- DBI::dbGetQuery(conn,
+    "SELECT id_segment FROM pg_temp.nr_near
+      WHERE id_segment IN (901, 902, 903) ORDER BY 1")$id_segment
+  # Same group, other ground: kept. Other group: kept. Ground this walk
+  # holds: replaced, and the walk writes no row at that id_segment.
+  expect_identical(as.integer(kept), c(901L, 902L))
+  # The walk's own rows are replaced, not duplicated. Decoy 901 is in this
+  # group at the same measure and distance, so it is counted too and is
+  # excluded here rather than the count being loosened.
+  walked <- .nr_dist(conn)
+  expect_length(walked[!names(walked) %in% "901"], 4)
 })
 
 test_that("frs_near_river reports rows measured and rows with no local code", {

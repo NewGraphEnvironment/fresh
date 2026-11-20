@@ -440,12 +440,16 @@ test_that("a 0.41.0 near-river table stops classify before any write (round 1)",
   for (t in c("pg_temp.nr_hab", "pg_temp.nr_hab_near_river")) {
     DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
   }
+  # linear_feature_id, and a real one: without it the target's own pre-flight
+  # refuses the call before the walk, and every case below would then be
+  # testing that refusal rather than what it says it tests (fresh#293).
   DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_hab (id_segment integer,
+    linear_feature_id bigint,
     watershed_group_code varchar(4), species_code text, accessible boolean,
     spawning boolean, rearing boolean, lake_rearing boolean,
     wetland_rearing boolean)")
   DBI::dbExecute(conn, "INSERT INTO pg_temp.nr_hab VALUES
-    (1, 'TEST', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
+    (1, 1, 'TEST', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
   DBI::dbExecute(conn, "CREATE TABLE pg_temp.nr_hab_near_river (id_segment
     integer, watershed_group_code varchar(4), discharge_min double precision,
     distance_max double precision, dist_m double precision)")
@@ -523,7 +527,24 @@ test_that("the per-species progress line counts only this job's groups", {
       data.frame(acc = 1L, spn = 1L, rr = 1L)
     })
   counts <- tryCatch({
-    local_mocked_bindings(.frs_db_execute = function(conn, sql) 0L)
+    local_mocked_bindings(
+      .frs_db_execute = function(conn, sql) 0L,
+      # The partition key is chosen from the two tables' columns and the
+      # count is scoped by that key, so the lookup is mocked rather than the
+      # scope being assumed. Both tables carry the parent segment in reality
+      # (fresh#293), and the NULL-key guard's count comes back 0 from the
+      # stub above.
+      .frs_cols_of = function(conn, tbl) {
+        c("id_segment", "watershed_group_code", "linear_feature_id")
+      },
+      # The guard reads the target itself, through its own DBI call rather
+      # than one lexically inside frs_habitat_classify(), so the stub above
+      # does not reach it and a mock connection would raise.
+      .frs_null_key_guard = function(conn, to, key, cols_added = character()) {
+        invisible(NULL)
+      },
+      # Same reason: it reads the streams table through its own DBI call.
+      .frs_group_required = function(conn, table, lfid) invisible(NULL))
     frs_habitat_classify("mock", table = "working.streams",
       to = "fresh.streams_habitat", species = "CO", gate = FALSE,
       verbose = TRUE)
@@ -533,6 +554,10 @@ test_that("the per-species progress line counts only this job's groups", {
   # Loud, not a skip: a guard that fails toward skip would turn this pin green
   # the moment a real DB call is added upstream of the count.
   expect_gt(length(counts), 0)
-  expect_match(counts[1], "watershed_group_code IN", fixed = TRUE)
+  # Scoped by the key the delete used, not by the watershed group: since
+  # fresh#293 a group can hold another job's rows, so counting by group
+  # over-reports what this job wrote -- the same defect one column narrower.
+  expect_match(counts[1], "linear_feature_id IN", fixed = TRUE)
+  expect_false(grepl("watershed_group_code IN", counts[1], fixed = TRUE))
   expect_match(counts[1], "FROM working.streams s", fixed = TRUE)
 })

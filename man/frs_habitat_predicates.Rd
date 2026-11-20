@@ -4,7 +4,12 @@
 \alias{frs_habitat_predicates}
 \title{Build SQL predicates for one species' habitat classification}
 \usage{
-frs_habitat_predicates(sp_params, model = "cw", near_river_table = NULL)
+frs_habitat_predicates(
+  sp_params,
+  model = "cw",
+  near_river_table = NULL,
+  near_river_lfid = NULL
+)
 }
 \arguments{
 \item{sp_params}{A single-species list with \code{species_code},
@@ -22,6 +27,18 @@ distances to the nearest river downstream, as written by
 \code{near_river} pair, its own or inherited; \code{\link[=frs_habitat_classify]{frs_habitat_classify()}}
 builds it and passes it. A rule matches only rows walked at exactly
 its own measure, threshold and \code{distance_max}.}
+
+\item{near_river_lfid}{Logical. Whether \code{near_river_table} and the streams
+table both carry \code{linear_feature_id}, in which case a rule's \code{near_river}
+match keys on the parent segment as well as on \verb{(id_segment, watershed_group_code)}. A shared \code{near_river} table can hold another
+job's rows for other ground at a colliding \code{id_segment}, and without the
+parent a segment passes on a distance measured for a different segment
+(fresh#293). \strong{Required whenever \code{near_river_table} is given}, and with
+no default there: this function is pure and cannot look at the tables, so
+a default would hand a caller re-deriving the predicate 0.53.0's short
+key by omission while the table it reads has begun holding two jobs'
+rows. \code{FALSE} builds exactly the predicate 0.53.0 built, and
+\code{\link[=frs_habitat_classify]{frs_habitat_classify()}} passes \code{TRUE} when both tables carry the column.}
 }
 \value{
 A named list with four character scalars: \code{spawn}, \code{rear},
@@ -154,7 +171,8 @@ sp_params$params_sp$rules$rear <- list(list(
   edge_types_explicit = c(1000, 1100),
   near_river = list(discharge_min = 3, distance_max = 1000)))
 frs_habitat_predicates(sp_params,
-  near_river_table = "working.streams_habitat_near_river")$rear
+  near_river_table = "working.streams_habitat_near_river",
+  near_river_lfid = TRUE)$rear
 
 # The same rule with no mapping inherits the stage's pair from the
 # thresholds CSV (here a 20 m channel within 1 km, under cw)
@@ -162,7 +180,8 @@ sp_params$params_sp$rules$rear[[1]]$near_river <- NULL
 sp_params$params_sp$near_river$rear <- list(measure = "channel_width",
   channel_width_min = 20, distance_max = 1000)
 frs_habitat_predicates(sp_params,
-  near_river_table = "working.streams_habitat_near_river")$rear
+  near_river_table = "working.streams_habitat_near_river",
+  near_river_lfid = TRUE)$rear
 }
 \seealso{
 Other habitat: 

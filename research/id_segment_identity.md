@@ -1,11 +1,13 @@
 # What `id_segment` is, and why the persisted table disagrees with the code
 
-**Verified:** 2026-11-01 · **Issues:** #282 (found here, and settled the delete
-key), #293, #294, #295, #218, #231, #277, #242 · **Produced by:** reading
+**Verified:** 2026-11-02 · **Issues:** #282 (found here, and settled the delete
+key), #293 (widened the sibling tables to the same key), #294, #295, #218,
+#231, #277, #242 · **Produced by:** reading
 `R/utils.R` and `R/frs_break.R`, four aggregates over `fresh.streams`, and the
 Phase 0 measurements in `planning/archive/2026-11-issue-282-persist-delete-key/`,
 all on the database `frs_db_conn()` reaches, with
-`SET statement_timeout = 240000`
+`SET statement_timeout = 240000`, plus `data-raw/audit_habitat_293.R` for the
+sibling tables' shapes
 
 ## The short version
 
@@ -118,11 +120,42 @@ correct against both artifacts. Three measured facts decide it:
 the other does not is an error naming the table to migrate, not a silent fall
 back to a key measured wrong.
 
-**The sibling tables cannot use it.** `frs_habitat_classify()`'s and
-`frs_near_river()`'s targets carry only `id_segment` and `watershed_group_code`
-(measured), so neither the parent segment nor physical identity is available
-there without widening the habitat schema — which is why #293 is a separate
-issue rather than the same fix applied twice.
+**The sibling tables were widened to use it, in #293.** Before 0.54.0
+`frs_habitat_classify()`'s and `frs_near_river()`'s targets carried only
+`id_segment` and `watershed_group_code` (measured 2026-11-02: 221 habitat tables
+and 114 `near_river` tables on the shared instance, **0** with
+`linear_feature_id`; the table counts move as other work creates schemas, the
+`0` does not), so
+neither the parent segment nor physical identity was available there. #293 adds
+`linear_feature_id` to both, **when the streams table carries one**, and keys
+their partition delete on it through the same chooser.
+
+Two things that fix only became safe once the reads changed with it:
+
+- **The whole-group delete was what made `(id_segment, watershed_group_code)` a
+  sound read key on a shared table.** After a job ran, the table held no other
+  job's rows for that job's groups. Scoping the delete to the ground the job
+  reinserts ends that: a whole-group run followed by a custom-AOI run **in the
+  same group** — the repair path this note recommends — leaves two jobs' rows in
+  one group, with ids derived independently. The 81-of-275 same-group collision
+  above is what that costs. Every habitat-to-streams match in fresh therefore
+  goes through one builder, `.frs_key_match()`, which adds the parent segment
+  where both tables carry it; an enumeration test over the parsed functions
+  fails on any site that spells a join inline.
+- **The column cannot be unconditional.** `frs_habitat_classify()` does not
+  require `linear_feature_id` and a test builds a streams table without one, so
+  creating it on the target regardless would make the chooser's
+  one-sided-mismatch error fire for every network that is not the FWA. The
+  target gets the column only when the source has it, and the `id_segment`
+  branch stays reachable for the rest.
+
+**What #293 did not fix.** A species' rows that no later custom-AOI run
+classifies are not removed by one, because a custom-AOI delete is scoped to the
+species it writes. Those rows keep an `id_segment` from the numbering of the run
+that wrote them, so within a parent segment they are ambiguous until a
+whole-group run (`wsg_code` set) of their group replaces every species' rows. Adding the parent narrowed this from "wrong parent" to "ambiguous inside
+one parent"; closing it is the `id_segment`-at-assignment work, the sibling of
+#218, tracked in #300.
 
 ## Two things that make a persisted streams table unforgiving
 

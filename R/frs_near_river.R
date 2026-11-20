@@ -77,14 +77,20 @@
 #'   `channel_width` or `stream_order`.
 #' @param to Character. Schema-qualified output table, created if it does
 #'   not exist, with columns `id_segment`, `watershed_group_code`,
-#'   `measure`, `threshold`, `distance_max` and `dist_m`. A `near_river`
+#'   `measure`, `threshold`, `distance_max` and `dist_m`, plus
+#'   `linear_feature_id` when `table` carries it. A `near_river`
 #'   rule reads only rows of its own exact measure, threshold and
 #'   distance, so build the table with the pairs the rules carry
 #'   ([frs_habitat_classify()] does): a walk at a longer distance does
-#'   not serve a rule with a shorter one. Rows for the watershed groups
-#'   in `table` are replaced on every call; other groups' rows are kept.
-#'   A table written by fresh 0.41.0 (with a `discharge_min` column and
-#'   no `measure`) stops the call; drop it and re-run.
+#'   not serve a rule with a shorter one. **Rows for the ground this walk
+#'   covers are replaced on every call; rows for other ground are kept** --
+#'   including other ground in the same watershed group, which is what makes
+#'   the table safe to share with a custom-AOI job (fresh#293). Before 0.54.0
+#'   every group `table` mentioned was deleted whole, so a custom AOI removed
+#'   rows it never put back. A table written by fresh 0.41.0 (with a
+#'   `discharge_min` column and no `measure`), or one whose
+#'   `linear_feature_id` disagrees with `table`'s, stops the call; drop it and
+#'   re-run, which rebuilds it from `table`.
 #' @param threshold Numeric vector. River sizes to find, each finite and
 #'   above zero, in the measure's unit: m3/s for `"discharge"`, m for
 #'   `"channel_width"`, an order for `"stream_order"`.
@@ -94,6 +100,18 @@
 #'   pairs must be distinct.
 #' @param measure Character, length 1 or one per `threshold`:
 #'   `"discharge"` (default), `"channel_width"` or `"stream_order"`.
+#' @param wsg_code Character or `NULL`. The watershed group this call covers
+#'   **in its entirety**, which makes the replace a whole-group one. `NULL`
+#'   (default) is the safe case and the one a custom AOI needs: only the
+#'   ground `table` holds is replaced. Pass a code only where the job
+#'   segmented the whole group -- [frs_habitat()] does, via
+#'   `.frs_partition_wsg()` -- and the call refuses a code that is not the one
+#'   group `table` holds, because a whole-group delete on a subset is the
+#'   defect this parameter exists to avoid. Note what a whole-group replace
+#'   means here: it removes **every** `(measure, threshold, distance_max)`
+#'   the group holds, not only the pairs this call walks, so a direct caller
+#'   accumulating two measures in one table (as the examples above do) should
+#'   leave `wsg_code` at `NULL`.
 #' @param verbose Logical. Print rows written, segments with no local
 #'   code, and timing. Default `TRUE`.
 #'
@@ -122,14 +140,21 @@
 #' DBI::dbDisconnect(conn)
 #' }
 frs_near_river <- function(conn, table, to, threshold, distance_max,
-                           measure = "discharge", verbose = TRUE) {
+                           measure = "discharge", wsg_code = NULL,
+                           verbose = TRUE) {
   measure <- .frs_near_river_check(conn, table, to, threshold, distance_max,
-                                   measure)
+                                   measure, wsg_code)
 
   t0 <- proc.time()
   walk_tbl <- "pg_temp.frs_near_river_walk"
-  on.exit(.frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl)),
-          add = TRUE)
+  # try(): this DROP runs on the way out of a failure as well as a success, and
+  # on the failure path the transaction below may be aborted, where any
+  # statement raises 25P02 -- which would become the error the caller sees in
+  # place of the one that actually failed. Wrapping it covers that whichever
+  # transaction is open, including the one a CALLER opened, where this is the
+  # only handler registered (fresh#293 review, round 4).
+  walk_drop <- sprintf("DROP TABLE IF EXISTS %s", walk_tbl)
+  on.exit(try(.frs_db_execute(conn, walk_drop), silent = TRUE), add = TRUE)
 
   # The straight-line prefilter prunes the join only with a GiST on geom,
   # and the plan needs current statistics (see .frs_bucket_connected()).
@@ -151,11 +176,70 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
            GROUP BY waterbody_key, blue_line_key, watershed_key) x", table))
   conn_max <- lens$on_path + lens$side
 
-  .frs_near_river_table(conn, to)
-  # A custom AOI need not be one group, so delete every group the table holds.
-  .frs_db_execute(conn, sprintf(
-    "DELETE FROM %s WHERE watershed_group_code IN (
-       SELECT DISTINCT watershed_group_code FROM %s)", to, table))
+  lfid <- .frs_near_river_table(conn, table, to)
+  # Only the ground this walk will write back. Deleting every group the table
+  # mentions removes rows for ground outside the job, which a custom AOI never
+  # puts back (fresh#293); the group delete is right only where the job holds
+  # the whole group, which is what a non-NULL wsg_code asserts.
+  cols_to <- .frs_cols_of(conn, to)
+  cols_from <- .frs_cols_of(conn, table)
+  # Scoped to the pairs this call walks, as the habitat delete is scoped to
+  # the species it classifies: a call for one rule's pair must not remove the
+  # rows another rule's pair wrote for the same ground, because it writes none
+  # back and the predicate reading them then matches nothing (fresh#293).
+  # One transaction, as .frs_persist_streams() and frs_habitat_classify() are:
+  # autocommitted separately, a failure in walk i leaves pairs i..n deleted and
+  # not written back, and this walk is the pipeline's most timeout-prone
+  # statement (code-check-infra.md, "Two-statement DELETE/INSERT into a persist
+  # table is not atomic"). The CREATE and the indexes stay outside, above.
+  # dbBegin() refuses a nested transaction, and a caller who already holds one
+  # has made the pair atomic with respect to their own commit.
+  began <- FALSE
+  if (inherits(conn, "DBIConnection")) {
+    began <- tryCatch({
+      DBI::dbBegin(conn)
+      TRUE
+    }, error = function(e) {
+      if (grepl("nested transaction", conditionMessage(e), ignore.case = TRUE)) {
+        FALSE
+      } else {
+        stop(e)
+      }
+    })
+  }
+  if (began) {
+    committed <- FALSE
+    # after = FALSE, so this runs BEFORE the walk table's DROP registered
+    # above: rolling back first ENDS the transaction, so the DROP raises
+    # nothing and the real error is what the caller sees. Without the ordering
+    # the DROP's own 25P02 replaced it, which is what broke four tests two
+    # files away -- each expected a particular message and got "current
+    # transaction is aborted" instead.
+    #
+    # NOT because a failing handler would skip the rollback: measured on R
+    # 4.5.2, an error in one on.exit expression does not stop the others, and
+    # the rollback ran in both orders. Round 2's version of this comment said
+    # otherwise and was wrong (fresh#293 review, round 3).
+    #
+    # The `try()` on the DROP above is what actually makes the error the
+    # caller's, and it covers the branch where the CALLER owns the transaction
+    # and no rollback of ours is registered at all -- which this ordering
+    # cannot reach. So the ordering is now REDUNDANT, and measurably so: the
+    # mutation sweep cannot credit it, because with the `try()` in place both
+    # orders end the same way. Rolling back first leaves the DROP a no-op on a
+    # table the rollback has already un-created; dropping first raises 25P02
+    # into the `try()` and the rollback un-creates it anyway. It stays because
+    # rolling back before touching the database again is the right shape, not
+    # because anything depends on it -- and it carries no row in
+    # dev/mutation_sweep_sites_habitat_293.csv for the same reason: a row that
+    # no test can turn red is not a guard, and the `try()`'s row measures the
+    # property both of these were aimed at.
+    on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
+            add = TRUE, after = FALSE)
+  }
+  .frs_db_execute(conn, .frs_persist_delete_sql(
+    to, table, wsg_code, cols_to, cols_from,
+    extra_subset = .frs_near_river_pairs_in(measure, threshold, distance_max)))
   # One walk per (measure, threshold, distance_max), so each answer is a
   # function of its own numbers: the cap and prefilter come from the pair
   # alone, never from another rule's distance.
@@ -166,13 +250,24 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
     .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", walk_tbl))
     .frs_db_execute(conn, .frs_near_river_walk_sql(
       table, walk_tbl, q, d, conn_max, entry_max = lens$side, col = col))
+    # The parent segment comes from the streams table rather than through the
+    # walk: `origin_id` is an id_segment, unique within the working table, so
+    # the join is exact on it alone and `.frs_near_river_walk_sql()` keeps the
+    # signature its other callers use positionally. Not also on
+    # `watershed_group_code`: that column is nullable on a network that is not
+    # the FWA, and an equality join on it would silently drop a NULL-group
+    # row from the insert rather than carrying its parent.
     .frs_db_execute(conn, sprintf(
-      "INSERT INTO %s (id_segment, watershed_group_code, measure, threshold,
+      "INSERT INTO %s (id_segment, watershed_group_code%s, measure, threshold,
          distance_max, dist_m)
-       SELECT origin_id, watershed_group_code, %s, threshold,
-         %s::double precision, dist_m
-       FROM %s", to, .frs_quote_string(measure[i]), .frs_sql_num(d),
-      walk_tbl))
+       SELECT w.origin_id, w.watershed_group_code%s, %s, w.threshold,
+         %s::double precision, w.dist_m
+       FROM %s w%s", to,
+      if (lfid) ", linear_feature_id" else "",
+      if (lfid) ", s.linear_feature_id" else "",
+      .frs_quote_string(measure[i]), .frs_sql_num(d), walk_tbl,
+      if (lfid) sprintf("
+       JOIN %s s ON s.id_segment = w.origin_id", table) else ""))
     if (verbose) {
       stats <- DBI::dbGetQuery(conn, sprintf(
         "SELECT count(*)::int AS near,
@@ -184,6 +279,11 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
           " with no local code did not walk\n", sep = "")
     }
   }
+  if (began) {
+    DBI::dbCommit(conn)
+    committed <- TRUE
+  }
+
   if (verbose) {
     cat("  Near river walk: ",
         round((proc.time() - t0)["elapsed"], 1), "s\n", sep = "")
@@ -204,7 +304,7 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
 #' @return `measure`, recycled to one per `threshold`.
 #' @noRd
 .frs_near_river_check <- function(conn, table, to, threshold, distance_max,
-                                  measure = "discharge") {
+                                  measure = "discharge", wsg_code = NULL) {
   .frs_validate_identifier(table, "streams table")
   .frs_validate_identifier(to, "output table")
   ok_num <- function(x) {
@@ -262,8 +362,52 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
                               character(1)), collapse = ", ")),
          call. = FALSE)
   }
-  .frs_near_river_check_shape(conn, to)
+  .frs_wsg_code_check(conn, table, wsg_code)
+  .frs_group_required(conn, table,
+                      "linear_feature_id" %in% .frs_cols_of(conn, table))
+  .frs_near_river_check_shape(conn, table, to)
+  # Before the delete, not after it: a guard that raises once the partition
+  # has been removed has already lost the rows it exists to protect, and the
+  # walk never writes them back (fresh#293 review, round 1). The target may
+  # not exist yet, in which case there is nothing to refuse.
+  if (length(.frs_cols_of(conn, to)) > 0) {
+    .frs_null_key_guard(conn, to, .frs_persist_delete_key(
+      to, table, wsg_code, .frs_cols_of(conn, to),
+      .frs_cols_of(conn, table)))
+  }
   measure
+}
+
+
+#' The pairs a near_river call walks, as a SQL predicate
+#'
+#' Scopes the partition delete to this call's own `(measure, threshold,
+#' distance_max)` triples. Both numbers go through [.frs_sql_num()], the
+#' formatter that writes them into the table and the one the predicate
+#' compares against, so each equality compares one literal with itself.
+#'
+#' @param measure,threshold,distance_max The call's vectors, `measure`
+#'   already recycled to one per threshold.
+#' No pairs returns `"FALSE"`, not `NULL`: [.frs_persist_delete_sql()] reads a
+#' `NULL` `extra_subset` as "do not narrow", so the degenerate input would
+#' *widen* the delete to every pair on the job's ground while the loop writes
+#' none back -- this issue's loss, produced by the helper added to prevent it.
+#' `.frs_near_river_check()`'s `ok_num()` already refuses an empty `threshold`
+#' two frames up, so this is not reachable today; the fail-open was in this
+#' function's own contract, and [frs_habitat_classify()] met the same R idiom
+#' and chose to skip the delete, so the two coupled stores would otherwise
+#' have had opposite degenerate-input policies (fresh#293 review, round 2).
+#'
+#' @return Character SQL; `"FALSE"` when there are no pairs.
+#' @noRd
+.frs_near_river_pairs_in <- function(measure, threshold, distance_max) {
+  if (length(threshold) == 0) return("FALSE")
+  rows <- sprintf("(%s, %s, %s)",
+                  vapply(measure, .frs_quote_string, character(1)),
+                  vapply(threshold, .frs_sql_num, character(1)),
+                  vapply(distance_max, .frs_sql_num, character(1)))
+  sprintf("(measure, threshold, distance_max) IN (%s)",
+          paste(rows, collapse = ", "))
 }
 
 
@@ -288,41 +432,58 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
 }
 
 
-#' Stop if a near_river output table exists in fresh 0.41.0's shape
+#' Stop if a near_river output table cannot hold what this walk writes
+#'
+#' Two shapes it refuses, and the remedy is the same for both because the
+#' table is a cache a re-run rebuilds from the streams table: fresh 0.41.0's,
+#' which measured discharge only, and one whose `linear_feature_id` disagrees
+#' with the streams table's. A table carrying the column while the streams
+#' table does not, or the reverse, has no key both sides share, and falling
+#' back to `id_segment` is the key fresh#282 measured wrong (fresh#293).
 #'
 #' Writes nothing, so [frs_habitat_classify()] can run it before its first
 #' write. `to_regclass()` resolves `to` the way the later statements will.
 #'
+#' @return `TRUE` when the walk should carry `linear_feature_id`, invisibly.
 #' @noRd
-.frs_near_river_check_shape <- function(conn, to) {
+.frs_near_river_check_shape <- function(conn, table, to) {
   .frs_validate_identifier(to, "output table")
-  exists <- !is.na(DBI::dbGetQuery(conn, sprintf(
-    "SELECT to_regclass(%s)::text AS r", .frs_quote_string(to)))$r)
-  if (!exists) return(invisible(to))
-  have <- names(DBI::dbGetQuery(conn, sprintf("SELECT * FROM %s LIMIT 0", to)))
+  lfid <- "linear_feature_id" %in% .frs_cols_of(conn, table)
+  have <- .frs_cols_of(conn, to)
+  if (length(have) == 0) return(invisible(lfid))
   if (!all(c("measure", "threshold") %in% have)) {
     stop(sprintf(paste0(
       "%s has no measure / threshold columns: it was written by fresh ",
       "0.41.0, which measured discharge only. Drop it and re-run (the ",
       "table is rebuilt from the streams table)."), to), call. = FALSE)
   }
-  invisible(to)
+  if (lfid != ("linear_feature_id" %in% have)) {
+    lacking <- if (lfid) to else table
+    stop(sprintf(paste0(
+      "%s carries linear_feature_id and %s does not, so a custom-AOI delete ",
+      "on %s has no key both tables share. Drop %s and re-run (the table is ",
+      "rebuilt from the streams table)."),
+      if (lfid) table else to, lacking, to, to), call. = FALSE)
+  }
+  invisible(lfid)
 }
 
 
-#' Create the near_river output table, refusing the 0.41.0 shape
+#' Create the near_river output table, refusing a shape it cannot write
 #'
+#' @return `TRUE` when the table carries `linear_feature_id`, invisibly.
 #' @noRd
-.frs_near_river_table <- function(conn, to) {
-  .frs_near_river_check_shape(conn, to)
+.frs_near_river_table <- function(conn, table, to) {
+  lfid <- .frs_near_river_check_shape(conn, table, to)
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s (
-       id_segment integer,
+       id_segment integer,%s
        watershed_group_code character varying(4),
        measure text,
        threshold double precision,
        distance_max double precision,
-       dist_m double precision)", to))
+       dist_m double precision)", to,
+    if (lfid) "\n       linear_feature_id bigint," else ""))
   to_name <- utils::tail(strsplit(to, ".", fixed = TRUE)[[1]], 1)
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX IF NOT EXISTS %s_seg_idx ON %s
@@ -331,7 +492,15 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
   .frs_db_execute(conn, sprintf(
     "CREATE INDEX IF NOT EXISTS %s_wsg_idx ON %s (watershed_group_code)",
     to_name, to))
-  invisible(to)
+  # The delete keys on it, and on a first migrated run no index exists yet.
+  # .frs_near_river_table() builds its own indexes and never calls
+  # .frs_index_working(), so this one has to be here.
+  if (lfid) {
+    .frs_db_execute(conn, sprintf(
+      "CREATE INDEX IF NOT EXISTS %s_lfid_idx ON %s (linear_feature_id)",
+      to_name, to))
+  }
+  invisible(lfid)
 }
 
 

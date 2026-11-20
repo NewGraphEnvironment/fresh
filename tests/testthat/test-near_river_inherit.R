@@ -121,13 +121,15 @@ test_that("frs_params warns on an unknown near_river column", {
 
 test_that("an inheriting rule takes the pair; model resolves per size model", {
   p <- params_with(rules = list(CH = list(rear = list(stream_rule))))
-  cw <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl)$rear
+  cw <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
   expect_identical(cw, paste0(
     "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND ",
     "(s.channel_width BETWEEN 1.5 AND 9999 OR ",
     exists_sql("channel_width", 20), ")))"))
   mad <- frs_habitat_predicates(sp_of(p), model = "mad",
-                                near_river_table = nr_tbl)$rear
+                                near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
   expect_identical(mad, paste0(
     "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND ",
     "(s.mad_m3s BETWEEN 0.28 AND 100 OR ", exists_sql("discharge", 3), ")))"))
@@ -140,7 +142,8 @@ test_that("an explicit measure applies under both models", {
     p <- params_with(cells, rules = list(CH = list(rear = list(stream_rule))))
     for (model in c("cw", "mad")) {
       sql <- frs_habitat_predicates(sp_of(p), model = model,
-                                    near_river_table = nr_tbl)$rear
+                                    near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
       expect_match(sql, exists_sql(m, 7, 500), fixed = TRUE,
                    info = paste(m, model))
     }
@@ -151,7 +154,8 @@ test_that("a rule's own mapping wins over the inherited pair", {
   rule <- c(stream_rule,
             list(near_river = list(discharge_min = 10, distance_max = 50)))
   p <- params_with(rules = list(CH = list(rear = list(rule))))
-  sql <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl)$rear
+  sql <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
   expect_match(sql, exists_sql("discharge", 10, 50), fixed = TRUE)
   expect_false(grepl("channel_width'", sql))
 })
@@ -159,7 +163,8 @@ test_that("a rule's own mapping wins over the inherited pair", {
 test_that("near_river: false opts out of the inherited pair", {
   rule <- c(stream_rule, list(near_river = FALSE))
   p <- params_with(rules = list(CH = list(rear = list(rule))))
-  sql <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl)$rear
+  sql <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
   expect_identical(sql, paste0(
     "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND ",
     "s.channel_width BETWEEN 1.5 AND 9999))"))
@@ -181,7 +186,8 @@ test_that("lake and wetland rules never inherit a pair", {
     rule <- list(waterbody_type = wt)
     p <- params_with(rules = list(CH = list(rear = list(rule))))
     expect_false(grepl("EXISTS",
-      frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl)$rear),
+      frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear),
       info = wt)
   }
 })
@@ -206,7 +212,8 @@ test_that("a mad species with no MAD range reads (FALSE OR EXISTS)", {
   p <- params_with(cells, rules = list(BT = list(rear = list(stream_rule))),
                    bt = TRUE)
   sql <- frs_habitat_predicates(sp_of(p, "BT"), model = "mad",
-                                near_river_table = nr_tbl)$rear
+                                near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
   expect_match(sql, paste0("(FALSE OR ", exists_sql("discharge", 3), ")"),
                fixed = TRUE)
 })
@@ -214,11 +221,13 @@ test_that("a mad species with no MAD range reads (FALSE OR EXISTS)", {
 test_that("the river-polygon rule inherits under cw and under mad", {
   r_rule <- list(waterbody_type = "R", channel_width = c(0, 9999))
   p <- params_with(rules = list(CH = list(rear = list(r_rule))))
-  cw <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl)$rear
+  cw <- frs_habitat_predicates(sp_of(p), near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
   expect_match(cw, paste0("(s.channel_width BETWEEN 0 AND 9999 OR ",
                           exists_sql("channel_width", 20), ")"), fixed = TRUE)
   mad <- frs_habitat_predicates(sp_of(p), model = "mad",
-                                near_river_table = nr_tbl)$rear
+                                near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
   expect_match(mad, paste0("(s.mad_m3s BETWEEN 0.28 AND 100 OR ",
                            exists_sql("discharge", 3), ")"), fixed = TRUE)
   # A consumer that means "the river polygon is the river" opts it out.
@@ -246,7 +255,8 @@ test_that(".frs_near_river_specs lists the effective pairs, from one resolver", 
     distance_max = c(1000, 200), stringsAsFactors = FALSE))
   # Each pair in the specs is the one the compiled predicate reads.
   for (sp in c("CH", "BT")) {
-    sql <- frs_habitat_predicates(sp_of(p, sp), near_river_table = nr_tbl)$rear
+    sql <- frs_habitat_predicates(sp_of(p, sp), near_river_table = nr_tbl,
+    near_river_lfid = FALSE)$rear
     hit <- vapply(seq_len(nrow(specs)), function(i) {
       grepl(exists_sql(specs$measure[i], specs$threshold[i],
                        specs$distance_max[i]), sql, fixed = TRUE)
@@ -286,8 +296,13 @@ test_that("NA or absent columns compile every fixture rule as 0.41.0 did", {
       for (sp in names(params)) {
         for (model in c("cw", "mad")) {
           key <- paste(k, sp, model, sep = "/")
+          # FALSE explicitly: `frozen` was built by
+          # data-raw/predicates_fixture_0410.R against a v0.41.0 worktree,
+          # which has no near_river_lfid formal, so the frozen text is the
+          # short-key predicate. The argument is required from 0.54.0.
           now <- frs_habitat_predicates(sp_of(params, sp), model = model,
-            near_river_table = "w.streams_near_river")
+            near_river_table = "w.streams_near_river",
+            near_river_lfid = FALSE)
           expect_identical(now, frozen[[key]],
                            info = paste(key, "with_cols", with_cols))
         }

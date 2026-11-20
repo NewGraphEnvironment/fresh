@@ -523,6 +523,7 @@ frs_habitat <- function(conn, wsg = NULL,
       params_method = params_method,
       gate = gate, label_block = label_block,
       barrier_overrides = barrier_overrides,
+      wsg_code = wsg_code,
       verbose = verbose && is.null(conn_params))
 
     # 4b. Post-classification connectivity checks (requires_connected)
@@ -670,7 +671,8 @@ frs_habitat <- function(conn, wsg = NULL,
         species = species, params = params, params_fresh = params_fresh,
         params_method = params_method,
         gate = gate, label_block = label_block,
-        barrier_overrides = barrier_overrides, verbose = FALSE)
+        barrier_overrides = barrier_overrides, wsg_code = wsg_code,
+        verbose = FALSE)
 
       # Post-classification connectivity checks (requires_connected)
       .frs_run_connectivity(w_conn, streams_tbl, habitat_tbl,
@@ -1342,9 +1344,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' Spawning on a sibling tributary (neither upstream nor downstream of the
 #' polygon) does not connect, and neither does spawning outside `table`
 #' (e.g. in the next watershed group). Subtractive: only clears flags,
-#' never sets them. `habitat` may hold other watershed groups' rows (a
-#' shared `to_habitat`): every join matches `watershed_group_code` too, so
-#' they are never read or cleared.
+#' never sets them. `habitat` may hold other watershed groups' rows, and
+#' since fresh#293 other jobs' rows for other ground in the same group (a
+#' shared `to_habitat`): every join is built by `.frs_key_match()`, which
+#' matches `watershed_group_code` and, where both tables carry it, the parent
+#' segment, so neither is read or cleared.
 #'
 #' @param column Character. `"lake_rearing"` or `"wetland_rearing"`.
 #' @param distance_max Numeric. Network distance cap in metres.
@@ -1357,6 +1361,14 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   stopifnot(is.numeric(distance_max), length(distance_max) == 1,
             is.finite(distance_max), distance_max > 0)
   sp_quoted <- .frs_quote_string(species)
+  # The habitat table is shared and, since fresh#293 narrowed the partition
+  # delete, one watershed group can hold two jobs' rows with independently
+  # derived id_segments. Every match against it goes through the one builder,
+  # and the counts go through the same key.
+  lfid <- .frs_lfid_pair(conn, habitat, table)
+  key <- .frs_key_match("h", "s", lfid)
+  part <- .frs_wsg_in(table, if (lfid) "linear_feature_id" else
+                               "watershed_group_code")
   sfx <- paste0(tolower(species), "_", column)
   keys_tbl  <- paste0("pg_temp.frs_bkt_keys_", sfx)
   poly_tbl  <- paste0("pg_temp.frs_bkt_poly_", sfx)
@@ -1370,8 +1382,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   count_bucket <- function() {
     DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-       WHERE species_code = %s%s", column, habitat, sp_quoted,
-      .frs_wsg_in(table)))$n
+       WHERE species_code = %s%s", column, habitat, sp_quoted, part))$n
   }
   n_before <- if (verbose) count_bucket() else 0L
 
@@ -1398,9 +1409,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     "CREATE TEMP TABLE %s (id_segment bigint)", spawn_tbl))
 
   # Segments of this species carrying the bucket / spawning flag
-  hab_join <- sprintf(
-    "INNER JOIN %s h ON h.id_segment = s.id_segment
-       AND h.watershed_group_code = s.watershed_group_code", habitat)
+  hab_join <- sprintf("INNER JOIN %s h ON %s", habitat, key)
   bucket_segs <- sprintf(
     "SELECT s.* FROM %s s
      %s
@@ -1472,13 +1481,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   .frs_db_execute(conn, sprintf(
     "UPDATE %s h SET %s = FALSE
      FROM %s s
-     WHERE h.id_segment = s.id_segment
-       AND h.watershed_group_code = s.watershed_group_code
+     WHERE %s
        AND h.species_code = %s
        AND h.%s IS TRUE
        AND NOT EXISTS (
          SELECT 1 FROM %s k WHERE k.waterbody_key = s.waterbody_key)",
-    habitat, column, table, sp_quoted, column, keys_tbl))
+    habitat, column, table, key, sp_quoted, column, keys_tbl))
 
   drop_temp()
 
@@ -1512,6 +1520,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
                                  verbose = TRUE) {
   sp_quoted <- .frs_quote_string(species)
   dist_m <- .frs_sql_num(max_distance)
+  lfid <- .frs_lfid_pair(conn, habitat, table)
+  key <- .frs_key_match("h", "s", lfid)
+  key_r <- .frs_key_match("hr", "r", lfid)
+  part <- .frs_wsg_in(table, if (lfid) "linear_feature_id" else
+                               "watershed_group_code")
 
   # Count before
   n_before <- 0L
@@ -1519,7 +1532,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     n_before <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
        WHERE species_code = %s%s",
-      label_cluster, habitat, sp_quoted, .frs_wsg_in(table)))$n
+      label_cluster, habitat, sp_quoted, part))$n
   }
 
   # Remove segments that are DOWNSTREAM of rearing AND beyond the
@@ -1534,14 +1547,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   .frs_db_execute(conn, sprintf(
     "UPDATE %s h SET %s = FALSE
      FROM %s s
-     WHERE h.id_segment = s.id_segment
-       AND h.watershed_group_code = s.watershed_group_code
+     WHERE %s
        AND h.species_code = %s
        AND h.%s IS TRUE
        AND NOT EXISTS (
          SELECT 1 FROM %s r
-         INNER JOIN %s hr ON r.id_segment = hr.id_segment
-           AND hr.watershed_group_code = r.watershed_group_code
+         INNER JOIN %s hr ON %s
          WHERE hr.species_code = %s
            AND hr.%s IS TRUE
            AND (
@@ -1568,8 +1579,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
            )
        )",
     habitat, label_cluster, table,
-    sp_quoted, label_cluster,
-    table, habitat,
+    key, sp_quoted, label_cluster,
+    table, habitat, key_r,
     sp_quoted, label_connect,
     dist_m, dist_m))
 
@@ -1577,7 +1588,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     n_after <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
        WHERE species_code = %s%s",
-      label_cluster, habitat, sp_quoted, .frs_wsg_in(table)))$n
+      label_cluster, habitat, sp_quoted, part))$n
     cat("  ", species, ": ", n_before - n_after,
         " beyond ", max_distance, "m removed (",
         n_after, " ", label_cluster, " remaining)\n", sep = "")
@@ -1732,8 +1743,10 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #'
 #' `habitat` may hold other watershed groups' rows (a shared `to_habitat`):
 #' every join matches `watershed_group_code` too, and the subtractive and
-#' additive UPDATEs are confined to the groups present in `table`, so other
-#' groups are never read or written (fresh#242).
+#' additive UPDATEs are confined to the ground present in `table` — the
+#' groups, and since fresh#293 the parent segments within them where both
+#' tables carry `linear_feature_id` — so no other job's rows are read or
+#' written (fresh#242, fresh#293).
 #'
 #' @param conn DBI connection.
 #' @param table Character. Schema-qualified streams table.
@@ -1777,13 +1790,16 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
                                      verbose = TRUE) {
   sp_quoted <- .frs_quote_string(species)
   lhm <- .frs_sql_num(waterbody_ha_min)
+  lfid <- .frs_lfid_pair(conn, habitat, table)
+  key <- .frs_key_match("h", "s", lfid)
+  part <- .frs_wsg_in(table, if (lfid) "linear_feature_id" else
+                               "watershed_group_code")
 
   n_before <- 0L
   if (verbose) {
     n_before <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE spawning)::int AS n FROM %s
-       WHERE species_code = %s%s", habitat, sp_quoted,
-      .frs_wsg_in(table)))$n
+       WHERE species_code = %s%s", habitat, sp_quoted, part))$n
   }
 
   # Temp table for qualifying segment IDs from both phases
@@ -1805,12 +1821,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        s2.blue_line_key, s2.downstream_route_measure,
        s2.wscode_ltree, s2.localcode_ltree
      FROM %s s2
-     INNER JOIN %s hr ON s2.id_segment = hr.id_segment
-       AND hr.watershed_group_code = s2.watershed_group_code
+     INNER JOIN %s hr ON %s
      WHERE hr.species_code = %s AND hr.rearing IS TRUE
      ORDER BY s2.waterbody_key, s2.wscode_ltree, s2.localcode_ltree,
              s2.downstream_route_measure",
-    table, habitat, sp_quoted)
+    table, habitat, .frs_key_match("hr", "s2", lfid), sp_quoted)
 
   .frs_trace_downstream(conn, table, origins_sql, lfid_tbl,
                          distance_max, bridge_gradient)
@@ -1837,15 +1852,13 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
        SELECT s2.wscode_ltree, s2.localcode_ltree,
               s2.blue_line_key, s2.downstream_route_measure
        FROM %s s2
-       INNER JOIN %s hr ON s2.id_segment = hr.id_segment
-         AND hr.watershed_group_code = s2.watershed_group_code
+       INNER JOIN %s hr ON %s
        WHERE hr.species_code = %s AND hr.rearing IS TRUE
      ),
      spawn_upstream AS (
        SELECT s3.id_segment, s3.geom
        FROM %s s3
-       INNER JOIN %s hs ON s3.id_segment = hs.id_segment
-         AND hs.watershed_group_code = s3.watershed_group_code
+       INNER JOIN %s hs ON %s
        WHERE hs.species_code = %s AND hs.spawning IS TRUE
          AND EXISTS (
            SELECT 1 FROM rearing_segs r
@@ -1854,8 +1867,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
              OR (r.blue_line_key = s3.blue_line_key
                  AND s3.downstream_route_measure >= r.downstream_route_measure))
      )",
-    table, habitat, sp_quoted,
-    table, habitat, sp_quoted)
+    table, habitat, .frs_key_match("hr", "s2", lfid), sp_quoted,
+    table, habitat, .frs_key_match("hs", "s3", lfid), sp_quoted)
 
   if (lake_adjacent) {
     # Build EXISTS clause that checks all waterbody polygon tables
@@ -1906,12 +1919,11 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   .frs_db_execute(conn, sprintf(
     "UPDATE %s h SET spawning = FALSE
      FROM %s s
-     WHERE h.id_segment = s.id_segment
-       AND h.watershed_group_code = s.watershed_group_code
+     WHERE %s
        AND h.species_code = %s AND h.spawning IS TRUE
        AND NOT EXISTS (
          SELECT 1 FROM %s q WHERE q.id_segment = h.id_segment)",
-    habitat, table, sp_quoted, qual_tbl))
+    habitat, table, key, sp_quoted, qual_tbl))
 
   # Phase 3: Additive — promote accessible segments in the downstream
   # trace that meet spawn_connected thresholds but failed standard
@@ -1943,14 +1955,13 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     .frs_db_execute(conn, sprintf(
       "UPDATE %s h SET spawning = TRUE
        FROM %s s
-       WHERE h.id_segment = s.id_segment
-         AND h.watershed_group_code = s.watershed_group_code
+       WHERE %s
          AND h.species_code = %s
          AND h.accessible IS TRUE
          AND h.spawning IS FALSE
          AND s.linear_feature_id IN (SELECT linear_feature_id FROM %s)
          AND %s",
-      habitat, table, sp_quoted, lfid_tbl, sc_where))
+      habitat, table, key, sp_quoted, lfid_tbl, sc_where))
   }
 
   .frs_db_execute(conn, sprintf("DROP TABLE IF EXISTS %s", lfid_tbl))
@@ -1959,8 +1970,7 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
   if (verbose) {
     n_after <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE spawning)::int AS n FROM %s
-       WHERE species_code = %s%s", habitat, sp_quoted,
-      .frs_wsg_in(table)))$n
+       WHERE species_code = %s%s", habitat, sp_quoted, part))$n
     cat("  ", species, ": connected waterbody ",
         n_before, " -> ", n_after, "\n", sep = "")
   }

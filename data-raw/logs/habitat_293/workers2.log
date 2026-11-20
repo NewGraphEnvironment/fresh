@@ -1,0 +1,8 @@
+outer alone: 464 rows, 464 segments
+   label n_segments n_species elapsed_s
+1 p293w1        464         1      5.25
+after a workers=2L re-run of the same ground: 464 
+   label n_segments n_species elapsed_s
+1 p293w2        231         1     4.969
+after the inner AOI: 464 (expected 464 )
+WORKERS2 OK

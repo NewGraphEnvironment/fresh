@@ -347,11 +347,15 @@ test_that("distance_filter is not rescued by another group's connect rows", {
        WHERE species_code = '%s' AND id_segment IN (%s)",
       col, species, paste(ids, collapse = ", ")))
   }
-  for (i in segs$id_segment) {
-    DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, 'TEST', '%s', TRUE,
-         FALSE, FALSE, FALSE, FALSE)", i, species))
-  }
+  # From the streams table, not a loop over ids: `id_segment` here is a
+  # row_number() while `linear_feature_id` is the real FWA one, so a
+  # hand-built pair gave the habitat row a parent that matches no segment, and
+  # every match keyed on the parent then found nothing (fresh#293).
+  DBI::dbExecute(conn, sprintf("
+    INSERT INTO pg_temp.bkt_habitat
+    SELECT id_segment, linear_feature_id, watershed_group_code, '%s',
+           TRUE, FALSE, FALSE, FALSE, FALSE
+    FROM pg_temp.bkt_streams", species))
   flag(a[1], "spawning")
   flag(a[2], "rearing")
   flag(b[-1], "rearing")
@@ -543,7 +547,7 @@ test_that("species = NULL resolves only the species in this job's groups", {
                          y = 20000))
   .bkt_fixture(conn, segs, species_other = character(0))
   DBI::dbExecute(conn, "INSERT INTO pg_temp.bkt_habitat VALUES
-    (2, 'OTHR', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
+    (2, -2, 'OTHR', 'CH', TRUE, FALSE, TRUE, FALSE, FALSE)")
   out <- paste(utils::capture.output(
     frs_cluster(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
       label_cluster = "rearing", label_connect = "spawning", species = NULL,
@@ -681,8 +685,8 @@ test_that("another group's spawning does not lend lake adjacency to this group's
                                 ST_MakePoint(%.6f, %.6f)), 3005))",
       id, id, drm, a[1], a[2], b[1], b[2]))
     DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, 'TEST', 'BT', TRUE, %s, %s,
-         FALSE, FALSE)", id, spawn, rear))
+      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, 'TEST', 'BT', TRUE, %s, %s,
+         FALSE, FALSE)", id, id, spawn, rear))
   }
   add(4, 0, 30000, 31000, "FALSE", "TRUE")
   add(6, 1000, 0, 500, "FALSE", "FALSE")
@@ -706,12 +710,87 @@ test_that("another group's spawning does not lend lake adjacency to this group's
       pg_temp.bkt_streams b WHERE a.id_segment = 5 AND b.id_segment = 6")$v
   expect_true(isTRUE(adj))   # or 6 cannot lend 5 anything
 
-  .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE))
-  .frs_connected_waterbody(conn, "pg_temp.bkt_streams", "pg_temp.bkt_habitat",
+  # One closure, called twice below: the two runs have to be the same call or
+  # the second decoy is being measured against a different pass.
+  run <- function() .frs_connected_waterbody(conn, "pg_temp.bkt_streams",
+    "pg_temp.bkt_habitat",
     species = "BT", waterbody_poly = "whse_basemapping.fwa_lakes_poly",
     waterbody_ha_min = 10, bridge_gradient = 0.05, distance_max = 1,
     spawn_connected = NULL, lake_adjacent = TRUE, verbose = FALSE)
 
+  .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE))
+  run()
+
   # 5 is 500 m out, so its own cluster never qualifies.
   expect_false(.bkt_flags(conn, "spawning")[["5"]])
+
+  # Again with the decoy in THIS group, on another parent segment. Same
+  # rescue, reached through the parent-segment arm of the join rather than the
+  # group arm -- and that arm had no test at all until the mutation sweep
+  # could not credit it (fresh#293). The OTHR row above differs from its
+  # target in both group and parent segment, so with the column present
+  # neither arm alone is attributed by it; the group arm is pinned on a
+  # habitat table without linear_feature_id ("without linear_feature_id, the
+  # group alone keeps ...", below).
+  DBI::dbExecute(conn, "UPDATE pg_temp.bkt_habitat SET spawning = TRUE
+                        WHERE id_segment = 5 AND linear_feature_id = 5")
+  .bkt_habitat_add(conn, .bkt_seg(6, 1000, spawn = TRUE), wsg = "TEST")
+  expect_identical(DBI::dbGetQuery(conn, "
+    SELECT count(*)::int AS n FROM pg_temp.bkt_habitat h
+    INNER JOIN pg_temp.bkt_streams s
+       ON h.id_segment = s.id_segment
+      AND h.watershed_group_code = s.watershed_group_code
+    WHERE h.linear_feature_id <> s.linear_feature_id
+      AND h.spawning IS TRUE")$n, 1L)
+  run()
+
+  expect_false(.bkt_flags(conn, "spawning")[["5"]])
+})
+
+# --- A habitat table without linear_feature_id: the group is the whole key ---
+#
+# Every block above runs on a fixture carrying the parent segment, and every
+# cross-group decoy differs from its target in that as well as in the group, so
+# none of them can fail when the group arm of .frs_key_match() is dropped
+# (measured, fresh#293 review, round 5). Where the habitat table does not carry
+# the parent, the group is the only thing separating two groups' colliding ids
+# (fresh#218, fresh#242). These two are the first two blocks of this file
+# again, on that shape.
+
+test_that("without linear_feature_id, the group alone keeps another group's spawning", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 0, spawn = TRUE),
+    .bkt_seg(2, 1000, wbk = 11, rear = TRUE),
+    .bkt_seg(3, 0, spawn = TRUE, blk = 2L, wscode = "200", y = 5000)))
+  .bkt_habitat_add(conn, .bkt_seg(3, 0, spawn = TRUE))
+  .bkt_drop_habitat_lfid(conn)
+  expect_false(.frs_lfid_pair(conn, "pg_temp.bkt_habitat",
+                              "pg_temp.bkt_streams"))
+  .cwb_run(conn)
+
+  own <- .bkt_flags(conn, "spawning")
+  expect_true(own[["1"]])
+  expect_false(own[["3"]])
+  expect_true(.bkt_flags(conn, "spawning", wsg = "OTHR")[["3"]])
+})
+
+test_that("without linear_feature_id, another group's rearing lends no origin", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .bkt_fixture(conn, rbind(
+    .bkt_seg(1, 1000, wbk = 11, rear = TRUE),
+    .bkt_seg(2, 2000, spawn = TRUE),
+    .bkt_seg(3, 1000, wbk = 22, blk = 2L, wscode = "200", y = 5000),
+    .bkt_seg(4, 0, spawn = TRUE, blk = 2L, wscode = "200", y = 5000)))
+  .bkt_habitat_add(conn, .bkt_seg(3, 1000, rear = TRUE))
+  .bkt_drop_habitat_lfid(conn)
+  .cwb_run(conn)
+
+  own <- .bkt_flags(conn, "spawning")
+  expect_true(own[["2"]])
+  expect_false(own[["4"]])
 })

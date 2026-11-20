@@ -114,6 +114,18 @@
 #'   `near_river` pair, its own or inherited; [frs_habitat_classify()]
 #'   builds it and passes it. A rule matches only rows walked at exactly
 #'   its own measure, threshold and `distance_max`.
+#' @param near_river_lfid Logical. Whether `near_river_table` and the streams
+#'   table both carry `linear_feature_id`, in which case a rule's `near_river`
+#'   match keys on the parent segment as well as on `(id_segment,
+#'   watershed_group_code)`. A shared `near_river` table can hold another
+#'   job's rows for other ground at a colliding `id_segment`, and without the
+#'   parent a segment passes on a distance measured for a different segment
+#'   (fresh#293). **Required whenever `near_river_table` is given**, and with
+#'   no default there: this function is pure and cannot look at the tables, so
+#'   a default would hand a caller re-deriving the predicate 0.53.0's short
+#'   key by omission while the table it reads has begun holding two jobs'
+#'   rows. `FALSE` builds exactly the predicate 0.53.0 built, and
+#'   [frs_habitat_classify()] passes `TRUE` when both tables carry the column.
 #' @return A named list with four character scalars: `spawn`, `rear`,
 #'   `lake_rear`, `wetland_rear`. Each is an SQL boolean expression
 #'   suitable for embedding in `CASE WHEN ... THEN TRUE ELSE FALSE
@@ -143,7 +155,8 @@
 #'   edge_types_explicit = c(1000, 1100),
 #'   near_river = list(discharge_min = 3, distance_max = 1000)))
 #' frs_habitat_predicates(sp_params,
-#'   near_river_table = "working.streams_habitat_near_river")$rear
+#'   near_river_table = "working.streams_habitat_near_river",
+#'   near_river_lfid = TRUE)$rear
 #'
 #' # The same rule with no mapping inherits the stage's pair from the
 #' # thresholds CSV (here a 20 m channel within 1 km, under cw)
@@ -151,9 +164,27 @@
 #' sp_params$params_sp$near_river$rear <- list(measure = "channel_width",
 #'   channel_width_min = 20, distance_max = 1000)
 #' frs_habitat_predicates(sp_params,
-#'   near_river_table = "working.streams_habitat_near_river")$rear
+#'   near_river_table = "working.streams_habitat_near_river",
+#'   near_river_lfid = TRUE)$rear
 frs_habitat_predicates <- function(sp_params, model = "cw",
-                                   near_river_table = NULL) {
+                                   near_river_table = NULL,
+                                   near_river_lfid = NULL) {
+  if (!is.null(near_river_table) && is.null(near_river_lfid)) {
+    stop(paste0(
+      "near_river_lfid must be given with near_river_table: TRUE where that ",
+      "table and the streams table both carry linear_feature_id, as ",
+      "frs_habitat_classify() passes from fresh 0.54.0, and FALSE for the ",
+      "key fresh 0.53.0 used. This function cannot look at the tables, and a ",
+      "default would read a shared table on the shorter key."), call. = FALSE)
+  }
+  # Strict, as .frs_key_match() is: isTRUE() would turn NA or "TRUE" into
+  # FALSE, the short key the requirement above exists to prevent.
+  if (!is.null(near_river_lfid) &&
+      (!is.logical(near_river_lfid) || length(near_river_lfid) != 1L ||
+       is.na(near_river_lfid))) {
+    stop("near_river_lfid must be TRUE or FALSE", call. = FALSE)
+  }
+  near_river_lfid <- isTRUE(near_river_lfid)
   stopifnot(is.list(sp_params),
             !is.null(sp_params[["species_code"]]))
   if (!is.character(model) || length(model) != 1L ||
@@ -203,7 +234,8 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
       .frs_stage_inherit(params_sp, "spawn", model))
     spawn_pred <- .frs_rules_to_sql(
       .frs_stage_rules(params_sp, "spawn", model), csv_thresholds_spawn,
-      near_river_table = near_river_table)
+      near_river_table = near_river_table,
+      near_river_lfid = near_river_lfid)
   } else {
     spawn_pred <- sprintf("s.gradient >= %s AND s.gradient <= %s",
       .frs_sql_num(sp_params$spawn_gradient_min),
@@ -227,7 +259,8 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
       .frs_stage_inherit(params_sp, "rear", model))
     rear_pred <- .frs_rules_to_sql(.frs_stage_rules(params_sp, "rear", model),
                                    csv_thresholds_rear,
-                                   near_river_table = near_river_table)
+                                   near_river_table = near_river_table,
+                                   near_river_lfid = near_river_lfid)
   } else {
     rear_pred <- "FALSE"
     if (!is.null(params_sp$ranges$rear)) {

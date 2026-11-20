@@ -188,8 +188,8 @@ test_that("another watershed group's rows sharing an id_segment are never read o
   # OTHR rows reuse ids 2 and 3 in a shared habitat table: spawning on 2
   # (must not connect TEST's lake), lake bucket on 3 (must not be cleared)
   DBI::dbExecute(conn, "INSERT INTO pg_temp.bkt_habitat VALUES
-    (2, 'OTHR', 'BT', TRUE, TRUE, FALSE, FALSE, FALSE),
-    (3, 'OTHR', 'BT', TRUE, FALSE, FALSE, TRUE, FALSE)")
+    (2, -2, 'OTHR', 'BT', TRUE, TRUE, FALSE, FALSE, FALSE),
+    (3, -3, 'OTHR', 'BT', TRUE, FALSE, FALSE, TRUE, FALSE)")
   .bkt_run(conn, 1e6)
   got <- DBI::dbGetQuery(conn, "
     SELECT watershed_group_code AS wsg, id_segment, lake_rearing

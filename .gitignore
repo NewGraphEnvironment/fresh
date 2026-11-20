@@ -17,3 +17,7 @@ tests/testthat/testthat-problems.rds
 
 # knitr scratch at the repo root; the tracked copies live in vignettes/figure/
 figure/
+
+# Audit detail that names every schema on the instance it ran against; the
+# committed evidence is the aggregated summary beside it (fresh#293).
+data-raw/logs/habitat_293/tables.csv

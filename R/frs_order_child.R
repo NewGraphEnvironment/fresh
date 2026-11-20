@@ -119,6 +119,7 @@
 #' FROM s
 #' WHERE <habitat>.id_segment = s.id_segment
 #'   AND <habitat>.watershed_group_code = s.watershed_group_code
+#'   AND <habitat>.linear_feature_id = s.linear_feature_id  -- both carry it
 #'   AND <habitat>.species_code = '<species>'
 #'   AND <habitat>.accessible = TRUE
 #'   AND <habitat>.<label> IS NOT TRUE
@@ -286,8 +287,13 @@ frs_order_child <- function(conn,
   #
   # id_segment is unique only within a watershed group (fresh#218), and
   # `habitat` may hold other groups' rows at the same value, so the join
-  # matches watershed_group_code too: the write and its row count are
-  # then this job's groups' alone.
+  # matches watershed_group_code too. Since fresh#293 narrowed the partition
+  # delete it may also hold another job's rows for other ground in the SAME
+  # group, so the match goes through .frs_key_match(), which adds the parent
+  # segment where both tables carry it, and the counts use the same key.
+  lfid <- .frs_lfid_pair(conn, habitat, table)
+  part <- .frs_wsg_in(table, if (lfid) "linear_feature_id" else
+                               "watershed_group_code")
   sql <- sprintf(
     "WITH s AS (
        SELECT *,
@@ -297,8 +303,7 @@ frs_order_child <- function(conn,
      UPDATE %s h
      SET %s = TRUE
      FROM s
-     WHERE h.id_segment = s.id_segment
-       AND h.watershed_group_code = s.watershed_group_code
+     WHERE %s
        AND h.species_code = %s
        AND h.accessible = TRUE
        AND h.%s IS NOT TRUE
@@ -307,6 +312,7 @@ frs_order_child <- function(conn,
        %s %s %s %s %s",
     table,
     habitat, label,
+    .frs_key_match("h", "s", lfid),
     sp_quoted,
     label,
     pom,
@@ -318,8 +324,7 @@ frs_order_child <- function(conn,
     # Counted over the groups in `table`, not the whole habitat table
     n_before <- DBI::dbGetQuery(conn, sprintf(
       "SELECT count(*) FILTER (WHERE %s)::int AS n FROM %s
-       WHERE species_code = %s%s", label, habitat, sp_quoted,
-      .frs_wsg_in(table)))$n
+       WHERE species_code = %s%s", label, habitat, sp_quoted, part))$n
     message(sprintf("  %s before: %d segments with %s = TRUE",
                     species, n_before, label))
   }

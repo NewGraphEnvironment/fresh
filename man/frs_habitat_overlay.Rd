@@ -106,6 +106,7 @@ bridge table provides the link, with \code{id_segment},
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{to.id_segment = bridge.id_segment
 AND to.watershed_group_code = bridge.watershed_group_code
+AND to.linear_feature_id = bridge.linear_feature_id   -- when both carry it
 AND bridge.<by[1]> = from.<by[1]>
 AND bridge.downstream_route_measure >= from.downstream_route_measure
 AND bridge.upstream_route_measure   <= from.upstream_route_measure
@@ -117,7 +118,11 @@ Range containment, not point match — covers the case where one
 matches \code{watershed_group_code} as well as \code{id_segment}, because
 \code{id_segment} is unique only within a watershed group: a \code{to} table
 holding several groups (as \code{fresh.streams_habitat} does) has other
-groups' rows at the same \code{id_segment}, and they are left alone.
+groups' rows at the same \code{id_segment}, and they are left alone. It also
+matches \code{linear_feature_id} where both tables carry it: since fresh#293
+scoped the partition delete to the ground a job reinserts, one group can
+hold \strong{two jobs'} rows with independently derived \code{id_segment} values,
+and the parent segment is what separates those.
 }
 
 Future bridges aren't required to be \code{fresh.streams} — any table

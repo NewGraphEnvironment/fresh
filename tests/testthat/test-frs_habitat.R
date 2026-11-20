@@ -432,6 +432,12 @@ test_that("integration: frs_network_segment carries mad_m3s (fresh#114)", {
     .frs_trace_downstream = function(conn, table, origins_sql, target,
                                      distance_max, bridge_gradient) {
       invisible(NULL)
+    },
+    # The habitat-to-streams key is chosen from the two tables' columns, one
+    # call deeper than the stub below reaches (fresh#293). Both tables carry
+    # the parent segment in reality.
+    .frs_cols_of = function(conn, tbl) {
+      c("id_segment", "watershed_group_code", "linear_feature_id")
     }
   )
   mockery::stub(.frs_connected_waterbody, "DBI::dbGetQuery",

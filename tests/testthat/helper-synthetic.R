@@ -36,9 +36,15 @@
       waterbody_key integer, watershed_group_code text,
       channel_width double precision, edge_type integer,
       geom geometry(LineString, 3005))")
+  # linear_feature_id as frs_habitat_classify() writes it since fresh#293:
+  # the shared habitat table carries the parent segment whenever the streams
+  # table does, and every match against it keys on the parent as well, so a
+  # fixture without the column would exercise the id_segment path instead of
+  # the one a real run takes.
   DBI::dbExecute(conn, "
     CREATE TEMP TABLE bkt_habitat (
-      id_segment integer, watershed_group_code text, species_code text,
+      id_segment integer, linear_feature_id bigint,
+      watershed_group_code text, species_code text,
       accessible boolean, spawning boolean, rearing boolean,
       lake_rearing boolean, wetland_rearing boolean)")
   invisible(conn)
@@ -73,26 +79,50 @@
     for (sp in unique(c(species, species_other))) {
       own <- sp == species
       DBI::dbExecute(conn, sprintf(
-        "INSERT INTO pg_temp.bkt_habitat VALUES (%d, '%s', '%s', %s,
+        "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, '%s', '%s', %s,
            %s, %s, %s, %s)",
-        r$id, wsg, sp, r$access,
+        r$id, r$id, wsg, sp, r$access,
         own && r$spawn, own && r$rear, r$lake, r$wet))
     }
   }
 }
 
-# Add another watershed group's habitat rows, reusing `id_segment` values the
-# fixture's own group already uses. `segs` is a spec whose `id` values collide
-# on purpose; nothing is added to bkt_streams, which is the point — the other
-# group's streams live in its own working table, not this job's.
+# Add habitat rows that reuse `id_segment` values the fixture's own group
+# already uses. `segs` is a spec whose `id` values collide on purpose; nothing
+# is added to bkt_streams, which is the point — the rows being decoyed live in
+# some other job's working table, not this job's.
+#
+# Their `linear_feature_id` is negated, which serves both decoys this fixture
+# has to be able to build. With `wsg = "OTHR"` (the default) it collides with
+# nothing, because no linear_feature_id spans a watershed group (0, measured
+# province-wide) and a decoy sharing one would not be another group's row at
+# all — that is the group arm of every habitat join (fresh#242). With
+# `wsg = "TEST"` the negation IS the decoy: this group, this id_segment,
+# another parent segment, which is the row shape fresh#293 creates by scoping
+# the delete, and the only one that can reach the parent arm.
 .bkt_habitat_add <- function(conn, segs, species = "BT", wsg = "OTHR") {
   for (i in seq_len(nrow(segs))) {
     r <- segs[i, ]
     DBI::dbExecute(conn, sprintf(
-      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, '%s', '%s', %s, %s, %s,
+      "INSERT INTO pg_temp.bkt_habitat VALUES (%d, %d, '%s', '%s', %s, %s, %s,
          %s, %s)",
-      r$id, wsg, species, r$access, r$spawn, r$rear, r$lake, r$wet))
+      r$id, -r$id, wsg, species, r$access, r$spawn, r$rear, r$lake, r$wet))
   }
+}
+
+# Drop linear_feature_id from the habitat fixture, after any decoys are in.
+# The habitat joins then key on (id_segment, watershed_group_code), and the
+# group is the ONLY thing keeping two groups' colliding ids apart -- the shape
+# of a habitat table written before fresh 0.54.0, or by any writer that does
+# not carry the parent. With the column present, every cross-group decoy above
+# also differs in its parent segment, so no test on that shape can see the
+# group arm of .frs_key_match() (fresh#293 review, round 5). The streams table
+# keeps it: the connectivity trace walks on linear_feature_id, as it did
+# before fresh#293.
+.bkt_drop_habitat_lfid <- function(conn) {
+  DBI::dbExecute(conn,
+    "ALTER TABLE pg_temp.bkt_habitat DROP COLUMN linear_feature_id")
+  invisible(conn)
 }
 
 # One species' flag column, named by id_segment, for one group.
