@@ -192,19 +192,23 @@ frs_test_tbl_parts <- function(tbl) {
 
 # Drop every relation in `working` whose name carries this run's id, and
 # return the names found: the run id leads a frs_test_tbl() name and follows
-# the prefix of a frs_habitat() table named after a frs_test_label(). Run at the end of the suite (setup-run_namespace.R); a name it finds
-# is a test that did not clean up after itself.
+# the prefix of a frs_habitat() table named after a frs_test_label(). Run at
+# the end of the suite (setup-run_namespace.R); a name it finds is a test that
+# did not clean up after itself.
 frs_test_sweep <- function(conn, run_id = frs_test_run_id) {
   rel <- DBI::dbGetQuery(conn, sprintf(
     "SELECT c.relname, c.relkind
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'working' AND c.relkind IN ('r', 'p', 'v', 'm')
         AND strpos(c.relname, %s) > 0",
-    DBI::dbQuoteString(conn, paste0(run_id, "_"))))
+    DBI::dbQuoteString(conn, paste0(run_id, "_"))
+  ))
   for (i in seq_len(nrow(rel))) {
     kind <- switch(rel$relkind[i], v = "VIEW", m = "MATERIALIZED VIEW", "TABLE")
-    DBI::dbExecute(conn, sprintf("DROP %s IF EXISTS working.%s CASCADE", kind,
-                                 DBI::dbQuoteIdentifier(conn, rel$relname[i])))
+    DBI::dbExecute(conn, sprintf(
+      "DROP %s IF EXISTS working.%s CASCADE", kind,
+      DBI::dbQuoteIdentifier(conn, rel$relname[i])
+    ))
   }
   rel$relname
 }

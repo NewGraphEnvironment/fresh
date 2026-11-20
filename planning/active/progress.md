@@ -34,3 +34,10 @@
   probe of this branch's files alone (0 destroyed); positive control on main destroyed its
   poison. Details in findings.md. Poison cleaned up.
 - Next: /code-check branch.
+- /code-check branch round 1 (spawned 16:24Z): 1 finding (fragile): the scanner learnt live
+  connectors only from the files it scans, and helper-db.R's `local_fwapg_indexpoint()` is
+  defined in a file it excludes. Fixed: `defs_from` reads helper-db.R's definitions without
+  scanning its strings, with a snippet test both ways; CLAUDE.md's scope sentence corrected.
+  Also cleared the branch's own lints in the three new pieces (per file/linter vs main); the
+  migrated files keep their existing paren style, which is main's standing indentation class.
+  Mutation table re-run: 8/8 red, clean tree 0.

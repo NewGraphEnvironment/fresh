@@ -5,8 +5,10 @@
 # - a test_that() block, when it opens or gates on a connection: a call to
 #   frs_db_conn(), skip_if_no_conn(), skip_if_no_schema(), local_fwapg(),
 #   frs_fwapg_conn(), .frs_db_available() or dbConnect(), or to any top-level
-#   function in the scanned files that itself calls one (so a file's own
-#   connector, such as bcfp_conn(), counts);
+#   function that itself calls one, defined in a scanned file (so a file's own
+#   connector, such as bcfp_conn(), counts) or in helper-db.R, whose
+#   definitions are read for this though its strings are not scanned (so
+#   local_fwapg_indexpoint() counts);
 # - a top-level expression, unless it drives a "mock" connection (a "mock"
 #   or "mock_conn" string constant) and calls none of those, because a helper
 #   defined there can be handed a live connection by its caller.
@@ -99,29 +101,37 @@
   kids <- pd[pd$parent == call_id, ]
   kids <- kids[order(kids$line1, kids$col1), ]
   kids <- kids[kids$id != fn_expr & kids$token != "COMMENT", ]
-  nm <- character(); id <- integer(); cur <- ""
+  nm <- character()
+  id <- integer()
+  cur <- ""
   for (k in seq_len(nrow(kids))) {
     if (kids$token[k] == "SYMBOL_SUB") {
       cur <- kids$text[k]
     } else if (kids$token[k] == "expr") {
-      nm <- c(nm, cur); id <- c(id, kids$id[k]); cur <- ""
+      nm <- c(nm, cur)
+      id <- c(id, kids$id[k])
+      cur <- ""
     }
   }
   data.frame(name = nm, id = id, stringsAsFactors = FALSE)
 }
 
-.frs_test_fixed_names <- function(files, default_to = .frs_test_default_to()) {
+.frs_test_fixed_names <- function(files, default_to = .frs_test_default_to(),
+                                  defs_from = character()) {
   blocks <- lapply(files, .frs_test_blocks)
 
   # Live connectors, grown to a fixpoint over top-level function definitions
+  # in the scanned files and in `defs_from`
   live <- .frs_test_live_base
   defs <- list()
-  for (b in unlist(blocks, recursive = FALSE)) {
+  for (b in unlist(c(blocks, lapply(defs_from, .frs_test_blocks)),
+                   recursive = FALSE)) {
     e <- b$expr
-    if (is.call(e) && (identical(e[[1]], as.name("<-")) ||
-                       identical(e[[1]], as.name("="))) &&
-        is.name(e[[2]]) && is.call(e[[3]]) &&
-        identical(e[[3]][[1]], as.name("function"))) {
+    is_assign <- is.call(e) && (identical(e[[1]], as.name("<-")) ||
+                                  identical(e[[1]], as.name("=")))
+    is_def <- is_assign && is.name(e[[2]]) && is.call(e[[3]]) &&
+      identical(e[[3]][[1]], as.name("function"))
+    if (is_def) {
       defs[[as.character(e[[2]])]] <-
         unique(b$pd$text[b$pd$token == "SYMBOL_FUNCTION_CALL"])
     }
@@ -138,12 +148,15 @@
   hit <- function(file, line, kind, text) {
     out[[length(out) + 1L]] <<- data.frame(
       file = basename(file), line = line, kind = kind, text = text,
-      stringsAsFactors = FALSE)
+      stringsAsFactors = FALSE
+    )
   }
   for (fi in seq_along(files)) {
     file <- files[fi]
     for (b in blocks[[fi]]) {
-      pd <- b$pd; all <- b$all; e <- b$expr
+      pd <- b$pd
+      all <- b$all
+      e <- b$expr
       fc <- pd[pd$token == "SYMBOL_FUNCTION_CALL", ]
       is_live <- any(fc$text %in% live)
       is_test <- is.call(e) && identical(e[[1]], as.name("test_that"))
@@ -172,8 +185,10 @@
             hit(file, fc$line1[j], "wsg", "frs_habitat() in wsg mode")
           }
         }
-        if (fname %in% names(default_to) && !"to" %in% args$name &&
-            sum(args$name == "") < default_to[[fname]]) {
+        to_left_default <- fname %in% names(default_to) &&
+          !"to" %in% args$name &&
+          sum(args$name == "") < default_to[[fname]]
+        if (to_left_default) {
           hit(file, fc$line1[j], "to", paste0(fname, "() with its default to"))
         }
       }
@@ -193,4 +208,9 @@
   f <- list.files(dir, "^(test|helper|setup)-.*\\.R$", full.names = TRUE)
   f[!basename(f) %in% c("helper-db.R", "helper-test_names.R",
                         "test-test_table_names.R")]
+}
+
+# The file whose connectors the guard learns without scanning its strings.
+.frs_test_guard_defs <- function(dir = testthat::test_path()) {
+  file.path(dir, "helper-db.R")
 }

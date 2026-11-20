@@ -178,8 +178,9 @@ fails in a way nobody can reproduce. So a live test never writes a fixed
   within its schema.
 - Where a test needs no real FWA rows, `pg_temp` is better still: it is
   session-local (`helper-synthetic.R`).
-- `test-test_table_names.R` scans every test, helper and setup file and fails
-  on a fixed name where a test reaches a database: the schema in any spelling,
+- `test-test_table_names.R` scans the test, helper and setup files (all but
+  `helper-db.R` and the guard's own two, though it learns `helper-db.R`'s
+  connectors) and fails on a fixed name where a test reaches a database: the schema in any spelling,
   a fixed index name, a `frs_habitat()` label not built by `frs_test_label()`,
   a wsg-mode `frs_habitat()` call, and a call left at a `to` default inside
   `working`. It cannot see a bare table name compared against `table_name`,
