@@ -177,7 +177,9 @@ fails in a way nobody can reproduce. So a live test never writes a fixed
   (`tests/testthat/helper-db.R`). An index name is per run too: it is unique
   within its schema.
 - Where a test needs no real FWA rows, `pg_temp` is better still: it is
-  session-local (`helper-synthetic.R`).
+  session-local (`helper-synthetic.R`). Its names are, but catalog views are
+  not: `pg_indexes` and `pg_class` list every session's temp tables, so a
+  lookup there filters on `pg_my_temp_schema()`.
 - `test-test_table_names.R` scans the test, helper and setup files (all but
   `helper-db.R` and the guard's own two, though it learns `helper-db.R`'s
   connectors) and fails on a fixed name where a test reaches a database: the schema in any spelling,

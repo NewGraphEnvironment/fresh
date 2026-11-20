@@ -41,3 +41,10 @@
   Also cleared the branch's own lints in the three new pieces (per file/linter vs main); the
   migrated files keep their existing paren style, which is main's standing indentation class.
   Mutation table re-run: 8/8 red, clean tree 0.
+- Round 2 (16:34Z): Clean; probed round 1's fix (three connector shapes, flagged with
+  `defs_from`, the helper-db.R one missed without it).
+- Round 3 (16:40Z): named the mechanism (a lexical proxy for "a name the database resolves for
+  both runs") and enumerated its axes: all covered, documented, or reached by no test, except one
+  finding: test-frs_feature_index.R filtered `pg_indexes` on a bare tablename, and that view lists
+  every session's pg_temp tables (reproduced: 2 rows bare, 1 filtered to pg_my_temp_schema()).
+  Fixed; the latent axes are now written into the guard's header and CLAUDE.md's pg_temp bullet.

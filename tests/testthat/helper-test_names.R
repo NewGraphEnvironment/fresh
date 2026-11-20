@@ -30,7 +30,14 @@
 #
 # Out of its sight: a bare table name ("test_x" compared with
 # information_schema's table_name), and a name assembled in a variable
-# somewhere else. Use frs_test_tbl_parts() for the first.
+# somewhere else. Use frs_test_tbl_parts() for the first. It also checks only
+# the working schema: a fixed name in another schema, a permanent table
+# created unqualified (it lands wherever search_path points), a quoted index
+# name, and package code that builds working names other than through a `to`
+# default (frs_habitat_partition(label =), frs_habitat_species(to = NULL)) are
+# not flagged; no live test has one today. A pg_temp table is session-local
+# by name, but catalog views (pg_indexes, pg_class) list every session's, so
+# a lookup there filters on pg_my_temp_schema().
 .frs_test_live_base <- c("frs_db_conn", "skip_if_no_conn", "skip_if_no_schema",
                          "local_fwapg", "frs_fwapg_conn", ".frs_db_available",
                          "dbConnect")
