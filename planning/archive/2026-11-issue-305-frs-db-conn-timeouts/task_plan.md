@@ -70,5 +70,5 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 - [x] `lintr::lint_package()`: no new lints, compared per file against `origin/main`
 - [x] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
 
