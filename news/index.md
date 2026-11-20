@@ -1,5 +1,35 @@
 # Changelog
 
+## fresh 0.55.0
+
+Fixes [\#305](https://github.com/NewGraphEnvironment/fresh/issues/305).
+
+**A database host that stops answering now fails the connection instead
+of blocking it, so the test gates skip as documented.** -
+[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
+passed no timeout to libpq, whose waits have no limit by default. A host
+that completed the TCP handshake and then went silent blocked the caller
+indefinitely, and `skip_if_no_conn()` only turns an error into a skip. A
+long validation run spent 7 h 31 m inside one site before it was
+killed. -
+[`frs_db_conn()`](https://newgraphenvironment.github.io/fresh/reference/frs_db_conn.md)
+gains `connect_timeout`, resolved like the other fields: the argument,
+then `PGCONNECT_TIMEOUT`, then 10 s. It also passes TCP keepalive timing
+(60 s idle, 10 s between probes, 6 probes), so a dead established
+connection is noticed in about two minutes rather than the operating
+system’s default of about two hours. A new `...` passes any other libpq
+keyword and replaces a default of the same name (`NULL` removes one). A
+“Timeouts” section in its help says what is not bounded: long queries,
+data already in flight, the far end of a local SSH tunnel. -
+[`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)’s
+parallel workers connect with the same bounds. - `tcp_user_timeout` is
+deliberately not a default: libpq before PostgreSQL 12 refuses the
+keyword, and every connection would then fail. Pass it through `...` on
+Linux to bound unacknowledged data. - Whole numbers given as doubles
+reach libpq as integers. RPostgres sent `tcp_user_timeout = 300000` as
+`"3e+05"`, which libpq refused. A `connect_timeout` outside integer
+range is refused rather than sent as `"NA"`.
+
 ## fresh 0.54.0
 
 Fixes [\#293](https://github.com/NewGraphEnvironment/fresh/issues/293).

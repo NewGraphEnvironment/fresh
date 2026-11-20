@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.54.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.55.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.55.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.55.0" id="fresh-0550">fresh 0.55.0<a class="anchor" aria-label="anchor" href="#fresh-0550"></a></h2>
+<p>Fixes <a href="https://github.com/NewGraphEnvironment/fresh/issues/305" class="external-link">#305</a>.</p>
+<p><strong>A database host that stops answering now fails the connection instead of blocking it, so the test gates skip as documented.</strong> - <code><a href="../reference/frs_db_conn.html">frs_db_conn()</a></code> passed no timeout to libpq, whose waits have no limit by default. A host that completed the TCP handshake and then went silent blocked the caller indefinitely, and <code>skip_if_no_conn()</code> only turns an error into a skip. A long validation run spent 7 h 31 m inside one site before it was killed. - <code><a href="../reference/frs_db_conn.html">frs_db_conn()</a></code> gains <code>connect_timeout</code>, resolved like the other fields: the argument, then <code>PGCONNECT_TIMEOUT</code>, then 10 s. It also passes TCP keepalive timing (60 s idle, 10 s between probes, 6 probes), so a dead established connection is noticed in about two minutes rather than the operating system’s default of about two hours. A new <code>...</code> passes any other libpq keyword and replaces a default of the same name (<code>NULL</code> removes one). A “Timeouts” section in its help says what is not bounded: long queries, data already in flight, the far end of a local SSH tunnel. - <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code>’s parallel workers connect with the same bounds. - <code>tcp_user_timeout</code> is deliberately not a default: libpq before PostgreSQL 12 refuses the keyword, and every connection would then fail. Pass it through <code>...</code> on Linux to bound unacknowledged data. - Whole numbers given as doubles reach libpq as integers. RPostgres sent <code>tcp_user_timeout = 300000</code> as <code>"3e+05"</code>, which libpq refused. A <code>connect_timeout</code> outside integer range is refused rather than sent as <code>"NA"</code>.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.54.0" id="fresh-0540">fresh 0.54.0<a class="anchor" aria-label="anchor" href="#fresh-0540"></a></h2>
 <p>Fixes <a href="https://github.com/NewGraphEnvironment/fresh/issues/293" class="external-link">#293</a>.</p>
