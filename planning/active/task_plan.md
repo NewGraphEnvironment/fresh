@@ -189,7 +189,7 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
       residual limits — a stale species' rows keep an `id_segment` from an earlier
       numbering, so they are ambiguous *within* a parent (`F1`), and no call now
       removes an orphaned species' rows (`F3`).
-- [ ] `NEWS.md` + version bump as the final commit.
+- [x] `NEWS.md` + version bump as the final commit.
 - [x] #225 **is closed by the restructure**, with a regression case in
       `test-habitat_partition_293.R`: the delete no longer keys on the group, so a
       row with a NULL `watershed_group_code` is addressed like any other and a

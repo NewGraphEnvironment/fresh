@@ -68,3 +68,14 @@
 - 2026-11-19: branch pushed for the first time (fc78496); merged `main`
   (README and planning text only, 9228607); 25-site sweep relaunched in full
   at 18:09Z on fc78496; `/code-check branch` round 5 spawned at 18:10Z.
+- 2026-11-19 18:26Z: sweep stopped at site 1; round 5 found five issues
+  (fixed in 40ea542, #308 filed, link#452 body corrected); round 6
+  enumerated 40 quantified claims, 35 held, 5 fixed in 9d836a0. Loop ended
+  by that enumeration (`review-verdict.md`).
+- Sweep on 76fccc1, 18:57Z-00:35Z: 27 of 27 caught, baseline 136/0/0 both
+  ends (e9370ec).
+- Full suite 00:36Z-00:45Z: FAIL 0 | WARN 18 | SKIP 7 | PASS 2643. The
+  seventh skip is test-frs_network_features-live.R, whose second database
+  was unreachable; the file is untouched by this branch. Lint: rounds 5-6
+  added 9 indentation/brace lints in the files' existing hanging-indent style.
+- DESCRIPTION 0.54.0.
