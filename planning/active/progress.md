@@ -10,3 +10,5 @@
 - Plan review back (spawned 15:46Z): 9 findings, `review-305.md`. Finding 2 reproduced live (`invalid integer value "3e+05"`) and fixed
 - Phase 2: `.frs_conn_bounds()`, `frs_db_conn(connect_timeout, ...)`, `.frs_conn_params()` carries bounds, Timeouts docs. `test(filter = "frs_db_conn")`: 63 pass, 0 fail
 - Phase 3: `bcfp_conn()` and `frs_fwapg_conn()` carry the bounds; CLAUDE.md says a silent host skips, with the measured cost (199 gate calls, about 35 min at the default)
+- Guard proof (throwaway worktree at 4b33a7e): with `connect_timeout` removed from `.frs_conn_bounds()`'s output, the silent-host test hung until GNU `timeout` killed it at 60 s (15:51:54 to 15:52:54Z, no result printed). Restored: passes in 5 s
+- lintr, per file / linter / source line against a worktree of origin/main: one new `indentation_linter` hit, on the multi-line unnamed-`...` condition in `.frs_conn_bounds()`; fixed by naming the condition. The remaining `frs_db_conn.R` lint (`dbname = NULL,` indentation) is on main already

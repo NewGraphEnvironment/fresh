@@ -195,8 +195,8 @@ frs_db_conn <- function(
   }
 
   dots <- list(...)
-  if (length(dots) > 0L &&
-      (is.null(names(dots)) || any(!nzchar(names(dots))))) {
+  unnamed <- is.null(names(dots)) || any(!nzchar(names(dots)))
+  if (length(dots) > 0L && unnamed) {
     stop("frs_db_conn(): arguments in ... must be named libpq connection ",
          "keywords.", call. = FALSE)
   }

@@ -61,8 +61,8 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 
 ## Validation
 - [ ] Tests pass: full `devtools::test()` against the local fwapg. The existing live test "frs_db_conn returns a DBI connection" then proves libpq accepts every default keyword, `tcp_user_timeout` included
-- [ ] Prove the guard fires: in a worktree, remove `connect_timeout` from `.frs_conn_bounds()`'s output (dropping only the default cannot work, since the test passes 2 explicitly: review finding 1) and run the silent-host test under GNU `timeout 60`; it must hang (killed), then pass with the default restored. Record the result in `progress.md`
-- [ ] `lintr::lint_package()`: no new lints, compared per file against `origin/main`
+- [x] Prove the guard fires: in a worktree, remove `connect_timeout` from `.frs_conn_bounds()`'s output (dropping only the default cannot work, since the test passes 2 explicitly: review finding 1) and run the silent-host test under GNU `timeout 60`; it must hang (killed), then pass with the default restored. Record the result in `progress.md`
+- [x] `lintr::lint_package()`: no new lints, compared per file against `origin/main`
 - [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
