@@ -84,12 +84,12 @@ test_that("breaks_gradient default produces more breaks than disabled", {
 
   # to_streams must NOT collide with the auto-generated working.streams_<label>
   on.exit({
-    for (tbl in c("working.persist_brk_default",
-                  "working.persist_brk_default_habitat",
-                  "working.persist_brk_disabled",
-                  "working.persist_brk_disabled_habitat",
-                  "working.streams_brktest_a",
-                  "working.streams_brktest_b")) {
+    for (tbl in c(frs_test_tbl("persist_brk_default"),
+                  frs_test_tbl("persist_brk_default_habitat"),
+                  frs_test_tbl("persist_brk_disabled"),
+                  frs_test_tbl("persist_brk_disabled_habitat"),
+                  frs_test_label_tbl("brktest_a"),
+                  frs_test_label_tbl("brktest_b"))) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
     }
     DBI::dbDisconnect(conn)
@@ -97,16 +97,16 @@ test_that("breaks_gradient default produces more breaks than disabled", {
 
   # Default: auto-derive from spawn/rear maxes
   res_default <- frs_habitat(conn,
-    aoi = aoi, species = c("CO", "BT"), label = "brktest_a",
-    to_streams = "working.persist_brk_default",
-    to_habitat = "working.persist_brk_default_habitat",
+    aoi = aoi, species = c("CO", "BT"), label = frs_test_label("brktest_a"),
+    to_streams = frs_test_tbl("persist_brk_default"),
+    to_habitat = frs_test_tbl("persist_brk_default_habitat"),
     verbose = FALSE)
 
   # Disabled: only access thresholds (current 0.9.0 behavior)
   res_disabled <- frs_habitat(conn,
-    aoi = aoi, species = c("CO", "BT"), label = "brktest_b",
-    to_streams = "working.persist_brk_disabled",
-    to_habitat = "working.persist_brk_disabled_habitat",
+    aoi = aoi, species = c("CO", "BT"), label = frs_test_label("brktest_b"),
+    to_streams = frs_test_tbl("persist_brk_disabled"),
+    to_habitat = frs_test_tbl("persist_brk_disabled_habitat"),
     breaks_gradient = numeric(0),
     verbose = FALSE)
 
@@ -121,10 +121,10 @@ test_that("breaks_gradient custom override produces more segments than disabled"
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
 
   on.exit({
-    for (tbl in c("working.persist_brk_custom",
-                  "working.persist_brk_custom_habitat",
-                  "working.persist_brk_min",
-                  "working.persist_brk_min_habitat")) {
+    for (tbl in c(frs_test_tbl("persist_brk_custom"),
+                  frs_test_tbl("persist_brk_custom_habitat"),
+                  frs_test_tbl("persist_brk_min"),
+                  frs_test_tbl("persist_brk_min_habitat"))) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
     }
     DBI::dbDisconnect(conn)
@@ -132,17 +132,17 @@ test_that("breaks_gradient custom override produces more segments than disabled"
 
   # Custom: 0.10 (one extra break beyond mandatory access)
   res_custom <- frs_habitat(conn,
-    aoi = aoi, species = c("CO", "BT"), label = "brktest_d",
-    to_streams = "working.persist_brk_custom",
-    to_habitat = "working.persist_brk_custom_habitat",
+    aoi = aoi, species = c("CO", "BT"), label = frs_test_label("brktest_d"),
+    to_streams = frs_test_tbl("persist_brk_custom"),
+    to_habitat = frs_test_tbl("persist_brk_custom_habitat"),
     breaks_gradient = c(0.10),
     verbose = FALSE)
 
   # Disabled: only access thresholds
   res_min <- frs_habitat(conn,
-    aoi = aoi, species = c("CO", "BT"), label = "brktest_e",
-    to_streams = "working.persist_brk_min",
-    to_habitat = "working.persist_brk_min_habitat",
+    aoi = aoi, species = c("CO", "BT"), label = frs_test_label("brktest_e"),
+    to_streams = frs_test_tbl("persist_brk_min"),
+    to_habitat = frs_test_tbl("persist_brk_min_habitat"),
     breaks_gradient = numeric(0),
     verbose = FALSE)
 
@@ -160,10 +160,10 @@ test_that("regression #110: distinct thresholds produce distinct labels", {
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
 
   on.exit({
-    for (tbl in c("working.persist_brk_110",
-                  "working.persist_brk_110_habitat",
-                  "working.persist_brk_110_one",
-                  "working.persist_brk_110_one_habitat")) {
+    for (tbl in c(frs_test_tbl("persist_brk_110"),
+                  frs_test_tbl("persist_brk_110_habitat"),
+                  frs_test_tbl("persist_brk_110_one"),
+                  frs_test_tbl("persist_brk_110_one_habitat"))) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
     }
     DBI::dbDisconnect(conn)
@@ -171,21 +171,21 @@ test_that("regression #110: distinct thresholds produce distinct labels", {
 
   # Pass two thresholds that would collide under the old format
   frs_habitat(conn,
-    aoi = aoi, species = c("CO", "BT"), label = "brktest_110",
-    to_streams = "working.persist_brk_110",
-    to_habitat = "working.persist_brk_110_habitat",
+    aoi = aoi, species = c("CO", "BT"), label = frs_test_label("brktest_110"),
+    to_streams = frs_test_tbl("persist_brk_110"),
+    to_habitat = frs_test_tbl("persist_brk_110_habitat"),
     breaks_gradient = c(0.05, 0.0549),
     verbose = FALSE)
 
   res_one <- frs_habitat(conn,
-    aoi = aoi, species = c("CO", "BT"), label = "brktest_110b",
-    to_streams = "working.persist_brk_110_one",
-    to_habitat = "working.persist_brk_110_one_habitat",
+    aoi = aoi, species = c("CO", "BT"), label = frs_test_label("brktest_110b"),
+    to_streams = frs_test_tbl("persist_brk_110_one"),
+    to_habitat = frs_test_tbl("persist_brk_110_one_habitat"),
     breaks_gradient = c(0.05),
     verbose = FALSE)
 
   res_two <- DBI::dbGetQuery(conn,
-    "SELECT count(*)::int AS n FROM working.persist_brk_110")$n
+    sprintf("SELECT count(*)::int AS n FROM %s", frs_test_tbl("persist_brk_110")))$n
 
   # Two distinct thresholds should produce >= segments than one
   # (more if any segments fall between 5.0% and 5.49% gradient)
@@ -240,14 +240,14 @@ test_that("integration: wsg + aoi does not scan entire province", {
   # Extract with wsg + aoi — should be ADMS-sized, not province-sized
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_aoi_141",
+    to = frs_test_tbl("test_aoi_141"),
     where = sprintf("watershed_group_code = 'ADMS' AND (%s)",
                     "edge_type != 6010"),
     overwrite = TRUE)
 
   n <- DBI::dbGetQuery(conn,
-    "SELECT count(*)::int AS n FROM working.test_aoi_141")$n
-  DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.test_aoi_141")
+    sprintf("SELECT count(*)::int AS n FROM %s", frs_test_tbl("test_aoi_141")))$n
+  DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", frs_test_tbl("test_aoi_141")))
 
   # ADMS has ~11,500 segments. Province has ~4.9 million.
   # Filtered ADMS should be < 15,000 (not millions).
@@ -264,31 +264,32 @@ test_that("integration: to_barriers persists gradient barriers table", {
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
 
   on.exit({
-    for (tbl in c("working.persist_barriers_143",
-                  "working.persist_barriers_143_s",
-                  "working.persist_barriers_143_h")) {
+    for (tbl in c(frs_test_tbl("persist_barriers_143"),
+                  frs_test_tbl("persist_barriers_143_s"),
+                  frs_test_tbl("persist_barriers_143_h"))) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
     }
     DBI::dbDisconnect(conn)
   })
 
   frs_habitat(conn,
-    aoi = aoi, species = "BT", label = "b143",
-    to_streams = "working.persist_barriers_143_s",
-    to_habitat = "working.persist_barriers_143_h",
-    to_barriers = "working.persist_barriers_143",
+    aoi = aoi, species = "BT", label = frs_test_label("b143"),
+    to_streams = frs_test_tbl("persist_barriers_143_s"),
+    to_habitat = frs_test_tbl("persist_barriers_143_h"),
+    to_barriers = frs_test_tbl("persist_barriers_143"),
     verbose = FALSE)
 
   # Barriers table should exist and have rows
   n <- DBI::dbGetQuery(conn,
-    "SELECT count(*)::int AS n FROM working.persist_barriers_143")$n
+    sprintf("SELECT count(*)::int AS n FROM %s", frs_test_tbl("persist_barriers_143")))$n
   expect_gt(n, 0)
 
   # Should have expected columns
-  cols <- DBI::dbGetQuery(conn,
+  tp <- frs_test_tbl_parts(frs_test_tbl("persist_barriers_143"))
+  cols <- DBI::dbGetQuery(conn, sprintf(
     "SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'working' AND table_name = 'persist_barriers_143'
-     ORDER BY ordinal_position")$column_name
+     WHERE table_schema = '%s' AND table_name = '%s'
+     ORDER BY ordinal_position", tp$schema, tp$table))$column_name
   expect_true("blue_line_key" %in% cols)
   expect_true("downstream_route_measure" %in% cols)
   expect_true("gradient_class" %in% cols)
@@ -304,24 +305,25 @@ test_that("integration: NULL to_barriers does not persist", {
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
 
   on.exit({
-    DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.persist_null_143_s CASCADE")
-    DBI::dbExecute(conn, "DROP TABLE IF EXISTS working.persist_null_143_h CASCADE")
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", frs_test_tbl("persist_null_143_s")))
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", frs_test_tbl("persist_null_143_h")))
     DBI::dbDisconnect(conn)
   })
 
   frs_habitat(conn,
-    aoi = aoi, species = "BT", label = "n143",
-    to_streams = "working.persist_null_143_s",
-    to_habitat = "working.persist_null_143_h",
+    aoi = aoi, species = "BT", label = frs_test_label("n143"),
+    to_streams = frs_test_tbl("persist_null_143_s"),
+    to_habitat = frs_test_tbl("persist_null_143_h"),
     to_barriers = NULL,
     verbose = FALSE)
 
   # No barriers table should exist
-  exists <- DBI::dbGetQuery(conn,
+  tp <- frs_test_tbl_parts(frs_test_label_tbl("n143", "barriers_%s_gradient"))
+  exists <- DBI::dbGetQuery(conn, sprintf(
     "SELECT EXISTS (
        SELECT 1 FROM information_schema.tables
-       WHERE table_schema = 'working' AND table_name = 'barriers_n143_gradient'
-     ) AS e")$e
+       WHERE table_schema = '%s' AND table_name = '%s'
+     ) AS e", tp$schema, tp$table))$e
   expect_false(exists)
 })
 
@@ -332,12 +334,12 @@ test_that("integration: multiple labels at same position preserved in breaks", {
   conn <- frs_db_conn()
 
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
-  tbl_s <- "working.test_145_streams"
+  tbl_s <- frs_test_tbl("test_145_streams")
   tbl_breaks <- paste0(tbl_s, "_breaks")
 
   on.exit({
     for (tbl in c(tbl_s, tbl_breaks,
-                  "working.test_145_src_a", "working.test_145_src_b")) {
+                  frs_test_tbl("test_145_src_a"), frs_test_tbl("test_145_src_b"))) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
     }
     DBI::dbDisconnect(conn)
@@ -352,7 +354,7 @@ test_that("integration: multiple labels at same position preserved in breaks", {
      FROM %s LIMIT 1", tbl_s))
 
   # Create two mock break sources at the SAME position, DIFFERENT labels
-  for (tbl in c("working.test_145_src_a", "working.test_145_src_b")) {
+  for (tbl in c(frs_test_tbl("test_145_src_a"), frs_test_tbl("test_145_src_b"))) {
     DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", tbl))
     DBI::dbExecute(conn, sprintf(
       "CREATE TABLE %s AS SELECT %d::int AS blue_line_key, %s::float8 AS downstream_route_measure",
@@ -363,8 +365,8 @@ test_that("integration: multiple labels at same position preserved in breaks", {
   DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", tbl_s))
   frs_network_segment(conn, aoi = aoi, to = tbl_s,
     break_sources = list(
-      list(table = "working.test_145_src_a", label = "label_a"),
-      list(table = "working.test_145_src_b", label = "label_b")),
+      list(table = frs_test_tbl("test_145_src_a"), label = "label_a"),
+      list(table = frs_test_tbl("test_145_src_b"), label = "label_b")),
     verbose = FALSE)
 
   # Both labels should survive at the same position
@@ -384,7 +386,7 @@ test_that("integration: frs_network_segment carries mad_m3s (fresh#114)", {
   conn <- frs_db_conn()
 
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
-  tbl_s <- "working.test_114_streams"
+  tbl_s <- frs_test_tbl("test_114_streams")
 
   on.exit({
     DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl_s))
@@ -654,15 +656,15 @@ test_that("custom-AOI persist keeps another group's row at a colliding id_segmen
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
 
-  tgt <- "working.persist_282_streams"
-  hab <- "working.persist_282_habitat"
+  tgt <- frs_test_tbl("persist_282_streams")
+  hab <- frs_test_tbl("persist_282_habitat")
   # to_streams must NOT collide with the auto-generated working.streams_<label>
   on.exit({
     for (tbl in c(tgt, hab, paste0(hab, "_near_river"),
-                  "working.streams_p282a", "working.streams_p282b")) {
+                  frs_test_label_tbl("p282a"), frs_test_label_tbl("p282b"))) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", tbl))
     }
-    DBI::dbExecute(conn, "DROP TABLE IF EXISTS decoy_282")
+    DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.decoy_282")
     DBI::dbDisconnect(conn)
   })
   for (tbl in c(tgt, hab, paste0(hab, "_near_river"))) {
@@ -671,7 +673,7 @@ test_that("custom-AOI persist keeps another group's row at a colliding id_segmen
 
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
   run <- function(label) {
-    frs_habitat(conn, aoi = aoi, species = "CO", label = label,
+    frs_habitat(conn, aoi = aoi, species = "CO", label = frs_test_label(label),
       to_streams = tgt, to_habitat = hab, verbose = FALSE)
   }
   ids_of <- function(where) {
@@ -696,9 +698,11 @@ test_that("custom-AOI persist keeps another group's row at a colliding id_segmen
   # constraints, so without this the fixture cannot tell a correct overwrite
   # from one whose delete does not free the key for its insert -- which is
   # exactly the defect a one-statement version of this had.
+  # The index name is per run too: it is unique within its schema.
   DBI::dbExecute(conn, sprintf(
-    "CREATE UNIQUE INDEX persist_282_streams_pkey
-       ON %s (id_segment, watershed_group_code)", tgt))
+    "CREATE UNIQUE INDEX %s_pkey
+       ON %s (id_segment, watershed_group_code)",
+    frs_test_tbl_parts(tgt)$table, tgt))
 
   # 2. A decoy standing for another watershed group's row that happens to share
   #    an id_segment. It must carry a DIFFERENT linear_feature_id: no FWA
@@ -708,7 +712,7 @@ test_that("custom-AOI persist keeps another group's row at a colliding id_segmen
   #    parent-segment key, making this test pass or fail on the key rather than
   #    on the defect.
   decoy_id <- ids1[1]
-  DBI::dbExecute(conn, "DROP TABLE IF EXISTS decoy_282")
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.decoy_282")
   DBI::dbExecute(conn, sprintf(
     "CREATE TEMPORARY TABLE decoy_282 AS
        SELECT * FROM %s WHERE id_segment = %d LIMIT 1", tgt, decoy_id))

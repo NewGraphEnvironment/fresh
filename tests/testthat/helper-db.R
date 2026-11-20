@@ -152,17 +152,34 @@ frs_test_run_id <- local({
 
 # "working.<run>_<name>". `name` keeps its case: one test is about how
 # Postgres folds a mixed-case unquoted name.
+#
+# Length budget: Postgres truncates an identifier past 63 bytes with only a
+# NOTICE, after which an information_schema lookup by the full name finds
+# nothing. Package code appends up to about 27 characters to a table name
+# (`_near_river` and then `_lfid_idx`; `_localcode_btree_idx`), so a test
+# table name stays at 36 or under, run prefix included, and a label at 20,
+# which frs_habitat() wraps in up to 30 more (`streams_<label>_acc_00549_ovr_bt`
+# and its index suffixes).
 frs_test_tbl <- function(name) {
   stopifnot(is.character(name), length(name) == 1L,
-            grepl("^[A-Za-z_][A-Za-z0-9_]*$", name))
+            grepl("^[A-Za-z_][A-Za-z0-9_]*$", name),
+            nchar(frs_test_run_id) + 1L + nchar(name) <= 36L)
   paste0("working.", frs_test_run_id, "_", name)
 }
 
 # "<run>_<label>", for frs_habitat(label =).
 frs_test_label <- function(label) {
   stopifnot(is.character(label), length(label) == 1L,
-            grepl("^[A-Za-z0-9_]+$", label))
+            grepl("^[A-Za-z0-9_]+$", label),
+            nchar(frs_test_run_id) + 1L + nchar(label) <= 20L)
   paste0(frs_test_run_id, "_", label)
+}
+
+# A table frs_habitat() names after its label, "working.<fmt with the label>",
+# for a test that drops or looks for it: streams_<label> by default, or
+# barriers_<label>_gradient.
+frs_test_label_tbl <- function(label, fmt = "streams_%s") {
+  paste0("working.", sprintf(fmt, frs_test_label(label)))
 }
 
 # Schema and table of a frs_test_tbl() name, folded to lower case as Postgres
@@ -173,16 +190,17 @@ frs_test_tbl_parts <- function(tbl) {
   list(schema = p[[1]], table = p[[2]])
 }
 
-# Drop every relation in `working` that this run named, and return the names
-# found. Run at the end of the suite (setup-run_namespace.R); a name it finds
+# Drop every relation in `working` whose name carries this run's id, and
+# return the names found: the run id leads a frs_test_tbl() name and follows
+# the prefix of a frs_habitat() table named after a frs_test_label(). Run at the end of the suite (setup-run_namespace.R); a name it finds
 # is a test that did not clean up after itself.
 frs_test_sweep <- function(conn, run_id = frs_test_run_id) {
   rel <- DBI::dbGetQuery(conn, sprintf(
     "SELECT c.relname, c.relkind
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'working' AND c.relkind IN ('r', 'p', 'v', 'm')
-        AND left(c.relname, %d) = %s",
-    nchar(run_id) + 1L, DBI::dbQuoteString(conn, paste0(run_id, "_"))))
+        AND strpos(c.relname, %s) > 0",
+    DBI::dbQuoteString(conn, paste0(run_id, "_"))))
   for (i in seq_len(nrow(rel))) {
     kind <- switch(rel$relkind[i], v = "VIEW", m = "MATERIALIZED VIEW", "TABLE")
     DBI::dbExecute(conn, sprintf("DROP %s IF EXISTS working.%s CASCADE", kind,

@@ -173,12 +173,12 @@ test_that("gradient_NNNN with various values parses to expected fractions", {
 # Helper: run frs_habitat with given rules and return per-species counts
 .rules_test_run <- function(conn, label, rules) {
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
-  to_streams <- paste0("working.rt_streams_", label)
-  to_habitat <- paste0("working.rt_habitat_", label)
+  to_streams <- paste0(frs_test_tbl("rt_streams_"), label)
+  to_habitat <- paste0(frs_test_tbl("rt_habitat_"), label)
 
   frs_habitat(conn,
     aoi = aoi, species = c("CO", "BT", "SK", "PK"),
-    label = label,
+    label = frs_test_label(label),
     rules = rules,
     to_streams = to_streams,
     to_habitat = to_habitat,
@@ -284,9 +284,9 @@ test_that("integration: params_method = mad classifies on mad_m3s", {
   conn <- frs_db_conn()
 
   aoi <- "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree"
-  tbl_s <- "working.test_220_streams"
-  tbl_h <- "working.test_220_habitat"
-  tbl_nomad <- "working.test_220_streams_nomad"
+  tbl_s <- frs_test_tbl("test_220_streams")
+  tbl_h <- frs_test_tbl("test_220_habitat")
+  tbl_nomad <- frs_test_tbl("test_220_streams_nomad")
 
   on.exit({
     for (t in c(tbl_s, tbl_h, tbl_nomad, paste0(tbl_nomad, "_habitat"))) {
@@ -352,8 +352,8 @@ test_that("integration: mad guard reads columns from mixed-case / empty tables",
   conn <- frs_db_conn()
   # Mixed-case unquoted name folds to lower case in Postgres; an
   # information_schema lookup on the literal text would miss it.
-  tbl_s <- "working.Test_220_Empty"
-  tbl_h <- "working.test_220_empty_habitat"
+  tbl_s <- frs_test_tbl("Test_220_Empty")
+  tbl_h <- frs_test_tbl("test_220_empty_habitat")
   on.exit({
     for (t in c(tbl_s, tbl_h)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", t))

@@ -117,8 +117,8 @@ test_that("frs_barriers_minimal reduces two points on same reach to the downstre
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_bm_raw")
-    .frs_test_drop(conn, "working.test_bm_min")
+    .frs_test_drop(conn, frs_test_tbl("test_bm_raw"))
+    .frs_test_drop(conn, frs_test_tbl("test_bm_min"))
     DBI::dbDisconnect(conn)
   })
 
@@ -140,18 +140,18 @@ test_that("frs_barriers_minimal reduces two points on same reach to the downstre
   drm_down <- blk_sample$drm_min + 500
   drm_up   <- blk_sample$drm_min + 4500
 
-  .setup_synthetic_barriers(conn, "working.test_bm_raw")
-  .insert_synthetic_barrier(conn, "working.test_bm_raw", 1L, blk, drm_down)
-  .insert_synthetic_barrier(conn, "working.test_bm_raw", 2L, blk, drm_up)
+  .setup_synthetic_barriers(conn, frs_test_tbl("test_bm_raw"))
+  .insert_synthetic_barrier(conn, frs_test_tbl("test_bm_raw"), 1L, blk, drm_down)
+  .insert_synthetic_barrier(conn, frs_test_tbl("test_bm_raw"), 2L, blk, drm_up)
 
   frs_barriers_minimal(conn,
-    from = "working.test_bm_raw",
-    to   = "working.test_bm_min")
+    from = frs_test_tbl("test_bm_raw"),
+    to   = frs_test_tbl("test_bm_min"))
 
-  result <- DBI::dbGetQuery(conn, "
+  result <- DBI::dbGetQuery(conn, sprintf("
     SELECT id, downstream_route_measure
-    FROM working.test_bm_min
-    ORDER BY id")
+    FROM %s
+    ORDER BY id", frs_test_tbl("test_bm_min")))
 
   expect_equal(nrow(result), 1L)
   expect_equal(result$id, 1L)  # the downstream-most one
@@ -161,8 +161,8 @@ test_that("frs_barriers_minimal keeps points on different blue_line_keys", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_bm_raw")
-    .frs_test_drop(conn, "working.test_bm_min")
+    .frs_test_drop(conn, frs_test_tbl("test_bm_raw"))
+    .frs_test_drop(conn, frs_test_tbl("test_bm_min"))
     DBI::dbDisconnect(conn)
   })
 
@@ -178,18 +178,18 @@ test_that("frs_barriers_minimal keeps points on different blue_line_keys", {
     LIMIT 2")
   skip_if(nrow(blks) < 2, "not enough BLKs across watersheds")
 
-  .setup_synthetic_barriers(conn, "working.test_bm_raw")
-  .insert_synthetic_barrier(conn, "working.test_bm_raw",
+  .setup_synthetic_barriers(conn, frs_test_tbl("test_bm_raw"))
+  .insert_synthetic_barrier(conn, frs_test_tbl("test_bm_raw"),
     1L, blks$blue_line_key[1], blks$drm_min[1] + 100)
-  .insert_synthetic_barrier(conn, "working.test_bm_raw",
+  .insert_synthetic_barrier(conn, frs_test_tbl("test_bm_raw"),
     2L, blks$blue_line_key[2], blks$drm_min[2] + 100)
 
   frs_barriers_minimal(conn,
-    from = "working.test_bm_raw",
-    to   = "working.test_bm_min")
+    from = frs_test_tbl("test_bm_raw"),
+    to   = frs_test_tbl("test_bm_min"))
 
   result <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_bm_min")
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_bm_min")))
   expect_equal(result$n, 2L)
 })
 
@@ -197,18 +197,19 @@ test_that("frs_barriers_minimal errors on source table missing ltree columns", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_bm_nocols")
+    .frs_test_drop(conn, frs_test_tbl("test_bm_nocols"))
     DBI::dbDisconnect(conn)
   })
 
-  DBI::dbExecute(conn, "
-    CREATE TABLE working.test_bm_nocols (
+  DBI::dbExecute(conn, sprintf("
+    CREATE TABLE %s (
       blue_line_key integer,
       downstream_route_measure double precision
-    )")
+    )", frs_test_tbl("test_bm_nocols")))
 
   expect_error(
-    frs_barriers_minimal(conn, from = "working.test_bm_nocols"),
+    frs_barriers_minimal(conn, from = frs_test_tbl("test_bm_nocols"),
+                         to = frs_test_tbl("test_bm_nocols_min")),
     "missing required columns.*wscode_ltree.*localcode_ltree"
   )
 })

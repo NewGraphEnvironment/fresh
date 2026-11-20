@@ -165,13 +165,13 @@ test_that("a custom-AOI classify keeps the group's rows for ground outside the A
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
 
-  tgt <- "working.p293_streams"
-  hab <- "working.p293_habitat"
-  solo <- "working.p293_solo_habitat"
-  solo_s <- "working.p293_solo_streams"
+  tgt <- frs_test_tbl("p293_streams")
+  hab <- frs_test_tbl("p293_habitat")
+  solo <- frs_test_tbl("p293_solo_habitat")
+  solo_s <- frs_test_tbl("p293_solo_streams")
   tbls <- c(tgt, hab, solo, solo_s, paste0(hab, "_near_river"),
             paste0(solo, "_near_river"),
-            paste0("working.streams_", c("p293a", "p293b", "p293c")))
+            vapply(c("p293a", "p293b", "p293c"), frs_test_label_tbl, ""))
   on.exit({
     for (t in tbls) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s CASCADE", t))
@@ -185,7 +185,7 @@ test_that("a custom-AOI classify keeps the group's rows for ground outside the A
     DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", t))$n
   }
   run <- function(label, aoi, streams, habitat) {
-    frs_habitat(conn, aoi = aoi, species = "CO", label = label,
+    frs_habitat(conn, aoi = aoi, species = "CO", label = frs_test_label(label),
       to_streams = streams, to_habitat = habitat, verbose = FALSE)
   }
 

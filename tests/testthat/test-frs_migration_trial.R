@@ -196,7 +196,10 @@ test_that("a region that never closes is refused rather than guessed at", {
 test_that("a trial migrates its own session only, and its rollback undoes it", {
   conn <- local_fwapg()
   other <- local_fwapg()
-  tbl <- paste0("frs_trial_", paste(sample(letters, 12, TRUE), collapse = ""))
+  # The run id, not sample(): a set.seed() in an earlier file makes sample()
+  # draw the same name in every run, and two runs' trials would then wait on
+  # each other's uncommitted CREATE TABLE (#279).
+  tbl <- paste0("frs_trial_", frs_test_run_id, "_a")
   f <- withr::local_tempfile(fileext = ".sql")
   writeLines(c("BEGIN;", sprintf("CREATE TABLE public.%s (x integer);", tbl),
                sprintf("INSERT INTO public.%s VALUES (1);", tbl), "COMMIT;"), f)
@@ -214,7 +217,7 @@ test_that("a trial migrates its own session only, and its rollback undoes it", {
 
 test_that("several migrations are applied in one transaction, in the order given", {
   conn <- local_fwapg()
-  tbl <- paste0("frs_trial_", paste(sample(letters, 12, TRUE), collapse = ""))
+  tbl <- paste0("frs_trial_", frs_test_run_id, "_b")
   first <- withr::local_tempfile(fileext = ".sql")
   second <- withr::local_tempfile(fileext = ".sql")
   writeLines(c("BEGIN;", sprintf("CREATE TABLE public.%s (x integer);", tbl), "COMMIT;"), first)
@@ -236,7 +239,7 @@ test_that("several migrations are applied in one transaction, in the order given
 
 test_that("a migration that commits midway is refused before anything runs", {
   conn <- local_fwapg()
-  tbl <- paste0("frs_trial_", paste(sample(letters, 12, TRUE), collapse = ""))
+  tbl <- paste0("frs_trial_", frs_test_run_id, "_c")
   f <- withr::local_tempfile(fileext = ".sql")
   writeLines(c("BEGIN;", sprintf("CREATE TABLE public.%s (x integer);", tbl), "COMMIT;",
                "SELECT 1;", "COMMIT;"), f)
@@ -247,7 +250,7 @@ test_that("a migration that commits midway is refused before anything runs", {
 
 test_that("a refusal in any file stops the whole run before the first one applies", {
   conn <- local_fwapg()
-  tbl <- paste0("frs_trial_", paste(sample(letters, 12, TRUE), collapse = ""))
+  tbl <- paste0("frs_trial_", frs_test_run_id, "_d")
   good <- withr::local_tempfile(fileext = ".sql")
   bad <- withr::local_tempfile(fileext = ".sql")
   writeLines(c("BEGIN;", sprintf("CREATE TABLE public.%s (x integer);", tbl), "COMMIT;"), good)
