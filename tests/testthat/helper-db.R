@@ -34,16 +34,17 @@ skip_if_no_conn <- function(connect = frs_db_conn) {
 # the `docker/` container, because these tests must not reach the shared
 # instance the `PG*` vars name: a trial DROPs and recreates fwapg's functions
 # inside its transaction, and a rollback there is not a full undo (`dblink` is
-# installed on the shared host). Never on CI: they need the database.
+# installed on the shared host). Never on CI: they need the database. Carries
+# frs_db_conn()'s timeout bounds (#305), so a silent host skips.
 frs_fwapg_conn <- function() {
-  DBI::dbConnect(
+  do.call(DBI::dbConnect, c(list(
     RPostgres::Postgres(),
     host = Sys.getenv("FRESH_PGHOST", "localhost"),
     port = as.integer(Sys.getenv("FRESH_PGPORT", "5432")),
     dbname = Sys.getenv("FRESH_PGDATABASE", "fwapg"),
     user = Sys.getenv("FRESH_PGUSER", "postgres"),
     password = Sys.getenv("FRESH_PGPASSWORD", "postgres")
-  )
+  ), fresh:::.frs_conn_bounds()))
 }
 
 local_fwapg <- function(env = parent.frame()) {

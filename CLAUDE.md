@@ -129,6 +129,17 @@ standard libpq env vars (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`,
 standard var is set; deprecation message once per session) → libpq
 defaults. The two groups are never mixed (#213).
 
+A host that goes **silent** skips too, not only one that refuses (#305).
+`frs_db_conn()` passes libpq a `connect_timeout` (argument →
+`PGCONNECT_TIMEOUT` → 10 s) plus keepalive defaults, so the connect or `SELECT 1` inside a gate raises instead of
+blocking. The bound is per gate call and per address tried (`localhost`
+is two), and the suite makes 199 gate calls (counted 2026-11-20), so a
+whole run against a silent host still takes about 35 minutes at the
+default, or 70 through `localhost`: bounded, not quick. A live test that builds its
+own connection passes `fresh:::.frs_conn_bounds()` to `DBI::dbConnect()`,
+as `bcfp_conn()` and `frs_fwapg_conn()` do. Through a local tunnel only
+the connect is bounded: keepalives are answered by the tunnel's local end.
+
 When a user `.Renviron` sets `PG*` (for example to the local Docker
 fwapg from `docker/`, db `fwapg`), a plain `devtools::test()` runs
 against it. R's user `.Renviron` overrides shell env, so a
