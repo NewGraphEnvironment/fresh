@@ -50,3 +50,6 @@
   Fixed; the latent axes are now written into the guard's header and CLAUDE.md's pg_temp bullet.
 - Round 4 (16:51Z): Clean, including round 3's fix. Loop ended clean at round 4; no round found
   a defect inside a previous fix. Verdict in review-verdict.md.
+- After the review rounds, re-probed `frs_test_sweep()` (reformatted for lint after the concurrent
+  runs, and run only at teardown): a prefix-named table, a label-named table and a view, all
+  swept, 0 left.
