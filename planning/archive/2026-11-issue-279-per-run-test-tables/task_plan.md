@@ -116,7 +116,7 @@ mock. A block is live when it opens a connection (`frs_db_conn(`, `skip_if_no_co
 - [x] Tests pass
 - [x] `/code-check` clean (once over the branch with `/code-check branch`)
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
 
 How each change is proved: the snippet tests prove the guard returns both answers; the
 whole-tree assertion proves the migration is complete; the mutation step proves the guard
