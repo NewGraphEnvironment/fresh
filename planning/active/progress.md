@@ -15,3 +15,5 @@
 - Full suite on 4b33a7e (15:51 to 16:06Z): 854 tests, 0 failed, 0 errors, 6 skipped (fwapg migration trial unset, no bcfishpass schema, tunnel on 63333 refused). The tunnel test skipped at once, as a refusing host should
 - Code-check round 1 (spawned 15:55Z): 1 finding, accepted. `tcp_user_timeout` default dropped (libpq < 12 refuses the keyword); docs say pass it through `...` on Linux. `test(filter = "frs_db_conn")`: 63 pass
 - Code-check round 2 (spawned 16:07Z): 1 finding, accepted, not inside round 1 fix: `connect_timeout` above `.Machine$integer.max` passed the check and became NA; now refused, test added. 64 pass. `R CMD check --no-tests`: 0/0/0
+- Code-check round 3 (spawned 16:12Z): clean, with the mechanism named (a value that passes R's checks is assumed to mean the same to the linked libpq) and all 10 value paths enumerated sound. Loop ended clean after 3 rounds, no defect inside a fix; `review-verdict.md` written at 7d047c7
+- Filed #311 (pre-existing: `frs_fwapg_conn()` can be redirected by `PGHOSTADDR`, from round 3) and #312 (workers cannot carry a caller's connection options, plan-review finding 8)
