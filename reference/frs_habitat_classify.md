@@ -20,6 +20,7 @@ frs_habitat_classify(
   gate = TRUE,
   label_block = "blocked",
   barrier_overrides = NULL,
+  wsg_code = NULL,
   overwrite = TRUE,
   verbose = TRUE
 )
@@ -102,11 +103,40 @@ frs_habitat_classify(
   species. Default `NULL` (no overrides; every blocking break restricts
   access).
 
+- wsg_code:
+
+  Character or `NULL`. The watershed group this call covers **in its
+  entirety**. `NULL` (default) is the safe case and the one a custom AOI
+  needs: only the ground `table` holds is replaced, so rows another job
+  wrote for other ground in the same group survive. Pass a code only
+  where the job segmented the whole group –
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  does, via `.frs_partition_wsg()` – and the call refuses a code that is
+  not the one group `table` holds. Before 0.54.0 every group `table`
+  mentioned was deleted whole, so a custom-AOI job removed rows it never
+  put back (fresh#293).
+
 - overwrite:
 
-  Logical. If `TRUE`, replace existing rows for these species in the
-  output table. Default `TRUE`. The `<to>_near_river` table (below) is
-  rebuilt for the table's groups whatever `overwrite` says.
+  Logical. If `TRUE`, replace this job's rows in the output table.
+  Default `TRUE`. What "this job's rows" means depends on `wsg_code`:
+  with `NULL` it is the ground `table` holds **and only the species this
+  call classifies**, so a run for one species leaves another's rows
+  alone; with a group code it is that whole watershed group, every
+  species included, because a whole-group run is a wholesale replace and
+  the repair path for a group whose rows an earlier release removed. The
+  `<to>_near_river` table (below) is rebuilt for the same ground
+  whatever `overwrite` says.
+
+  Two limits. A target written before 0.54.0 carries no
+  `linear_feature_id`; the column is added, and the call then refuses
+  while any row still holds NULL for it, because such a row is one no
+  partition delete can address. Re-running each watershed group with
+  `wsg_code` set backfills them one group at a time. And a species' rows
+  that no later custom-AOI run classifies are not removed by one, so
+  they keep an `id_segment` from the numbering of the run that wrote
+  them: within a parent segment they are ambiguous until a whole-group
+  run (`wsg_code` set) of their group replaces every species' rows.
 
 - verbose:
 
@@ -204,10 +234,22 @@ DBI::dbGetQuery(conn, "
   FROM fresh.streams_habitat
   GROUP BY watershed_group_code, species_code")
 
+# One group at a time, into the same shared table. `wsg_code` says the job
+# covers that group in full, so the overwrite is the whole group — cheaper
+# per group than the parent-segment overwrite a custom AOI needs, and the
+# repair for a group an earlier release emptied.
+frs_habitat_classify(conn,
+  table = "working.streams_bulk",
+  to = "fresh.streams_habitat",
+  species = "CO",
+  wsg_code = "BULK")
+
 # Join geometry back for mapping. `id_segment` is unique only WITHIN a
-# watershed group, so the key is (id_segment, watershed_group_code) and
-# both tables carry it — joining on id_segment alone multiplies rows by
-# the number of groups sharing a value (fresh#218).
+# watershed group, and on a shared table one group can hold rows from more
+# than one job, so the key is (id_segment, watershed_group_code,
+# linear_feature_id) — the parent segment is what separates two jobs' rows
+# inside one group (fresh#218, fresh#293). Joining on id_segment alone
+# multiplies rows by the number of groups sharing a value.
 DBI::dbExecute(conn, "
   CREATE OR REPLACE VIEW fresh.streams_co_vw AS
   SELECT s.*, h.accessible, h.spawning, h.rearing, h.lake_rearing, h.wetland_rearing
@@ -215,6 +257,7 @@ DBI::dbExecute(conn, "
   JOIN fresh.streams_habitat h
     ON s.id_segment = h.id_segment
    AND s.watershed_group_code = h.watershed_group_code
+   AND s.linear_feature_id = h.linear_feature_id
   WHERE h.species_code = 'CO'")
 
 # Re-running is safe — existing rows for these species are replaced.

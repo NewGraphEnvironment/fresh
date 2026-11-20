@@ -11,7 +11,7 @@ clusters have their label set to FALSE."><meta property="og:image" content="http
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.53.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.54.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -83,10 +83,14 @@ and ltree columns (from <code><a href="frs_network_segment.html">frs_network_seg
 <dd><p>Character. Schema-qualified habitat table with boolean
 label columns (from <code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code>). Must carry
 <code>watershed_group_code</code>: <code>id_segment</code> is unique only within a watershed
-group, so every join matches both. A shared habitat table holding other
-groups' rows is therefore safe — they are never read or cleared, and
-<code>species = NULL</code> resolves only the species present in <code>table</code>'s groups
-(fresh#242).</p></dd>
+group. Every join also matches <code>linear_feature_id</code> where both tables
+carry it, because a shared habitat table can hold <strong>another job's rows
+for other ground in the same group</strong> since fresh#293 scoped the partition
+delete to the ground a job reinserts, and the parent segment is what
+separates them. With the parent, a shared table is safe — other rows are
+never read or cleared, and <code>species = NULL</code> resolves only the species
+present on <code>table</code>'s own ground (fresh#242, fresh#293). On a network with
+no <code>linear_feature_id</code> the pair is the only key there is.</p></dd>
 
 
 <dt id="arg-label-cluster">label_cluster<a class="anchor" aria-label="anchor" href="#arg-label-cluster"></a></dt>

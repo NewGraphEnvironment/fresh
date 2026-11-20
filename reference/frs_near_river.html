@@ -23,7 +23,7 @@ itself when a rule asks; call it directly to inspect the distances."><meta prope
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.53.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.54.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -75,6 +75,7 @@ itself when a rule asks; call it directly to inspect the distances.</p>
 <span>  <span class="va">threshold</span>,</span>
 <span>  <span class="va">distance_max</span>,</span>
 <span>  measure <span class="op">=</span> <span class="st">"discharge"</span>,</span>
+<span>  wsg_code <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -99,14 +100,20 @@ itself when a rule asks; call it directly to inspect the distances.</p>
 <dt id="arg-to">to<a class="anchor" aria-label="anchor" href="#arg-to"></a></dt>
 <dd><p>Character. Schema-qualified output table, created if it does
 not exist, with columns <code>id_segment</code>, <code>watershed_group_code</code>,
-<code>measure</code>, <code>threshold</code>, <code>distance_max</code> and <code>dist_m</code>. A <code>near_river</code>
+<code>measure</code>, <code>threshold</code>, <code>distance_max</code> and <code>dist_m</code>, plus
+<code>linear_feature_id</code> when <code>table</code> carries it. A <code>near_river</code>
 rule reads only rows of its own exact measure, threshold and
 distance, so build the table with the pairs the rules carry
 (<code><a href="frs_habitat_classify.html">frs_habitat_classify()</a></code> does): a walk at a longer distance does
-not serve a rule with a shorter one. Rows for the watershed groups
-in <code>table</code> are replaced on every call; other groups' rows are kept.
-A table written by fresh 0.41.0 (with a <code>discharge_min</code> column and
-no <code>measure</code>) stops the call; drop it and re-run.</p></dd>
+not serve a rule with a shorter one. <strong>Rows for the ground this walk
+covers are replaced on every call; rows for other ground are kept</strong> –
+including other ground in the same watershed group, which is what makes
+the table safe to share with a custom-AOI job (fresh#293). Before 0.54.0
+every group <code>table</code> mentioned was deleted whole, so a custom AOI removed
+rows it never put back. A table written by fresh 0.41.0 (with a
+<code>discharge_min</code> column and no <code>measure</code>), or one whose
+<code>linear_feature_id</code> disagrees with <code>table</code>'s, stops the call; drop it and
+re-run, which rebuilds it from <code>table</code>.</p></dd>
 
 
 <dt id="arg-threshold">threshold<a class="anchor" aria-label="anchor" href="#arg-threshold"></a></dt>
@@ -125,6 +132,21 @@ pairs must be distinct.</p></dd>
 <dt id="arg-measure">measure<a class="anchor" aria-label="anchor" href="#arg-measure"></a></dt>
 <dd><p>Character, length 1 or one per <code>threshold</code>:
 <code>"discharge"</code> (default), <code>"channel_width"</code> or <code>"stream_order"</code>.</p></dd>
+
+
+<dt id="arg-wsg-code">wsg_code<a class="anchor" aria-label="anchor" href="#arg-wsg-code"></a></dt>
+<dd><p>Character or <code>NULL</code>. The watershed group this call covers
+<strong>in its entirety</strong>, which makes the replace a whole-group one. <code>NULL</code>
+(default) is the safe case and the one a custom AOI needs: only the
+ground <code>table</code> holds is replaced. Pass a code only where the job
+segmented the whole group – <code><a href="frs_habitat.html">frs_habitat()</a></code> does, via
+<code>.frs_partition_wsg()</code> – and the call refuses a code that is not the one
+group <code>table</code> holds, because a whole-group delete on a subset is the
+defect this parameter exists to avoid. Note what a whole-group replace
+means here: it removes <strong>every</strong> <code>(measure, threshold, distance_max)</code>
+the group holds, not only the pairs this call walks, so a direct caller
+accumulating two measures in one table (as the examples above do) should
+leave <code>wsg_code</code> at <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>

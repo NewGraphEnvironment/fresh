@@ -1,5 +1,125 @@
 # Changelog
 
+## fresh 0.54.0
+
+Fixes [\#293](https://github.com/NewGraphEnvironment/fresh/issues/293).
+
+**A custom-AOI run no longer deletes whole watershed groups from the
+shared habitat and `near_river` tables.** -
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+read the watershed groups its working table mentioned and deleted each
+one **whole** from `to`, then inserted only the AOI’s own rows. In WSG
+mode that is a clean replace. In custom-AOI mode the working table holds
+only the AOI’s segments while the groups it names extend far beyond it,
+so every row those groups held outside the AOI went, with nothing to put
+it back and no error.
+[`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md)
+had the identical statement, and its target is derived from `to`, so a
+shared `to` made it shared too. - Both targets now carry
+`linear_feature_id` when the streams table does, and the delete keys on
+it through the chooser 0.53.0 added for `to_streams` — the only key
+measured correct against both generations of these tables, and the only
+one that also clears sub-segments an earlier run broke at different
+measures.
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+and
+[`frs_near_river()`](https://newgraphenvironment.github.io/fresh/reference/frs_near_river.md)
+take a new `wsg_code`: `NULL`, the default, replaces only the ground the
+working table holds, and a group code asserts the job covers that group
+in full, which the call checks against the table rather than taking on
+trust. - A custom-AOI delete is also scoped to the species the call
+classifies, which is what `overwrite`’s documentation already promised:
+a run for one species no longer removes another’s rows for the same
+ground. A whole-group delete deliberately is **not** so scoped — it
+stays a wholesale replace, because it is the repair path for a group an
+earlier release emptied, and scoping it by species would leave rows for
+a species no longer modelled holding a NULL key for ever, which no later
+run could address. - The delete and the inserts are one transaction, run
+after the accessibility tables are built rather than before.
+Autocommitted separately, anything that stopped the pair in between — a
+`statement_timeout`, a cancelled query, a dropped connection — left the
+partition deleted and not written back, which is this issue’s loss
+reached another way. Not one statement: a data-modifying CTE puts both
+under one command id, so the insert’s uniqueness check still sees the
+rows the delete is removing. - Measured before the fix, on the shared
+instance (2026-11-02; the counts move as other work creates tables, the
+shape does not): of 221 habitat tables **none** was shared across
+watershed groups, so no habitat table had suffered the loss; of 114
+`near_river` tables **20** were, across 2 to 125 groups. A deleted group
+there is rebuilt by the next run of that group, but until then a
+classify over another group reads a table missing those rows, so every
+`near_river` predicate silently fails and the habitat written is
+under-classified. `data-raw/audit_habitat_293.R` re-derives this against
+any instance, finding the tables by their columns rather than their
+names. - The issue said the rows deleted would outnumber the rows
+written. They do not: on the documented AOI the job holds 50,808 of the
+69,956 FWA segments in the five groups it touches, so it deletes 19,148
+rows per species it does not put back — 0.38 per row written. The defect
+was as described; its size was not.
+
+**Narrowing the delete is what made the reads need the same key.** - The
+whole-group delete was the reason `(id_segment, watershed_group_code)`
+was a sound key for *reading* a shared habitat or `near_river` table:
+after a job ran, the table held no other job’s rows for that job’s
+groups. It can now, with ids derived independently — of one measured
+job’s 275 derived `id_segment` values, 81 equalled a real
+`linear_feature_id` **in its own watershed group**. The canonical case
+is the repair this release recommends: a whole-group run, then a
+custom-AOI run inside it. - Every match between a habitat row and a
+stream segment in fresh is therefore built by one internal helper, which
+adds the parent segment where both tables carry it. That covers the
+connectivity and clustering passes,
+[`frs_order_child()`](https://newgraphenvironment.github.io/fresh/reference/frs_order_child.md),
+and
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)‘s
+bridge mode; the cluster tables carry the parent so their write-back
+pins on it too, and the per-species and per-pass row counts are scoped
+by the delete key rather than by the watershed group, which would now
+over-report. Two tests enumerate the parsed functions: one fails on any
+site that still spells a join inline, the other on any of the 19 helper
+calls that builds a key with the parent segment switched off — which the
+first cannot see, since such a call spells no join of its own.
+[`frs_habitat_overlay()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_overlay.md)’s
+direct mode keys on the caller’s `by` and remains
+[\#277](https://github.com/NewGraphEnvironment/fresh/issues/277)’s
+question. -
+[`frs_habitat_predicates()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_predicates.md)
+takes `near_river_lfid`, and **requires it whenever `near_river_table`
+is given**: the function is pure and cannot look at the tables, so a
+default would hand a caller re-deriving the predicate 0.53.0’s short key
+by omission while the table it reads has begun holding two jobs’ rows.
+`FALSE` builds exactly the predicate 0.53.0 built;
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+passes `TRUE` when both tables carry the column. Callers that pass a
+table — link’s habitat validator among them — need the one-line
+addition.
+
+**Migrating a table written before this release.** - No habitat or
+`near_river` table written before this release carries
+`linear_feature_id`. A habitat table is given it on the next run and
+then refused while any row still holds NULL for it, since such a row is
+one no partition delete can ever address; re-running each watershed
+group with `wsg` and no `aoi` backfills it one group at a time. A
+`near_river` table is a cache rebuilt from the streams table, so it is
+not backfilled: its shape check refuses it on any run, before anything
+is written, and tells you to drop it and re-run. - The column is added
+**only when the streams table has one**.
+[`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+has never required `linear_feature_id`, so creating it unconditionally
+would have refused every network that is not the Freshwater Atlas; those
+keep `id_segment`, the only identity they have. - Not fixed: a species’
+rows that no later custom-AOI run classifies are not removed by one
+(only a whole-group run of their group replaces them), so they keep an
+`id_segment` from the numbering of the run that wrote them. Adding the
+parent narrows that from “wrong parent segment” to “ambiguous within one
+parent”, and closing it is the `id_segment`-at-assignment work, the
+sibling of
+[\#218](https://github.com/NewGraphEnvironment/fresh/issues/218),
+tracked in
+[\#300](https://github.com/NewGraphEnvironment/fresh/issues/300).
+`research/id_segment_identity.md` carries the measurements and both
+limits.
+
 ## fresh 0.53.0
 
 Fixes [\#282](https://github.com/NewGraphEnvironment/fresh/issues/282).

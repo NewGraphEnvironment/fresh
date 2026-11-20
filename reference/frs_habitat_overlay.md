@@ -129,6 +129,7 @@ Shape-translation lives with the consumer.
 
       to.id_segment = bridge.id_segment
       AND to.watershed_group_code = bridge.watershed_group_code
+      AND to.linear_feature_id = bridge.linear_feature_id   -- when both carry it
       AND bridge.<by[1]> = from.<by[1]>
       AND bridge.downstream_route_measure >= from.downstream_route_measure
       AND bridge.upstream_route_measure   <= from.upstream_route_measure
@@ -139,7 +140,11 @@ Shape-translation lives with the consumer.
   `watershed_group_code` as well as `id_segment`, because `id_segment`
   is unique only within a watershed group: a `to` table holding several
   groups (as `fresh.streams_habitat` does) has other groups' rows at the
-  same `id_segment`, and they are left alone.
+  same `id_segment`, and they are left alone. It also matches
+  `linear_feature_id` where both tables carry it: since fresh#293 scoped
+  the partition delete to the ground a job reinserts, one group can hold
+  **two jobs'** rows with independently derived `id_segment` values, and
+  the parent segment is what separates those.
 
 Future bridges aren't required to be `fresh.streams` — any table
 providing `id_segment` + the join-key columns + range columns works. Use

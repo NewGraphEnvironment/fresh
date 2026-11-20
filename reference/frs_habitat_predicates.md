@@ -11,7 +11,12 @@ habitat columns.
 ## Usage
 
 ``` r
-frs_habitat_predicates(sp_params, model = "cw", near_river_table = NULL)
+frs_habitat_predicates(
+  sp_params,
+  model = "cw",
+  near_river_table = NULL,
+  near_river_lfid = NULL
+)
 ```
 
 ## Arguments
@@ -41,6 +46,22 @@ frs_habitat_predicates(sp_params, model = "cw", near_river_table = NULL)
   [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
   builds it and passes it. A rule matches only rows walked at exactly
   its own measure, threshold and `distance_max`.
+
+- near_river_lfid:
+
+  Logical. Whether `near_river_table` and the streams table both carry
+  `linear_feature_id`, in which case a rule's `near_river` match keys on
+  the parent segment as well as on `(id_segment, watershed_group_code)`.
+  A shared `near_river` table can hold another job's rows for other
+  ground at a colliding `id_segment`, and without the parent a segment
+  passes on a distance measured for a different segment (fresh#293).
+  **Required whenever `near_river_table` is given**, and with no default
+  there: this function is pure and cannot look at the tables, so a
+  default would hand a caller re-deriving the predicate 0.53.0's short
+  key by omission while the table it reads has begun holding two jobs'
+  rows. `FALSE` builds exactly the predicate 0.53.0 built, and
+  [`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
+  passes `TRUE` when both tables carry the column.
 
 ## Value
 
@@ -207,8 +228,9 @@ sp_params$params_sp$rules$rear <- list(list(
   edge_types_explicit = c(1000, 1100),
   near_river = list(discharge_min = 3, distance_max = 1000)))
 frs_habitat_predicates(sp_params,
-  near_river_table = "working.streams_habitat_near_river")$rear
-#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.measure = 'discharge' AND n.threshold = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
+  near_river_table = "working.streams_habitat_near_river",
+  near_river_lfid = TRUE)$rear
+#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.linear_feature_id = s.linear_feature_id AND n.measure = 'discharge' AND n.threshold = 3 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
 
 # The same rule with no mapping inherits the stage's pair from the
 # thresholds CSV (here a 20 m channel within 1 km, under cw)
@@ -216,6 +238,7 @@ sp_params$params_sp$rules$rear[[1]]$near_river <- NULL
 sp_params$params_sp$near_river$rear <- list(measure = "channel_width",
   channel_width_min = 20, distance_max = 1000)
 frs_habitat_predicates(sp_params,
-  near_river_table = "working.streams_habitat_near_river")$rear
-#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.measure = 'channel_width' AND n.threshold = 20 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
+  near_river_table = "working.streams_habitat_near_river",
+  near_river_lfid = TRUE)$rear
+#> [1] "((s.edge_type IN (1000, 1100) AND s.gradient BETWEEN 0 AND 0.0549 AND (s.channel_width BETWEEN 1.5 AND 9999 OR EXISTS (SELECT 1 FROM working.streams_habitat_near_river n WHERE n.id_segment = s.id_segment AND n.watershed_group_code = s.watershed_group_code AND n.linear_feature_id = s.linear_feature_id AND n.measure = 'channel_width' AND n.threshold = 20 AND n.distance_max = 1000 AND n.dist_m <= 1000))))"
 ```

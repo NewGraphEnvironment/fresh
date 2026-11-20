@@ -22,6 +22,7 @@ frs_near_river(
   threshold,
   distance_max,
   measure = "discharge",
+  wsg_code = NULL,
   verbose = TRUE
 )
 ```
@@ -48,15 +49,21 @@ frs_near_river(
 
   Character. Schema-qualified output table, created if it does not
   exist, with columns `id_segment`, `watershed_group_code`, `measure`,
-  `threshold`, `distance_max` and `dist_m`. A `near_river` rule reads
-  only rows of its own exact measure, threshold and distance, so build
-  the table with the pairs the rules carry
+  `threshold`, `distance_max` and `dist_m`, plus `linear_feature_id`
+  when `table` carries it. A `near_river` rule reads only rows of its
+  own exact measure, threshold and distance, so build the table with the
+  pairs the rules carry
   ([`frs_habitat_classify()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_classify.md)
   does): a walk at a longer distance does not serve a rule with a
-  shorter one. Rows for the watershed groups in `table` are replaced on
-  every call; other groups' rows are kept. A table written by fresh
-  0.41.0 (with a `discharge_min` column and no `measure`) stops the
-  call; drop it and re-run.
+  shorter one. **Rows for the ground this walk covers are replaced on
+  every call; rows for other ground are kept** – including other ground
+  in the same watershed group, which is what makes the table safe to
+  share with a custom-AOI job (fresh#293). Before 0.54.0 every group
+  `table` mentioned was deleted whole, so a custom AOI removed rows it
+  never put back. A table written by fresh 0.41.0 (with a
+  `discharge_min` column and no `measure`), or one whose
+  `linear_feature_id` disagrees with `table`'s, stops the call; drop it
+  and re-run, which rebuilds it from `table`.
 
 - threshold:
 
@@ -74,6 +81,23 @@ frs_near_river(
 
   Character, length 1 or one per `threshold`: `"discharge"` (default),
   `"channel_width"` or `"stream_order"`.
+
+- wsg_code:
+
+  Character or `NULL`. The watershed group this call covers **in its
+  entirety**, which makes the replace a whole-group one. `NULL`
+  (default) is the safe case and the one a custom AOI needs: only the
+  ground `table` holds is replaced. Pass a code only where the job
+  segmented the whole group –
+  [`frs_habitat()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat.md)
+  does, via `.frs_partition_wsg()` – and the call refuses a code that is
+  not the one group `table` holds, because a whole-group delete on a
+  subset is the defect this parameter exists to avoid. Note what a
+  whole-group replace means here: it removes **every**
+  `(measure, threshold, distance_max)` the group holds, not only the
+  pairs this call walks, so a direct caller accumulating two measures in
+  one table (as the examples above do) should leave `wsg_code` at
+  `NULL`.
 
 - verbose:
 

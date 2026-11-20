@@ -15,7 +15,7 @@ row per segment x species."><meta property="og:image" content="https://newgraphe
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.53.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.54.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,6 +67,7 @@ row per segment x species.</p>
 <span>  gate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  label_block <span class="op">=</span> <span class="st">"blocked"</span>,</span>
 <span>  barrier_overrides <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  wsg_code <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -147,11 +148,37 @@ overridden the barrier for that species. Default <code>NULL</code> (no
 overrides; every blocking break restricts access).</p></dd>
 
 
+<dt id="arg-wsg-code">wsg_code<a class="anchor" aria-label="anchor" href="#arg-wsg-code"></a></dt>
+<dd><p>Character or <code>NULL</code>. The watershed group this call covers
+<strong>in its entirety</strong>. <code>NULL</code> (default) is the safe case and the one a
+custom AOI needs: only the ground <code>table</code> holds is replaced, so rows
+another job wrote for other ground in the same group survive. Pass a code
+only where the job segmented the whole group – <code><a href="frs_habitat.html">frs_habitat()</a></code> does, via
+<code>.frs_partition_wsg()</code> – and the call refuses a code that is not the one
+group <code>table</code> holds. Before 0.54.0 every group <code>table</code> mentioned was
+deleted whole, so a custom-AOI job removed rows it never put back
+(fresh#293).</p></dd>
+
+
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
-<dd><p>Logical. If <code>TRUE</code>, replace existing rows for
-these species in the output table. Default <code>TRUE</code>. The
-<code>&lt;to&gt;_near_river</code> table (below) is rebuilt for the table's groups
-whatever <code>overwrite</code> says.</p></dd>
+<dd><p>Logical. If <code>TRUE</code>, replace this job's rows in the output
+table. Default <code>TRUE</code>. What "this job's rows" means depends on
+<code>wsg_code</code>: with <code>NULL</code> it is the ground <code>table</code> holds <strong>and only the
+species this call classifies</strong>, so a run for one species leaves another's
+rows alone; with a group code it is that whole watershed group, every
+species included, because a whole-group run is a wholesale replace and
+the repair path for a group whose rows an earlier release removed. The
+<code>&lt;to&gt;_near_river</code> table (below) is rebuilt for the same ground whatever
+<code>overwrite</code> says.</p>
+<p>Two limits. A target written before 0.54.0 carries no
+<code>linear_feature_id</code>; the column is added, and the call then refuses while
+any row still holds NULL for it, because such a row is one no partition
+delete can address. Re-running each watershed group with <code>wsg_code</code> set
+backfills them one group at a time. And a species' rows that no later
+custom-AOI run classifies are not removed by one, so they keep an
+<code>id_segment</code> from the numbering of the run that wrote them: within a
+parent segment they are ambiguous until a whole-group run (<code>wsg_code</code>
+set) of their group replaces every species' rows.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -243,10 +270,22 @@ is not found.</p>
 <span class="r-in"><span><span class="st">  FROM fresh.streams_habitat</span></span></span>
 <span class="r-in"><span><span class="st">  GROUP BY watershed_group_code, species_code"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># One group at a time, into the same shared table. `wsg_code` says the job</span></span></span>
+<span class="r-in"><span><span class="co"># covers that group in full, so the overwrite is the whole group — cheaper</span></span></span>
+<span class="r-in"><span><span class="co"># per group than the parent-segment overwrite a custom AOI needs, and the</span></span></span>
+<span class="r-in"><span><span class="co"># repair for a group an earlier release emptied.</span></span></span>
+<span class="r-in"><span><span class="fu">frs_habitat_classify</span><span class="op">(</span><span class="va">conn</span>,</span></span>
+<span class="r-in"><span>  table <span class="op">=</span> <span class="st">"working.streams_bulk"</span>,</span></span>
+<span class="r-in"><span>  to <span class="op">=</span> <span class="st">"fresh.streams_habitat"</span>,</span></span>
+<span class="r-in"><span>  species <span class="op">=</span> <span class="st">"CO"</span>,</span></span>
+<span class="r-in"><span>  wsg_code <span class="op">=</span> <span class="st">"BULK"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Join geometry back for mapping. `id_segment` is unique only WITHIN a</span></span></span>
-<span class="r-in"><span><span class="co"># watershed group, so the key is (id_segment, watershed_group_code) and</span></span></span>
-<span class="r-in"><span><span class="co"># both tables carry it — joining on id_segment alone multiplies rows by</span></span></span>
-<span class="r-in"><span><span class="co"># the number of groups sharing a value (fresh#218).</span></span></span>
+<span class="r-in"><span><span class="co"># watershed group, and on a shared table one group can hold rows from more</span></span></span>
+<span class="r-in"><span><span class="co"># than one job, so the key is (id_segment, watershed_group_code,</span></span></span>
+<span class="r-in"><span><span class="co"># linear_feature_id) — the parent segment is what separates two jobs' rows</span></span></span>
+<span class="r-in"><span><span class="co"># inside one group (fresh#218, fresh#293). Joining on id_segment alone</span></span></span>
+<span class="r-in"><span><span class="co"># multiplies rows by the number of groups sharing a value.</span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">conn</span>, <span class="st">"</span></span></span>
 <span class="r-in"><span><span class="st">  CREATE OR REPLACE VIEW fresh.streams_co_vw AS</span></span></span>
 <span class="r-in"><span><span class="st">  SELECT s.*, h.accessible, h.spawning, h.rearing, h.lake_rearing, h.wetland_rearing</span></span></span>
@@ -254,6 +293,7 @@ is not found.</p>
 <span class="r-in"><span><span class="st">  JOIN fresh.streams_habitat h</span></span></span>
 <span class="r-in"><span><span class="st">    ON s.id_segment = h.id_segment</span></span></span>
 <span class="r-in"><span><span class="st">   AND s.watershed_group_code = h.watershed_group_code</span></span></span>
+<span class="r-in"><span><span class="st">   AND s.linear_feature_id = h.linear_feature_id</span></span></span>
 <span class="r-in"><span><span class="st">  WHERE h.species_code = 'CO'"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Re-running is safe — existing rows for these species are replaced.</span></span></span>
