@@ -43,11 +43,11 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 5. **NEWS and the version bump** are left to `/gh-pr-merge`.
 
 ## Phase 1: Failing tests (`tests/testthat/test-frs_db_conn.R`)
-- [ ] `connect_timeout` resolution: an explicit value wins; with `PGCONNECT_TIMEOUT` set the param is absent; with neither it is 10. Checked under each source (standard, share, default)
-- [ ] Keepalive and `tcp_user_timeout` defaults are present under all three sources, and `...` overrides them (`keepalives = 0`)
-- [ ] An invalid `connect_timeout` (negative, non-whole, NA, a vector) is refused with a clear error. `0` is allowed, because libpq reads it as "no limit"
-- [ ] `.frs_conn_params()` carries the same bounds, so the worker path is covered
-- [ ] A silent host with no database: `serverSocket()` on a free localhost port that is never accepted. The kernel completes the handshake and libpq then waits for a startup reply that never comes. Assert `frs_db_conn(host = "127.0.0.1", port = p, connect_timeout = 2)` errors within 15 s (`skip_on_cran()`)
+- [x] `connect_timeout` resolution: an explicit value wins; with `PGCONNECT_TIMEOUT` set the param is absent; with neither it is 10. Checked under each source (standard, share, default)
+- [x] Keepalive and `tcp_user_timeout` defaults are present under all three sources, and `...` overrides them (`keepalives = 0`)
+- [x] An invalid `connect_timeout` (negative, non-whole, NA, a vector) is refused with a clear error. `0` is allowed, because libpq reads it as "no limit"
+- [x] `.frs_conn_params()` carries the same bounds, so the worker path is covered
+- [x] A silent host with no database: `serverSocket()` on a free localhost port that is never accepted. The kernel completes the handshake and libpq then waits for a startup reply that never comes. Assert `frs_db_conn(host = "127.0.0.1", port = p, connect_timeout = 2)` errors within 15 s (`skip_on_cran()`)
 
 ## Phase 2: Implement (`R/frs_db_conn.R`)
 - [ ] `.frs_conn_bounds(connect_timeout, ...)` validates the timeout, resolves it (argument, then env, then default) and merges the keepalive defaults with `...`

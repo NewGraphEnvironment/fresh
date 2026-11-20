@@ -96,3 +96,9 @@ connection that is not carrying traffic at all.
 
 | Error | Resolution |
 |-------|------------|
+
+## Fixture and keyword probes (2026-11-20)
+
+- Silent listener (`serverSocket()` never accepted) against `DBI::dbConnect(host = "127.0.0.1", connect_timeout = 2L)`: `timeout expired` after 2.14 s. The same call with no `connect_timeout`, under GNU `timeout 25`: killed (exit 124). So the fixture reaches the unbounded wait and the bound ends it.
+- Live connect to the local fwapg with `connect_timeout`, `keepalives`, `keepalives_idle`, `keepalives_interval`, `keepalives_count`, `tcp_user_timeout`: succeeds on macOS. An unknown keyword is refused (`invalid connection option "not_a_keyword"`), so a successful live connect proves libpq accepts each default.
+- Red phase: before the implementation the silent-host test fails on its `timeout expired` match. `connect_timeout` is an unused argument there, which errors at once and is skipped, so the message assertion is what keeps the test from passing vacuously.

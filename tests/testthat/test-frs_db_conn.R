@@ -3,7 +3,7 @@
 # Clear every env var the resolver reads, then set only what a test needs.
 local_pg_env <- function(..., .env = parent.frame()) {
   cols_env <- c("PGHOST", "PGHOSTADDR", "PGPORT", "PGDATABASE", "PGUSER",
-                "PGPASSWORD", "PGSERVICE",
+                "PGPASSWORD", "PGSERVICE", "PGCONNECT_TIMEOUT",
                 "PG_DB_SHARE", "PG_HOST_SHARE", "PG_PORT_SHARE",
                 "PG_USER_SHARE", "PG_PASS_SHARE")
   vals <- stats::setNames(rep(NA_character_, length(cols_env)), cols_env)
@@ -95,6 +95,134 @@ test_that("nothing set leaves everything to libpq defaults", {
   expect_silent(res <- fresh:::.frs_conn_resolve())
   expect_identical(res$source, "default")
   expect_length(res$params, 0)
+})
+
+# -- .frs_conn_bounds (no DB, #305) --------------------------------------------
+
+bounds_idle <- list(keepalives = 1L, keepalives_idle = 60L,
+                    keepalives_interval = 10L, keepalives_count = 6L,
+                    tcp_user_timeout = 120000L)
+
+test_that("connect_timeout: explicit wins, then PGCONNECT_TIMEOUT, then 10 s", {
+  local_pg_env()
+  expect_identical(fresh:::.frs_conn_bounds()$connect_timeout, 10L)
+  expect_identical(fresh:::.frs_conn_bounds(connect_timeout = 3)$connect_timeout,
+                   3L)
+
+  # Set in the environment: nothing is passed, so libpq reads it itself
+  local_pg_env(PGCONNECT_TIMEOUT = "30")
+  expect_false("connect_timeout" %in% names(fresh:::.frs_conn_bounds()))
+  expect_identical(fresh:::.frs_conn_bounds(connect_timeout = 3)$connect_timeout,
+                   3L)
+})
+
+test_that("connect_timeout = 0 is allowed (libpq: no limit)", {
+  local_pg_env()
+  expect_identical(fresh:::.frs_conn_bounds(connect_timeout = 0)$connect_timeout,
+                   0L)
+})
+
+test_that("an invalid connect_timeout is refused", {
+  local_pg_env()
+  for (bad in list(-1, 2.5, NA_real_, NA, c(5, 10), "10", Inf, TRUE)) {
+    expect_error(fresh:::.frs_conn_bounds(connect_timeout = bad),
+                 "connect_timeout", info = deparse(bad))
+  }
+})
+
+test_that("idle-connection bounds default on, and ... overrides them", {
+  local_pg_env()
+  b <- fresh:::.frs_conn_bounds()
+  expect_identical(b[names(bounds_idle)], bounds_idle)
+  expect_setequal(names(b), c("connect_timeout", names(bounds_idle)))
+
+  b <- fresh:::.frs_conn_bounds(keepalives = 0L, sslmode = "disable")
+  expect_identical(b$keepalives, 0L)
+  expect_identical(b$sslmode, "disable")
+
+  # NULL drops a default, leaving the value to libpq / the OS
+  b <- fresh:::.frs_conn_bounds(keepalives_idle = NULL)
+  expect_false("keepalives_idle" %in% names(b))
+
+  expect_error(fresh:::.frs_conn_bounds(1L), "named")
+})
+
+test_that("frs_db_conn passes the bounds under every variable group", {
+  skip_if_not_installed("mockery")
+  f <- frs_db_conn
+  mockery::stub(f, "DBI::dbConnect", function(drv, ...) list(...))
+
+  # standard
+  local_pg_env(PGHOST = "localhost", PGDATABASE = "fwapg")
+  args <- f()
+  expect_identical(args[names(bounds_idle)], bounds_idle)
+  expect_identical(args$connect_timeout, 10L)
+  expect_null(args$host)
+
+  # legacy share
+  local_pg_env(PG_HOST_SHARE = "localhost", PG_DB_SHARE = "bcfishpass")
+  args <- suppressMessages(f(connect_timeout = 4))
+  expect_identical(args[names(bounds_idle)], bounds_idle)
+  expect_identical(args$connect_timeout, 4L)
+  expect_identical(args$dbname, "bcfishpass")
+
+  # nothing set
+  local_pg_env()
+  args <- f(keepalives = 0L)
+  expect_identical(args$keepalives, 0L)
+  expect_identical(args$connect_timeout, 10L)
+})
+
+test_that(".frs_conn_params carries the bounds to frs_habitat() workers", {
+  skip_if_not_installed("mockery")
+  f <- fresh:::.frs_conn_params
+  mockery::stub(f, "DBI::dbGetInfo", function(conn) {
+    list(dbname = "fwapg", host = "h", port = "5432", username = "u")
+  })
+  local_pg_env()
+  p <- f(conn = NULL, password = "pw")
+  expect_identical(p[c("dbname", "host", "port", "user", "password")],
+                   list(dbname = "fwapg", host = "h", port = "5432",
+                        user = "u", password = "pw"))
+  expect_identical(p[names(bounds_idle)], bounds_idle)
+  expect_identical(p$connect_timeout, 10L)
+
+  # A worker may not share the parent's environment, so the parent's
+  # PGCONNECT_TIMEOUT travels as an explicit value
+  local_pg_env(PGCONNECT_TIMEOUT = "30")
+  expect_identical(f(conn = NULL)$connect_timeout, "30")
+})
+
+# -- silent host (no DB, #305) -------------------------------------------------
+
+# A listening socket that is never accepted: the kernel completes the TCP
+# handshake, libpq sends its startup packet and waits for a reply that never
+# comes. Without a connect bound that wait has no end.
+local_silent_port <- function(env = parent.frame()) {
+  for (i in seq_len(50)) {
+    port <- sample(49152:65000, 1)
+    s <- tryCatch(serverSocket(port), error = function(e) NULL)
+    if (!is.null(s)) {
+      withr::defer(close(s), envir = env)
+      return(port)
+    }
+  }
+  testthat::skip("no free local port for a silent listener")
+}
+
+test_that("a silent host fails within connect_timeout, so the gate skips", {
+  skip_on_cran()
+  local_pg_env()
+  port <- local_silent_port()
+  connect <- function() {
+    frs_db_conn(host = "127.0.0.1", port = port, dbname = "x", user = "x",
+                password = "x", connect_timeout = 2)
+  }
+  t0 <- Sys.time()
+  cnd <- expect_condition(skip_if_no_conn(connect), class = "skip")
+  elapsed <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  expect_match(conditionMessage(cnd), "timeout expired")
+  expect_lt(elapsed, 15)
 })
 
 # -- live ----------------------------------------------------------------------
