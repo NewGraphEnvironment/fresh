@@ -61,7 +61,9 @@ in <code>docker/</code>, or a remote host.</p>
 <span>  host <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  port <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  user <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  password <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  password <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  connect_timeout <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -88,6 +90,19 @@ in <code>docker/</code>, or a remote host.</p>
 <dt id="arg-password">password<a class="anchor" aria-label="anchor" href="#arg-password"></a></dt>
 <dd><p>Password. Default <code>NULL</code>.</p></dd>
 
+
+<dt id="arg-connect-timeout">connect_timeout<a class="anchor" aria-label="anchor" href="#arg-connect-timeout"></a></dt>
+<dd><p>Seconds libpq waits for each connection attempt,
+a whole number; <code>0</code> waits without limit. Default <code>NULL</code>: libpq reads
+<code>PGCONNECT_TIMEOUT</code> when it is set, otherwise 10. See Timeouts.</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Further libpq connection keywords, passed to
+<code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>. A keyword given here replaces the default of the
+same name (<code>keepalives = 0</code> turns keepalives off), and <code>NULL</code> removes
+it, leaving the value to libpq and the operating system.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -111,6 +126,38 @@ shown once per session.</p></li>
 not be paired with a standard host.</p>
     </div>
     <div class="section level2">
+    <h2 id="timeouts">Timeouts<a class="anchor" aria-label="anchor" href="#timeouts"></a></h2>
+
+
+<p>libpq waits without limit by default, so a host that stops answering
+blocks the call instead of raising an error. <code>frs_db_conn()</code> bounds both
+waits, so a silent host fails the same way a refusing one does:</p><ul><li><p><strong>Connecting.</strong> <code>connect_timeout</code> seconds per host address tried
+(libpq counts each address, and treats 1 as 2). Resolved like the
+other fields: the argument, then <code>PGCONNECT_TIMEOUT</code>, then 10.</p></li>
+<li><p><strong>An established connection that goes silent.</strong> TCP keepalives
+(<code>keepalives_idle = 60</code>, <code>keepalives_interval = 10</code>,
+<code>keepalives_count = 6</code>) drop a dead peer in about two minutes rather
+than the operating system's default of about two hours.</p></li>
+</ul><p>A long-running query is not bounded: the server keeps answering
+keepalives and acknowledging data while it works. Bound statements with
+a server-side <code>statement_timeout</code> if you need to.</p>
+<p>Limits of these bounds:</p><ul><li><p>Keepalives probe only a connection with nothing in flight. Once a
+query has been sent and not acknowledged, the operating system's
+retransmission timeout applies instead. On Linux, pass
+<code>tcp_user_timeout</code> (milliseconds) in <code>...</code> to shorten it. It is not a
+default: libpq knows the keyword only from PostgreSQL 12, refuses it
+before that, and applies it only where the system supports
+<code>TCP_USER_TIMEOUT</code>.</p></li>
+<li><p>Through a local tunnel (an SSH port forward, say), keepalives and
+acknowledgements come from the local end of the tunnel, so only the
+connect is bounded; a remote end that dies after connecting is
+detected by the tunnel's own settings, if at all.</p></li>
+<li><p>None of them apply to a Unix-domain socket.</p></li>
+<li><p>Keywords passed here take precedence over the same keywords in a
+<code>PGSERVICE</code> service file. Pass <code>NULL</code> in <code>...</code> to defer to the file
+for a keepalive keyword, or give <code>connect_timeout</code> explicitly.</p></li>
+</ul></div>
+    <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Other database:
 <code><a href="frs_db_query.html">frs_db_query()</a></code>,
@@ -127,6 +174,10 @@ not be paired with a standard host.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Explicit arguments override the environment per field</span></span></span>
 <span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu">frs_db_conn</span><span class="op">(</span>port <span class="op">=</span> <span class="fl">63333</span>, dbname <span class="op">=</span> <span class="st">"bcfishpass"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># A slow link: wait longer to connect</span></span></span>
+<span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu">frs_db_conn</span><span class="op">(</span>connect_timeout <span class="op">=</span> <span class="fl">30</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
