@@ -220,9 +220,10 @@ one and asserts `expect_no_error()` twice). An unconditional column would make
       `object_usage_linter` from an installed `fresh` **0.52.0**, and 6
       `brace_linter` that were mine and are fixed. `findings.md` has the table.
 - [x] `devtools::document()`; `pkgdown::check_pkgdown()` if an export changes.
-- [ ] Mutation sweep: a committed site list (`dev/mutation_sweep_sites_habitat_293.csv`)
+- [x] Mutation sweep: a committed site list (`dev/mutation_sweep_sites_habitat_293.csv`)
       run with `dev/mutation_sweep.R`, each site credited only on red → green → red.
       Every guard this plan adds gets a row.
+      — 27 of 27 caught on 76fccc1, baseline 136/0/0 before and after (`findings.md`).
 - [x] `/code-check branch`, three rounds floor, continuing while a round finds a defect
       inside the previous round's fix — #282 had three of four rounds do exactly that.
       — six rounds, each of rounds 2-6 finding a defect inside an earlier fix;

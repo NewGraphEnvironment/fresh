@@ -629,3 +629,23 @@ The 9 credited sites are not reusable: `dev/mutation_sweep.R` writes its results
 table only at the end, and a table assembled across a network outage is not evidence
 even where the per-site skip counts read 0. The run is redone whole. The partial log
 is kept outside the repo.
+
+## The final mutation sweep: 27 of 27 caught
+
+Run on `76fccc1` (code as of round 6's fixes, `9d836a0`), 2026-11-19 18:57:47Z
+to about 00:35Z, 5 h 37 min, about 12 minutes a site. Filter: the seven files
+`frs_connectivity_wsg|frs_bucket_connected|frs_near_river|near_river_rules|near_river_inherit|habitat_partition_293|frs_habitat_classify`.
+Baseline 136 tests, 0 red, 0 skipped; re-run clean after the last site;
+`sites with no test catching them: 0 of 27`, exit 0.
+
+Every site went red in **both** mutated runs, with 0 skipped. The fewest reds
+were 1 test, at 14 sites. The most were 25, at the near_river `linear_feature_id`
+column and the near_river walk transaction. The two rows added in round 5 were
+caught: the group arm of `.frs_key_match()` turned 3 tests red and the strict
+`near_river_lfid` check 1. So did the three read-side keys the first sweep could
+not credit (2 each), and the subtractive clear's key (2).
+
+The 2026-11-19 18:09Z run on `fc78496` was stopped by hand at site 1, before
+any site was credited. Round 5's fixes were about to change the tree it was
+measuring, and a reviewer's test runs had shared the fixed-name `working.*`
+tables of one test in its filter. Nothing from that run is used here.
