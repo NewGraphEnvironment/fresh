@@ -113,9 +113,9 @@ mock. A block is live when it opens a connection (`frs_db_conn(`, `skip_if_no_co
       working schema would let a run be isolated by schema without label tricks
 
 ## Validation
-- [ ] Tests pass
-- [ ] `/code-check` clean (once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean (once over the branch with `/code-check branch`)
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 How each change is proved: the snippet tests prove the guard returns both answers; the
