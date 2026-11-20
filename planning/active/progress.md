@@ -29,3 +29,8 @@
 - Phase 3 under way: poisoned 192 names main's tests use (186 created, 6 pre-existing fixtures,
   oids recorded; the three old index names left out so a concurrent main run on a shared
   database is not broken by them), then two full suites launched at once, ~16:05Z.
+- Phase 3: two concurrent full suites 2671/0/6 each, overlapping 16:05–16:20Z, no leftovers;
+  168 of 192 poison tables untouched, the 24 destroyed traced to an outside fixed-name run by a
+  probe of this branch's files alone (0 destroyed); positive control on main destroyed its
+  poison. Details in findings.md. Poison cleaned up.
+- Next: /code-check branch.

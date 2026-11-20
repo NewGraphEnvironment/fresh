@@ -86,19 +86,19 @@ mock. A block is live when it opens a connection (`frs_db_conn(`, `skip_if_no_co
       `set.seed()` (A5); sweep comment on its connection and on killed runs (G6, G7)
 
 ## Phase 3: Verify and document
-- [ ] Full suite against the default test database: 0 failures, the same 6 skips as main
+- [x] Full suite against the default test database: 0 failures, the same 6 skips as main
       (main @ 98e7cf0: 2643 pass / 0 fail / 6 skip), pass count = main + the guard's own (AC5)
-- [ ] **Timing-free proof (AC1):** create a "poison" table in `working` for every name main's
+- [x] **Timing-free proof (AC1):** create a "poison" table in `working` for every name main's
       live tests use (the fixed literals, `streams_<label>` / `barriers_<label>_gradient` for
       each literal label, the three index names as tables); run the migrated suite; every
       poison table survives with its oid unchanged
-- [ ] **Positive control (AC1):** the same poison check against one live file from main's
+- [x] **Positive control (AC1):** the same poison check against one live file from main's
       worktree destroys poison tables
-- [ ] **Concurrency acceptance:** two full `devtools::test()` runs at once against one
+- [x] **Concurrency acceptance:** two full `devtools::test()` runs at once against one
       database; both clean, skip counts equal to the serial run, start/end times show overlap
       (AC2), and no relation in `working` carries either run id afterwards
       (`strpos(relname, '<runid>_') > 0`, not a LIKE; AC3)
-- [ ] Mutation, one per hole the review named (AC4): a fixed literal, `paste0("working.", x)`,
+- [x] Mutation, one per hole the review named (AC4): a fixed literal, `paste0("working.", x)`,
       `"WORKING.x"`, a fixed index name, a label through a variable, a wsg-mode call, a
       `frs_barriers_minimal()` with no `to`, each restored into a real test file; the guard
       goes red on each; revert

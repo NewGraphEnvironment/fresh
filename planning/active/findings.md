@@ -47,3 +47,69 @@ Relates to #242, #277.
 
 | Error | Resolution |
 |-------|------------|
+
+## Guard mutations (2026-11-20, AC4)
+
+Each mutation went into a scratch copy of the real test file, and the scanner was run over every
+guarded file with the copy in place of the original, so the tree was never touched while the
+suites ran. Unmutated: 0 hits.
+
+| Mutation | File | Guard |
+|---|---|---|
+| fixed literal `"working.test_extract"` | test-frs_extract.R | red (working@135) |
+| `paste0("working.", "test_extract")` | test-frs_extract.R | red (working@135) |
+| `"WORKING.test_extract"` | test-frs_extract.R | red (working@135) |
+| fixed index name `test_282_uniq_pkey` | test-utils.R | red (index@730) |
+| `label = label` in `.rules_test_run()` | test-frs_habitat_classify.R | red (label@179) |
+| `wsg = "BULK"` added to a live call | test-frs_habitat.R | red (wsg@313) |
+| `frs_barriers_minimal()` without `to` | test-frs_barriers_minimal.R | red (to@211) |
+| `"SET search_path TO working, public"` | test-utils.R | red (working@592) |
+
+Not covered, by design and documented in CLAUDE.md and the helper's header: a bare table name
+compared against `table_name`, and a name assembled in a variable elsewhere.
+
+## Phase 3 measurements (2026-11-20, the default test database from the PG* env)
+
+**Baseline**, main @ 98e7cf0 from a worktree, one full suite: 2643 pass / 0 fail / 6 skip.
+
+**Concurrency.** Two full `devtools::test()` runs of this branch launched at once (run ids
+`ttabtcp`, `ts4ifwd`):
+
+| run | start (UTC) | end (UTC) | pass | fail | error | skip |
+|---|---|---|---|---|---|---|
+| a | 16:05:09 | 16:19:59 | 2671 | 0 | 0 | 6 |
+| b | 16:05:09 | 16:20:02 | 2671 | 0 | 0 | 6 |
+
+2671 = 2643 + the guard's 28 expectations. The 6 skips are the same in both: three
+fwapg-gate tests and one migration-trial test (`FRESH_FWAPG_TRIAL` unset), and two
+`frs_params` tests (no `bcfishpass` schema). Afterwards no relation in `working` carried either
+run id (`strpos(relname, '<runid>_') > 0`), and neither run's sweep found anything to drop.
+
+**Poison (timing-free).** Before the two runs, every `working.<name>` literal in main's test files
+plus the `streams_`, `barriers_…_gradient`, `rt_streams_` and `rt_habitat_` names for each label
+main's live tests pass: 192 names, 186 created as one-column tables and 6 already present, all
+oids recorded. Main's three fixed index names were not poisoned: a table by that name would
+break any concurrent main run on a shared database.
+
+After the runs: 168 untouched; 24 destroyed, none recreated. Those 24 were every database name
+in main's `test-utils.R` (`test_114_*`, `test_282_*`, `test_idx_idem`) plus the six `p293`
+names (`p293_*`, `streams_p293b`, `barriers_p293b_gradient`), and those six were the "already
+present" ones: another client's live tables, sitting in `working` before the poison was
+created.
+
+- **Discriminating probe:** re-poisoned the 24 and ran this branch's `test-utils.R` and
+  `test-habitat_partition_293.R` alone (281 pass). 0 destroyed. This branch never touches those
+  names.
+- **So:** an outside client ran main's fixed-name tests on the same database during the window.
+  No test process was running on this machine afterwards. The parallel #305 session
+  (`fresh-305`) was committing its `/code-check` rounds from 16:07 to 16:20Z, which makes it a
+  candidate, but its records name only `filter = "frs_db_conn"`: **unattributed**.
+- Both of this branch's runs passed through that collision. This is the scenario #279 is about,
+  this time with nothing failing.
+
+**Positive control.** Main's own `test-frs_extract.R`, run from the main worktree against the
+poisoned database (23 pass), destroyed `test_extract`, `test_extract_both` and
+`test_extract_where`. The check detects the collision it exists to catch.
+
+**Cleanup.** All poison tables were dropped: 183 by the recorded list, and 6 more (the
+re-poisoned `p293` names) by their `poison_279` column. 0 relations with that column remain.
