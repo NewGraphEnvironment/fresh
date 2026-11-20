@@ -35,21 +35,21 @@ mock. A block is live when it opens a connection (`frs_db_conn(`, `skip_if_no_co
   reach a database, and rewriting ~183 SQL assertions is churn with no collision to fix.
 
 ## Phase 1: Helpers and guard (tests first)
-- [ ] `tests/testthat/helper-db.R`: a run id computed once when the helpers load (`t` + PID
+- [x] `tests/testthat/helper-db.R`: a run id computed once when the helpers load (`t` + PID
       and low time bits in base 36, short enough that frs_habitat's longest derived name
       stays under 63 characters); `frs_test_tbl(name)` → `"working.<runid>_<name>"`
       (case preserved for the mixed-case folding test); `frs_test_label(x)` →
       `"<runid>_<x>"`; `frs_test_tbl_parts(tbl)` → schema and table, for
       `information_schema` checks
-- [ ] End-of-run sweep (`tests/testthat/setup-run_namespace.R`,
+- [x] End-of-run sweep (`tests/testthat/setup-run_namespace.R`,
       `withr::defer(..., teardown_env())`): when a connection is available, drop every
       `working` table whose name starts `<runid>_`, and message the names of any it had to
       drop, since each is a test that leaked
-- [ ] Scanner `.frs_test_fixed_names(file)` (helper, using `getParseData()`): flags, in live
+- [x] Scanner `.frs_test_fixed_names(file)` (helper, using `getParseData()`): flags, in live
       `test_that()` blocks and in top-level expressions, any string constant that names the
       `working` schema (`working.x`, `"working"`, `'working'` inside SQL), and any string
       literal passed as `label =` directly to `frs_habitat()`
-- [ ] `tests/testthat/test-test_table_names.R`: the scanner checked against both answers on
+- [x] `tests/testthat/test-test_table_names.R`: the scanner checked against both answers on
       inline snippets (a live block with a literal is flagged; a mock block is not; a live
       block using the helpers is clean; a `frs_habitat(label = "x")` is flagged; an
       `information_schema` `'working'` is flagged), then run over every test file expecting
