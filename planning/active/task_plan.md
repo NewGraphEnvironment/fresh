@@ -33,6 +33,11 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
    never acknowledged, but only on Linux (CI); on macOS libpq ignores it. Long queries are not
    bounded: the server's kernel answers keepalive probes and acknowledges data while the query
    runs. `statement_timeout` stays out of scope, as the issue says.
+   - **Corrected 2026-11-20 by code-check round 1:** `tcp_user_timeout` is no longer a default.
+     libpq knows the keyword only from PostgreSQL 12 and refuses it before that, so a system
+     libpq 10 or 11 would have failed every connect. It did nothing on macOS, where the hang was
+     observed, and on Linux it carried an unverified risk of dropping a stalled `COPY`. It stays
+     available through `...`.
 3. **One source for the bounds:** an internal `.frs_conn_bounds()` that both
    `.frs_conn_resolve()` and `.frs_conn_params()` call. Without it, `frs_habitat()`'s mirai
    workers (`R/frs_habitat.R:395`, `:581`) would reconnect through `DBI::dbConnect` with no bounds.
@@ -60,7 +65,7 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 - [x] `CLAUDE.md` "Testing on alternate hosts": a host that goes silent now skips, each gated test after up to `connect_timeout` per address (review finding 6), the same as one that refuses
 
 ## Validation
-- [ ] Tests pass: full `devtools::test()` against the local fwapg. The existing live test "frs_db_conn returns a DBI connection" then proves libpq accepts every default keyword, `tcp_user_timeout` included
+- [x] Tests pass: full `devtools::test()` against the local fwapg. The existing live test "frs_db_conn returns a DBI connection" then proves libpq accepts every default keyword, `tcp_user_timeout` included
 - [x] Prove the guard fires: in a worktree, remove `connect_timeout` from `.frs_conn_bounds()`'s output (dropping only the default cannot work, since the test passes 2 explicitly: review finding 1) and run the silent-host test under GNU `timeout 60`; it must hang (killed), then pass with the default restored. Record the result in `progress.md`
 - [x] `lintr::lint_package()`: no new lints, compared per file against `origin/main`
 - [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)

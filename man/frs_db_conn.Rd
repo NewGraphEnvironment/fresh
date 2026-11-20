@@ -77,9 +77,6 @@ other fields: the argument, then \code{PGCONNECT_TIMEOUT}, then 10.
 (\code{keepalives_idle = 60}, \code{keepalives_interval = 10},
 \code{keepalives_count = 6}) drop a dead peer in about two minutes rather
 than the operating system's default of about two hours.
-\code{tcp_user_timeout = 120000} (milliseconds) drops one that stops
-acknowledging data sent to it; libpq applies it only where the system
-supports \code{TCP_USER_TIMEOUT} (Linux), and ignores it elsewhere.
 }
 
 A long-running query is not bounded: the server keeps answering
@@ -90,8 +87,11 @@ Limits of these bounds:
 \itemize{
 \item Keepalives probe only a connection with nothing in flight. Once a
 query has been sent and not acknowledged, the operating system's
-retransmission timeout applies instead, which \code{tcp_user_timeout}
-shortens on Linux only.
+retransmission timeout applies instead. On Linux, pass
+\code{tcp_user_timeout} (milliseconds) in \code{...} to shorten it. It is not a
+default: libpq knows the keyword only from PostgreSQL 12, refuses it
+before that, and applies it only where the system supports
+\code{TCP_USER_TIMEOUT}.
 \item Through a local tunnel (an SSH port forward, say), keepalives and
 acknowledgements come from the local end of the tunnel, so only the
 connect is bounded; a remote end that dies after connecting is

@@ -100,8 +100,7 @@ test_that("nothing set leaves everything to libpq defaults", {
 # -- .frs_conn_bounds (no DB, #305) --------------------------------------------
 
 bounds_idle <- list(keepalives = 1L, keepalives_idle = 60L,
-                    keepalives_interval = 10L, keepalives_count = 6L,
-                    tcp_user_timeout = 120000L)
+                    keepalives_interval = 10L, keepalives_count = 6L)
 
 test_that("connect_timeout: explicit wins, then PGCONNECT_TIMEOUT, then 10 s", {
   local_pg_env()

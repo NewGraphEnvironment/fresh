@@ -12,3 +12,5 @@
 - Phase 3: `bcfp_conn()` and `frs_fwapg_conn()` carry the bounds; CLAUDE.md says a silent host skips, with the measured cost (199 gate calls, about 35 min at the default)
 - Guard proof (throwaway worktree at 4b33a7e): with `connect_timeout` removed from `.frs_conn_bounds()`'s output, the silent-host test hung until GNU `timeout` killed it at 60 s (15:51:54 to 15:52:54Z, no result printed). Restored: passes in 5 s
 - lintr, per file / linter / source line against a worktree of origin/main: one new `indentation_linter` hit, on the multi-line unnamed-`...` condition in `.frs_conn_bounds()`; fixed by naming the condition. The remaining `frs_db_conn.R` lint (`dbname = NULL,` indentation) is on main already
+- Full suite on 4b33a7e (15:51 to 16:06Z): 854 tests, 0 failed, 0 errors, 6 skipped (fwapg migration trial unset, no bcfishpass schema, tunnel on 63333 refused). The tunnel test skipped at once, as a refusing host should
+- Code-check round 1 (spawned 15:55Z): 1 finding, accepted. `tcp_user_timeout` default dropped (libpq < 12 refuses the keyword); docs say pass it through `...` on Linux. `test(filter = "frs_db_conn")`: 63 pass

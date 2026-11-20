@@ -36,9 +36,6 @@
 #'   (`keepalives_idle = 60`, `keepalives_interval = 10`,
 #'   `keepalives_count = 6`) drop a dead peer in about two minutes rather
 #'   than the operating system's default of about two hours.
-#'   `tcp_user_timeout = 120000` (milliseconds) drops one that stops
-#'   acknowledging data sent to it; libpq applies it only where the system
-#'   supports `TCP_USER_TIMEOUT` (Linux), and ignores it elsewhere.
 #'
 #' A long-running query is not bounded: the server keeps answering
 #' keepalives and acknowledging data while it works. Bound statements with
@@ -48,8 +45,11 @@
 #'
 #' - Keepalives probe only a connection with nothing in flight. Once a
 #'   query has been sent and not acknowledged, the operating system's
-#'   retransmission timeout applies instead, which `tcp_user_timeout`
-#'   shortens on Linux only.
+#'   retransmission timeout applies instead. On Linux, pass
+#'   `tcp_user_timeout` (milliseconds) in `...` to shorten it. It is not a
+#'   default: libpq knows the keyword only from PostgreSQL 12, refuses it
+#'   before that, and applies it only where the system supports
+#'   `TCP_USER_TIMEOUT`.
 #' - Through a local tunnel (an SSH port forward, say), keepalives and
 #'   acknowledgements come from the local end of the tunnel, so only the
 #'   connect is bounded; a remote end that dies after connecting is
@@ -178,8 +178,7 @@ frs_db_conn <- function(
 #' @noRd
 .frs_conn_bounds <- function(connect_timeout = NULL, ...) {
   bounds <- list(keepalives = 1L, keepalives_idle = 60L,
-                 keepalives_interval = 10L, keepalives_count = 6L,
-                 tcp_user_timeout = 120000L)
+                 keepalives_interval = 10L, keepalives_count = 6L)
 
   if (!is.null(connect_timeout)) {
     ok <- is.numeric(connect_timeout) && length(connect_timeout) == 1L &&

@@ -131,8 +131,7 @@ defaults. The two groups are never mixed (#213).
 
 A host that goes **silent** skips too, not only one that refuses (#305).
 `frs_db_conn()` passes libpq a `connect_timeout` (argument →
-`PGCONNECT_TIMEOUT` → 10 s) plus keepalive and `tcp_user_timeout`
-defaults, so the connect or `SELECT 1` inside a gate raises instead of
+`PGCONNECT_TIMEOUT` → 10 s) plus keepalive defaults, so the connect or `SELECT 1` inside a gate raises instead of
 blocking. The bound is per gate call and per address tried (`localhost`
 is two), and the suite makes 199 gate calls (counted 2026-11-20), so a
 whole run against a silent host still takes about 35 minutes at the
