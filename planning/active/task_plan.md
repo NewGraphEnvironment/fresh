@@ -56,7 +56,7 @@ mock. A block is live when it opens a connection (`frs_db_conn(`, `skip_if_no_co
       zero hits. This last assertion is red until Phase 2 lands.
 
 ## Phase 2: Migrate the live blocks (mechanical, one commit per batch)
-- [ ] Batch A: test-frs_break, test-frs_extract, test-frs_col_generate, test-frs_col_join,
+- [x] Batch A: test-frs_break, test-frs_extract, test-frs_col_generate, test-frs_col_join,
       test-frs_aggregate, test-frs_network, test-frs_point_snap, test-frs_classify,
       test-frs_channel_width, test-frs_cluster, test-frs_order_child
 - [ ] Batch B: test-frs_habitat, test-frs_habitat_classify, test-frs_habitat_overlay,

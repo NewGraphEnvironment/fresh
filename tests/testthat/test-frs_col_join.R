@@ -125,7 +125,7 @@ test_that("frs_col_join adds channel_width from FWA lookup", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_col_join")
+    .frs_test_drop(conn, frs_test_tbl("test_col_join"))
     DBI::dbDisconnect(conn)
   })
 
@@ -133,18 +133,18 @@ test_that("frs_col_join adds channel_width from FWA lookup", {
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_col_join",
+    to = frs_test_tbl("test_col_join"),
     cols = c("linear_feature_id", "blue_line_key", "geom"),
     aoi = aoi, overwrite = TRUE)
 
-  frs_col_join(conn, "working.test_col_join",
+  frs_col_join(conn, frs_test_tbl("test_col_join"),
     from = "fwa_stream_networks_channel_width",
     cols = "channel_width",
     by = "linear_feature_id")
 
   result <- DBI::dbGetQuery(conn,
-    "SELECT channel_width FROM working.test_col_join
-     WHERE channel_width IS NOT NULL LIMIT 5")
+    sprintf("SELECT channel_width FROM %s
+     WHERE channel_width IS NOT NULL LIMIT 5", frs_test_tbl("test_col_join")))
 
   expect_true(nrow(result) > 0)
   expect_true(all(result$channel_width > 0))

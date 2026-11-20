@@ -502,25 +502,26 @@ test_that("a table input writes the snap to `to`", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_snap_pts")
-    .frs_test_drop(conn, "working.test_snap_out")
+    .frs_test_drop(conn, frs_test_tbl("test_snap_pts"))
+    .frs_test_drop(conn, frs_test_tbl("test_snap_out"))
     DBI::dbDisconnect(conn)
   })
 
-  .frs_test_drop(conn, "working.test_snap_pts")
+  .frs_test_drop(conn, frs_test_tbl("test_snap_pts"))
   DBI::dbExecute(conn, paste(
-    "CREATE TABLE working.test_snap_pts AS",
+    "CREATE TABLE", frs_test_tbl("test_snap_pts"), "AS",
     "SELECT v.site_id, ST_Multi(ST_Transform(",
     "  ST_SetSRID(ST_MakePoint(v.x, v.y), 4326), 3005)) AS geom",
     "FROM (VALUES (1, -126.5, 54.5), (2, -126.6, 54.6), (3, -126.7, 54.4))",
     "  v(site_id, x, y)"))
 
-  res <- frs_point_snap(conn, "working.test_snap_pts", col_id = "site_id",
-                        tolerance = 1000, to = "working.test_snap_out")
+  res <- frs_point_snap(conn, frs_test_tbl("test_snap_pts"), col_id = "site_id",
+                        tolerance = 1000, to = frs_test_tbl("test_snap_out"))
   expect_identical(res, conn)
   out <- DBI::dbGetQuery(conn, paste(
     "SELECT site_id, blue_line_key, downstream_route_measure,",
-    "watershed_group_code FROM working.test_snap_out ORDER BY site_id"))
+    "watershed_group_code FROM", frs_test_tbl("test_snap_out"),
+    "ORDER BY site_id"))
   expect_equal(out$site_id, 1:3)
 
   from_df <- frs_point_snap(conn, sites, col_id = "site", tolerance = 1000)

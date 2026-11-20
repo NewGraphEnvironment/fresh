@@ -70,6 +70,14 @@ test_that("a top-level helper is checked even without a connection", {
   expect_setequal(hits$kind, c("label", "working"))
 })
 
+test_that("a top-level helper that drives a mock connection is not flagged", {
+  hits <- scan_snippet(c(
+    'run_mock <- function(...) {',
+    '  frs_channel_width("mock", "working.streams", ...)',
+    '}'))
+  expect_identical(nrow(hits), 0L)
+})
+
 test_that("prose that mentions working is not flagged", {
   hits <- scan_snippet(c(
     'test_that("live", {',

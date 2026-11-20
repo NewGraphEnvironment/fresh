@@ -1,11 +1,11 @@
 # The guard behind test-test_table_names.R (#279): find fixed names in the
 # shared `working` schema where a test can reach a database.
 #
-# A top-level expression is always checked, because a helper defined there can
-# be handed a live connection. A test_that() block is checked when its text
-# opens or gates on a connection. The other blocks drive a "mock" connection,
-# where a `working.` name is SQL text that never reaches a database, so they
-# are left alone.
+# A test_that() block is checked when its text opens or gates on a connection.
+# A top-level expression is checked unless it drives a "mock" connection and
+# names none of those, because a helper defined there can be handed a live
+# connection by its caller. What is left alone drives a "mock" connection,
+# where a `working.` name is SQL text that never reaches a database.
 #
 # Two things are flagged in a checked expression:
 # - a string constant naming the working schema: `working.x`, a bare
@@ -31,7 +31,9 @@
     sr <- attr(exprs, "srcref")[[i]]
     txt <- paste(as.character(sr), collapse = "\n")
     is_test <- is.call(e) && identical(e[[1]], as.name("test_that"))
-    if (is_test && !grepl(.frs_test_live_pattern, txt)) next
+    live <- grepl(.frs_test_live_pattern, txt)
+    if (is_test && !live) next
+    if (!is_test && !live && grepl("[\"']mock[\"']", txt)) next
     # Rows of the parse data inside this expression's span
     in_span <- (pd$line1 > sr[1] | (pd$line1 == sr[1] & pd$col1 >= sr[2])) &
       (pd$line2 < sr[3] | (pd$line2 == sr[3] & pd$col2 <= sr[4]))

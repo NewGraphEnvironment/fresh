@@ -121,32 +121,32 @@ test_that("frs_aggregate returns data.frame with collect", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_agg_streams")
-    .frs_test_drop(conn, "working.test_agg_pts")
+    .frs_test_drop(conn, frs_test_tbl("test_agg_streams"))
+    .frs_test_drop(conn, frs_test_tbl("test_agg_pts"))
     DBI::dbDisconnect(conn)
   })
 
   # Extract streams
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_agg_streams",
+    to = frs_test_tbl("test_agg_streams"),
     aoi = .test_aoi(),
     overwrite = TRUE
   )
 
   # Create a single point table from the first segment
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_agg_pts AS
+    sprintf("CREATE TABLE %s AS
      SELECT blue_line_key, downstream_route_measure,
             wscode_ltree, localcode_ltree
-     FROM working.test_agg_streams
+     FROM %s
      ORDER BY downstream_route_measure
-     LIMIT 1")
+     LIMIT 1", frs_test_tbl("test_agg_pts"), frs_test_tbl("test_agg_streams")))
 
   # Aggregate upstream length
   result <- frs_aggregate(conn,
-    points = "working.test_agg_pts",
-    features = "working.test_agg_streams",
+    points = frs_test_tbl("test_agg_pts"),
+    features = frs_test_tbl("test_agg_streams"),
     metrics = c(length_m = "ROUND(SUM(ST_Length(f.geom))::numeric, 1)",
                 n_segments = "COUNT(*)"),
     direction = "upstream")

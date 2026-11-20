@@ -132,13 +132,13 @@ test_that("frs_extract creates table in working schema", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_extract")
+    .frs_test_drop(conn, frs_test_tbl("test_extract"))
     DBI::dbDisconnect(conn)
   })
 
   result <- frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_extract",
+    to = frs_test_tbl("test_extract"),
     cols = c("linear_feature_id", "blue_line_key", "gradient", "geom"),
     aoi = .test_aoi()
   )
@@ -146,7 +146,7 @@ test_that("frs_extract creates table in working schema", {
   expect_true(inherits(result, "PqConnection"))
 
   count <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_extract")
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_extract")))
   expect_true(count$n > 0)
 })
 
@@ -154,13 +154,13 @@ test_that("frs_extract errors when table exists and overwrite = FALSE", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_extract")
+    .frs_test_drop(conn, frs_test_tbl("test_extract"))
     DBI::dbDisconnect(conn)
   })
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_extract",
+    to = frs_test_tbl("test_extract"),
     cols = c("linear_feature_id", "geom"),
     aoi = .test_aoi()
   )
@@ -168,7 +168,7 @@ test_that("frs_extract errors when table exists and overwrite = FALSE", {
   expect_error(
     frs_extract(conn,
       from = "whse_basemapping.fwa_stream_networks_sp",
-      to = "working.test_extract",
+      to = frs_test_tbl("test_extract"),
       cols = c("linear_feature_id", "geom"),
       aoi = .test_aoi()
     )
@@ -179,20 +179,20 @@ test_that("frs_extract filters by where predicate", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_extract_where")
+    .frs_test_drop(conn, frs_test_tbl("test_extract_where"))
     DBI::dbDisconnect(conn)
   })
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_extract_where",
+    to = frs_test_tbl("test_extract_where"),
     cols = c("linear_feature_id", "watershed_group_code", "geom"),
     where = "watershed_group_code = 'BULK' AND stream_order >= 5"
   )
 
   result <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n, count(DISTINCT watershed_group_code) AS n_wsg
-     FROM working.test_extract_where")
+    sprintf("SELECT count(*) AS n, count(DISTINCT watershed_group_code) AS n_wsg
+     FROM %s", frs_test_tbl("test_extract_where")))
   expect_true(result$n > 0)
   expect_equal(result$n_wsg, 1L)
 })
@@ -201,7 +201,7 @@ test_that("frs_extract combines aoi and where", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_extract_both")
+    .frs_test_drop(conn, frs_test_tbl("test_extract_both"))
     DBI::dbDisconnect(conn)
   })
 
@@ -209,7 +209,7 @@ test_that("frs_extract combines aoi and where", {
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_extract_both",
+    to = frs_test_tbl("test_extract_both"),
     cols = c("linear_feature_id", "stream_order", "geom"),
     aoi = aoi,
     where = "stream_order >= 2"
@@ -217,18 +217,18 @@ test_that("frs_extract combines aoi and where", {
 
   # Fewer rows than unfiltered extract (aoi alone)
   n_filtered <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_extract_both")$n
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_extract_both")))$n
 
-  .frs_test_drop(conn, "working.test_extract_unfiltered")
+  .frs_test_drop(conn, frs_test_tbl("test_extract_unfiltered"))
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_extract_unfiltered",
+    to = frs_test_tbl("test_extract_unfiltered"),
     cols = c("linear_feature_id", "stream_order", "geom"),
     aoi = aoi
   )
   n_all <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_extract_unfiltered")$n
-  .frs_test_drop(conn, "working.test_extract_unfiltered")
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_extract_unfiltered")))$n
+  .frs_test_drop(conn, frs_test_tbl("test_extract_unfiltered"))
 
   expect_true(n_filtered > 0)
   expect_true(n_filtered < n_all)
@@ -238,28 +238,29 @@ test_that("frs_extract overwrites when overwrite = TRUE", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_extract")
+    .frs_test_drop(conn, frs_test_tbl("test_extract"))
     DBI::dbDisconnect(conn)
   })
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_extract",
+    to = frs_test_tbl("test_extract"),
     cols = c("linear_feature_id", "geom"),
     aoi = .test_aoi()
   )
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_extract",
+    to = frs_test_tbl("test_extract"),
     cols = c("linear_feature_id", "blue_line_key", "geom"),
     aoi = .test_aoi(),
     overwrite = TRUE
   )
 
-  cols <- DBI::dbGetQuery(conn,
+  tp <- frs_test_tbl_parts(frs_test_tbl("test_extract"))
+  cols <- DBI::dbGetQuery(conn, sprintf(
     "SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'working' AND table_name = 'test_extract'
-     ORDER BY ordinal_position")
+     WHERE table_schema = '%s' AND table_name = '%s'
+     ORDER BY ordinal_position", tp$schema, tp$table))
   expect_true("blue_line_key" %in% cols$column_name)
 })

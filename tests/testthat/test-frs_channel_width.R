@@ -318,7 +318,7 @@ test_that("verbose = FALSE runs no count query and says nothing", {
 test_that("SQL matches the presets and poisson2021 reproduces fwapg MODELLED", {
   skip_if_no_conn()
   conn <- frs_db_conn()
-  tbl <- "working.test_channel_width_est"
+  tbl <- frs_test_tbl("test_channel_width_est")
   on.exit({
     .frs_test_drop(conn, tbl)
     DBI::dbDisconnect(conn)
@@ -382,7 +382,7 @@ test_that("SQL matches the presets and poisson2021 reproduces fwapg MODELLED", {
 test_that("default call fills NULL widths and leaves existing ones alone", {
   skip_if_no_conn()
   conn <- frs_db_conn()
-  tbl <- "working.test_channel_width_fill"
+  tbl <- frs_test_tbl("test_channel_width_fill")
   on.exit({
     .frs_test_drop(conn, tbl)
     DBI::dbDisconnect(conn)

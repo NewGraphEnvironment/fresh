@@ -177,8 +177,8 @@ test_that("frs_cluster upstream removes disconnected rearing", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
 
-  tbl_streams <- "working.test_cluster_streams"
-  tbl_habitat <- "working.test_cluster_habitat"
+  tbl_streams <- frs_test_tbl("test_cluster_streams")
+  tbl_habitat <- frs_test_tbl("test_cluster_habitat")
   on.exit({
     .frs_test_drop(conn, tbl_habitat)
     .frs_test_drop(conn, tbl_streams)
