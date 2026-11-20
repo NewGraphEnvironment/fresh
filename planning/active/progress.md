@@ -24,3 +24,8 @@
 - Plan review landed (review-279.md): 4 blockers, 7 gaps. B4's infix names and one of B1's three
   index names were already fixed in batch B; the rest folded in as Phase 2b. Guard green over
   every test, helper and setup file.
+- Filed #310 (scratch tables hardcode the working schema: frs_habitat internals and seven `to`
+  defaults). CLAUDE.md gained "Per-run test table names (#279)".
+- Phase 3 under way: poisoned 192 names main's tests use (186 created, 6 pre-existing fixtures,
+  oids recorded; the three old index names left out so a concurrent main run on a shared
+  database is not broken by them), then two full suites launched at once, ~16:05Z.

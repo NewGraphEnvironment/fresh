@@ -102,11 +102,11 @@ mock. A block is live when it opens a connection (`frs_db_conn(`, `skip_if_no_co
       `"WORKING.x"`, a fixed index name, a label through a variable, a wsg-mode call, a
       `frs_barriers_minimal()` with no `to`, each restored into a real test file; the guard
       goes red on each; revert
-- [ ] CLAUDE.md "Testing on alternate hosts": a short paragraph on `frs_test_tbl()` /
+- [x] CLAUDE.md "Testing on alternate hosts": a short paragraph on `frs_test_tbl()` /
       `frs_test_label()`, the guard and what it cannot see, `pg_temp` as the first choice where
       a test needs no real FWA rows, the reaper query for killed runs (G6), and that a
       `FRESH_FWAPG_TRIAL` run holds locks other runs wait on (A4)
-- [ ] File a follow-up issue in fresh: `frs_habitat()`'s internal tables hardcode the
+- [x] File a follow-up issue in fresh: `frs_habitat()`'s internal tables hardcode the
       `working` schema (a painted corner under design principle 2), as do the `to` defaults
       of frs_break_find / frs_break / frs_feature_find / frs_feature_index /
       frs_barriers_minimal / frs_habitat_access / frs_habitat_species (S1); a configurable
