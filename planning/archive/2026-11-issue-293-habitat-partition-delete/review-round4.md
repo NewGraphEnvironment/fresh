@@ -3,7 +3,7 @@
 Reviewed at `c4edd3d` (branch `293-custom-aoi-jobs-delete-whole-watershed-g`), the round-3
 fix commit. The working tree was **clean** at review start and at review end
 (`git status --porcelain` empty, both times), one worktree besides this one
-(`/Users/airvine/Projects/repo/fresh-cloud`, detached at `0e9c46f`, untouched).
+(a second checkout, detached at `0e9c46f`, untouched).
 **Nothing in the repository was modified by this review apart from this file**; the one
 script I ran went to the session scratchpad. No test suite, no `frs_habitat*` call, no
 write to the database. Line numbers are against `c4edd3d`.

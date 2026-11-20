@@ -207,6 +207,6 @@ every `man/*.Rd` example (via `tools::Rd2ex`) and the vignettes (purled, plus a 
 
 **D. Public-repo text.** No host names, ports, tunnels or tailnet details were added. Two
 references to machine-local or internal tooling were added: `review-round4.md:6` names an
-absolute home-directory path to a sibling worktree, and `findings.md:5` names the internal
-`db-newgraph` MCP. Archived planning files already carry home paths throughout, so this
-follows existing practice. Recorded here, not flagged.
+absolute home-directory path to a sibling worktree, and `findings.md:5` names an internal
+database client. Recorded here, not flagged; both were replaced with generic wording at the
+archive.

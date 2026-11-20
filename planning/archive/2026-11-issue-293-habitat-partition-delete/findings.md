@@ -2,7 +2,7 @@
 
 ## Phase 0 measurement — the `bcfishpass` instance (2026-11-02)
 
-Taken through the `db-newgraph` MCP, which reports `current_database() = bcfishpass`.
+Taken through a read-only database client, which reports `current_database() = bcfishpass`.
 This is **not** the instance `frs_db_conn()` reaches in the measurements
 `research/id_segment_identity.md` records — there is no `fresh` schema here at all
 (`pg_class` join `pg_namespace`, 0 rows for `nspname = 'fresh'`). So this settles the
