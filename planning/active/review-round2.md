@@ -1,0 +1,17 @@
+## Checklist read
+- code-check-infra.md: in full.
+- code-check.md: prose of all 14 H3s under `## Mechanisms` (tables skipped); 0 other headings read (none of the stand-alone/Security/PDF headings name a tool or shape this diff uses).
+- code-check-r.md: read "Tests that silently do not run", "testthat counts an uncaught error under `error`, not `failed`", "A `skip_if_not()` skips only its own `test_that()` block", "Base name shadowing in formal args", "Cross-function consistency for label/string normalization", "`$` on a list partial-matches, so a longer sibling key answers for a missing one", "A database driver's value is not a base R type — and it fails twice", "Under `R CMD check`, tests run from a temp dir against the INSTALLED package", "A `pkg::` call in a test passes `devtools::test()` and fails `R CMD check` if `pkg` is undeclared", "A `function(...)` mock hides arguments the real callee no longer accepts", "`tryCatch()` nests its handlers, so a `stop()` in one is caught by a later one" (11 read; the rest not read, about 140).
+- code-check-shell.md: 0 headings read; no index line names a tool or shape this diff uses (no shell in the diff).
+- code-check-spatial.md: 0 headings read; no spatial code in the diff.
+
+## Round-1 fix (tcp_user_timeout default removed)
+Checked, holds:
+- No `tcp_user_timeout` remains in the defaults; R/, man/, CLAUDE.md and tests mention it only as an opt-in through `...`. The only tests that use it call `.frs_conn_bounds()` without connecting, so no test sends it to libpq.
+- The remaining defaults (`keepalives`, `keepalives_idle`, `keepalives_interval`, `keepalives_count`, `connect_timeout`) have all been libpq keywords since 9.0 or earlier. libpq skips a keepalive socket option the platform lacks (`#ifdef TCP_KEEPCNT` and the like; Windows goes through `SIO_KEEPALIVE_VALS`) and never applies them to a Unix socket, so none has the version or platform problem `tcp_user_timeout` had.
+- The Rd matches the roxygen. `tools:::.check_packages_used_in_tests()` returns nothing (mockery is in Suggests, withr in Imports, and `fresh:::` is the package itself).
+- Outside the diff's scope (planning/ is excluded): `planning/active/task_plan.md` lines 52 and 68 still describe `tcp_user_timeout` as a default. That is stale prose, not a failure.
+
+## Findings
+- **[severity: fragile]** R/frs_db_conn.R:194 (`bounds$connect_timeout <- as.integer(connect_timeout)`) — The validator accepts any finite whole number of 0 or more, as the `@param` text promises. `as.integer()` then turns anything above `.Machine$integer.max` into `NA` with only a coercion warning, and RPostgres passes the NA to libpq as the text "NA". Reproduced: `frs_db_conn(host = "127.0.0.1", port = 1, dbname = "x", user = "x", connect_timeout = 3e9)` fails with `invalid integer value "NA" for connection option "connect_timeout"` (bundled libpq 16.8, RPostgres 1.4.10). A libpq older than 12 parses with `atoi()`, so it would read "NA" as 0 and wait without limit. The same function already has `.frs_libpq_whole()` to handle large whole doubles, and this path skips it. Practical impact is very small: the input means about 68 years or more. Fix: refuse `connect_timeout > .Machine$integer.max` in `ok`, or route the value through `.frs_libpq_whole()`.
+  - **Rule:** code-check.md "A guard that fails toward pass" (its "What the guard reads" paragraph: your own coercion invents a failure value after the check has passed)

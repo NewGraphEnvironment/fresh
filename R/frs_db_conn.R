@@ -183,6 +183,7 @@ frs_db_conn <- function(
   if (!is.null(connect_timeout)) {
     ok <- is.numeric(connect_timeout) && length(connect_timeout) == 1L &&
       is.finite(connect_timeout) && connect_timeout >= 0 &&
+      connect_timeout <= .Machine$integer.max &&
       connect_timeout == round(connect_timeout)
     if (!ok) {
       stop("frs_db_conn(): connect_timeout must be one whole number of ",

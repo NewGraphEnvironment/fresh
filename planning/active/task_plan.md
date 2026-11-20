@@ -49,7 +49,7 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 
 ## Phase 1: Failing tests (`tests/testthat/test-frs_db_conn.R`)
 - [x] `connect_timeout` resolution: an explicit value wins; with `PGCONNECT_TIMEOUT` set the param is absent; with neither it is 10. Checked under each source (standard, share, default)
-- [x] Keepalive and `tcp_user_timeout` defaults are present under all three sources, and `...` overrides them (`keepalives = 0`)
+- [x] Keepalive defaults (and, until code-check round 1, `tcp_user_timeout`) are present under all three sources, and `...` overrides them (`keepalives = 0`)
 - [x] An invalid `connect_timeout` (negative, non-whole, NA, a vector) is refused with a clear error. `0` is allowed, because libpq reads it as "no limit"
 - [x] `.frs_conn_params()` carries the same bounds, so the worker path is covered
 - [x] A silent host with no database: `serverSocket()` on a free localhost port that is never accepted. The kernel completes the handshake and libpq then waits for a startup reply that never comes. Assert `frs_db_conn(host = "127.0.0.1", port = p, connect_timeout = 2)` errors within 15 s (`skip_on_cran()`)
@@ -65,7 +65,7 @@ Recommended in plan mode and approved by the owner as written, 2026-11-20.
 - [x] `CLAUDE.md` "Testing on alternate hosts": a host that goes silent now skips, each gated test after up to `connect_timeout` per address (review finding 6), the same as one that refuses
 
 ## Validation
-- [x] Tests pass: full `devtools::test()` against the local fwapg. The existing live test "frs_db_conn returns a DBI connection" then proves libpq accepts every default keyword, `tcp_user_timeout` included
+- [x] Tests pass: full `devtools::test()` against the local fwapg. The existing live test "frs_db_conn returns a DBI connection" then proves libpq accepts every default keyword (it passed at 4b33a7e with `tcp_user_timeout` still a default, so that keyword too)
 - [x] Prove the guard fires: in a worktree, remove `connect_timeout` from `.frs_conn_bounds()`'s output (dropping only the default cannot work, since the test passes 2 explicitly: review finding 1) and run the silent-host test under GNU `timeout 60`; it must hang (killed), then pass with the default restored. Record the result in `progress.md`
 - [x] `lintr::lint_package()`: no new lints, compared per file against `origin/main`
 - [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)

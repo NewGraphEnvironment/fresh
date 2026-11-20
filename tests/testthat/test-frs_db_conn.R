@@ -123,7 +123,7 @@ test_that("connect_timeout = 0 is allowed (libpq: no limit)", {
 
 test_that("an invalid connect_timeout is refused", {
   local_pg_env()
-  for (bad in list(-1, 2.5, NA_real_, NA, c(5, 10), "10", Inf, TRUE)) {
+  for (bad in list(-1, 2.5, NA_real_, NA, c(5, 10), "10", Inf, TRUE, 3e9)) {
     expect_error(fresh:::.frs_conn_bounds(connect_timeout = bad),
                  "connect_timeout", info = deparse(bad))
   }
