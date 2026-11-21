@@ -1,3 +1,12 @@
+# fresh 0.55.1
+
+Fixes [#279](https://github.com/NewGraphEnvironment/fresh/issues/279). No change to the package's functions: this release changes its tests.
+
+**Two test runs against one database no longer drop each other's tables.**
+- Every table a live test creates is named `working.t<run>_<name>`, and every `frs_habitat()` label `t<run>_<label>`, where `<run>` comes from the R session's random tempdir. The helpers are `frs_test_tbl()`, `frs_test_label()`, `frs_test_label_tbl()` and `frs_test_tbl_parts()`.
+- `test-test_table_names.R` fails on a table, index or label name two runs would share wherever a test can reach a database. Blocks that drive a `"mock"` connection keep their `working.` literals, since there they are SQL text.
+- At the end of a run, anything left under the run id is dropped and named, as a test that missed its cleanup.
+
 # fresh 0.55.0
 
 Fixes [#305](https://github.com/NewGraphEnvironment/fresh/issues/305).
