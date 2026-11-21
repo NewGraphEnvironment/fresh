@@ -69,7 +69,8 @@ shown absent by two green runs.
 ## Evidence
 
 The runs were measured in one session; their numbers are in `findings.md` here (Phase 3 and
-"Guard mutations"). Code-check: `review-round1.md` to `review-round4.md`, `review-verdict.md`
+"Guard mutations"). The procedures: `scripts/poison_check.R` (the poison and positive-control
+check) and `scripts/guard_mutations.R` (the mutation table), both run from the repo root. Code-check: `review-round1.md` to `review-round4.md`, `review-verdict.md`
 (ended clean at round 4, no defect inside a fix), and the plan review in `review-279.md`.
 
 Closed by: PR for branch `279-integration-tests-name-working-tables-as` (Fixes #279)
