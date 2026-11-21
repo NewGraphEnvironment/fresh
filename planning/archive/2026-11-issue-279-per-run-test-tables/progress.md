@@ -1,0 +1,55 @@
+# Progress — Integration tests name working tables as fixed literals, so two runs against one database collide and produce a failure neither can reproduce (#279)
+
+## Session 2026-11-20
+
+- Plan-mode exploration — phases approved by user (namespace: prefix inside `working`)
+- Created branch `279-integration-tests-name-working-tables-as` off origin/main
+- Scaffolded PWF baseline from issue #279 with approved phases
+- Next: start Phase 1
+- Phase 1: per-run helpers (`frs_test_tbl()`, `frs_test_label()`, `frs_test_tbl_parts()`,
+  `frs_test_sweep()`) in helper-db.R, the run-end sweep in setup-run_namespace.R, the scanner in
+  helper-test_names.R and its guard test. The 7 snippet tests pass both ways; the whole-tree
+  assertion is red as planned: 287 hits (279 working, 8 label) across the 17 files the plan named.
+- Phase 2 batch A: 11 files migrated. The 172 whole-string literals were rewritten by parse
+  position, and SQL with an embedded name became `sprintf()`/`paste()` around `frs_test_tbl()`;
+  the information_schema checks and `DBI::Id()` now take their parts from `frs_test_tbl_parts()`.
+  The first run showed the guard's "top-level is always live" rule was too broad: it rewrote a
+  mock helper in test-frs_channel_width.R. Narrowed it: a top-level expression that drives a
+  `"mock"` connection and matches no live pattern is left alone, with a snippet test for it.
+- Baseline, main @ 98e7cf0 from a worktree, full suite: 2643 pass / 0 fail / 6 skip, ~15 min.
+- Phase 2 batch B: 6 files migrated (frs_habitat, habitat_classify, habitat_overlay,
+  barriers_minimal, habitat_partition_293, utils). Its first run: 505 pass, 2 failures in
+  test-utils.R, both bare table names the guard cannot see (`pg_indexes WHERE tablename = '…'`
+  and an unqualified name under `SET search_path TO working`).
+- Plan review landed (review-279.md): 4 blockers, 7 gaps. B4's infix names and one of B1's three
+  index names were already fixed in batch B; the rest folded in as Phase 2b. Guard green over
+  every test, helper and setup file.
+- Filed #310 (scratch tables hardcode the working schema: frs_habitat internals and seven `to`
+  defaults). CLAUDE.md gained "Per-run test table names (#279)".
+- Phase 3 under way: poisoned 192 names main's tests use (186 created, 6 pre-existing fixtures,
+  oids recorded; the three old index names left out so a concurrent main run on a shared
+  database is not broken by them), then two full suites launched at once, ~16:05Z.
+- Phase 3: two concurrent full suites 2671/0/6 each, overlapping 16:05–16:20Z, no leftovers;
+  168 of 192 poison tables untouched, the 24 destroyed traced to an outside fixed-name run by a
+  probe of this branch's files alone (0 destroyed); positive control on main destroyed its
+  poison. Details in findings.md. Poison cleaned up.
+- Next: /code-check branch.
+- /code-check branch round 1 (spawned 16:24Z): 1 finding (fragile): the scanner learnt live
+  connectors only from the files it scans, and helper-db.R's `local_fwapg_indexpoint()` is
+  defined in a file it excludes. Fixed: `defs_from` reads helper-db.R's definitions without
+  scanning its strings, with a snippet test both ways; CLAUDE.md's scope sentence corrected.
+  Also cleared the branch's own lints in the three new pieces (per file/linter vs main); the
+  migrated files keep their existing paren style, which is main's standing indentation class.
+  Mutation table re-run: 8/8 red, clean tree 0.
+- Round 2 (16:34Z): Clean; probed round 1's fix (three connector shapes, flagged with
+  `defs_from`, the helper-db.R one missed without it).
+- Round 3 (16:40Z): named the mechanism (a lexical proxy for "a name the database resolves for
+  both runs") and enumerated its axes: all covered, documented, or reached by no test, except one
+  finding: test-frs_feature_index.R filtered `pg_indexes` on a bare tablename, and that view lists
+  every session's pg_temp tables (reproduced: 2 rows bare, 1 filtered to pg_my_temp_schema()).
+  Fixed; the latent axes are now written into the guard's header and CLAUDE.md's pg_temp bullet.
+- Round 4 (16:51Z): Clean, including round 3's fix. Loop ended clean at round 4; no round found
+  a defect inside a previous fix. Verdict in review-verdict.md.
+- After the review rounds, re-probed `frs_test_sweep()` (reformatted for lint after the concurrent
+  runs, and run only at teardown): a prefix-named table, a label-named table and a view, all
+  swept, 0 left.

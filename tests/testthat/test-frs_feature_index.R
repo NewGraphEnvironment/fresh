@@ -80,8 +80,11 @@ test_that("frs_feature_index indexes the output on both key columns", {
 
   frs_feature_index(conn, "pg_temp.fi_streams", "pg_temp.fi_features",
                     to = "pg_temp.fi_dnstr", verbose = FALSE)
+  # This session's temp schema only: pg_indexes lists every session's temp
+  # tables, so a bare tablename filter also sees another run's fi_dnstr (#279).
   defs <- DBI::dbGetQuery(conn,
-    "SELECT indexdef FROM pg_indexes WHERE tablename = 'fi_dnstr'")$indexdef
+    "SELECT indexdef FROM pg_indexes WHERE tablename = 'fi_dnstr'
+        AND schemaname = pg_my_temp_schema()::regnamespace::text")$indexdef
   expect_gt(length(defs), 0)
   expect_match(defs, "\\(id_segment, watershed_group_code\\)", all = FALSE)
 })

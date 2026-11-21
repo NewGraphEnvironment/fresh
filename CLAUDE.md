@@ -173,6 +173,39 @@ helper file). It skips whenever that connection can't be made, so a set
 `PG_PASS_SHARE` with the server unreachable skips instead of erroring. Any new
 live test against a non-default DB should gate the same way.
 
+### Per-run test table names (#279)
+
+Two runs against one database (a suite, a mutation sweep, a reviewer's probe)
+must not share a table name, or they drop each other's tables and the loser
+fails in a way nobody can reproduce. So a live test never writes a fixed
+`working.` name:
+
+- `frs_test_tbl("x")` gives `working.<run>_x`; `frs_test_label("a")` gives
+  the `frs_habitat(label =)` value `<run>_a`, and `frs_test_label_tbl("a")`
+  the `working.streams_<run>_a` table `frs_habitat()` builds from it;
+  `frs_test_tbl_parts()` splits a name for `information_schema` /
+  `pg_indexes` lookups. `<run>` is `t` + the session tempdir's suffix
+  (`tests/testthat/helper-db.R`). An index name is per run too: it is unique
+  within its schema.
+- Where a test needs no real FWA rows, `pg_temp` is better still: it is
+  session-local (`helper-synthetic.R`). Its names are, but catalog views are
+  not: `pg_indexes` and `pg_class` list every session's temp tables, so a
+  lookup there filters on `pg_my_temp_schema()`.
+- `test-test_table_names.R` scans the test, helper and setup files (all but
+  `helper-db.R` and the guard's own two, though it learns `helper-db.R`'s
+  connectors) and fails on a fixed name where a test reaches a database: the schema in any spelling,
+  a fixed index name, a `frs_habitat()` label not built by `frs_test_label()`,
+  a wsg-mode `frs_habitat()` call, and a call left at a `to` default inside
+  `working`. It cannot see a bare table name compared against `table_name`,
+  so use `frs_test_tbl_parts()` there.
+- `setup-run_namespace.R` drops what a run left under its id and names each
+  table, since each is a missed teardown. A killed run never gets there; find
+  its leftovers with
+  `SELECT relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'working' AND relname ~ '(^|_)t[a-z0-9]{6}_'`
+  and drop the ones no running suite owns.
+- A `FRESH_FWAPG_TRIAL` run (below) holds locks on fwapg's functions for the
+  length of a test, so another run that calls them waits on it.
+
 ### Tests against a pending fwapg migration (`FRESH_PG*`, #266)
 
 A second group of env vars, independent of `PG*`, names a **local** fwapg:

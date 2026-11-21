@@ -615,7 +615,7 @@ test_that("frs_network to= writes table and matches sf return", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_network_to")
+    .frs_test_drop(conn, frs_test_tbl("test_network_to"))
     DBI::dbDisconnect(conn)
   })
 
@@ -626,10 +626,10 @@ test_that("frs_network to= writes table and matches sf return", {
   sf_result <- frs_network(conn, blk, drm)
 
   # Write to table
-  frs_network(conn, blk, drm, to = "working.test_network_to")
+  frs_network(conn, blk, drm, to = frs_test_tbl("test_network_to"))
 
   # Read back and compare
-  db_result <- frs_db_query(conn, "SELECT * FROM working.test_network_to")
+  db_result <- frs_db_query(conn, sprintf("SELECT * FROM %s", frs_test_tbl("test_network_to")))
 
   expect_equal(nrow(sf_result), nrow(db_result))
   expect_true("linear_feature_id" %in% names(db_result))

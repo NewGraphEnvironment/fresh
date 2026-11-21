@@ -187,8 +187,8 @@ test_that("frs_order_child refuses a bad width or gradient bound", {
 test_that("frs_order_child admits only a known, narrow enough, gentle line (live)", {
   skip_if_no_conn()
   conn <- frs_db_conn()
-  st <- "working.test_order_child_streams"
-  hab <- "working.test_order_child_habitat"
+  st <- frs_test_tbl("test_order_child_streams")
+  hab <- frs_test_tbl("test_order_child_habitat")
   on.exit({
     .frs_test_drop(conn, st)
     .frs_test_drop(conn, hab)

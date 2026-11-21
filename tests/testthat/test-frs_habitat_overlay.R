@@ -279,46 +279,46 @@ test_that("integration: canonical shape flips matching species/habitat", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_overlay_h")
-    .frs_test_drop(conn, "working.test_overlay_k")
+    .frs_test_drop(conn, frs_test_tbl("test_overlay_h"))
+    .frs_test_drop(conn, frs_test_tbl("test_overlay_k"))
     DBI::dbDisconnect(conn)
   })
 
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_overlay_h (
+    sprintf("CREATE TABLE %s (
        id_segment integer, species_code text,
        blue_line_key bigint, downstream_route_measure double precision,
        spawning boolean, rearing boolean,
-       lake_rearing boolean, wetland_rearing boolean)")
+       lake_rearing boolean, wetland_rearing boolean)", frs_test_tbl("test_overlay_h")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_overlay_h VALUES
+    sprintf("INSERT INTO %s VALUES
        (1, 'SK', 100, 10.0, FALSE, FALSE, FALSE, FALSE),
        (2, 'CO', 100, 10.0, FALSE, FALSE, FALSE, FALSE),
        (3, 'BT', 100, 20.0, FALSE, FALSE, FALSE, FALSE),
-       (4, 'CO', 100, 30.0, FALSE, FALSE, FALSE, FALSE)")
+       (4, 'CO', 100, 30.0, FALSE, FALSE, FALSE, FALSE)", frs_test_tbl("test_overlay_h")))
 
   # Mix of integer 1, NULL, integer 0 to exercise indicator coercion.
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_overlay_k (
+    sprintf("CREATE TABLE %s (
        blue_line_key bigint, downstream_route_measure double precision,
-       species_code text, spawning integer, rearing integer)")
+       species_code text, spawning integer, rearing integer)", frs_test_tbl("test_overlay_k")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_overlay_k VALUES
+    sprintf("INSERT INTO %s VALUES
        (100, 10.0, 'SK', 1,    NULL),
        (100, 10.0, 'CO', 1,    1),
        (100, 20.0, 'BT', NULL, 1),
-       (100, 30.0, 'CO', 0,    NULL)")
+       (100, 30.0, 'CO', 0,    NULL)", frs_test_tbl("test_overlay_k")))
 
   invisible(frs_habitat_overlay(conn,
-    from = "working.test_overlay_k",
-    to   = "working.test_overlay_h",
+    from = frs_test_tbl("test_overlay_k"),
+    to   = frs_test_tbl("test_overlay_h"),
     species = c("SK", "CO", "BT"),
     habitat_types = c("spawning", "rearing"),
     verbose = FALSE))
 
   result <- DBI::dbGetQuery(conn,
-    "SELECT id_segment, species_code, spawning, rearing
-     FROM working.test_overlay_h ORDER BY id_segment")
+    sprintf("SELECT id_segment, species_code, spawning, rearing
+     FROM %s ORDER BY id_segment", frs_test_tbl("test_overlay_h")))
 
   # SK seg 1: spawning=1 -> TRUE; rearing NULL -> stays FALSE
   expect_equal(result$spawning[result$id_segment == 1L], TRUE)
@@ -338,45 +338,45 @@ test_that("integration: text 'TRUE'/'true'/'t' indicators flip", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_overlay_txt_h")
-    .frs_test_drop(conn, "working.test_overlay_txt_k")
+    .frs_test_drop(conn, frs_test_tbl("test_overlay_txt_h"))
+    .frs_test_drop(conn, frs_test_tbl("test_overlay_txt_k"))
     DBI::dbDisconnect(conn)
   })
 
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_overlay_txt_h (
+    sprintf("CREATE TABLE %s (
        id_segment integer, species_code text,
        blue_line_key bigint, downstream_route_measure double precision,
        spawning boolean, rearing boolean,
-       lake_rearing boolean, wetland_rearing boolean)")
+       lake_rearing boolean, wetland_rearing boolean)", frs_test_tbl("test_overlay_txt_h")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_overlay_txt_h VALUES
+    sprintf("INSERT INTO %s VALUES
        (1, 'CO', 100, 10.0, FALSE, FALSE, FALSE, FALSE),
        (2, 'CO', 100, 20.0, FALSE, FALSE, FALSE, FALSE),
        (3, 'CO', 100, 30.0, FALSE, FALSE, FALSE, FALSE),
-       (4, 'CO', 100, 40.0, FALSE, FALSE, FALSE, FALSE)")
+       (4, 'CO', 100, 40.0, FALSE, FALSE, FALSE, FALSE)", frs_test_tbl("test_overlay_txt_h")))
 
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_overlay_txt_k (
+    sprintf("CREATE TABLE %s (
        blue_line_key bigint, downstream_route_measure double precision,
-       species_code text, spawning text, rearing text)")
+       species_code text, spawning text, rearing text)", frs_test_tbl("test_overlay_txt_k")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_overlay_txt_k VALUES
+    sprintf("INSERT INTO %s VALUES
        (100, 10.0, 'CO', 'TRUE',  'false'),
        (100, 20.0, 'CO', 'true',  'f'),
        (100, 30.0, 'CO', 't',     ''),
-       (100, 40.0, 'CO', 'maybe', NULL)")
+       (100, 40.0, 'CO', 'maybe', NULL)", frs_test_tbl("test_overlay_txt_k")))
 
   invisible(frs_habitat_overlay(conn,
-    from = "working.test_overlay_txt_k",
-    to   = "working.test_overlay_txt_h",
+    from = frs_test_tbl("test_overlay_txt_k"),
+    to   = frs_test_tbl("test_overlay_txt_h"),
     species = "CO",
     habitat_types = c("spawning", "rearing"),
     verbose = FALSE))
 
   result <- DBI::dbGetQuery(conn,
-    "SELECT id_segment, spawning, rearing
-     FROM working.test_overlay_txt_h ORDER BY id_segment")
+    sprintf("SELECT id_segment, spawning, rearing
+     FROM %s ORDER BY id_segment", frs_test_tbl("test_overlay_txt_h")))
   # Seg 1-3: 'TRUE'/'true'/'t' all flip spawning; 'false'/'f'/'' do not
   expect_equal(result$spawning, c(TRUE, TRUE, TRUE, FALSE))
   expect_equal(result$rearing,  c(FALSE, FALSE, FALSE, FALSE))
@@ -386,39 +386,39 @@ test_that("integration: already-TRUE rows are not re-touched (additive-only)", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_overlay_addh")
-    .frs_test_drop(conn, "working.test_overlay_addk")
+    .frs_test_drop(conn, frs_test_tbl("test_overlay_addh"))
+    .frs_test_drop(conn, frs_test_tbl("test_overlay_addk"))
     DBI::dbDisconnect(conn)
   })
 
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_overlay_addh (
+    sprintf("CREATE TABLE %s (
        id_segment integer, species_code text,
        blue_line_key bigint, downstream_route_measure double precision,
        spawning boolean, rearing boolean,
-       lake_rearing boolean, wetland_rearing boolean)")
+       lake_rearing boolean, wetland_rearing boolean)", frs_test_tbl("test_overlay_addh")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_overlay_addh VALUES
+    sprintf("INSERT INTO %s VALUES
        (1, 'CO', 100, 10.0, TRUE, FALSE, FALSE, FALSE),
-       (2, 'CO', 100, 20.0, TRUE, FALSE, FALSE, FALSE)")
+       (2, 'CO', 100, 20.0, TRUE, FALSE, FALSE, FALSE)", frs_test_tbl("test_overlay_addh")))
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_overlay_addk (
+    sprintf("CREATE TABLE %s (
        blue_line_key bigint, downstream_route_measure double precision,
-       species_code text, spawning integer)")
+       species_code text, spawning integer)", frs_test_tbl("test_overlay_addk")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_overlay_addk VALUES
+    sprintf("INSERT INTO %s VALUES
        (100, 10.0, 'CO', 1),
-       (100, 20.0, 'CO', 1)")
+       (100, 20.0, 'CO', 1)", frs_test_tbl("test_overlay_addk")))
 
   invisible(frs_habitat_overlay(conn,
-    to = "working.test_overlay_addh",
-    from = "working.test_overlay_addk",
+    to = frs_test_tbl("test_overlay_addh"),
+    from = frs_test_tbl("test_overlay_addk"),
     species = "CO", habitat_types = "spawning",
     verbose = FALSE))
 
   # Both stay TRUE; the additive guard means no re-flip happened.
   result <- DBI::dbGetQuery(conn,
-    "SELECT spawning FROM working.test_overlay_addh ORDER BY id_segment")
+    sprintf("SELECT spawning FROM %s ORDER BY id_segment", frs_test_tbl("test_overlay_addh")))
   expect_equal(result$spawning, c(TRUE, TRUE))
 })
 
@@ -438,32 +438,32 @@ test_that("bridge: missing required columns errors clearly", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_bridge_h")
-    .frs_test_drop(conn, "working.test_bridge_s")
-    .frs_test_drop(conn, "working.test_bridge_k")
+    .frs_test_drop(conn, frs_test_tbl("test_bridge_h"))
+    .frs_test_drop(conn, frs_test_tbl("test_bridge_s"))
+    .frs_test_drop(conn, frs_test_tbl("test_bridge_k"))
     DBI::dbDisconnect(conn)
   })
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_bridge_h (
+    sprintf("CREATE TABLE %s (
        id_segment integer, species_code text,
        spawning boolean, rearing boolean,
-       lake_rearing boolean, wetland_rearing boolean)")
+       lake_rearing boolean, wetland_rearing boolean)", frs_test_tbl("test_bridge_h")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_bridge_h VALUES (1, 'CO', FALSE, FALSE, FALSE, FALSE)")
+    sprintf("INSERT INTO %s VALUES (1, 'CO', FALSE, FALSE, FALSE, FALSE)", frs_test_tbl("test_bridge_h")))
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_bridge_s (id_segment integer)")  # missing range cols
+    sprintf("CREATE TABLE %s (id_segment integer)", frs_test_tbl("test_bridge_s")))  # missing range cols
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_bridge_k (
+    sprintf("CREATE TABLE %s (
        blue_line_key bigint, downstream_route_measure double precision,
        upstream_route_measure double precision,
        species_code text, spawning integer, rearing integer,
-       lake_rearing integer, wetland_rearing integer)")
+       lake_rearing integer, wetland_rearing integer)", frs_test_tbl("test_bridge_k")))
 
   expect_error(
     frs_habitat_overlay(conn,
-      from = "working.test_bridge_k",
-      to   = "working.test_bridge_h",
-      bridge = "working.test_bridge_s",
+      from = frs_test_tbl("test_bridge_k"),
+      to   = frs_test_tbl("test_bridge_h"),
+      bridge = frs_test_tbl("test_bridge_s"),
       species = "CO", verbose = FALSE),
     "missing required columns")
 })
@@ -472,57 +472,57 @@ test_that("integration (bridge): range-containment flips contained segments", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_br_h")
-    .frs_test_drop(conn, "working.test_br_s")
-    .frs_test_drop(conn, "working.test_br_k")
+    .frs_test_drop(conn, frs_test_tbl("test_br_h"))
+    .frs_test_drop(conn, frs_test_tbl("test_br_s"))
+    .frs_test_drop(conn, frs_test_tbl("test_br_k"))
     DBI::dbDisconnect(conn)
   })
 
   # Target keyed by (id_segment, watershed_group_code)
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_br_h (
+    sprintf("CREATE TABLE %s (
        id_segment integer, watershed_group_code text, species_code text,
        spawning boolean, rearing boolean,
-       lake_rearing boolean, wetland_rearing boolean)")
+       lake_rearing boolean, wetland_rearing boolean)", frs_test_tbl("test_br_h")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_br_h VALUES
+    sprintf("INSERT INTO %s VALUES
        (1, 'TEST', 'SK', FALSE, FALSE, FALSE, FALSE),
        (2, 'TEST', 'SK', FALSE, FALSE, FALSE, FALSE),
-       (3, 'TEST', 'SK', FALSE, FALSE, FALSE, FALSE)")
+       (3, 'TEST', 'SK', FALSE, FALSE, FALSE, FALSE)", frs_test_tbl("test_br_h")))
 
   # Bridge: id_segment + group + range
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_br_s (
+    sprintf("CREATE TABLE %s (
        id_segment integer, watershed_group_code text, blue_line_key bigint,
        downstream_route_measure double precision,
-       upstream_route_measure double precision)")
+       upstream_route_measure double precision)", frs_test_tbl("test_br_s")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_br_s VALUES
+    sprintf("INSERT INTO %s VALUES
        (1, 'TEST', 100,   0,  50),
        (2, 'TEST', 100,  50, 100),
-       (3, 'TEST', 100, 100, 200)")
+       (3, 'TEST', 100, 100, 200)", frs_test_tbl("test_br_s")))
 
   # Source: range [40, 110] for SK spawning
   DBI::dbExecute(conn,
-    "CREATE TABLE working.test_br_k (
+    sprintf("CREATE TABLE %s (
        blue_line_key bigint, downstream_route_measure double precision,
        upstream_route_measure double precision,
        species_code text, spawning integer, rearing integer,
-       lake_rearing integer, wetland_rearing integer)")
+       lake_rearing integer, wetland_rearing integer)", frs_test_tbl("test_br_k")))
   DBI::dbExecute(conn,
-    "INSERT INTO working.test_br_k VALUES
-       (100, 40.0, 110.0, 'SK', 1, NULL, NULL, NULL)")
+    sprintf("INSERT INTO %s VALUES
+       (100, 40.0, 110.0, 'SK', 1, NULL, NULL, NULL)", frs_test_tbl("test_br_k")))
 
   invisible(frs_habitat_overlay(conn,
-    from   = "working.test_br_k",
-    to     = "working.test_br_h",
-    bridge = "working.test_br_s",
+    from   = frs_test_tbl("test_br_k"),
+    to     = frs_test_tbl("test_br_h"),
+    bridge = frs_test_tbl("test_br_s"),
     species = "SK",
     verbose = FALSE))
 
   result <- DBI::dbGetQuery(conn,
-    "SELECT id_segment, spawning, rearing
-     FROM working.test_br_h ORDER BY id_segment")
+    sprintf("SELECT id_segment, spawning, rearing
+     FROM %s ORDER BY id_segment", frs_test_tbl("test_br_h")))
   # Only segment 2 (50-100) is fully contained in [40, 110]
   expect_equal(result$spawning, c(FALSE, TRUE, FALSE))
   expect_equal(result$rearing,  c(FALSE, FALSE, FALSE))

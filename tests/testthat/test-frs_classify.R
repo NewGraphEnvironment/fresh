@@ -226,23 +226,23 @@ test_that("frs_classify ranges adds and populates label column", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_classify")
+    .frs_test_drop(conn, frs_test_tbl("test_classify"))
     DBI::dbDisconnect(conn)
   })
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_classify",
+    to = frs_test_tbl("test_classify"),
     cols = c("linear_feature_id", "blue_line_key", "gradient", "geom"),
     aoi = .test_aoi(),
     overwrite = TRUE
   )
 
-  frs_classify(conn, "working.test_classify", label = "spawning",
+  frs_classify(conn, frs_test_tbl("test_classify"), label = "spawning",
                ranges = list(gradient = c(0, 0.025)))
 
   result <- DBI::dbGetQuery(conn,
-    "SELECT spawning, count(*) AS n FROM working.test_classify GROUP BY spawning")
+    sprintf("SELECT spawning, count(*) AS n FROM %s GROUP BY spawning", frs_test_tbl("test_classify")))
 
   # Should have both TRUE and NULL rows (some meet threshold, some don't)
   expect_true(TRUE %in% result$spawning)

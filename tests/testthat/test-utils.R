@@ -30,7 +30,7 @@ test_that(".frs_validate_identifier rejects injection attempts", {
 test_that(".frs_index_working is idempotent — no error on double call", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  tbl <- "working.test_idx_idem"
+  tbl <- frs_test_tbl("test_idx_idem")
   on.exit({
     .frs_test_drop(conn, tbl)
     DBI::dbDisconnect(conn)
@@ -55,8 +55,10 @@ test_that(".frs_index_working is idempotent — no error on double call", {
   expect_no_error(fresh:::.frs_index_working(conn, tbl))
 
   # Verify indexes exist
+  tp <- frs_test_tbl_parts(tbl)
   idx_count <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT count(*) AS n FROM pg_indexes WHERE tablename = 'test_idx_idem'"))
+    "SELECT count(*) AS n FROM pg_indexes
+      WHERE schemaname = '%s' AND tablename = '%s'", tp$schema, tp$table))
   expect_true(idx_count$n >= 6)
 })
 
@@ -132,8 +134,8 @@ test_that(".frs_find_waterbody_rule returns the first match if multiple", {
 test_that(".frs_persist_columns adds missing columns to a stale target (fresh#114)", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_114_persist_src"
-  dst <- "working.test_114_persist_dst"
+  src <- frs_test_tbl("test_114_persist_src")
+  dst <- frs_test_tbl("test_114_persist_dst")
   on.exit({
     for (t in c(src, dst)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
@@ -177,8 +179,8 @@ test_that(".frs_persist_columns adds missing columns to a stale target (fresh#11
 test_that(".frs_persist_columns errors on a shared column type mismatch (fresh#114)", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_114_persist_src2"
-  dst <- "working.test_114_persist_dst2"
+  src <- frs_test_tbl("test_114_persist_src2")
+  dst <- frs_test_tbl("test_114_persist_dst2")
   on.exit({
     for (t in c(src, dst)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
@@ -500,8 +502,8 @@ test_that(".frs_same_relation compares folded names", {
 test_that(".frs_persist_streams works inside a caller's transaction", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_282_txn_src"
-  dst <- "working.test_282_txn_dst"
+  src <- frs_test_tbl("test_282_txn_src")
+  dst <- frs_test_tbl("test_282_txn_dst")
   on.exit({
     try(DBI::dbRollback(conn), silent = TRUE)
     for (t in c(src, dst)) {
@@ -534,8 +536,8 @@ test_that(".frs_persist_streams raises on a dbBegin failure that is not nesting"
   skip_if_not(.frs_db_available(), "DB not available")
   skip_if_not_installed("mockery")
   conn <- frs_db_conn()
-  src <- "working.test_282_bgn_src"
-  dst <- "working.test_282_bgn_dst"
+  src <- frs_test_tbl("test_282_bgn_src")
+  dst <- frs_test_tbl("test_282_bgn_dst")
   on.exit({
     for (t in c(src, dst)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
@@ -568,7 +570,7 @@ test_that(".frs_persist_streams raises on a dbBegin failure that is not nesting"
 test_that(".frs_persist_streams refuses a target that RESOLVES to its source", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_282_rc_src"
+  src <- frs_test_tbl("test_282_rc_src")
   on.exit({
     DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", src))
     DBI::dbExecute(conn, "SET search_path TO DEFAULT")
@@ -587,8 +589,10 @@ test_that(".frs_persist_streams refuses a target that RESOLVES to its source", {
   # matches every row, emptying it, with the insert then reading what it just
   # emptied. The regclass test in .frs_persist_streams() is what catches it;
   # without that test this call empties the table and returns quietly.
-  DBI::dbExecute(conn, "SET search_path TO working, public")
-  expect_error(.frs_persist_streams(conn, "test_282_rc_src", src, NULL),
+  DBI::dbExecute(conn, sprintf("SET search_path TO %s, public",
+                               frs_test_tbl_parts(src)$schema))
+  expect_error(.frs_persist_streams(conn, frs_test_tbl_parts(src)$table, src,
+                                   NULL),
                "resolve to the same table")
   expect_equal(
     DBI::dbGetQuery(conn, sprintf("SELECT count(*)::int AS n FROM %s", src))$n,
@@ -648,8 +652,8 @@ test_that(".frs_partition_wsg keeps the group only for a whole-group job", {
 test_that(".frs_persist_streams refuses a target whose key it just added", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_282_persist_src"
-  dst <- "working.test_282_persist_dst"
+  src <- frs_test_tbl("test_282_persist_src")
+  dst <- frs_test_tbl("test_282_persist_dst")
   on.exit({
     for (t in c(src, dst)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
@@ -695,8 +699,8 @@ test_that(".frs_persist_streams refuses a target whose key it just added", {
 test_that(".frs_persist_streams replaces its partition atomically", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_282_atomic_src"
-  dst <- "working.test_282_atomic_dst"
+  src <- frs_test_tbl("test_282_atomic_src")
+  dst <- frs_test_tbl("test_282_atomic_dst")
   on.exit({
     for (t in c(src, dst)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
@@ -723,8 +727,9 @@ test_that(".frs_persist_streams replaces its partition atomically", {
     "CREATE TABLE %s (id_segment integer, watershed_group_code varchar(4),
        linear_feature_id bigint, tag text NOT NULL)", dst))
   DBI::dbExecute(conn, sprintf(
-    "CREATE UNIQUE INDEX test_282_atomic_pkey
-       ON %s (id_segment, watershed_group_code)", dst))
+    "CREATE UNIQUE INDEX %s_pkey
+       ON %s (id_segment, watershed_group_code)",
+    frs_test_tbl_parts(dst)$table, dst))
   DBI::dbExecute(conn, sprintf(
     "INSERT INTO %s VALUES (11, 'BULK', 42, 'mine')", dst))
   DBI::dbExecute(conn, sprintf(
@@ -742,8 +747,8 @@ test_that(".frs_persist_streams replaces its partition atomically", {
 test_that(".frs_persist_streams re-runs over a target with a unique index", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_282_uniq_src"
-  dst <- "working.test_282_uniq_dst"
+  src <- frs_test_tbl("test_282_uniq_src")
+  dst <- frs_test_tbl("test_282_uniq_dst")
   on.exit({
     for (t in c(src, dst)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
@@ -763,8 +768,9 @@ test_that(".frs_persist_streams re-runs over a target with a unique index", {
     "CREATE TABLE %s (id_segment integer, watershed_group_code varchar(4),
        linear_feature_id bigint)", dst))
   DBI::dbExecute(conn, sprintf(
-    "CREATE UNIQUE INDEX test_282_uniq_pkey
-       ON %s (id_segment, watershed_group_code)", dst))
+    "CREATE UNIQUE INDEX %s_pkey
+       ON %s (id_segment, watershed_group_code)",
+    frs_test_tbl_parts(dst)$table, dst))
   DBI::dbExecute(conn, sprintf(
     "CREATE TABLE %s AS SELECT 11::integer AS id_segment,
        'BULK'::varchar(4) AS watershed_group_code,
@@ -787,8 +793,8 @@ test_that(".frs_persist_streams re-runs over a target with a unique index", {
 test_that(".frs_persist_streams allows an empty target gaining the key", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
-  src <- "working.test_282_empty_src"
-  dst <- "working.test_282_empty_dst"
+  src <- frs_test_tbl("test_282_empty_src")
+  dst <- frs_test_tbl("test_282_empty_dst")
   on.exit({
     for (t in c(src, dst)) {
       DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))

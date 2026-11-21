@@ -246,9 +246,9 @@ test_that("frs_feature_find snaps real sf points onto the network (live)", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_ff_streams")
-    .frs_test_drop(conn, "working.test_ff_pts")
-    .frs_test_drop(conn, "working.test_ff_out")
+    .frs_test_drop(conn, frs_test_tbl("test_ff_streams"))
+    .frs_test_drop(conn, frs_test_tbl("test_ff_pts"))
+    .frs_test_drop(conn, frs_test_tbl("test_ff_out"))
     DBI::dbDisconnect(conn)
   })
 
@@ -260,18 +260,18 @@ test_that("frs_feature_find snaps real sf points onto the network (live)", {
   pts$kind <- c("weir", "gauge", "weir")
 
   # Working streams hold the BLKs of sites a and b only
-  .frs_test_drop(conn, "working.test_ff_streams")
+  .frs_test_drop(conn, frs_test_tbl("test_ff_streams"))
   DBI::dbExecute(conn, sprintf(paste(
-    "CREATE TABLE working.test_ff_streams AS",
+    "CREATE TABLE", frs_test_tbl("test_ff_streams"), "AS",
     "SELECT DISTINCT blue_line_key FROM whse_basemapping.fwa_stream_networks_sp",
     "WHERE blue_line_key IN (%s)"),
     paste(on_stream$blue_line_key[on_stream$site != "c"], collapse = ", ")))
 
-  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
+  frs_feature_find(conn, frs_test_tbl("test_ff_streams"), to = frs_test_tbl("test_ff_out"),
                    points = pts, col_id = "site", label_col = "kind")
   out <- DBI::dbGetQuery(conn, paste(
     "SELECT feature_id, blue_line_key, downstream_route_measure, label,",
-    "source FROM working.test_ff_out ORDER BY feature_id"))
+    "source FROM", frs_test_tbl("test_ff_out"), "ORDER BY feature_id"))
   keep <- on_stream$site != "c" &
     !on_stream$blue_line_key %in% on_stream$blue_line_key[on_stream$site == "c"]
   expect_gt(sum(keep), 0L)
@@ -287,28 +287,29 @@ test_that("frs_feature_find snaps real sf points onto the network (live)", {
   # table the table path created (both write feature_id as text)
   pts_num <- pts
   pts_num$site_num <- c(100000, 200000, 300000)
-  .frs_test_drop(conn, "working.test_ff_pts")
+  .frs_test_drop(conn, frs_test_tbl("test_ff_pts"))
   DBI::dbExecute(conn, paste(
-    "CREATE TABLE working.test_ff_pts AS",
+    "CREATE TABLE", frs_test_tbl("test_ff_pts"), "AS",
     "SELECT blue_line_key, 0::double precision AS downstream_route_measure,",
-    "  1 AS fid FROM working.test_ff_streams"))
-  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
-                   points_table = "working.test_ff_pts", col_id = "fid")
-  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
+    "  1 AS fid FROM", frs_test_tbl("test_ff_streams")))
+  frs_feature_find(conn, frs_test_tbl("test_ff_streams"), to = frs_test_tbl("test_ff_out"),
+                   points_table = frs_test_tbl("test_ff_pts"), col_id = "fid")
+  frs_feature_find(conn, frs_test_tbl("test_ff_streams"), to = frs_test_tbl("test_ff_out"),
                    points = pts_num, col_id = "site_num", append = TRUE)
   ids <- DBI::dbGetQuery(conn, paste(
-    "SELECT feature_id FROM working.test_ff_out WHERE source = 'sf'",
+    "SELECT feature_id FROM", frs_test_tbl("test_ff_out"), "WHERE source = 'sf'",
     "ORDER BY feature_id"))$feature_id
   expect_equal(ids, format(pts_num$site_num[keep], scientific = FALSE))
 
   # 16-digit whole-number ids keep every digit; an integer label_col maps
   pts_num$site_num <- c(1234567890123456, 1234567890123457, 1234567890123458)
   pts_num$code <- c(1L, 2L, 1L)
-  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
+  frs_feature_find(conn, frs_test_tbl("test_ff_streams"), to = frs_test_tbl("test_ff_out"),
                    points = pts_num, col_id = "site_num", label_col = "code",
                    label_map = c("1" = "blocked"))
   out <- DBI::dbGetQuery(conn, paste(
-    "SELECT feature_id, label FROM working.test_ff_out ORDER BY feature_id"))
+    "SELECT feature_id, label FROM", frs_test_tbl("test_ff_out"),
+    "ORDER BY feature_id"))
   expect_equal(out$feature_id,
                c("1234567890123456", "1234567890123457")[keep[1:2]])
   expect_equal(out$label, c("blocked", "2")[keep[1:2]])
@@ -316,29 +317,29 @@ test_that("frs_feature_find snaps real sf points onto the network (live)", {
   # A logical label_col reaches the DB as boolean ('true' as text); a
   # "TRUE" key still maps it
   pts_num$barrier <- c(TRUE, FALSE, TRUE)
-  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
+  frs_feature_find(conn, frs_test_tbl("test_ff_streams"), to = frs_test_tbl("test_ff_out"),
                    points = pts_num, col_id = "site_num",
                    label_col = "barrier", label_map = c("TRUE" = "blocked"))
   out <- DBI::dbGetQuery(conn, paste(
-    "SELECT label FROM working.test_ff_out ORDER BY feature_id"))
+    "SELECT label FROM", frs_test_tbl("test_ff_out"), "ORDER BY feature_id"))
   expect_equal(out$label, c("blocked", "false")[keep[1:2]])
 
   # psql-style keys
-  frs_feature_find(conn, "working.test_ff_streams", to = "working.test_ff_out",
+  frs_feature_find(conn, frs_test_tbl("test_ff_streams"), to = frs_test_tbl("test_ff_out"),
                    points = pts_num, col_id = "site_num",
                    label_col = "barrier",
                    label_map = c("t" = "blocked", "f" = "passable"))
   out <- DBI::dbGetQuery(conn, paste(
-    "SELECT label FROM working.test_ff_out ORDER BY feature_id"))
+    "SELECT label FROM", frs_test_tbl("test_ff_out"), "ORDER BY feature_id"))
   expect_equal(out$label, c("blocked", "passable")[keep[1:2]])
 
   # A call that fails after its checks leaves the existing `to` alone
-  expect_error(frs_feature_find(conn, "working.test_ff_streams",
-                                to = "working.test_ff_out", points = pts_num,
+  expect_error(frs_feature_find(conn, frs_test_tbl("test_ff_streams"),
+                                to = frs_test_tbl("test_ff_out"), points = pts_num,
                                 label_col = "nope"),
                "label_col 'nope' is not a column of points")
   expect_true(DBI::dbExistsTable(
-    conn, DBI::Id(schema = "working", table = "test_ff_out")))
+    conn, do.call(DBI::Id, frs_test_tbl_parts(frs_test_tbl("test_ff_out")))))
 })
 
 test_that("frs_break_find skips drop when overwrite = FALSE", {
@@ -550,14 +551,14 @@ test_that("frs_break_find attribute mode creates breaks table", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_break_streams")
-    .frs_test_drop(conn, "working.test_break_find")
+    .frs_test_drop(conn, frs_test_tbl("test_break_streams"))
+    .frs_test_drop(conn, frs_test_tbl("test_break_find"))
     DBI::dbDisconnect(conn)
   })
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_break_streams",
+    to = frs_test_tbl("test_break_streams"),
     cols = c("linear_feature_id", "blue_line_key",
              "downstream_route_measure", "upstream_route_measure",
              "gradient", "geom"),
@@ -566,20 +567,21 @@ test_that("frs_break_find attribute mode creates breaks table", {
 
   # Use fwa_slopealonginterval to find gradient breaks at 100m resolution
   frs_break_find(conn,
-    table = "working.test_break_streams",
-    to = "working.test_break_find",
+    table = frs_test_tbl("test_break_streams"),
+    to = frs_test_tbl("test_break_find"),
     attribute = "gradient",
     threshold = 0.02
   )
 
   count <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_break_find")
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_break_find")))
   expect_true(count$n > 0)
 
-  cols <- DBI::dbGetQuery(conn,
+  tp <- frs_test_tbl_parts(frs_test_tbl("test_break_find"))
+  cols <- DBI::dbGetQuery(conn, sprintf(
     "SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'working' AND table_name = 'test_break_find'
-     ORDER BY ordinal_position")
+     WHERE table_schema = '%s' AND table_name = '%s'
+     ORDER BY ordinal_position", tp$schema, tp$table))
   expect_true("blue_line_key" %in% cols$column_name)
   expect_true("downstream_route_measure" %in% cols$column_name)
 })
@@ -588,14 +590,14 @@ test_that("frs_break_apply splits stream segments", {
   skip_if_not(.frs_db_available(), "DB not available")
   conn <- frs_db_conn()
   on.exit({
-    .frs_test_drop(conn, "working.test_break_apply_streams")
-    .frs_test_drop(conn, "working.test_break_apply_breaks")
+    .frs_test_drop(conn, frs_test_tbl("test_break_apply_streams"))
+    .frs_test_drop(conn, frs_test_tbl("test_break_apply_breaks"))
     DBI::dbDisconnect(conn)
   })
 
   frs_extract(conn,
     from = "whse_basemapping.fwa_stream_networks_sp",
-    to = "working.test_break_apply_streams",
+    to = frs_test_tbl("test_break_apply_streams"),
     cols = c("linear_feature_id", "blue_line_key",
              "downstream_route_measure", "upstream_route_measure",
              "gradient", "geom"),
@@ -603,27 +605,27 @@ test_that("frs_break_apply splits stream segments", {
   )
 
   count_before <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_break_apply_streams")
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_break_apply_streams")))
 
   # Find gradient breaks at 100m resolution, threshold 2%
   frs_break_find(conn,
-    table = "working.test_break_apply_streams",
-    to = "working.test_break_apply_breaks",
+    table = frs_test_tbl("test_break_apply_streams"),
+    to = frs_test_tbl("test_break_apply_breaks"),
     attribute = "gradient",
     threshold = 0.02
   )
 
   n_breaks <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_break_apply_breaks")
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_break_apply_breaks")))
 
   frs_break_apply(conn,
-    table = "working.test_break_apply_streams",
-    breaks = "working.test_break_apply_breaks"
+    table = frs_test_tbl("test_break_apply_streams"),
+    breaks = frs_test_tbl("test_break_apply_breaks")
   )
 
   # Count after — should have more rows if breaks fell within segments
   count_after <- DBI::dbGetQuery(conn,
-    "SELECT count(*) AS n FROM working.test_break_apply_streams")
+    sprintf("SELECT count(*) AS n FROM %s", frs_test_tbl("test_break_apply_streams")))
   expect_true(count_after$n >= count_before$n)
   # If there were breaks, we should see new segments
   if (n_breaks$n > 0) {
