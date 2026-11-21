@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.55.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.55.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/NewGraphEnvironment/fresh/blob/v0.55.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.55.1" id="fresh-0551">fresh 0.55.1<a class="anchor" aria-label="anchor" href="#fresh-0551"></a></h2>
+<p>Fixes <a href="https://github.com/NewGraphEnvironment/fresh/issues/279" class="external-link">#279</a>. No change to the package’s functions: this release changes its tests.</p>
+<p><strong>Two test runs against one database no longer drop each other’s tables.</strong> - Every table a live test creates is named <code>working.t&lt;run&gt;_&lt;name&gt;</code>, and every <code><a href="../reference/frs_habitat.html">frs_habitat()</a></code> label <code>t&lt;run&gt;_&lt;label&gt;</code>, where <code>&lt;run&gt;</code> comes from the R session’s random tempdir. The helpers are <code>frs_test_tbl()</code>, <code>frs_test_label()</code>, <code>frs_test_label_tbl()</code> and <code>frs_test_tbl_parts()</code>. - <code>test-test_table_names.R</code> fails on a table, index or label name two runs would share wherever a test can reach a database. Blocks that drive a <code>"mock"</code> connection keep their <code>working.</code> literals, since there they are SQL text. - At the end of a run, anything left under the run id is dropped and named, as a test that missed its cleanup.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.55.0" id="fresh-0550">fresh 0.55.0<a class="anchor" aria-label="anchor" href="#fresh-0550"></a></h2>
 <p>Fixes <a href="https://github.com/NewGraphEnvironment/fresh/issues/305" class="external-link">#305</a>.</p>
