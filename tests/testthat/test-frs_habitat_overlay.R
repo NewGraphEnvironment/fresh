@@ -294,10 +294,14 @@ test_that("direct mode refuses id_segment without the parent both tables carry",
   expect_match(res, "^ERROR:.*linear_feature_id")
   ok <- .ov_direct(cols, cols,
                    c("id_segment", "watershed_group_code", "linear_feature_id"))
+  # .ov_direct() returns a refusal as one string too, so the length alone
+  # cannot tell success from refusal (code-check round 3).
+  expect_no_match(ok, "^ERROR:")
   expect_length(ok, 1)
   # Only the target carrying the parent: nothing to match it against.
   to_only <- .ov_direct(cols, setdiff(cols, "linear_feature_id"),
                         c("id_segment", "watershed_group_code"))
+  expect_no_match(to_only, "^ERROR:")
   expect_length(to_only, 1)
 })
 
