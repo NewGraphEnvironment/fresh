@@ -17,18 +17,18 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 ## Phase 1: #294, persist barriers on the job's own ground
 
 - [x] Measure the corrected premise, read-only, on the local fwapg: pick a mainstem blue line (`blue_line_key = watershed_key`) that spans two groups, run the multiclass `frs_break_find()` from one group's extract, and count its barriers in the other group. Check the two groups' species give different thresholds (`frs_wsg_species()`). Count barriers that `.frs_enrich_breaks()`'s `>= drm AND < urm` match leaves without a segment on one group. Write it up in `findings.md`.
-- [ ] Edit #294's body: the corrected mechanism, the decided fix, and a link to the findings.
-- [ ] Tests first, on `pg_temp` (`helper-synthetic.R` style, `frs_test_tbl()` for any `working.` name). Cover a new `.frs_persist_barriers(conn, to, from, streams)`:
+- [x] Edit #294's body: the corrected mechanism, the decided fix, and a link to the findings.
+- [x] Tests first, on `pg_temp` (`helper-synthetic.R` style, `frs_test_tbl()` for any `working.` name). Cover a new `.frs_persist_barriers(conn, to, from, streams)`:
   - two jobs on two groups sharing a blue line: after the second job, the first job's barriers on its own segments are still there with their own classes;
   - a re-run replaces its rows instead of duplicating them;
   - a barrier with no parent segment (NULL `linear_feature_id`) is not inserted;
   - an old-shape target (no key columns, with rows) is refused before anything is deleted;
   - delete and insert run in one transaction.
-- [ ] `.frs_enrich_breaks()` (`R/frs_habitat.R`) gains a `parent = FALSE` argument. With `TRUE` it also sets `linear_feature_id` and `watershed_group_code` in the same join. `frs_habitat_access()` keeps calling it without that argument, so its output does not change.
-- [ ] Add `.frs_persist_barriers()` to `R/utils.R`, built the way `.frs_persist_streams()` is: `CREATE TABLE IF NOT EXISTS`, then `.frs_persist_columns()`, then `.frs_null_key_guard(key = "linear_feature_id")`, then delete and insert in one transaction with an explicit column list. Delete `WHERE linear_feature_id IN (SELECT linear_feature_id FROM <streams>)`. Insert only the `from` rows whose `linear_feature_id` is in `<streams>`. Refuse a target that is the same relation as the source.
-- [ ] Replace both inline barrier blocks in `frs_habitat()`, the sequential `.run_job` and the mirai worker, with `.frs_enrich_breaks(parent = TRUE)` plus `.frs_persist_barriers(..., streams = streams_tbl)`.
-- [ ] Update the structural test in `test-frs_habitat.R` (around line 765): the body has no `DELETE FROM` left and calls `.frs_persist_barriers(` twice. Add positive controls on the helper's body.
-- [ ] Update roxygen `@param to_barriers` (new columns, what scope each job writes) and `devtools::document()`.
+- [x] `.frs_enrich_breaks()` (`R/frs_habitat.R`) gains a `parent = FALSE` argument. With `TRUE` it also sets `linear_feature_id` and `watershed_group_code` in the same join. `frs_habitat_access()` keeps calling it without that argument, so its output does not change.
+- [x] Add `.frs_persist_barriers()` to `R/utils.R`, built the way `.frs_persist_streams()` is: `CREATE TABLE IF NOT EXISTS`, then `.frs_persist_columns()`, then `.frs_null_key_guard(key = "linear_feature_id")`, then delete and insert in one transaction with an explicit column list. Delete `WHERE linear_feature_id IN (SELECT linear_feature_id FROM <streams>)`. Insert only the `from` rows whose `linear_feature_id` is in `<streams>`. Refuse a target that is the same relation as the source.
+- [x] Replace both inline barrier blocks in `frs_habitat()`, the sequential `.run_job` and the mirai worker, with `.frs_enrich_breaks(parent = TRUE)` plus `.frs_persist_barriers(..., streams = streams_tbl)`.
+- [x] Update the structural test in `test-frs_habitat.R` (around line 765): the body has no `DELETE FROM` left and calls `.frs_persist_barriers(` twice. Add positive controls on the helper's body.
+- [x] Update roxygen `@param to_barriers` (new columns, what scope each job writes) and `devtools::document()`.
 - [ ] Restore the blue-line delete in a throwaway worktree and confirm the two-job test goes red.
 
 ## Phase 2: #308, refuse a NULL watershed group

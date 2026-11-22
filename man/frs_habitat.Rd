@@ -150,9 +150,14 @@ Default \code{NULL} (no overrides).}
 \item{to_barriers}{Character or \code{NULL}. Schema-qualified table for
 persisting gradient barriers. Includes \code{blue_line_key},
 \code{downstream_route_measure}, \code{gradient_class}, \code{label},
-\code{wscode_ltree}, \code{localcode_ltree}. Useful for link's
-\code{lnk_barrier_overrides()}. Default \code{NULL} (barriers dropped after
-segmentation).}
+\code{wscode_ltree}, \code{localcode_ltree}, and the \code{linear_feature_id} and
+\code{watershed_group_code} of the segment each barrier falls on. Each job
+replaces only the barriers on its own segments, keyed by
+\code{linear_feature_id}, so a table shared by several watershed groups or
+AOIs keeps each one's barriers at its own gradient classes. A table
+written before these two columns existed is refused: drop it and
+re-run. Useful for link's \code{lnk_barrier_overrides()}. Default \code{NULL}
+(barriers dropped after segmentation).}
 
 \item{params}{Named list from \code{\link[=frs_params]{frs_params()}}, or \code{NULL} to use
 bundled \code{parameters_habitat_thresholds.csv} and rules YAML.}

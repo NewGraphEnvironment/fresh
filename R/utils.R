@@ -1752,6 +1752,97 @@
 }
 
 
+#' Persist a job's gradient barriers into a shared target
+#'
+#' The `to_barriers` half of [frs_habitat()], for both the sequential and the
+#' mirai path. [frs_break_find()] reads every segment of each blue line in the
+#' job's extract, so `from` holds barriers along whole lines, the neighbouring
+#' watershed group's part included, at this job's gradient classes -- which
+#' come from this job's species. The delete by `blue_line_key` this replaced
+#' therefore let the last job on a line own every group's barriers on it
+#' (fresh#294, `data-raw/barrier_span_294.R`). Here a job deletes and writes
+#' only the barriers on its own segments, by the parent segment each barrier
+#' falls on, the rule [.frs_persist_streams()] uses for `to_streams`, so a
+#' custom AOI is scoped the same way.
+#'
+#' `from` must carry `linear_feature_id` (set by
+#' `.frs_enrich_breaks(parent = TRUE)`). A barrier no segment contains has
+#' none and is not written: no later delete could address it. A target written
+#' before fresh#294 gains the column with NULL in its old rows and is refused
+#' by [.frs_null_key_guard()] before anything is deleted.
+#'
+#' @param conn A [DBI::DBIConnection-class] object.
+#' @param to Character. Schema-qualified persist target. Created if absent.
+#' @param from Character. Schema-qualified barriers table of this job.
+#' @param streams Character. Schema-qualified working streams table of this
+#'   job: the segments whose barriers this job owns.
+#' @return NULL invisibly.
+#' @noRd
+.frs_persist_barriers <- function(conn, to, from, streams) {
+  .frs_validate_identifier(to, "persist target")
+  .frs_validate_identifier(from, "persist source")
+  .frs_validate_identifier(streams, "job streams table")
+  for (t in c(from, streams)) {
+    if (!"linear_feature_id" %in% .frs_cols_of(conn, t)) {
+      stop(sprintf(paste0(
+        "%s has no linear_feature_id, so the barriers this job owns cannot ",
+        "be told from another job's."), t), call. = FALSE)
+    }
+  }
+
+  .frs_db_execute(conn, sprintf(
+    "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0", to, from))
+
+  # Exact, as .frs_persist_streams() does it: two unequal strings can name one
+  # table through search_path, and a delete whose subselect reads its own
+  # table empties it.
+  same <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT (%s::regclass = %s::regclass) AS same",
+    .frs_quote_string(to), .frs_quote_string(from)))$same
+  if (length(same) == 1 && !is.na(same) && same) {
+    stop(sprintf(
+      "persist target and source resolve to the same table (%s and %s). Pass
+       a to_barriers that differs from the job's working barriers table.",
+      to, from), call. = FALSE)
+  }
+
+  cols <- .frs_persist_columns(conn, to, from)
+  .frs_null_key_guard(conn, to, "linear_feature_id", cols$cols_added)
+
+  owned <- sprintf("linear_feature_id IN (SELECT linear_feature_id FROM %s)",
+                   streams)
+
+  # One transaction, two statements, for the reasons .frs_persist_streams()
+  # gives: a failure between them must not leave the job's segments with no
+  # barriers, and a data-modifying CTE would trip a unique index.
+  began <- tryCatch({
+    DBI::dbBegin(conn)
+    TRUE
+  }, error = function(e) {
+    if (grepl("nested transaction", conditionMessage(e), ignore.case = TRUE)) {
+      return(FALSE)
+    }
+    stop(e)
+  })
+  committed <- FALSE
+  if (began) {
+    on.exit(if (!committed) try(DBI::dbRollback(conn), silent = TRUE),
+            add = TRUE)
+  }
+
+  .frs_db_execute(conn, sprintf("DELETE FROM %s WHERE %s", to, owned))
+  .frs_db_execute(conn, sprintf(
+    "INSERT INTO %s (%s) SELECT %s FROM %s WHERE %s",
+    to, cols$cols_sql, cols$cols_sql, from, owned))
+
+  if (began) {
+    DBI::dbCommit(conn)
+    committed <- TRUE
+  }
+  invisible(NULL)
+}
+
+
 #' Drop a test table from the working schema
 #'
 #' Convenience wrapper for integration test teardown.

@@ -37,7 +37,7 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 
 ## #294 measured: the whole-line read and last writer wins (2026-11-22)
 
-`data-raw/barrier_span_294.R`, local Docker fwapg (the `PG*` instance in `.Renviron` refused connections), logs in `data-raw/logs/barrier_span_294/`.
+`data-raw/barrier_span_294.R`, the Docker fwapg from `docker/`, logs in `data-raw/logs/barrier_span_294/`.
 
 - 157 mainstem blue lines (`blue_line_key = watershed_key`, which the default `blk_filter` samples) span more than one watershed group. The issue's 259 counts every blue line, mainstem or not.
 - 108 of the 157 join groups whose species give different gradient thresholds.
@@ -51,4 +51,4 @@ So #294's defect is last writer wins on classes, not deletion. The fix scopes de
 
 | Error | Resolution |
 |-------|------------|
-| `frs_db_conn()` refused at the `.Renviron` `PGHOST` | `Sys.setenv()` to the local Docker fwapg (`localhost:5432/fwapg`) before `load_all()` |
+| `frs_db_conn()` refused by the default database | `Sys.setenv()` to the Docker fwapg from `docker/` before `load_all()`, as CLAUDE.md describes |
