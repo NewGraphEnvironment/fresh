@@ -111,15 +111,15 @@ Each opens with an **If we do it / If we never do** line. Then it points to `pla
 ### Phase 2: File and close
 - [x] Draft the umbrella bodies to the git dir, run `public_leak_scan`, then file the 8 umbrellas and the 2 research issues
 - [x] Write the umbrella numbers into the Moves table; run the tick check on a copy; run `lanes` and fill `lane` / `waits on`; run the model check
-- [ ] Edit #231's "Shared mechanism" paragraph (it should name the two assignment sites), then close the 10 issues with reason comments
+- [x] Edit #231's "Shared mechanism" paragraph (it should name the two assignment sites), then close the 10 issues with reason comments
 
 ### Phase 3: Land
 - [ ] Commit the backlog file on the branch; `/code-check` (the file is read by `backlog_moves.sh`); `/planning-archive`; `/gh-pr-push`
 
 ## Validation
-- [ ] Coverage: every one of the 53 frozen issues is named in the file
-- [ ] `backlog_moves.sh list`, `next` and `lanes` read the file; every open move ticks cleanly on a copy
-- [ ] The public scan is clean
+- [x] Coverage: every one of the 53 frozen issues is named in the file
+- [x] `backlog_moves.sh list`, `next` and `lanes` read the file; every open move ticks cleanly on a copy
+- [x] The public scan is clean
 - [ ] `/code-check` clean
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
