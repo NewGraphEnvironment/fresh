@@ -35,7 +35,20 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 - `.frs_group_required()` early-returns without `linear_feature_id`; `test-habitat_partition_293.R` pins the #225 NULL-group case as replaced-not-refused.
 - `frs_habitat_overlay()` direct mode joins on the caller's `by`; the mocked test at line 236 uses `by = "id_segment"`.
 
+## #294 measured: the whole-line read and last writer wins (2026-11-22)
+
+`data-raw/barrier_span_294.R`, local Docker fwapg (the `PG*` instance in `.Renviron` refused connections), logs in `data-raw/logs/barrier_span_294/`.
+
+- 157 mainstem blue lines (`blue_line_key = watershed_key`, which the default `blk_filter` samples) span more than one watershed group. The issue's 259 counts every blue line, mainstem or not.
+- 108 of the 157 join groups whose species give different gradient thresholds.
+- On CHWK/HARR line 356308001, the HARR job wrote the same 18 barriers, all in CHWK, as the CHWK job did: the whole line is read, so the old blue-line delete covered exactly what the insert wrote back. Nothing was lost.
+- 12 sampled two-group lines (over 3 km, thresholds differ, shortest first): on 5 of them, the second group's job leaves the first group's barriers different from what that group's own job found. Altogether 41 of 126 first-group positions are missing, extra, or at a different class. On GUIC/LNIC alone it is 26 of 73.
+- 0 barriers fell outside every segment under `.frs_enrich_breaks()`'s `[downstream, upstream)` rule, so keying on the parent segment drops nothing on this sample.
+
+So #294's defect is last writer wins on classes, not deletion. The fix scopes delete and insert to the job's own segments.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| `frs_db_conn()` refused at the `.Renviron` `PGHOST` | `Sys.setenv()` to the local Docker fwapg (`localhost:5432/fwapg`) before `load_all()` |

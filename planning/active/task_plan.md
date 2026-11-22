@@ -16,7 +16,7 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 
 ## Phase 1: #294, persist barriers on the job's own ground
 
-- [ ] Measure the corrected premise, read-only, on the local fwapg: pick a mainstem blue line (`blue_line_key = watershed_key`) that spans two groups, run the multiclass `frs_break_find()` from one group's extract, and count its barriers in the other group. Check the two groups' species give different thresholds (`frs_wsg_species()`). Count barriers that `.frs_enrich_breaks()`'s `>= drm AND < urm` match leaves without a segment on one group. Write it up in `findings.md`.
+- [x] Measure the corrected premise, read-only, on the local fwapg: pick a mainstem blue line (`blue_line_key = watershed_key`) that spans two groups, run the multiclass `frs_break_find()` from one group's extract, and count its barriers in the other group. Check the two groups' species give different thresholds (`frs_wsg_species()`). Count barriers that `.frs_enrich_breaks()`'s `>= drm AND < urm` match leaves without a segment on one group. Write it up in `findings.md`.
 - [ ] Edit #294's body: the corrected mechanism, the decided fix, and a link to the findings.
 - [ ] Tests first, on `pg_temp` (`helper-synthetic.R` style, `frs_test_tbl()` for any `working.` name). Cover a new `.frs_persist_barriers(conn, to, from, streams)`:
   - two jobs on two groups sharing a blue line: after the second job, the first job's barriers on its own segments are still there with their own classes;
