@@ -26,3 +26,4 @@ Three Explore agents digested 17 or 18 issues each: body, comments, premise agai
 | My clash-ordering check matched no pair | `lanes` prints the second move as `2:`; strip the colon |
 | `diff -q` failed: in the agent shell `diff` is a `git diff` wrapper | `command cmp -s` |
 | The first enumeration saw 0-2 paths for batches 4 and 8 | Those issues name functions, not files: resolve `frs_*()` to its defining file |
+| An umbrella members table copied an issue title naming an upstream issue bare, which pinged it | Backticked it; a members table copied from titles must backtick another owner's `owner/repo#N` |

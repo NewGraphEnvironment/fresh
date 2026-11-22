@@ -114,13 +114,13 @@ Each opens with an **If we do it / If we never do** line. Then it points to `pla
 - [x] Edit #231's "Shared mechanism" paragraph (it should name the two assignment sites), then close the 10 issues with reason comments
 
 ### Phase 3: Land
-- [ ] Commit the backlog file on the branch; `/code-check` (the file is read by `backlog_moves.sh`); `/planning-archive`; `/gh-pr-push`
+- [x] Commit the backlog file on the branch; `/code-check` (the file is read by `backlog_moves.sh`); `/planning-archive`; `/gh-pr-push`
 
 ## Validation
 - [x] Coverage: every one of the 53 frozen issues is named in the file
 - [x] `backlog_moves.sh list`, `next` and `lanes` read the file; every open move ticks cleanly on a copy
 - [x] The public scan is clean
-- [ ] `/code-check` clean
-- [ ] PWF checkboxes match landed work
+- [x] `/code-check` clean
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

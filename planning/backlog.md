@@ -16,11 +16,11 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 | - [ ] 3 | #320 | 4, 5: frs_habitat() job plumbing, frs_db_query read path (6 issues) | open | A | 1, 2, 4, 7 | opus |
 | - [ ] 4 | #321 | 9: docs, naming and research re-verification (7 issues) | open | B | 1, 7 | sonnet |
 | - [ ] 5 | #322 | 2: id_segment identity at assignment (2 issues) | open | A | 1, 3, 4, 6 | fable then opus |
-| - [ ] 6 | #323 | 6: bcfishpass parity (4 issues) | open | C | 1, 2, 3 | fable then opus |
+| - [ ] 6 | #323 | 6: bcfishpass parity (4 issues) | open | A | 1, 2, 3 | fable then opus |
 | - [ ] 7 | #324 | 7: docker image and loader rebuild (5 issues) | open | D | — | opus |
 | - [ ] 8 | #325 | 8: gradient breaks (2 issues) | open | A | 1, 3, 5 | fable then opus |
 
-Lanes: moves sharing a file run one after the other (A, the core habitat code); docs (B), parity (C) and docker (D) can run beside lane A once their `waits on` moves are ticked.
+Lanes: moves sharing a file run one after the other (A, the core habitat code, parity included); docs (B) and docker (D) run beside lane A once their `waits on` moves are ticked.
 
 Tracks are separate efforts, not moves, each worked across several repos from its own umbrella: speed (`track:speed`) carries #65, #167, #199 and #275; package boundaries (`track:package-boundaries`) carries #288.
 
@@ -58,7 +58,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 2, #319
 
-**Touches:** `R/frs_params.R`, `R/frs_habitat_predicates.R`, `R/frs_col_join.R`, `R/frs_feature_find.R`, `R/utils.R`, `R/frs_habitat.R`, `R/frs_habitat_classify.R`
+**Touches:** `R/frs_params.R`, `R/frs_habitat_predicates.R`, `R/frs_col_join.R`, `R/frs_feature_find.R`, `R/utils.R`, `R/frs_habitat.R`, `R/frs_habitat_classify.R`, `CLAUDE.md`
 
 #267: the rules YAML read depends on the session locale. #250: the lake bucket ignores reservoirs. #251: a hidden 200 ha floor. #222: five validator gaps left after #114 (the habitat delete and insert are already one transaction, from #293). #239: `frs_col_join()` types a subquery's columns `text`. Gate: #251 no floor or refuse at load; #222 alter or refuse a target missing a flag column.
 
@@ -90,9 +90,9 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 7, #324
 
-**Touches:** `docker/`, `research/fwa_fetch_determinism.md`, `research/fwapg_channel_width.md`, `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`, `tests/testthat/test-frs_network_features-local.R`
+**Touches:** `docker/`, `research/fwa_fetch_determinism.md`, `research/fwapg_channel_width.md`, `research/fwa_downstream_walk.md`, `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`, `tests/testthat/test-frs_network_features-local.R`
 
-One full rebuild verifies all five: the loader fix in the open PR #254 (closes #253 and #68), the GEOS move (#304), the simplify repeat probe (#306) and the re-derived answer-pair counts (#302). The open PR #252 also edits `docker/tuning.md`. Gate: move the image to bookworm.
+One full rebuild verifies all five: the loader fix in the open PR #254 (closes #253 and #68), the GEOS move (#304), the simplify repeat probe (#306) and the re-derived answer-pair counts (#302). The open PR #252 also edits `docker/tuning.md`. Gate: move the image to bookworm. If #306 takes the client-side simplify option, it leaves `.frs_geom_select()` in `R/utils.R` as it is (its polygon branch included): `R/utils.R` belongs to moves 1 and 2, which run beside this one, so removing that branch is a later issue. The image move also makes a GEOS 3.9.0 comment in `tests/testthat/test-frs_near_river.R` stale: leave it to move 1, which edits that file.
 
 ### 8. Gradient breaks
 
