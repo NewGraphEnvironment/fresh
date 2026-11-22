@@ -1051,6 +1051,13 @@ frs_habitat_access <- function(conn, table, threshold,
          character varying(4)", breaks))
   }
 
+  set_parent <- if (parent) {
+    ",
+       linear_feature_id = f.linear_feature_id,
+       watershed_group_code = f.watershed_group_code"
+  } else {
+    ""
+  }
   .frs_db_execute(conn, sprintf(
     "UPDATE %s b SET
        wscode_ltree = f.wscode_ltree,
@@ -1059,12 +1066,7 @@ frs_habitat_access <- function(conn, table, threshold,
      WHERE b.blue_line_key = f.blue_line_key
        AND b.downstream_route_measure >= f.downstream_route_measure
        AND b.downstream_route_measure < f.upstream_route_measure",
-    breaks,
-    if (parent) {
-      ",
-       linear_feature_id = f.linear_feature_id,
-       watershed_group_code = f.watershed_group_code"
-    } else ""))
+    breaks, set_parent))
 }
 
 

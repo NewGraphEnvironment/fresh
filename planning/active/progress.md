@@ -11,3 +11,5 @@
 - Phase 2 (#308): `.frs_group_required()` refuses any NULL group (EXISTS), called from classify, near_river, frs_cluster, frs_order_child and bridged overlay; call-graph enumeration test
 - Phase 2 mutations: guard removed from frs_cluster -> 2 failures; lfid early return restored -> 4 failures. Commit fce5625
 - Phase 3 (#277): direct-mode refusal from to_cols/from_cols; 4 new mocked tests red before, green after
+- Phase 3 commit 8cc6bee; docs cef611d. Issue bodies #308, #277, #318 reconciled. No link consumer of to_barriers (owed item closed)
+- Full suite: 0 failed / 2756 passed / 7 skipped (179 s). Lint per file and line vs origin/main: total 1685 -> 1663; added rows are indentation on multi-line SQL in the files' existing style, plus a brace and a semicolon lint, both fixed

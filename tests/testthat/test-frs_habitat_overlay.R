@@ -251,7 +251,8 @@ test_that("custom by= produces matching join predicate", {
   mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
     mk_dbq("CO", to_cols, from_cols))
   mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
-    captured <<- c(captured, sql); 0L
+    captured <<- c(captured, sql)
+    0L
   })
   tryCatch({
     frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", species = "CO",

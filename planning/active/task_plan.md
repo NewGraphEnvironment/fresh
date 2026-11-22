@@ -56,11 +56,11 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 
 ## Owed at the end (reported, done after merge)
 
-- [ ] Check whether anything in link reads a `frs_habitat(to_barriers =)` table (the review's grep found none). Only if a consumer exists, file a heads-up issue in link: two new columns, and an old table must be rebuilt.
+- [x] Check whether anything in link reads a `frs_habitat(to_barriers =)` table (the review's grep found none). Only if a consumer exists, file a heads-up issue in link: two new columns, and an old table must be rebuilt. Checked 2026-11-22: GitHub code search and `git grep` of link's `origin/main` find no `to_barriers`, so no issue is needed.
 
 ## Validation
 
-- [ ] Tests pass
+- [x] Tests pass (whole suite on the `docker/` fwapg, 2026-11-22: 0 failed, 0 errors, 2756 passed, 7 skipped, all for reasons outside this work: no bcfishpass schema, no fwapg trial)
 - [ ] `/code-check` clean (once over the branch with `/code-check branch`)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
