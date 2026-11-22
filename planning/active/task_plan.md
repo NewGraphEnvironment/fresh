@@ -43,9 +43,9 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 
 ## Phase 3: #277, refuse an id_segment-only direct join
 
-- [ ] Tests first (mocked, `test-frs_habitat_overlay.R`). The rule, applied only when `id_segment` is in `by` (compared lower-case): `watershed_group_code` must be in `by` when `to` carries it, and `linear_feature_id` must be in `by` when both `to` and `from` carry it. A `from` without the group gets a message naming the source. The default point join and the existing line-236 test (TBL_DEFAULT has neither column) stay valid (review 12-14).
-- [ ] Add the refusal in `frs_habitat_overlay()` direct mode, after the `from` column check, from the `to_cols`/`from_cols` it already holds (so the mocked tests reach it).
-- [ ] Roxygen for `by` and the direct-mode section. `devtools::document()`.
+- [x] Tests first (mocked, `test-frs_habitat_overlay.R`). The rule, applied only when `id_segment` is in `by` (compared lower-case): `watershed_group_code` must be in `by` when `to` carries it, and `linear_feature_id` must be in `by` when both `to` and `from` carry it. A `from` without the group gets a message naming the source. The default point join and the existing line-236 test (TBL_DEFAULT has neither column) stay valid (review 12-14).
+- [x] Add the refusal in `frs_habitat_overlay()` direct mode, after the `from` column check, from the `to_cols`/`from_cols` it already holds (so the mocked tests reach it).
+- [x] Roxygen for `by` and the direct-mode section. `devtools::document()`.
 
 ## Phase 4: Docs and release
 

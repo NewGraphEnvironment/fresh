@@ -32,7 +32,12 @@
 #' ## Two join modes (`bridge`)
 #'
 #' - **Direct (`bridge = NULL`)** — the `to` table has the join keys
-#'   directly. SQL does `to.<by> = from.<by>` (point match).
+#'   directly. SQL does `to.<by> = from.<by>` (point match). A `by`
+#'   holding `id_segment` must also hold `watershed_group_code` when `to`
+#'   carries it, and `linear_feature_id` when both `to` and `from` carry
+#'   it: `id_segment` is unique only within a watershed group, so the
+#'   short key would update every group holding the same id. Such a call
+#'   is refused. The default point join needs neither.
 #' - **Bridged (`bridge = "<segments_table>"`)** — the `to` table is
 #'   keyed by `(id_segment, watershed_group_code)` (e.g.
 #'   `fresh.streams_habitat`) and lacks the geographic keys in `by`. The
@@ -94,7 +99,9 @@
 #'   per-row indicator column).
 #' @param by Character vector. Columns used to match `from` to either
 #'   `to` (when `bridge = NULL`) or to `bridge` (when bridge supplied).
-#'   Default `c("blue_line_key", "downstream_route_measure")`.
+#'   Default `c("blue_line_key", "downstream_route_measure")`. In direct
+#'   mode a `by` with `id_segment` must name the other keys `to` carries
+#'   (see Two join modes).
 #' @param species_col Character. Name of the column in `from` carrying
 #'   the species code per row. Default `"species_code"`.
 #' @param verbose Logical. Print per-species per-habitat summary.
@@ -229,6 +236,44 @@ frs_habitat_overlay <- function(conn, from, to,
       from, paste(missing_required, collapse = ", ")), call. = FALSE)
   }
 
+  # --- Direct mode on id_segment: name every key `to` carries (fresh#277) ---
+  # id_segment is unique only within a watershed group, and since fresh#293
+  # one group can hold two jobs' rows with the same derived id, which the
+  # parent segment separates. So a direct join on id_segment must also name
+  # watershed_group_code when `to` carries it, and linear_feature_id when
+  # both tables do -- the keys the bridged form adds itself. A point join
+  # (blue_line_key + measure) is unique across groups already, and a network
+  # with only id_segment has no other key to name.
+  by_lc <- tolower(by)
+  if (is.null(bridge) && "id_segment" %in% by_lc) {
+    if ("watershed_group_code" %in% to_cols &&
+        !"watershed_group_code" %in% by_lc) {
+      if (!"watershed_group_code" %in% from_cols) {
+        stop(sprintf(paste0(
+          "`to` table %s carries watershed_group_code, so a join on ",
+          "id_segment must match it too, but `from` table %s has no ",
+          "watershed_group_code: id_segment is unique only within a ",
+          "watershed group. Add the column to %s, or join on ",
+          "blue_line_key and downstream_route_measure."), to, from, from),
+          call. = FALSE)
+      }
+      stop(sprintf(paste0(
+        "`by` joins on id_segment but leaves out watershed_group_code, which ",
+        "`to` table %s carries: id_segment is unique only within a watershed ",
+        "group, so the update would reach every group holding the same id. ",
+        "Add \"watershed_group_code\" to `by`."), to), call. = FALSE)
+    }
+    if ("linear_feature_id" %in% to_cols &&
+        "linear_feature_id" %in% from_cols &&
+        !"linear_feature_id" %in% by_lc) {
+      stop(sprintf(paste0(
+        "`by` joins on id_segment but leaves out linear_feature_id, which ",
+        "both %s and %s carry: one watershed group can hold two jobs' rows ",
+        "with the same id_segment, and the parent segment separates them. ",
+        "Add \"linear_feature_id\" to `by`."), to, from), call. = FALSE)
+    }
+  }
+
   # --- Validate bridge if provided ---
   if (!is.null(bridge)) {
     bridge_parts <- strsplit(bridge, "\\.", fixed = FALSE)[[1]]
@@ -278,7 +323,8 @@ frs_habitat_overlay <- function(conn, from, to,
     # `to` is shared and, since fresh#293 narrowed the partition delete, one
     # watershed group can hold two jobs' rows at a colliding id_segment, so
     # the bridge match adds the parent segment where both tables carry it.
-    # Direct mode's key is the caller's `by` and is fresh#277's question.
+    # Direct mode's key is the caller's `by`, held to the same keys above
+    # (fresh#277).
     join_pred <- paste0(
       .frs_key_match("h", "s", .frs_lfid_pair(conn, to, bridge)),
       " AND ", bk_pred,

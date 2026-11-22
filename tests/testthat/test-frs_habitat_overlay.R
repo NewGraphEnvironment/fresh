@@ -241,6 +241,77 @@ test_that("custom by= produces matching join predicate", {
   expect_no_match(captured, "blue_line_key")
 })
 
+# -- Direct mode on id_segment must name the keys `to` carries (fresh#277) -----
+
+# Run direct mode with these column inventories; return the captured SQL, or
+# the error message.
+.ov_direct <- function(to_cols, from_cols, by) {
+  fake <- structure(list(), class = "DBIConnection")
+  captured <- character(0)
+  mockery::stub(frs_habitat_overlay, "DBI::dbGetQuery",
+    mk_dbq("CO", to_cols, from_cols))
+  mockery::stub(frs_habitat_overlay, ".frs_db_execute", function(conn, sql) {
+    captured <<- c(captured, sql); 0L
+  })
+  tryCatch({
+    frs_habitat_overlay(fake, from = "ws.k", to = "ws.h", species = "CO",
+                        habitat_types = "spawning", by = by, verbose = FALSE)
+    captured
+  }, error = function(e) paste("ERROR:", conditionMessage(e)))
+}
+
+test_that("direct mode refuses id_segment without the group a multi-group to carries", {
+  to_wsg <- c("id_segment", "watershed_group_code", "species_code", "spawning")
+  from_wsg <- c("id_segment", "watershed_group_code", "species_code",
+                "spawning")
+  # id_segment repeats across groups, so this would write into every group
+  # holding the same id.
+  res <- .ov_direct(to_wsg, from_wsg, "id_segment")
+  expect_match(res, "^ERROR:.*watershed_group_code")
+  expect_match(res, "by")
+  # Upper case folds to the same column in Postgres.
+  expect_match(.ov_direct(to_wsg, from_wsg, "ID_SEGMENT"), "^ERROR:")
+  # Naming the group passes, and the join carries it.
+  ok <- .ov_direct(to_wsg, from_wsg, c("id_segment", "watershed_group_code"))
+  expect_length(ok, 1)
+  expect_match(ok, "h.watershed_group_code = k.watershed_group_code",
+               fixed = TRUE)
+})
+
+test_that("direct mode names the source when it lacks the group", {
+  to_wsg <- c("id_segment", "watershed_group_code", "species_code", "spawning")
+  from_no <- c("id_segment", "species_code", "spawning")
+  # The caller cannot fix this through `by` alone: the source needs the column.
+  res <- .ov_direct(to_wsg, from_no, "id_segment")
+  expect_match(res, "^ERROR:.*ws\\.k.*watershed_group_code")
+})
+
+test_that("direct mode refuses id_segment without the parent both tables carry", {
+  cols <- c("id_segment", "watershed_group_code", "linear_feature_id",
+            "species_code", "spawning")
+  # Since fresh#293 one group can hold two jobs' rows with the same derived
+  # id_segment; the parent segment separates them.
+  res <- .ov_direct(cols, cols, c("id_segment", "watershed_group_code"))
+  expect_match(res, "^ERROR:.*linear_feature_id")
+  ok <- .ov_direct(cols, cols,
+                   c("id_segment", "watershed_group_code", "linear_feature_id"))
+  expect_length(ok, 1)
+  # Only the target carrying the parent: nothing to match it against.
+  to_only <- .ov_direct(cols, setdiff(cols, "linear_feature_id"),
+                        c("id_segment", "watershed_group_code"))
+  expect_length(to_only, 1)
+})
+
+test_that("direct mode's point join is not affected by the id_segment rule", {
+  cols <- c("blue_line_key", "downstream_route_measure", "id_segment",
+            "watershed_group_code", "linear_feature_id", "species_code",
+            "spawning")
+  # A position on a blue line is unique across groups already.
+  res <- .ov_direct(cols, cols, c("blue_line_key", "downstream_route_measure"))
+  expect_length(res, 1)
+  expect_no_match(res, "^ERROR:")
+})
+
 # -- NULL species -> all distinct species in the table ------------------------
 
 test_that("NULL species pulls from table.species_code", {
