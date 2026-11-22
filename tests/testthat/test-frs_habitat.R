@@ -299,9 +299,12 @@ test_that("integration: to_barriers persists gradient barriers table", {
   expect_true("linear_feature_id" %in% cols)
   expect_true("watershed_group_code" %in% cols)
 
-  # fresh#294: only this job's segments' barriers, each on a parent segment.
-  # The barrier finder reads whole blue lines, so without the scope the table
-  # would also hold the parts of those lines outside the AOI.
+  # fresh#294, the wiring end to end: every persisted barrier is keyed to a
+  # parent segment of this job. This AOI is a watershed-code subtree, and every
+  # segment of a blue line shares one code, so no line here runs outside it:
+  # the check cannot see a barrier outside the job's segments. That scoping is
+  # proved in test-persist_barriers_294.R, where two groups share a line
+  # (code-check round 2).
   off <- DBI::dbGetQuery(conn, sprintf(
     "SELECT count(*)::int AS n FROM %s b
      WHERE b.linear_feature_id IS NULL
