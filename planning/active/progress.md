@@ -13,3 +13,5 @@
 - Phase 3 (#277): direct-mode refusal from to_cols/from_cols; 4 new mocked tests red before, green after
 - Phase 3 commit 8cc6bee; docs cef611d. Issue bodies #308, #277, #318 reconciled. No link consumer of to_barriers (owed item closed)
 - Full suite: 0 failed / 2756 passed / 7 skipped (179 s). Lint per file and line vs origin/main: total 1685 -> 1663; added rows are indentation on multi-line SQL in the files' existing style, plus a brace and a semicolon lint, both fixed
+- Owner: nothing here may break link. Call-graph diff of link's reach (123 functions, 10 changed, none on link's path except the NULL-group guard, which link's streams cannot trip); link suite vs fresh main and branch: 1,492 tests identical
+- /code-check branch: round 1 (gap barriers dropped -> lead() bound; unreachable overlay case), round 2 (integration check could not fail -> comment), round 3 (two overlay checks could not fail -> fixed, mutations red); ended on enumeration. Commits a522499, c5f8596, 0eb2de0

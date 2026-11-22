@@ -51,6 +51,20 @@ So #294's defect is last writer wins on classes, not deletion. The fix scopes de
 
 `review-plan.md` has every finding with its verdict. Not measured, kept as a documented edge: the barrier finder rounds a vertex measure to 0.01 m, which can key a barrier sitting right on a group boundary to the neighbouring group's segment. That barrier is then written by the neighbour's job, at the neighbour's classes. The 12-line sample counted barriers with no segment (0), not barriers moved across a boundary.
 
+## link compatibility (2026-11-22, owner asked: nothing here may break link)
+
+link is fresh's main production user. Checked three ways:
+
+1. **Call graph, mechanically.** From the 23 fresh functions link calls (package code and `data-raw/`, link `origin/main` be06e2b4), 123 fresh functions are reachable. 10 of them differ from fresh `main`. In link's path the differences are:
+   - the added `.frs_group_required()` calls, a NULL-group refusal, in classify, near_river, frs_cluster (via `.frs_run_connectivity`), frs_order_child and bridged overlay;
+   - overlay's direct-mode refusal, which runs only with `bridge = NULL`. link always passes a bridge;
+   - `frs_habitat()`'s `to_barriers` path, which link never uses. Its one `frs_habitat()` call, in `data-raw/compare_adms.R`, passes no `to_barriers`;
+   - `.frs_enrich_breaks()`'s new `parent = TRUE` arm. Its default arm is byte-identical to main's.
+2. **Whether the guard can fire for link.** link builds `<schema>.streams` from `fwa_stream_networks_sp WHERE watershed_group_code = <aoi>`, and `frs_break_apply()` copies the group onto split children. So no row can have a NULL group, and classify already refused that table with a NULL group before this branch, because it carries `linear_feature_id`. Round 2's reviewer reached the same conclusion independently. Cost: 0.02 s per call on the largest group (SETN, 66,083 segments), 2.8 s cold.
+3. **link's own test suite**, run against fresh `main` and against this branch, each from its own temporary library, on the `docker/` fwapg: 1,492 tests, every status and pass count identical. The same 2 failures and 3 errors come up in both (database environment, persisted tables absent locally). That build was `bdbcb11`. The two functions changed since then (`.frs_enrich_breaks()`'s `parent = TRUE` arm, overlay's direct-mode block) cannot run on link's path.
+
+Not done here: a full link pipeline run per group. That needs link's provincial persist schema, which is not on the local database. link's `data-raw/pretest_run.sh` is the gate for this: it models the groups each changed input stresses, including fresh's changes between two `DESCRIPTION` pins, and it should run when link moves its `fresh` pin (currently `v0.52.0`) to this release.
+
 ## Errors Encountered
 
 | Error | Resolution |
