@@ -29,20 +29,22 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 - [x] Replace both inline barrier blocks in `frs_habitat()`, the sequential `.run_job` and the mirai worker, with `.frs_enrich_breaks(parent = TRUE)` plus `.frs_persist_barriers(..., streams = streams_tbl)`.
 - [x] Update the structural test in `test-frs_habitat.R` (around line 765): the body has no `DELETE FROM` left and calls `.frs_persist_barriers(` twice. Add positive controls on the helper's body.
 - [x] Update roxygen `@param to_barriers` (new columns, what scope each job writes) and `devtools::document()`.
-- [ ] Restore the blue-line delete in a throwaway worktree and confirm the two-job test goes red.
+- [x] Restore the old scope in a throwaway worktree and confirm the tests go red: (a) delete by `blue_line_key IN (SELECT blue_line_key FROM from)`, (b) INSERT without `WHERE owned`. 9 failures each.
+- [x] (review) `.frs_null_key_guard(staged = FALSE)` for barriers: the staged per-group backfill would loop on the same refusal.
+- [x] (review) `@param to_barriers` says the rest of a line is no longer written by this job, and lists `source`. The existing integration test (`test-frs_habitat.R`, to_barriers) checks every row lies on the job's segments.
 
 ## Phase 2: #308, refuse a NULL watershed group
 
-- [ ] Tests first: a network with a NULL-group row and no `linear_feature_id` is refused by `frs_habitat_classify()`, `frs_near_river()` and `frs_cluster()`. Flip the #225 block in `test-habitat_partition_293.R` (around line 305) from "replaced on re-run" to "refused".
-- [ ] `.frs_group_required()` (`R/utils.R`) drops its `lfid` early return and refuses any NULL group, with a message that tells a network with no groups to set a constant one. Keep `lfid` only for the wording, or drop the argument and update the two callers (`frs_habitat_classify.R`, `frs_near_river.R`).
-- [ ] Call it from `frs_cluster()` on `table`, before the species lookup.
-- [ ] Find every exported entry point that reaches `.frs_key_match()`, and so equates the group: `frs_cluster`, `frs_order_child`, `frs_habitat_overlay` bridged, and the connectivity passes (reached through classify). Each one either calls the guard or is reached only through one that does. Add a structural test in `test-habitat_partition_293.R` that fails if an entry point is missing it.
+- [ ] Tests first: a network with a NULL-group row and no `linear_feature_id` is refused by `frs_habitat_classify()`, `frs_near_river()`, `frs_cluster()`, `frs_order_child()` and bridged `frs_habitat_overlay()`. Flip the #225 block in `test-habitat_partition_293.R` (around line 305) and the drop-`linear_feature_id` no-error block (around line 584) to "refused". Keep the phrase "no watershed_group_code" in the message. Mock `.frs_group_required` in the `test-frs_cluster.R` mocked tests (review 5, 6, 11).
+- [ ] `.frs_group_required()` (`R/utils.R`) drops its `lfid` early return and refuses any NULL group, tested with `EXISTS` rather than `count(*)`. The message tells a network with no groups to set a constant one, and says habitat rows already written with no group must be rebuilt (review 9, 10). Keep `lfid` only for the wording, or drop the argument and update the two callers (`frs_habitat_classify.R`, `frs_near_river.R`).
+- [ ] Call it from `frs_cluster()` on `table`, before the species lookup; from `frs_order_child()` and bridged `frs_habitat_overlay()` after their own column checks (review 7).
+- [ ] Find every exported entry point that reaches `.frs_key_match()`, and so equates the group: `frs_cluster`, `frs_order_child`, `frs_habitat_overlay` bridged, and the connectivity passes (reached through classify). Each one either calls the guard or is reached only through one that does. Add a structural test in `test-habitat_partition_293.R` that fails if an entry point is missing it, with named exemptions: `frs_habitat_predicates()` (takes no table) and the connectivity internals (reached in `frs_habitat()` after classify) (review 8). Run it after Phase 3 too.
 - [ ] Rewrite the roxygen of `.frs_group_required()` (it still says the no-`lfid` case is #308's open question), and correct any exported docs that say a NULL group is tolerated.
 
 ## Phase 3: #277, refuse an id_segment-only direct join
 
-- [ ] Tests first (mocked, `test-frs_habitat_overlay.R`): `by = "id_segment"` against a `to` that has `watershed_group_code` is refused. `by = c("id_segment", "watershed_group_code")` passes. When both `to` and `from` carry `linear_feature_id`, a `by` without it is refused. A `to` with only `id_segment` still runs. Update the existing test at line 236 to the passing shape.
-- [ ] Add the refusal in `frs_habitat_overlay()` direct mode, after the column discovery it already does (`cols_of()`), using the same rule as `.frs_key_match()`.
+- [ ] Tests first (mocked, `test-frs_habitat_overlay.R`). The rule, applied only when `id_segment` is in `by` (compared lower-case): `watershed_group_code` must be in `by` when `to` carries it, and `linear_feature_id` must be in `by` when both `to` and `from` carry it. A `from` without the group gets a message naming the source. The default point join and the existing line-236 test (TBL_DEFAULT has neither column) stay valid (review 12-14).
+- [ ] Add the refusal in `frs_habitat_overlay()` direct mode, after the `from` column check, from the `to_cols`/`from_cols` it already holds (so the mocked tests reach it).
 - [ ] Roxygen for `by` and the direct-mode section. `devtools::document()`.
 
 ## Phase 4: Docs and release
@@ -54,7 +56,7 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 
 ## Owed at the end (reported, done after merge)
 
-- [ ] Tell link's maintainers that `to_barriers` gains `linear_feature_id` and `watershed_group_code` columns, and that an old table has to be rebuilt (link's `lnk_barrier_overrides()` reads it). This is an issue in our own link repo, filed at merge.
+- [ ] Check whether anything in link reads a `frs_habitat(to_barriers =)` table (the review's grep found none). Only if a consumer exists, file a heads-up issue in link: two new columns, and an old table must be rebuilt.
 
 ## Validation
 

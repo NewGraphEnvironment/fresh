@@ -47,6 +47,10 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 
 So #294's defect is last writer wins on classes, not deletion. The fix scopes delete and insert to the job's own segments.
 
+## Plan review (2026-11-22)
+
+`review-plan.md` has every finding with its verdict. Not measured, kept as a documented edge: the barrier finder rounds a vertex measure to 0.01 m, which can key a barrier sitting right on a group boundary to the neighbouring group's segment. That barrier is then written by the neighbour's job, at the neighbour's classes. The 12-line sample counted barriers with no segment (0), not barriers moved across a boundary.
+
 ## Errors Encountered
 
 | Error | Resolution |

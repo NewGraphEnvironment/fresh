@@ -1375,21 +1375,27 @@
 #' (measured: run 1 errors, run 2 writes the duplicate and every later run
 #' leaves it there).
 #'
-#' One function of its own because three writers need it --
-#' [.frs_persist_streams()], [frs_habitat_classify()] and [frs_near_river()]
-#' (fresh#293) -- and two readers of one rule drifting is what fresh#237 was.
-#' `key` is always passed in from [.frs_persist_delete_key()], the chooser the
-#' statement itself was built from, so the guard cannot end up checking a
-#' different column than the delete uses.
+#' One function of its own because four writers need it --
+#' [.frs_persist_streams()], [frs_habitat_classify()], [frs_near_river()]
+#' (fresh#293) and [.frs_persist_barriers()] (fresh#294) -- and two readers of
+#' one rule drifting is what fresh#237 was. For the first three, `key` is
+#' passed in from [.frs_persist_delete_key()], the chooser the statement itself
+#' was built from, so the guard cannot end up checking a different column than
+#' the delete uses. Barriers have one key, `linear_feature_id`, always.
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
 #' @param to Character. Schema-qualified target the delete runs against.
 #' @param key Character scalar. The column the delete is keyed on.
 #' @param cols_added Character vector of columns this call added to `to`;
 #'   used only to word the message.
+#' @param staged Logical. Offer the staged backfill (re-run every group with
+#'   `wsg` and no `aoi`). Only a target a whole-group run deletes by group can
+#'   be backfilled that way; a barriers table is keyed by `linear_feature_id`
+#'   on every run, so following that advice would loop on this same refusal.
 #' @return NULL invisibly, or `stop()`.
 #' @noRd
-.frs_null_key_guard <- function(conn, to, key, cols_added = character()) {
+.frs_null_key_guard <- function(conn, to, key, cols_added = character(),
+                                staged = TRUE) {
   .frs_validate_identifier(to, "persist target")
   n_null <- DBI::dbGetQuery(conn, sprintf(
     "SELECT count(*)::int AS n FROM %s WHERE %s IS NULL",
@@ -1404,7 +1410,7 @@
     # not itself delete on. Where the NULL column IS watershed_group_code,
     # every wsg run meets this same guard, so offering that route would send
     # the reader in a circle.
-    staged <- if (identical(key, "watershed_group_code")) {
+    staged <- if (!isTRUE(staged) || identical(key, "watershed_group_code")) {
       ""
     } else {
       sprintf(" If %s is part-way through gaining the column, finish it --
@@ -1807,7 +1813,8 @@
   }
 
   cols <- .frs_persist_columns(conn, to, from)
-  .frs_null_key_guard(conn, to, "linear_feature_id", cols$cols_added)
+  .frs_null_key_guard(conn, to, "linear_feature_id", cols$cols_added,
+                      staged = FALSE)
 
   owned <- sprintf("linear_feature_id IN (SELECT linear_feature_id FROM %s)",
                    streams)

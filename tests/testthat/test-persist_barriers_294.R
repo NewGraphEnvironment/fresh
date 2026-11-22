@@ -139,8 +139,14 @@ test_that("a barriers table written before the key existed is refused", {
     "INSERT INTO %s VALUES (1, 100, 249, 'gradient_0249', 'attribute',
        '100'::ltree, '100'::ltree)", f$to))
 
-  expect_error(.frs_persist_barriers(conn, f$to, f$a$barriers, f$a$streams),
-               "linear_feature_id")
+  err <- tryCatch(.frs_persist_barriers(conn, f$to, f$a$barriers, f$a$streams),
+                  error = function(e) conditionMessage(e))
+  expect_match(err, "linear_feature_id")
+  expect_match(err, "drop")
+  # The staged backfill is for to_streams, where a whole-group run deletes by
+  # group. Every barriers run keys on linear_feature_id, so that advice would
+  # send the reader straight back to this refusal.
+  expect_no_match(err, "re-run every watershed group")
   # Refused before anything was deleted or written.
   r <- DBI::dbGetQuery(conn, sprintf(
     "SELECT downstream_route_measure FROM %s", f$to))

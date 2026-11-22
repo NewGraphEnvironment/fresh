@@ -102,14 +102,18 @@
 #'   [frs_network_segment()] for details.
 #' @param to_barriers Character or `NULL`. Schema-qualified table for
 #'   persisting gradient barriers. Includes `blue_line_key`,
-#'   `downstream_route_measure`, `gradient_class`, `label`,
+#'   `downstream_route_measure`, `gradient_class`, `label`, `source`,
 #'   `wscode_ltree`, `localcode_ltree`, and the `linear_feature_id` and
 #'   `watershed_group_code` of the segment each barrier falls on. Each job
 #'   replaces only the barriers on its own segments, keyed by
 #'   `linear_feature_id`, so a table shared by several watershed groups or
-#'   AOIs keeps each one's barriers at its own gradient classes. A table
-#'   written before these two columns existed is refused: drop it and
-#'   re-run. Useful for link's `lnk_barrier_overrides()`. Default `NULL`
+#'   AOIs keeps each one's barriers at its own gradient classes. Barrier
+#'   detection reads whole blue lines, but the part of a line outside the
+#'   job's segments (another watershed group, or beyond a custom AOI) is
+#'   left to the job that covers it: run that group too if you need its
+#'   barriers. Two jobs over the same segments still replace each other's.
+#'   A table written before these two columns existed is refused: drop it
+#'   and re-run. Useful for link's `lnk_barrier_overrides()`. Default `NULL`
 #'   (barriers dropped after segmentation).
 #' @param barrier_overrides Character or `NULL`. Schema-qualified table
 #'   of barrier overrides prepared by link via
