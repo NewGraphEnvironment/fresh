@@ -1,6 +1,6 @@
 # What `id_segment` is, and why the persisted table disagrees with the code
 
-**Verified:** 2026-11-02; the barriers and NULL-group sections 2026-11-22 ·
+**Verified:** 2026-11-22 for the barriers and NULL-group sections, 2026-11-02 for the rest ·
 **Issues:** #282 (found here, and settled the delete key), #293 (widened the
 sibling tables to the same key), #294 (barriers keyed the same way), #308 (a
 NULL group refused), #277 (direct overlay held to the keys), #295, #218, #231,
@@ -176,9 +176,9 @@ no reading of the source reveals:
   violation, under both candidate keys. The overwrite is one **transaction** with
   two statements instead.
 
-## Persisted barriers: the same key, for a different reason (#294)
+## Persisted barriers: the same key, for a different reason
 
-`frs_habitat(to_barriers =)` deleted by `blue_line_key` and reinserted the job's
+Before #294, `frs_habitat(to_barriers =)` deleted by `blue_line_key` and reinserted the job's
 barriers. That looked like the cross-group loss #282 fixed, but it was not one:
 `frs_break_find()`'s multiclass arm takes the blue lines from the job's extract
 and then reads **every** segment of those lines from `fwa_stream_networks_sp`,
@@ -212,9 +212,9 @@ segment under the plain bound and would have dropped out of the table: 39 of
 (code-check round 1, #318). The 12-line sample above, at those rates, would be
 expected to find about 0.1, which is why it found none.
 
-## A NULL group is refused, not read as a group (#308)
+## A NULL group is refused, not read as a group
 
-Every read that matches a habitat or `near_river` row to its segment equates
+Since #308: every read that matches a habitat or `near_river` row to its segment equates
 `watershed_group_code` (`.frs_key_match()`, `.frs_near_river_sql()`, the species
 lookup in `frs_cluster()`). `NULL = NULL` is not true, so on a network whose
 segments have no group the rows were written, and after #293 replaced correctly,
