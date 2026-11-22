@@ -43,7 +43,7 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 - 108 of the 157 join groups whose species give different gradient thresholds.
 - On CHWK/HARR line 356308001, the HARR job wrote the same 18 barriers, all in CHWK, as the CHWK job did: the whole line is read, so the old blue-line delete covered exactly what the insert wrote back. Nothing was lost.
 - 12 sampled two-group lines (over 3 km, thresholds differ, shortest first): on 5 of them, the second group's job leaves the first group's barriers different from what that group's own job found. Altogether 41 of 126 first-group positions are missing, extra, or at a different class. On GUIC/LNIC alone it is 26 of 73.
-- 0 barriers fell outside every segment under `.frs_enrich_breaks()`'s `[downstream, upstream)` rule, so keying on the parent segment drops nothing on this sample.
+- 0 barriers fell outside every segment under `.frs_enrich_breaks()`'s `[downstream, upstream)` rule, so keying on the parent segment drops nothing on this sample. **Corrected by code-check round 1:** across whole groups, barriers do fall into FWA's millimetre gaps between a segment's `upstream_route_measure` and the next start (BULK 39 of 104,550, MORR 27 of 68,270, LFRA 41 of 52,430); the sample was too small to see them. The `parent = TRUE` arm now takes each segment's top from the next segment's start.
 
 So #294's defect is last writer wins on classes, not deletion. The fix scopes delete and insert to the job's own segments.
 

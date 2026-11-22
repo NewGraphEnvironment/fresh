@@ -202,8 +202,15 @@ segment it falls on, and a job deletes and inserts only the barriers on its own
 segments (`.frs_persist_barriers()`), keyed by `linear_feature_id` like
 `to_streams`. Two consequences: barriers on the rest of a line are written only
 by the job that covers that part, and a barrier the finder rounds to 0.01 m right
-on a group boundary can be keyed to the neighbour's segment (not measured; 0 of
-the sample's barriers fell outside every segment).
+on a group boundary can be keyed to the neighbour's segment.
+
+The parent is found against each segment's top taken from the **next** segment's
+start, not `upstream_route_measure`, which in the FWA can stop millimetres short
+of it (510 gaps over 1 mm in BULK). A barrier rounded into such a gap matched no
+segment under the plain bound and would have dropped out of the table: 39 of
+104,550 barriers in BULK, 27 of 68,270 in MORR and 41 of 52,430 in LFRA
+(code-check round 1, #318). The 12-line sample above, at those rates, would be
+expected to find about 0.1, which is why it found none.
 
 ## A NULL group is refused, not read as a group (#308)
 

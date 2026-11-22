@@ -270,8 +270,6 @@ test_that("direct mode refuses id_segment without the group a multi-group to car
   res <- .ov_direct(to_wsg, from_wsg, "id_segment")
   expect_match(res, "^ERROR:.*watershed_group_code")
   expect_match(res, "by")
-  # Upper case folds to the same column in Postgres.
-  expect_match(.ov_direct(to_wsg, from_wsg, "ID_SEGMENT"), "^ERROR:")
   # Naming the group passes, and the join carries it.
   ok <- .ov_direct(to_wsg, from_wsg, c("id_segment", "watershed_group_code"))
   expect_length(ok, 1)

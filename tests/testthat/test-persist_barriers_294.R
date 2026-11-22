@@ -182,3 +182,43 @@ test_that("a target that is its own source is refused", {
   expect_error(.frs_persist_barriers(conn, f$a$barriers, f$a$barriers,
                                      f$a$streams), "same table")
 })
+
+test_that("a barrier in the gap below a segment's start is keyed to the segment under it", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  # Blue line 360404194 (BULK): segment 17065309 ends at 148.1794 and the next
+  # starts at 148.1800. The barrier finder rounds to 0.01 m, so a barrier at
+  # 148.18 sits in that gap, and an upstream_route_measure bound keys it to
+  # nothing -- an unkeyed barrier is never persisted (code-check round 1).
+  have <- DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM whse_basemapping.fwa_stream_networks_sp
+     WHERE blue_line_key = 360404194 AND linear_feature_id = 17065309")$n
+  skip_if(have == 0, "FWA blue line 360404194 not loaded")
+  mk <- function(t) {
+    DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", t))
+    DBI::dbExecute(conn, sprintf(
+      "CREATE TEMP TABLE %s AS
+       SELECT 360404194::integer AS blue_line_key, m AS downstream_route_measure
+       FROM unnest(ARRAY[100, 148.18]::double precision[]) AS m",
+      sub("^pg_temp\\.", "", t)))
+  }
+  mk("pg_temp.b294_gap")
+  .frs_enrich_breaks(conn, "pg_temp.b294_gap", parent = TRUE)
+  r <- DBI::dbGetQuery(conn, "SELECT downstream_route_measure, linear_feature_id,
+    watershed_group_code, wscode_ltree IS NOT NULL AS has_ws
+    FROM pg_temp.b294_gap ORDER BY 1")
+  expect_equal(r$linear_feature_id, c(17065309, 17065309))
+  expect_equal(r$watershed_group_code, c("BULK", "BULK"))
+  expect_true(all(r$has_ws))
+
+  # The default arm is unchanged on purpose: frs_habitat_access() keeps its
+  # output, gap and all.
+  mk("pg_temp.b294_gap0")
+  .frs_enrich_breaks(conn, "pg_temp.b294_gap0")
+  r0 <- DBI::dbGetQuery(conn, "SELECT downstream_route_measure,
+    wscode_ltree IS NOT NULL AS has_ws FROM pg_temp.b294_gap0 ORDER BY 1")
+  expect_equal(r0$has_ws, c(TRUE, FALSE))
+  expect_false("linear_feature_id" %in% names(DBI::dbGetQuery(conn,
+    "SELECT * FROM pg_temp.b294_gap0 LIMIT 0")))
+})

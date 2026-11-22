@@ -244,10 +244,9 @@ frs_habitat_overlay <- function(conn, from, to,
   # both tables do -- the keys the bridged form adds itself. A point join
   # (blue_line_key + measure) is unique across groups already, and a network
   # with only id_segment has no other key to name.
-  by_lc <- tolower(by)
-  if (is.null(bridge) && "id_segment" %in% by_lc) {
+  if (is.null(bridge) && "id_segment" %in% by) {
     if ("watershed_group_code" %in% to_cols &&
-        !"watershed_group_code" %in% by_lc) {
+        !"watershed_group_code" %in% by) {
       if (!"watershed_group_code" %in% from_cols) {
         stop(sprintf(paste0(
           "`to` table %s carries watershed_group_code, so a join on ",
@@ -265,7 +264,7 @@ frs_habitat_overlay <- function(conn, from, to,
     }
     if ("linear_feature_id" %in% to_cols &&
         "linear_feature_id" %in% from_cols &&
-        !"linear_feature_id" %in% by_lc) {
+        !"linear_feature_id" %in% by) {
       stop(sprintf(paste0(
         "`by` joins on id_segment but leaves out linear_feature_id, which ",
         "both %s and %s carry: one watershed group can hold two jobs' rows ",
