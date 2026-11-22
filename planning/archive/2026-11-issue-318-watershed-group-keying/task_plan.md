@@ -66,8 +66,8 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 
 - [x] Tests pass (whole suite on the `docker/` fwapg, 2026-11-22: 0 failed, 0 errors, 2756 passed, 7 skipped, all for reasons outside this work: no bcfishpass schema, no fwapg trial)
 - [x] `/code-check` clean (once over the branch with `/code-check branch`): 3 rounds, ended on an enumeration of every new or changed assertion (`review-verdict.md`)
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 **How each change is proved:**
 - `Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5` against the local Docker fwapg, the whole suite, committed before the run.
