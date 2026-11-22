@@ -105,12 +105,12 @@ Each opens with an **If we do it / If we never do** line. Then it points to `pla
 ## Phases (on approval)
 
 ### Phase 1: Write the pass
-- [ ] Write `planning/backlog.md` from soul's header, with the Moves table (seven columns), Order, one section per batch with a `**Touches:**` line, Singles, Tracks, and Closed and transferred
-- [ ] Coverage check against the frozen set (53)
+- [x] Write `planning/backlog.md` from soul's header, with the Moves table (seven columns), Order, one section per batch with a `**Touches:**` line, Singles, Tracks, and Closed and transferred
+- [x] Coverage check against the frozen set (53)
 
 ### Phase 2: File and close
-- [ ] Draft the umbrella bodies to the git dir, run `public_leak_scan`, then file the 8 umbrellas and the 2 research issues
-- [ ] Write the umbrella numbers into the Moves table; run the tick check on a copy; run `lanes` and fill `lane` / `waits on`; run the model check
+- [x] Draft the umbrella bodies to the git dir, run `public_leak_scan`, then file the 8 umbrellas and the 2 research issues
+- [x] Write the umbrella numbers into the Moves table; run the tick check on a copy; run `lanes` and fill `lane` / `waits on`; run the model check
 - [ ] Edit #231's "Shared mechanism" paragraph (it should name the two assignment sites), then close the 10 issues with reason comments
 
 ### Phase 3: Land
