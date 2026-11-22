@@ -13,8 +13,8 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 |---|---|---|---|---|---|---|
 | - [ ] 1 | #318 | 1: watershed-group keying fixes (3 issues) | open: start here | A | — | opus |
 | - [ ] 2 | #319 | 3: rules loading and persist validators (5 issues) | open | A | 1 | opus |
-| - [ ] 3 | #320 | 4, 5: frs_habitat() job plumbing, frs_db_query read path (6 issues) | open | A | 1, 2, 7 | opus |
-| - [ ] 4 | #321 | 9: docs, naming and research re-verification (7 issues) | open | B | 1 | sonnet |
+| - [ ] 3 | #320 | 4, 5: frs_habitat() job plumbing, frs_db_query read path (6 issues) | open | A | 1, 2, 4, 7 | opus |
+| - [ ] 4 | #321 | 9: docs, naming and research re-verification (7 issues) | open | B | 1, 7 | sonnet |
 | - [ ] 5 | #322 | 2: id_segment identity at assignment (2 issues) | open | A | 1, 3, 4, 6 | fable then opus |
 | - [ ] 6 | #323 | 6: bcfishpass parity (4 issues) | open | C | 1, 2, 3 | fable then opus |
 | - [ ] 7 | #324 | 7: docker image and loader rebuild (5 issues) | open | D | — | opus |
@@ -50,7 +50,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 5, #322
 
-**Touches:** `R/utils.R`, `R/frs_break.R`, `R/frs_network_segment.R`, `R/frs_habitat_classify.R`, `R/frs_habitat_overlay.R`, `research/id_segment_identity.md`, `data-raw/`
+**Touches:** `R/utils.R`, `R/frs_break.R`, `R/frs_network_segment.R`, `R/frs_habitat_classify.R`, `R/frs_habitat_overlay.R`, `R/frs_near_river.R`, `research/id_segment_identity.md`, `data-raw/`, `CLAUDE.md`
 
 #218's docs are mostly done; its unique index is not, and as proposed it is unsafe (81 of 275 derived ids collide inside one group), so the key must include `linear_feature_id`. #300's orphaned rows need the same design, and a migration or audit. Gate: the persisted key (stored data). Waits on batch 1.
 
@@ -66,7 +66,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 3, #320
 
-**Touches:** `R/frs_habitat.R`, `R/frs_break.R`, `R/frs_feature_find.R`, `R/frs_feature_index.R`, `R/frs_barriers_minimal.R`, `R/frs_db_conn.R`, `tests/testthat/helper-db.R`, `CLAUDE.md`
+**Touches:** `R/frs_habitat.R`, `R/frs_break.R`, `R/frs_feature_find.R`, `R/frs_feature_index.R`, `R/frs_barriers_minimal.R`, `R/frs_db_conn.R`, `R/utils.R`, `tests/testthat/helper-db.R`, `CLAUDE.md`
 
 #310: scratch tables hardcode the working schema. #312: workers cannot carry a caller's connection options. #311: `frs_fwapg_conn()` can be redirected by `PGHOSTADDR`. Gate: #310 `options()` or `schema_working`; #312 add `conn_args` at all; #311 which fix.
 
@@ -74,7 +74,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 3, #320
 
-**Touches:** `R/frs_db_query.R`, `R/frs_network_features.R`, `R/frs_stream_fetch.R`, `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`
+**Touches:** `R/frs_db_query.R`, `R/frs_network_features.R`, `R/frs_stream_fetch.R`, `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `vignettes/subbasin-query.Rmd.orig`, `vignettes/subbasin-query.Rmd`, `_pkgdown.yml`
 
 #21: bound parameters. #30: drop Z/M by default. #244: the geometry warning on every `frs_network_features()` call. Gate: `drop_zm = TRUE` as the default, a breaking change.
 
@@ -82,7 +82,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 6, #323
 
-**Touches:** `inst/extdata/parameters_fresh.csv`, `data-raw/bcfishpass_params.R`, `R/frs_habitat_overlay.R`, `R/frs_habitat_classify.R`, `R/frs_habitat.R`
+**Touches:** `inst/extdata/parameters_fresh.csv`, `data-raw/bcfishpass_params.R`, `R/frs_habitat_overlay.R`, `R/frs_habitat_classify.R`, `R/frs_habitat.R`, `vignettes/habitat-pipeline.Rmd`, `data-raw/vignette_habitat_pipeline.R`
 
 #219: bundled parameters disagree with link. #189: known spawning as a rearing trigger. #178: bridge mode from containment to range overlap. #258: a measure tolerance, prompted by a link case link has since fixed on its side. In flight elsewhere: link's own open work waits on #189 (search `repo:NewGraphEnvironment/link is:open fresh#189`). Gate: what bcfishpass uses; trigger or rewrite; #258 still wanted.
 
@@ -90,7 +90,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 7, #324
 
-**Touches:** `docker/`, `research/fwa_fetch_determinism.md`, `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`, `tests/testthat/test-frs_network_features-local.R`
+**Touches:** `docker/`, `research/fwa_fetch_determinism.md`, `research/fwapg_channel_width.md`, `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`, `tests/testthat/test-frs_network_features-local.R`
 
 One full rebuild verifies all five: the loader fix in the open PR #254 (closes #253 and #68), the GEOS move (#304), the simplify repeat probe (#306) and the re-derived answer-pair counts (#302). The open PR #252 also edits `docker/tuning.md`. Gate: move the image to bookworm.
 
@@ -98,7 +98,7 @@ One full rebuild verifies all five: the loader fix in the open PR #254 (closes #
 
 - [ ] Carried by move 8, #325
 
-**Touches:** `R/frs_break.R`
+**Touches:** `R/frs_break.R`, `CLAUDE.md`, `_pkgdown.yml`, `DESCRIPTION`
 
 #85: no break at the drop below the lowest threshold. #257: fixed-window, mouth-reach and lidar gradients, in a new file beside the vertex walk. Gate: exit breaks diverge from bcfishpass; whether #257 belongs to the gradient track.
 
