@@ -122,5 +122,5 @@ Each opens with an **If we do it / If we never do** line. Then it points to `pla
 - [x] The public scan is clean
 - [x] `/code-check` clean
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
 
