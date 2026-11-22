@@ -22,7 +22,7 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 
 Lanes: moves sharing a file run one after the other (A, the core habitat code); docs (B), parity (C) and docker (D) can run beside lane A once their `waits on` moves are ticked.
 
-Tracks are separate efforts, not moves: speed (`track:speed`, NewGraphEnvironment/soul#593) carries #65, #167, #199 and #275; package boundaries (`track:package-boundaries`, NewGraphEnvironment/soul#605) carries #288.
+Tracks are separate efforts, not moves, each worked across several repos from its own umbrella: speed (`track:speed`) carries #65, #167, #199 and #275; package boundaries (`track:package-boundaries`) carries #288.
 
 ## Order
 
@@ -121,7 +121,7 @@ One full rebuild verifies all five: the loader fix in the open PR #254 (closes #
 ## Closed and transferred
 
 - #64: closed, done: `frs_habitat()` runs each group's job in mirai workers (PR #94).
-- #73: closed, done: soul's db-newgraph skill registers a `db-local` MCP on demand.
+- #73: closed, done: the org's database skill registers a `db-local` MCP on demand.
 - #243: closed, done: tibble is in Suggests (50f3fa4).
 - #256: closed, superseded by #255's roadmap task.
 - #295: closed, done: NEWS and CLAUDE.md were corrected; #231's paragraph was edited in this pass.

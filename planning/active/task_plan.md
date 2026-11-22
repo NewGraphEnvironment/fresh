@@ -19,14 +19,14 @@ Every issue was filed from the owner account, so **each closure below happens on
 | issue | reason | asks, each with its verdict on main |
 |---|---|---|
 | #64 parallelize Phase 1 across groups | done | parallel break pre-computation per group: done (PR #94; `frs_habitat()` runs each group's job in `mirai::mirai_map`, R/frs_habitat.R:579) |
-| #73 MCP setup for local fwapg | done | pick an option: done (soul's db-newgraph skill registers `db-local` on demand) |
+| #73 MCP setup for local fwapg | done | pick an option: done (the org's database skill registers `db-local` on demand) |
 | #243 tests use tibble undeclared | done | tibble in Suggests: done (50f3fa4, DESCRIPTION:38). A guard was offered as an *alternative* ("or") and isn't needed |
 | #256 README roadmap lists MAD | superseded by #255 | remove the roadmap line: carried by #255's "Move finished roadmap items out of the roadmap" (README.md:129 still has it) |
 | #295 NEWS 0.46.0 / #231 mechanism | done once #231's body is edited | NEWS correction: done (NEWS.md:62). CLAUDE.md: done (:252). Edit #231's "Shared mechanism" paragraph: **done as part of this pass**, before closing |
 | #231 scope habitat ops by group (umbrella) | superseded by moves 1 and 5 | #242, #225: done. #277 parts 1–3: done (PR #296, #297). #277 direct mode: placed in batch 1. #218 constraint: placed in batch 2 |
 | #232 match link/bcfishpass classification (umbrella) | superseded by move 6 | #219, #189, #178: each placed in batch 6 |
 | #233 frs_db_query (umbrella) | superseded by move 3 | #21, #30: placed in batch 5 |
-| #235 performance (umbrella) | superseded | #64: closed above. #199, #65, #167: speed track (soul#593) |
+| #235 performance (umbrella) | superseded | #64: closed above. #199, #65, #167: speed track |
 | #236 small standalone fixes (umbrella) | superseded | #227: batch 9. #85: batch 8. #105: single. Its own comment says it fails the batching rule |
 
 ## Moves and batches
@@ -75,7 +75,7 @@ Every issue was filed from the owner account, so **each closure below happens on
 - #265: **waiting** on fwapg#36 (the default downstream walk).
 - #44 and #41: spyda and configurable column names, long-term. link#133 waits on #44.
 
-**Tracks:** speed (soul#593): #65, #167, #199, #275. Package boundaries (soul#605): #288.
+**Tracks:** speed: #65, #167, #199, #275. Package boundaries: #288.
 
 **Research issues to file**, one per file, both into batch 9:
 - "re-verify research/fwa_waterbody_key_polygons.md": no `**Verified:**` date, 168 words.
@@ -105,7 +105,7 @@ Each opens with an **If we do it / If we never do** line. Then it points to `pla
 ## Phases (on approval)
 
 ### Phase 1: Write the pass
-- [x] Write `planning/backlog.md` from soul's header, with the Moves table (seven columns), Order, one section per batch with a `**Touches:**` line, Singles, Tracks, and Closed and transferred
+- [x] Write `planning/backlog.md` from the backlog header template, with the Moves table (seven columns), Order, one section per batch with a `**Touches:**` line, Singles, Tracks, and Closed and transferred
 - [x] Coverage check against the frozen set (53)
 
 ### Phase 2: File and close

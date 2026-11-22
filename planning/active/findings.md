@@ -16,9 +16,10 @@ Nothing is written or closed before the owner's go on the report.
 
 ## Method
 
-Three Explore agents digested 17 or 18 issues each: body, comments, premise against origin/main 1dcc7a3, the files a fix touches, and references. The main session probed every closure claim itself (`mirai_map` at R/frs_habitat.R:579, `db-local` in soul's db-newgraph skill, tibble at DESCRIPTION:38, #255's roadmap task, #231's paragraph) before reporting.
+Three Explore agents digested 17 or 18 issues each: body, comments, premise against origin/main 1dcc7a3, the files a fix touches, and references. The main session probed every closure claim itself (`mirai_map` at R/frs_habitat.R:579, `db-local` in the org's database skill, tibble at DESCRIPTION:38, #255's roadmap task, #231's paragraph) before reporting.
 
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| `public_leak_scan` flagged soul#593 / soul#605 in a public file; the bare name "soul" is not scanned | Rewrote in words; grepped every tracked file and issue body this pass wrote for the bare name |
