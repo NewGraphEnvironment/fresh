@@ -12,7 +12,7 @@ What was checked and came out clean:
 1. **lanes, on the real file (read-only):** 21 CLASH pairs. Each is ordered through `waits on`, directly or transitively: 2-5 (5>3>2), 4-6 (6>3>4), 4-8 (8>3>4), and the other 18 directly. No cycle: a topological order exists (1, 7, 4, 2, 3, 6, 5, 8). The pairs left unordered are (1,7), (2,7) and (2,4). The other five FREE pairs (2-8, 5-7, 6-7, 6-8, 7-8) are ordered transitively.
 2. **list / next / free:** rc 0. next is `#318`, free offers `#318` (A) and `#324` (D). I ticked each of the eight umbrellas on its own fresh copy in the scratchpad: each gave `TICKED move <m>`, and the diff touches only that row. Ticking in topological order on one copy, free offers {1,7}, then {2,4}, then {3}, {6}, {5}, {8}, then `NONE`. So no `waits on` names a move that can never be ticked.
 3. **Umbrella Touches:** every batch Touches line in #318-#325 is identical to the file's (lines 45, 53, 61, 69, 77, 85, 93, 101, 109); #320 carries both batch 4's and batch 5's.
-4. **Public-repo scan:** the file and all eight umbrella bodies contain no private repo names (soul, compost, rtj, goat, sred, rfp, ...), hosts, ports, tunnels or env files. `NewGraphEnvironment/fwapg#36` and `link` are public NewGraphEnvironment repos.
+4. **Public-repo scan:** the file and all eight umbrella bodies contain no private repo names, hosts, ports, tunnels or env files. `NewGraphEnvironment/fwapg#36` and `link` are public NewGraphEnvironment repos.
 5. **Enumeration coverage I tried that did not produce a cross-batch defect:**
    - #189 names `tests/testthat/test-frs_habitat{,_overlay}.R` and `inst/extdata/configs/...`.
    - #302 also reaches `research/fwa_downstream_walk.md:46` (the same "22 of 40,495").

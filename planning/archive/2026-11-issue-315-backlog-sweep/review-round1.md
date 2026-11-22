@@ -3,7 +3,7 @@
 ## Checklist read
 
 - **Parser, on a copy** (scratchpad `cp/planning/backlog.md`) with `backlog_moves.sh` at
-  soul published 9970254: `list`, `next`, `free` gave no stderr and exit 0. `next` gives
+  the published parser: `list`, `next`, `free` gave no stderr and exit 0. `next` gives
   `/planning-init #318`. `free` gives #318 (A), #321 (B) and #324 (D). `tick #<u>
   https://example.invalid/pr` ran on a fresh copy for each of #318-#325: each printed `TICKED`
   with the right batches and ticked the right `### n.` checkbox. After ticking all eight on one
@@ -42,7 +42,7 @@
   - 1dcc7a3 is v0.55.1.
 - **Lane coverage:** I listed the source paths each batch member names in its body and
   comments, and compared them with its batch's Touches line.
-- **Public text:** grep for soul, compost, rtj, goat, sred, the host names, port and tunnel
+- **Public text:** grep for the private repo names, host names, port and tunnel
   found nothing. The only repos linked are fwapg and link, both PUBLIC.
 
 ## Findings
