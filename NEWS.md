@@ -1,3 +1,19 @@
+# fresh 0.56.0
+
+Fixes [#294](https://github.com/NewGraphEnvironment/fresh/issues/294), [#308](https://github.com/NewGraphEnvironment/fresh/issues/308) and [#277](https://github.com/NewGraphEnvironment/fresh/issues/277).
+
+**A shared `to_barriers` table keeps each watershed group's gradient barriers at that group's own classes.**
+- Barrier detection reads every segment of a blue line, so a job's barriers covered the whole line, including the neighbouring group's part. `frs_habitat()` deleted and rewrote `to_barriers` by `blue_line_key`, so the last group to run on a line owned every group's barriers on it, at classes built from its own species. Nothing was deleted without being put back; the classes were wrong. Measured: 108 of the 157 mainstem lines that span groups join groups with different thresholds, and on 5 of 12 sampled lines the second group's run changed the first group's barriers, 41 of 126 positions (`data-raw/barrier_span_294.R`).
+- Each barrier now carries the `linear_feature_id` and `watershed_group_code` of the segment it falls on. A job deletes and writes only the barriers on its own segments, keyed by `linear_feature_id` as `to_streams` is, in one transaction. Each segment's top is taken from the next segment's start, because the Freshwater Atlas's `upstream_route_measure` can stop millimetres short of it, which would otherwise leave a barrier rounded into the gap unkeyed and unwritten. A custom AOI is scoped the same way. Barriers on the rest of a line are written only by the job that covers that part.
+- A `to_barriers` table written by an earlier release has no key, so its rows could never be replaced: the run refuses it before deleting anything. Drop it and re-run.
+
+**A network with no watershed group is refused instead of being classified and never read.**
+- Every read that matches a habitat or `near_river` row to its segment compares `watershed_group_code`, and `NULL = NULL` is not true in SQL. On a network whose segments had no group, `near_river` rules never passed, the connectivity passes did nothing and `frs_cluster(species = NULL)` found no species, all without an error.
+- `frs_habitat_classify()`, `frs_near_river()`, `frs_cluster()`, `frs_order_child()` and `frs_habitat_overlay()` with a `bridge` now refuse a streams table with any NULL group. Before, only a table carrying `linear_feature_id` was refused. A network with no watershed groups sets one constant value. Habitat rows already written for segments with no group have to be rebuilt.
+
+**`frs_habitat_overlay()` direct mode refuses a join on `id_segment` that leaves out a key.**
+- `id_segment` is unique only within a watershed group, so `by = "id_segment"` against a target holding several groups updated every group with the same id. A `by` holding `id_segment` must now also name `watershed_group_code` when the target carries it, and `linear_feature_id` when both tables carry it. The default join on `blue_line_key` and `downstream_route_measure` is unchanged.
+
 # fresh 0.55.1
 
 Fixes [#279](https://github.com/NewGraphEnvironment/fresh/issues/279). No change to the package's functions: this release changes its tests.
