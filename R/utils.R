@@ -1478,41 +1478,52 @@
 }
 
 
-#' Refuse a parent-segment network whose watershed group is not populated
+#' Refuse a network whose watershed group is not populated
 #'
-#' Where `linear_feature_id` is the identity, every match built by
-#' [.frs_key_match()] and the `near_river` predicate still equates
-#' `watershed_group_code` as well, and a row with none satisfies neither: it is
-#' written, and then no read can see it and no whole-group delete can address
-#' it. The FWA's column is `NOT NULL`, so this reaches only a network that
-#' carries the parent segment and leaves the group empty -- a combination every
-#' path in fresh treats differently, which is why it is refused here rather
-#' than handled three ways (fresh#293 review, round 2).
+#' Every read that matches a habitat or `near_river` row to its stream segment
+#' equates `watershed_group_code`: the joins built by [.frs_key_match()], the
+#' `near_river` `EXISTS` built by [.frs_near_river_sql()], and the species
+#' lookup in [frs_cluster()]. In SQL `NULL = NULL` is not true, so a row with
+#' no group is written and then no read can see it: a `near_river` rule never
+#' passes, the connectivity passes neither clear nor rescue spawning, and
+#' `frs_cluster(species = NULL)` finds no species and does nothing, all
+#' without an error (fresh#308).
 #'
-#' A network with **neither** column populated is not refused here: the
-#' overwrite delete keys on `id_segment` alone, so its rows are replaced rather
-#' than duplicated (fresh#225). They are still not READ: the same joins and the
-#' `near_river` predicate equate the group whatever the key, so no pass sees
-#' them. That predates fresh#293 and is fresh#308.
+#' Refused here, wherever the network has a NULL group, rather than letting
+#' NULL act as a group in every join (`IS NOT DISTINCT FROM`), which the joins'
+#' hash and index plans cannot use. The FWA's column is `NOT NULL`; a network
+#' that is not the Freshwater Atlas and has no groups sets one constant value.
+#' Before fresh#308 only a network carrying `linear_feature_id` was refused
+#' (fresh#293); one keyed on `id_segment` alone was classified, and those rows
+#' could be replaced (fresh#225) but never read.
+#'
+#' Called by every exported function that reads or writes habitat rows
+#' against a streams table: [frs_habitat_classify()], [frs_near_river()],
+#' [frs_cluster()], [frs_order_child()] and [frs_habitat_overlay()] with a
+#' `bridge`. `test-habitat_partition_293.R` enumerates them.
 #'
 #' @param conn A [DBI::DBIConnection-class] object.
-#' @param table Character. Schema-qualified working streams table.
-#' @param lfid Logical. Whether `table` carries `linear_feature_id`.
+#' @param table Character. Schema-qualified streams table, carrying
+#'   `watershed_group_code`.
 #' @return NULL invisibly, or `stop()`.
 #' @noRd
-.frs_group_required <- function(conn, table, lfid) {
-  if (!isTRUE(lfid)) return(invisible(NULL))
-  n <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT count(*)::int AS n FROM %s WHERE watershed_group_code IS NULL",
-    table))$n
-  if (length(n) == 1 && !is.na(n) && n > 0) {
+.frs_group_required <- function(conn, table) {
+  .frs_validate_identifier(table, "streams table")
+  # EXISTS, not count(*): frs_cluster() and frs_order_child() run on a whole
+  # persisted streams table, and the connectivity passes call frs_cluster()
+  # once per species.
+  bad <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT EXISTS (SELECT 1 FROM %s WHERE watershed_group_code IS NULL)
+       AS bad", table))$bad
+  if (isTRUE(bad)) {
     stop(sprintf(paste0(
-      "%s carries linear_feature_id but %d row(s) have no ",
-      "watershed_group_code. Every match against the habitat and near_river ",
-      "tables equates the group as well as the parent segment, so such a row ",
-      "is written and then can never be read or replaced. Populate ",
-      "watershed_group_code in %s, or drop linear_feature_id from it to key ",
-      "on id_segment alone."), table, n, table), call. = FALSE)
+      "%s has rows with no watershed_group_code. Every read that matches a ",
+      "habitat or near_river row to its segment equates the group, so such a ",
+      "row would be written and then never read. Populate ",
+      "watershed_group_code in %s; a network with no watershed groups can set ",
+      "one constant value for every row. Habitat rows already written for ",
+      "rows with no group cannot be read either: rebuild them once the group ",
+      "is set."), table, table), call. = FALSE)
   }
   invisible(NULL)
 }

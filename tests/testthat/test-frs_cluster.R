@@ -62,6 +62,9 @@ test_that("identifier validation catches bad names", {
 test_that("upstream SQL includes FWA_Upstream and confluence check", {
   sql_log <- character(0)
   local_mocked_bindings(
+    # The NULL-group guard queries the table (fresh#308); its own tests are in
+    # test-habitat_partition_293.R.
+    .frs_group_required = function(conn, table) invisible(NULL),
     .frs_db_execute = function(conn, sql) {
       sql_log <<- c(sql_log, sql)
       0L
@@ -104,6 +107,9 @@ test_that("upstream SQL includes FWA_Upstream and confluence check", {
 test_that("downstream SQL includes fwa_downstreamtrace and gradient bridge", {
   sql_log <- character(0)
   local_mocked_bindings(
+    # The NULL-group guard queries the table (fresh#308); its own tests are in
+    # test-habitat_partition_293.R.
+    .frs_group_required = function(conn, table) invisible(NULL),
     .frs_db_execute = function(conn, sql) {
       sql_log <<- c(sql_log, sql)
       0L
@@ -146,6 +152,9 @@ test_that("downstream SQL includes fwa_downstreamtrace and gradient bridge", {
 test_that("both direction creates temp table and evaluates independently", {
   sql_log <- character(0)
   local_mocked_bindings(
+    # The NULL-group guard queries the table (fresh#308); its own tests are in
+    # test-habitat_partition_293.R.
+    .frs_group_required = function(conn, table) invisible(NULL),
     .frs_db_execute = function(conn, sql) {
       sql_log <<- c(sql_log, sql)
       0L

@@ -254,9 +254,8 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
     # walk: `origin_id` is an id_segment, unique within the working table, so
     # the join is exact on it alone and `.frs_near_river_walk_sql()` keeps the
     # signature its other callers use positionally. Not also on
-    # `watershed_group_code`: that column is nullable on a network that is not
-    # the FWA, and an equality join on it would silently drop a NULL-group
-    # row from the insert rather than carrying its parent.
+    # `watershed_group_code`: id_segment alone is exact within one working
+    # table, and a NULL group is refused before the walk (fresh#308).
     .frs_db_execute(conn, sprintf(
       "INSERT INTO %s (id_segment, watershed_group_code%s, measure, threshold,
          distance_max, dist_m)
@@ -363,8 +362,7 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
          call. = FALSE)
   }
   .frs_wsg_code_check(conn, table, wsg_code)
-  .frs_group_required(conn, table,
-                      "linear_feature_id" %in% .frs_cols_of(conn, table))
+  .frs_group_required(conn, table)
   .frs_near_river_check_shape(conn, table, to)
   # Before the delete, not after it: a guard that raises once the partition
   # has been removed has already lost the rows it exists to protect, and the

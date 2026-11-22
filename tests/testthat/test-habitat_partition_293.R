@@ -301,21 +301,18 @@ test_that("a network with no linear_feature_id still classifies on id_segment", 
   expect_identical(DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.p293_nofwa_habitat")$n, n1)
 
-  # fresh#225: a row with NO watershed group. The old delete built
-  # `watershed_group_code = 'NA'` from an R NA, which matches no SQL NULL, so
-  # each re-run appended a second copy of every such row. The key is no longer
-  # the group, so the row is addressed like any other.
+  # fresh#225, then fresh#308: a row with NO watershed group. #293 made the
+  # delete address it (it once appended a copy per run), but every read
+  # equates the group, so the row was written and then never read. It is now
+  # refused before anything is written, and the existing rows stand.
   DBI::dbExecute(conn, "INSERT INTO pg_temp.p293_nofwa VALUES
     (2, NULL, 1, 1000, '100'::ltree, '100'::ltree, 1000, NULL, 0.01, 5)")
-  expect_no_error(run())
-  n2 <- DBI::dbGetQuery(conn,
-    "SELECT count(*)::int AS n FROM pg_temp.p293_nofwa_habitat
-      WHERE watershed_group_code IS NULL")$n
-  expect_gt(n2, 0)
-  expect_no_error(run())
+  expect_error(run(), "no watershed_group_code")
+  expect_identical(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.p293_nofwa_habitat")$n, n1)
   expect_identical(DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.p293_nofwa_habitat
-      WHERE watershed_group_code IS NULL")$n, n2)
+      WHERE watershed_group_code IS NULL")$n, 0L)
 })
 
 test_that("wsg_code must be the one group the table holds", {
@@ -548,7 +545,7 @@ test_that("a near_river walk replaces only the pairs it walks", {
   expect_identical(n_pair(5000), n5)
 })
 
-test_that("a parent-segment network with no watershed group is refused", {
+test_that("a network with no watershed group is refused, with or without the parent", {
   skip_if_no_conn()
   conn <- frs_db_conn()
   on.exit(DBI::dbDisconnect(conn))
@@ -581,13 +578,39 @@ test_that("a parent-segment network with no watershed group is refused", {
   expect_true(is.na(DBI::dbGetQuery(conn,
     "SELECT to_regclass('pg_temp.p293_grp')::text AS r")$r))
 
-  # The same network without the parent column keys on id_segment, where the
-  # group plays no part — the fresh#225 case, which must still work.
+  # The same network without the parent column was classified before
+  # fresh#308, keyed on id_segment, and its rows were never read. Refused now.
   DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams
                         DROP COLUMN linear_feature_id")
-  expect_no_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
+  expect_error(frs_habitat_classify(conn, table = "pg_temp.nr_streams",
     to = "pg_temp.p293_grp", species = "CO", params = params,
-    gate = FALSE, verbose = FALSE))
+    gate = FALSE, verbose = FALSE), "no watershed_group_code")
+  expect_error(frs_near_river(conn, "pg_temp.nr_streams",
+    "pg_temp.p293_grp_near", threshold = 3, distance_max = 1000,
+    verbose = FALSE), "no watershed_group_code")
+
+  # The readers refuse it too: each matches habitat rows on the group, so it
+  # would read nothing. Refused before they look at the habitat table, which
+  # need not exist.
+  expect_error(frs_cluster(conn, "pg_temp.nr_streams", "pg_temp.p308_none",
+    species = "CO", verbose = FALSE), "no watershed_group_code")
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p308_hab")
+  DBI::dbExecute(conn, "CREATE TABLE pg_temp.p308_hab (
+    id_segment integer, watershed_group_code varchar(4), species_code text,
+    spawning boolean, rearing boolean)")
+  expect_error(frs_order_child(conn, "pg_temp.nr_streams", "pg_temp.p308_hab",
+    species = "CO", verbose = FALSE), "no watershed_group_code")
+  # A bridge with a segment that has no group would match no habitat row.
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.p308_src")
+  DBI::dbExecute(conn, "CREATE TABLE pg_temp.p308_src (
+    blue_line_key integer, downstream_route_measure double precision,
+    upstream_route_measure double precision, species_code text,
+    spawning boolean)")
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.nr_streams
+    ADD COLUMN upstream_route_measure double precision")
+  expect_error(frs_habitat_overlay(conn, from = "pg_temp.p308_src",
+    to = "pg_temp.p308_hab", bridge = "pg_temp.nr_streams", species = "CO",
+    habitat_types = "spawning", verbose = FALSE), "no watershed_group_code")
 })
 
 test_that("a failure during a near_river walk leaves its pairs as they were", {
@@ -881,4 +904,48 @@ test_that("no habitat key is built with the parent segment switched off", {
   # moves when a join is added or removed; read the diff before changing it.
   expect_identical(length(calls), 19L)
   expect_true(all(from_pair_test))
+})
+
+test_that("every exported reader of group-keyed habitat rows refuses a NULL group", {
+  # fresh#308: the joins built by .frs_key_match() and the near_river EXISTS
+  # built by .frs_near_river_sql() equate watershed_group_code, so a segment
+  # with none is read by nothing. Each exported function that reaches either
+  # must reach .frs_group_required() too. Walked over the namespace's call
+  # graph, not over R/ (no R/ exists under R CMD check).
+  ns <- asNamespace("fresh")
+  fns <- Filter(function(n) is.function(get(n, envir = ns)),
+                ls(ns, all.names = TRUE))
+  callees <- lapply(stats::setNames(fns, fns), function(n) {
+    intersect(all.names(body(get(n, envir = ns))), fns)
+  })
+  reach <- function(n) {
+    seen <- character(0)
+    todo <- n
+    while (length(todo) > 0) {
+      x <- todo[[1]]
+      todo <- todo[-1]
+      if (x %in% seen) next
+      seen <- c(seen, x)
+      todo <- c(todo, callees[[x]])
+    }
+    seen
+  }
+  readers <- c(".frs_key_match", ".frs_near_river_sql")
+  exempt <- c(
+    # Builds predicate text for a caller and takes no table to check; its
+    # callers (frs_habitat_classify) check.
+    "frs_habitat_predicates")
+  exported <- getNamespaceExports(ns)
+  hits <- Filter(function(n) any(readers %in% reach(n)), exported)
+  # The walk has to see the readers at all, or this passes vacuously.
+  expect_true(all(c("frs_cluster", "frs_order_child", "frs_habitat_overlay",
+                    "frs_habitat_classify", "frs_habitat") %in% hits))
+  # frs_near_river() writes the rows .frs_near_river_sql() reads rather than
+  # reading any itself, so the walk does not list it; it guards all the same.
+  expect_true(".frs_group_required" %in% reach("frs_near_river"))
+  unguarded <- Filter(function(n) !".frs_group_required" %in% reach(n),
+                      setdiff(hits, exempt))
+  expect_identical(sort(unguarded), character(0))
+  # A stale exemption is a gap waiting to happen.
+  expect_true(all(exempt %in% hits))
 })

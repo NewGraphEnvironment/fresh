@@ -253,6 +253,9 @@ frs_habitat_overlay <- function(conn, from, to,
         "id_segment is unique only within a watershed group"), to),
         call. = FALSE)
     }
+    # And populated on the bridge: the join equates it, so a bridge segment
+    # with none would match no habitat row (fresh#308).
+    .frs_group_required(conn, bridge)
   }
 
   # --- Build join clause once ---
