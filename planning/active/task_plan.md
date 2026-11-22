@@ -49,8 +49,8 @@ Exploration corrected #294's premise. `frs_break_find()`'s multiclass arm (`R/fr
 
 ## Phase 4: Docs and release
 
-- [ ] `research/id_segment_identity.md`: a section on persisted barriers (the whole-line read, last writer wins, the parent-segment key) and on the NULL-group refusal. Update the **Verified** line.
-- [ ] `CLAUDE.md` naming conventions: `to_barriers` is keyed by `linear_feature_id`, like `to_streams`.
+- [x] `research/id_segment_identity.md`: a section on persisted barriers (the whole-line read, last writer wins, the parent-segment key) and on the NULL-group refusal. Update the **Verified** line.
+- [x] `CLAUDE.md` naming conventions: `to_barriers` is keyed by `linear_feature_id`, like `to_streams`.
 - [ ] Commits close #294, #308 and #277 with `Fixes #N`. Reconcile #318 and the member issue bodies with what shipped.
 - [ ] As the last commit: a NEWS entry (behaviour changes: barriers gain 2 columns, old barrier tables are refused, NULL groups are refused, id_segment-only direct overlays are refused) and a minor version bump from 0.55.1.
 

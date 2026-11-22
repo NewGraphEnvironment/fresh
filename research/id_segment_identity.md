@@ -1,13 +1,15 @@
 # What `id_segment` is, and why the persisted table disagrees with the code
 
-**Verified:** 2026-11-02 · **Issues:** #282 (found here, and settled the delete
-key), #293 (widened the sibling tables to the same key), #294, #295, #218,
-#231, #277, #242 · **Produced by:** reading
+**Verified:** 2026-11-02; the barriers and NULL-group sections 2026-11-22 ·
+**Issues:** #282 (found here, and settled the delete key), #293 (widened the
+sibling tables to the same key), #294 (barriers keyed the same way), #308 (a
+NULL group refused), #277 (direct overlay held to the keys), #295, #218, #231,
+#242 · **Produced by:** reading
 `R/utils.R` and `R/frs_break.R`, four aggregates over `fresh.streams`, and the
 Phase 0 measurements in `planning/archive/2026-11-issue-282-persist-delete-key/`,
 all on the database `frs_db_conn()` reaches, with
 `SET statement_timeout = 240000`, plus `data-raw/audit_habitat_293.R` for the
-sibling tables' shapes
+sibling tables' shapes and `data-raw/barrier_span_294.R` for persisted barriers
 
 ## The short version
 
@@ -173,6 +175,51 @@ no reading of the source reveals:
   measured on a keyed target, run 1 succeeded and run 2 raised a duplicate-key
   violation, under both candidate keys. The overwrite is one **transaction** with
   two statements instead.
+
+## Persisted barriers: the same key, for a different reason (#294)
+
+`frs_habitat(to_barriers =)` deleted by `blue_line_key` and reinserted the job's
+barriers. That looked like the cross-group loss #282 fixed, but it was not one:
+`frs_break_find()`'s multiclass arm takes the blue lines from the job's extract
+and then reads **every** segment of those lines from `fwa_stream_networks_sp`,
+with no group filter. A job's barriers therefore cover the whole line, the
+neighbouring group's part included, and the blue-line delete matched exactly what
+the insert wrote back.
+
+What differs between two groups' jobs is the gradient classes, which come from
+each group's species thresholds. So the last job to run on a line owned every
+group's barriers on it, at its own classes. Measured 2026-11-22 on the `docker/`
+fwapg: 157 mainstem lines span groups (the default `blk_filter` samples
+mainstems; the issue's 259 counts every line), 108 of them join groups with
+different thresholds, and on 5 of 12 sampled lines the second group's run changed
+the first group's barriers, 41 of 126 positions
+(`data-raw/logs/barrier_span_294/`).
+
+Widening the key to `(blue_line_key, watershed_group_code)` would not have
+helped, because the job would still delete and rewrite both groups' rows. Each
+barrier now carries the `linear_feature_id` and `watershed_group_code` of the
+segment it falls on, and a job deletes and inserts only the barriers on its own
+segments (`.frs_persist_barriers()`), keyed by `linear_feature_id` like
+`to_streams`. Two consequences: barriers on the rest of a line are written only
+by the job that covers that part, and a barrier the finder rounds to 0.01 m right
+on a group boundary can be keyed to the neighbour's segment (not measured; 0 of
+the sample's barriers fell outside every segment).
+
+## A NULL group is refused, not read as a group (#308)
+
+Every read that matches a habitat or `near_river` row to its segment equates
+`watershed_group_code` (`.frs_key_match()`, `.frs_near_river_sql()`, the species
+lookup in `frs_cluster()`). `NULL = NULL` is not true, so on a network whose
+segments have no group the rows were written, and after #293 replaced correctly,
+but never read. `IS NOT DISTINCT FROM` would make NULL act as one group but
+cannot be a hash or index join key. So `.frs_group_required()` refuses any NULL
+group, at every exported function that reads or writes habitat rows against a
+streams table; `test-habitat_partition_293.R` walks the namespace call graph to
+keep it that way. A network with no groups sets one constant value.
+
+The same reasoning holds `frs_habitat_overlay()`'s direct mode to the keys: a
+`by` holding `id_segment` must also name `watershed_group_code` when the target
+carries it, and `linear_feature_id` when both tables do (#277).
 
 ## How to re-derive
 
