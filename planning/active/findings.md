@@ -23,3 +23,4 @@ Three Explore agents digested 17 or 18 issues each: body, comments, premise agai
 | Error | Resolution |
 |-------|------------|
 | `public_leak_scan` flagged soul#593 / soul#605 in a public file; the bare name "soul" is not scanned | Rewrote in words; grepped every tracked file and issue body this pass wrote for the bare name |
+| My clash-ordering check matched no pair | `lanes` prints the second move as `2:`; strip the colon |

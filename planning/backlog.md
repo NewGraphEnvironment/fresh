@@ -14,9 +14,9 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 | - [ ] 1 | #318 | 1: watershed-group keying fixes (3 issues) | open: start here | A | — | opus |
 | - [ ] 2 | #319 | 3: rules loading and persist validators (5 issues) | open | A | 1 | opus |
 | - [ ] 3 | #320 | 4, 5: frs_habitat() job plumbing, frs_db_query read path (6 issues) | open | A | 1, 2, 7 | opus |
-| - [ ] 4 | #321 | 9: docs, naming and research re-verification (7 issues) | open | B | — | sonnet |
+| - [ ] 4 | #321 | 9: docs, naming and research re-verification (7 issues) | open | B | 1 | sonnet |
 | - [ ] 5 | #322 | 2: id_segment identity at assignment (2 issues) | open | A | 1, 3, 4, 6 | fable then opus |
-| - [ ] 6 | #323 | 6: bcfishpass parity (4 issues) | open | C | 1 | fable then opus |
+| - [ ] 6 | #323 | 6: bcfishpass parity (4 issues) | open | C | 1, 2, 3 | fable then opus |
 | - [ ] 7 | #324 | 7: docker image and loader rebuild (5 issues) | open | D | — | opus |
 | - [ ] 8 | #325 | 8: gradient breaks (2 issues) | open | A | 1, 3, 5 | fable then opus |
 
@@ -58,7 +58,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 2, #319
 
-**Touches:** `R/frs_params.R`, `R/frs_habitat_predicates.R`, `R/frs_col_join.R`, `R/frs_feature_find.R`, `R/utils.R`, `R/frs_habitat.R`
+**Touches:** `R/frs_params.R`, `R/frs_habitat_predicates.R`, `R/frs_col_join.R`, `R/frs_feature_find.R`, `R/utils.R`, `R/frs_habitat.R`, `R/frs_habitat_classify.R`
 
 #267: the rules YAML read depends on the session locale. #250: the lake bucket ignores reservoirs. #251: a hidden 200 ha floor. #222: five validator gaps left after #114 (the habitat delete and insert are already one transaction, from #293). #239: `frs_col_join()` types a subquery's columns `text`. Gate: #251 no floor or refuse at load; #222 alter or refuse a target missing a flag column.
 
@@ -82,7 +82,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 - [ ] Carried by move 6, #323
 
-**Touches:** `inst/extdata/parameters_fresh.csv`, `data-raw/bcfishpass_params.R`, `R/frs_habitat_overlay.R`, `R/frs_habitat_classify.R`
+**Touches:** `inst/extdata/parameters_fresh.csv`, `data-raw/bcfishpass_params.R`, `R/frs_habitat_overlay.R`, `R/frs_habitat_classify.R`, `R/frs_habitat.R`
 
 #219: bundled parameters disagree with link. #189: known spawning as a rearing trigger. #178: bridge mode from containment to range overlap. #258: a measure tolerance, prompted by a link case link has since fixed on its side. In flight elsewhere: link's own open work waits on #189 (search `repo:NewGraphEnvironment/link is:open fresh#189`). Gate: what bcfishpass uses; trigger or rewrite; #258 still wanted.
 
@@ -106,7 +106,7 @@ One full rebuild verifies all five: the loader fix in the open PR #254 (closes #
 
 - [ ] Carried by move 4, #321
 
-**Touches:** `README.md`, `DESCRIPTION`, `_pkgdown.yml`, `data-raw/audit_persist_282.R`, `data-raw/audit_habitat_293.R`, `data-raw/pipeline_wsg.R`, `vignettes/`, `research/fwa_waterbody_key_polygons.md`, `research/fwapg_channel_width.md`
+**Touches:** `README.md`, `DESCRIPTION`, `_pkgdown.yml`, `data-raw/audit_persist_282.R`, `data-raw/audit_habitat_293.R`, `data-raw/pipeline_wsg.R`, `vignettes/`, `research/fwa_waterbody_key_polygons.md`, `research/fwapg_channel_width.md`, `research/id_segment_identity.md`
 
 #303 and #255: the README's opening and its capability list and roadmap. #299: two verb-first `data-raw/` names now. #11: vignette citations. #227: `pipeline_wsg.R` defaults to BULK. #316 and #317: two research files with no Verified date. Gate: the README opening line.
 
