@@ -328,6 +328,7 @@ Small durable technical reference for internal behavior worth remembering.
 
 - A `waterbody_type` rule's area floor is read **only** through `.frs_rule_ha_min()` (`lake_ha_min` on L, `wetland_ha_min` on W). The rule compiler, the lake / wetland bucket predicates and the waterbody-connected spawning floor all call it. Two readers drifting is what #237 was.
 - The loader rejects an empty / null / NA / NaN floor (key-presence check), because the reader treats NULL as "no floor".
+- The polygon tables of a type come from `.frs_waterbody_tables()` in every reader: the rule compiler, the lake / wetland bucket predicates and the connectivity pass. L is lakes **and** manmade waterbodies (reservoirs), with the floor on each (#250). A rule that declares no floor has none anywhere, connected spawning included (#251). The legacy wide `frs_habitat_species()` still hard-codes lakes (#330).
 - A wetland `waterbody_key` can span many polygons; a floor admits the key when any polygon meets it (`research/fwa_waterbody_key_polygons.md`).
 
 ### `frs_col_join()` subquery sources
