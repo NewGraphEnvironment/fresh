@@ -134,7 +134,7 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 ## Validation
 
 - [ ] Tests pass
-- [ ] `/code-check` clean (once over the branch with `/code-check branch`)
+- [x] `/code-check` clean (once over the branch with `/code-check branch`)
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
