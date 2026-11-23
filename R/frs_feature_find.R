@@ -260,6 +260,21 @@ frs_feature_find <- function(conn, table, to = "working.features",
   if (append) {
     .frs_db_execute(conn, sprintf(
       "CREATE TABLE IF NOT EXISTS %s %s", to, cols_def))
+    # A target created by a call without col_id has no feature_id; add it,
+    # as the CREATE above would have, rather than fail the INSERT (#222).
+    # Rows appended without an id leave it NULL.
+    # A feature_id of another type would cast the ids silently: refuse it.
+    if (has_id) {
+      types_to <- .frs_col_types_of(conn, to)
+      fid_type <- types_to$type[types_to$col == "feature_id"]
+      if (length(fid_type) == 1L && fid_type != "text") {
+        stop(sprintf(
+          "%s has feature_id of type %s; frs_feature_find() writes it as text. Drop or migrate %s and re-run.",
+          to, fid_type, to), call. = FALSE)
+      }
+      .frs_db_execute(conn, sprintf(
+        "ALTER TABLE %s ADD COLUMN IF NOT EXISTS feature_id text", to))
+    }
     id_cols <- if (has_id) ", feature_id" else ""
     sql <- sprintf(
       "INSERT INTO %s (blue_line_key, downstream_route_measure, label, source%s) %s",
