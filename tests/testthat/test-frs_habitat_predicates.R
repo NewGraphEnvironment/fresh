@@ -177,8 +177,10 @@ test_that("lake / wetland buckets are sized by polygon area only under cw (#240)
     rear = list(list(waterbody_type = "L", lake_ha_min = 200),
                 list(waterbody_type = "W", wetland_ha_min = 1.5))))
   preds <- frs_habitat_predicates(sp)
-  expect_equal(preds$lake_rear, "s.waterbody_key IN (
-         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly WHERE area_ha >= 200 UNION ALL SELECT waterbody_key FROM whse_basemapping.fwa_manmade_waterbodies_poly WHERE area_ha >= 200)")
+  expect_equal(preds$lake_rear, paste0("s.waterbody_key IN (
+         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly ",
+    "WHERE area_ha >= 200 UNION ALL SELECT waterbody_key FROM ",
+    "whse_basemapping.fwa_manmade_waterbodies_poly WHERE area_ha >= 200)"))
   expect_false(grepl("channel_width|mad_m3s", preds$wetland_rear))
   expect_match(preds$wetland_rear, "fwa_wetlands_poly WHERE area_ha >= 1\\.5")
 })

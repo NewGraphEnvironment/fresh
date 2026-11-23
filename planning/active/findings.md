@@ -121,3 +121,20 @@ Relates to link#310 (decision 5: reservoirs count as lakes, in fresh's bucket an
 
 | Error | Resolution |
 |-------|------------|
+
+## Measurements (2026-11-23)
+
+### Branch tests against main's code
+The branch's six touched test files, copied into a worktree of `origin/main` (f3e331d) and run against main's R code: every new test is red there (C-locale x2, range/empty-key x5, bucket tables x3, #251 x2, col_join live x3 plus the mocks that name the new helper, flag migration x2, feature_id append x1). All green on the branch.
+
+### Direct #250 check, CHWK, CO + BT, bundled rules
+`frs_habitat()` with fresh main and with the branch, each from its own library, same segmentation (10,752 segments, 0 differing). `accessible`, `spawning`, `rearing`, `wetland_rearing`: 0 differences. `lake_rearing`: BT 162 -> 182 (+20 rows on 2 reservoirs), CO 184 -> 208 (+24 rows on 4 reservoirs); every difference FALSE -> TRUE on a `waterbody_key` in `fwa_manmade_waterbodies_poly`. Script: scratchpad `lake250.R` (ad hoc measurement, nothing cached).
+
+### Functions link reaches
+85 fresh functions are reachable from link's 14 exports and 4 `getFromNamespace` internals (codetools call graph on the installed branch). 12 functions changed or are new; 11 of them are reachable:
+- `.frs_load_rules`, `.frs_validate_rule`, `.frs_validate_rule_range`: refuse only shapes none of link's 24 rules files carry (measured, and by the plan review).
+- `.frs_run_connectivity`, `.frs_connected_waterbody`: byte-identical SQL for a declared floor; every link bundle declares 200 for SK/KO.
+- `frs_col_join`, `.frs_query_col_types`: the same types for link's two calls (`double precision`, `text`, `integer`, measured both ways).
+- `.frs_habitat_target`, `.frs_col_types_of`: add a flag only where it is missing.
+- `.frs_near_river_check`: message text only.
+- `frs_habitat_predicates`: `lake_rear` includes reservoirs (deliberate, #250).

@@ -112,14 +112,14 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 - [x] Stale #239 text: `R/frs_near_river.R` comment and error message, a test comment, and the `R/frs_habitat.R` roxygen on lake polygons (Gaps 2, 3).
 - [x] Flag-column types read through a mockable `.frs_col_types_of()`; the mocked classify test stubs it (Gap 4). `frs_feature_find()` refuses a non-text `feature_id` (Gap 5).
 - [x] Empty `channel_width_min_bypass` sub-keys refused (Scope 1). `spawn_connected` stays out: it is a block, not a rule field, and link documents `edge_types: null` there as "no filter".
-- [ ] File the legacy `frs_habitat_species()` lakes-only path as its own issue naming move 2 (Scope 3).
+- [x] File the legacy `frs_habitat_species()` lakes-only path as its own issue naming move 2 (Scope 3): #330.
 
 ## Phase 6: link check, docs, release
 
-- [ ] Diff every fresh function link reaches: its exports (`lnk_preflight_fresh()`), its four `getFromNamespace` internals, and what those call. Record which of them this branch changes.
+- [x] Diff every fresh function link reaches: its exports (`lnk_preflight_fresh()`), its four `getFromNamespace` internals, and what those call. Record which of them this branch changes.
 - [ ] Run link's test suite against fresh `main` and against this branch, each from its own temporary library, and compare test by test (the method in #318's archive README).
   - Any difference must trace to #250's reservoir lines and nothing else.
-- [ ] Direct #250 check (review Acceptance 2): classify one group with reservoirs on `main` and on the branch; `accessible`, `spawning`, `rearing` and `wetland_rearing` identical, every `lake_rearing` difference FALSE to TRUE on a manmade `waterbody_key`.
+- [x] Direct #250 check (review Acceptance 2): classify one group with reservoirs on `main` and on the branch; `accessible`, `spawning`, `rearing` and `wetland_rearing` identical, every `lake_rearing` difference FALSE to TRUE on a manmade `waterbody_key`.
 - [ ] `devtools::document()`, `lintr` per-file diff against `main`, and `pkgdown::check_pkgdown()`.
 - [ ] Update `NEWS.md` and bump `DESCRIPTION` to 0.57.0 as the final commit. NEWS names the deliberate `lake_rearing` change, and that link takes it at its pin bump.
 
