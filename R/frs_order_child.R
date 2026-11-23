@@ -252,6 +252,9 @@ frs_order_child <- function(conn,
                    nm, get(nm)), call. = FALSE)
     }
   }
+  # And populated: the habitat match equates it, and a segment with none
+  # matches nothing (fresh#308).
+  .frs_group_required(conn, table)
 
   # Default both child bounds to 1L when neither is set — matches
   # bcfishpass's `stream_order = 1` predicate exactly. Caller can pass

@@ -102,10 +102,19 @@
 #'   [frs_network_segment()] for details.
 #' @param to_barriers Character or `NULL`. Schema-qualified table for
 #'   persisting gradient barriers. Includes `blue_line_key`,
-#'   `downstream_route_measure`, `gradient_class`, `label`,
-#'   `wscode_ltree`, `localcode_ltree`. Useful for link's
-#'   `lnk_barrier_overrides()`. Default `NULL` (barriers dropped after
-#'   segmentation).
+#'   `downstream_route_measure`, `gradient_class`, `label`, `source`,
+#'   `wscode_ltree`, `localcode_ltree`, and the `linear_feature_id` and
+#'   `watershed_group_code` of the segment each barrier falls on. Each job
+#'   replaces only the barriers on its own segments, keyed by
+#'   `linear_feature_id`, so a table shared by several watershed groups or
+#'   AOIs keeps each one's barriers at its own gradient classes. Barrier
+#'   detection reads whole blue lines, but the part of a line outside the
+#'   job's segments (another watershed group, or beyond a custom AOI) is
+#'   left to the job that covers it: run that group too if you need its
+#'   barriers. Two jobs over the same segments still replace each other's.
+#'   A table written before these two columns existed is refused: drop it
+#'   and re-run. Useful for link's `lnk_barrier_overrides()`. Default `NULL`
+#'   (barriers dropped after segmentation).
 #' @param barrier_overrides Character or `NULL`. Schema-qualified table
 #'   of barrier overrides prepared by link via
 #'   `lnk_barrier_overrides()`. Must have columns `blue_line_key`,
@@ -538,19 +547,10 @@ frs_habitat <- function(conn, wsg = NULL,
 
     # 5b. Persist gradient barriers (if to_barriers provided)
     if (!is.null(to_barriers)) {
-      # Enrich with ltree before persisting
-      .frs_enrich_breaks(w_conn, grad_tbl)
-      .frs_db_execute(w_conn, sprintf(
-        "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
-        to_barriers, grad_tbl))
-      # Idempotent delete by BLK (works for both WSG and custom AOI)
-      .frs_db_execute(w_conn, sprintf(
-        "DELETE FROM %s WHERE blue_line_key IN (
-           SELECT DISTINCT blue_line_key FROM %s)",
-        to_barriers, grad_tbl))
-      .frs_db_execute(w_conn, sprintf(
-        "INSERT INTO %s SELECT * FROM %s",
-        to_barriers, grad_tbl))
+      # grad_tbl covers whole blue lines; only this job's segments are its
+      # own to write (fresh#294).
+      .frs_enrich_breaks(w_conn, grad_tbl, parent = TRUE)
+      .frs_persist_barriers(w_conn, to_barriers, grad_tbl, streams_tbl)
     }
 
     # 6. Cleanup working tables
@@ -684,17 +684,8 @@ frs_habitat <- function(conn, wsg = NULL,
 
       # Persist gradient barriers
       if (!is.null(to_barriers)) {
-        .frs_enrich_breaks(w_conn, grad_tbl)
-        DBI::dbExecute(w_conn, sprintf(
-          "CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM %s LIMIT 0",
-          to_barriers, grad_tbl))
-        DBI::dbExecute(w_conn, sprintf(
-          "DELETE FROM %s WHERE blue_line_key IN (
-             SELECT DISTINCT blue_line_key FROM %s)",
-          to_barriers, grad_tbl))
-        DBI::dbExecute(w_conn, sprintf(
-          "INSERT INTO %s SELECT * FROM %s",
-          to_barriers, grad_tbl))
+        .frs_enrich_breaks(w_conn, grad_tbl, parent = TRUE)
+        .frs_persist_barriers(w_conn, to_barriers, grad_tbl, streams_tbl)
       }
 
       DBI::dbExecute(w_conn, sprintf(
@@ -1036,16 +1027,31 @@ frs_habitat_access <- function(conn, table, threshold,
 #' fast cross-BLK classification via ltree comparison instead of joining
 #' back to the 4.9M row `fwa_stream_networks_sp` table at classify time.
 #'
+#' With `parent = TRUE` it also sets `linear_feature_id` and
+#' `watershed_group_code`, the segment each break falls on, which is what
+#' persisted barriers are keyed by ([.frs_persist_barriers()], fresh#294).
+#' That arm takes each segment's top from the next segment's start on the
+#' same blue line, not from `upstream_route_measure`, which in the FWA can
+#' stop millimetres short of it (510 such gaps over 1 mm in BULK alone). The
+#' barrier finder rounds a measure to 0.01 m, so a barrier can land in such a
+#' gap; the plain `upstream_route_measure` bound then matches no segment, and
+#' an unkeyed barrier is never persisted. The default arm is left exactly as
+#' it was, so [frs_habitat_access()] gives the output it always has.
+#'
 #' @param conn DBI connection.
 #' @param breaks Schema-qualified breaks table name.
+#' @param parent Logical. Also set `linear_feature_id` and
+#'   `watershed_group_code`. Default `FALSE`.
 #' @noRd
-.frs_enrich_breaks <- function(conn, breaks) {
+.frs_enrich_breaks <- function(conn, breaks, parent = FALSE) {
+  stopifnot(is.logical(parent), length(parent) == 1, !is.na(parent))
   .frs_db_execute(conn, sprintf(
     "ALTER TABLE %s ADD COLUMN IF NOT EXISTS wscode_ltree ltree", breaks))
   .frs_db_execute(conn, sprintf(
     "ALTER TABLE %s ADD COLUMN IF NOT EXISTS localcode_ltree ltree", breaks))
 
-  .frs_db_execute(conn, sprintf(
+  if (!parent) {
+    .frs_db_execute(conn, sprintf(
     "UPDATE %s b SET
        wscode_ltree = f.wscode_ltree,
        localcode_ltree = f.localcode_ltree
@@ -1054,6 +1060,36 @@ frs_habitat_access <- function(conn, table, threshold,
        AND b.downstream_route_measure >= f.downstream_route_measure
        AND b.downstream_route_measure < f.upstream_route_measure",
     breaks))
+    return(invisible(NULL))
+  }
+
+  .frs_db_execute(conn, sprintf(
+    "ALTER TABLE %s ADD COLUMN IF NOT EXISTS linear_feature_id bigint",
+    breaks))
+  .frs_db_execute(conn, sprintf(
+    "ALTER TABLE %s ADD COLUMN IF NOT EXISTS watershed_group_code
+       character varying(4)", breaks))
+  .frs_db_execute(conn, sprintf(
+    "UPDATE %s b SET
+       wscode_ltree = f.wscode_ltree,
+       localcode_ltree = f.localcode_ltree,
+       linear_feature_id = f.linear_feature_id,
+       watershed_group_code = f.watershed_group_code
+     FROM (
+       SELECT blue_line_key, downstream_route_measure, linear_feature_id,
+              watershed_group_code, wscode_ltree, localcode_ltree,
+              coalesce(lead(downstream_route_measure) OVER (
+                         PARTITION BY blue_line_key
+                         ORDER BY downstream_route_measure),
+                       upstream_route_measure) AS top_measure
+       FROM whse_basemapping.fwa_stream_networks_sp
+       WHERE blue_line_key IN (SELECT DISTINCT blue_line_key FROM %s)
+     ) f
+     WHERE b.blue_line_key = f.blue_line_key
+       AND b.downstream_route_measure >= f.downstream_route_measure
+       AND b.downstream_route_measure < f.top_measure",
+    breaks, breaks))
+  invisible(NULL)
 }
 
 

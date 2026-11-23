@@ -296,6 +296,22 @@ test_that("integration: to_barriers persists gradient barriers table", {
   expect_true("label" %in% cols)
   expect_true("wscode_ltree" %in% cols)
   expect_true("localcode_ltree" %in% cols)
+  expect_true("linear_feature_id" %in% cols)
+  expect_true("watershed_group_code" %in% cols)
+
+  # fresh#294, the wiring end to end: every persisted barrier is keyed to a
+  # parent segment of this job. This AOI is a watershed-code subtree, and every
+  # segment of a blue line shares one code, so no line here runs outside it:
+  # the check cannot see a barrier outside the job's segments. That scoping is
+  # proved in test-persist_barriers_294.R, where two groups share a line
+  # (code-check round 2).
+  off <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT count(*)::int AS n FROM %s b
+     WHERE b.linear_feature_id IS NULL
+        OR b.linear_feature_id NOT IN (SELECT linear_feature_id FROM %s)",
+    frs_test_tbl("persist_barriers_143"),
+    frs_test_tbl("persist_barriers_143_s")))$n
+  expect_equal(off, 0L)
 })
 
 test_that("integration: NULL to_barriers does not persist", {
@@ -762,12 +778,20 @@ test_that("both frs_habitat paths persist streams through the one helper", {
   expect_false(grepl("DELETE FROM %s WHERE watershed_group_code", body_txt,
                      fixed = TRUE))
 
-  # Every DELETE left in the body is the to_barriers blue_line_key one, which
-  # is fresh#294's scope and deliberately untouched here. Pinning the count
-  # means a new unscoped delete cannot be added without reddening this.
-  expect_equal(n_of("DELETE FROM", body_txt),
-               n_of("blue_line_key IN", body_txt))
-  expect_equal(n_of("DELETE FROM", body_txt), 2L)
+  # No DELETE is left in the body: barriers persist through their own helper
+  # too (fresh#294), which deletes only the job's own segments' barriers.
+  # Pinning zero means a new unscoped delete cannot be added without
+  # reddening this.
+  expect_equal(n_of("DELETE FROM", body_txt), 0L)
+  expect_equal(n_of(".frs_persist_barriers(", body_txt), 2L)
+  expect_equal(n_of(".frs_enrich_breaks(w_conn, grad_tbl, parent = TRUE)",
+                    body_txt), 2L)
+  barriers <- paste(deparse(body(.frs_persist_barriers)), collapse = "\n")
+  expect_true(grepl("DELETE FROM", barriers, fixed = TRUE))
+  expect_true(grepl("linear_feature_id IN (SELECT linear_feature_id FROM",
+                    barriers, fixed = TRUE))
+  expect_false(grepl("blue_line_key", barriers, fixed = TRUE))
+  expect_true(grepl(".frs_null_key_guard", barriers, fixed = TRUE))
 
   # Positive controls, each against the function that owns the string: a
   # renamed or deleted helper fails loudly here rather than passing because

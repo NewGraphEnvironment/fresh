@@ -51,7 +51,9 @@ per-row indicator column).}
 
 \item{by}{Character vector. Columns used to match \code{from} to either
 \code{to} (when \code{bridge = NULL}) or to \code{bridge} (when bridge supplied).
-Default \code{c("blue_line_key", "downstream_route_measure")}.}
+Default \code{c("blue_line_key", "downstream_route_measure")}. In direct
+mode a \code{by} with \code{id_segment} must name the other keys \code{to} carries
+(see Two join modes).}
 
 \item{species_col}{Character. Name of the column in \code{from} carrying
 the species code per row. Default \code{"species_code"}.}
@@ -97,7 +99,12 @@ overlay. Shape-translation lives with the consumer.
 \subsection{Two join modes (\code{bridge})}{
 \itemize{
 \item \strong{Direct (\code{bridge = NULL})} — the \code{to} table has the join keys
-directly. SQL does \verb{to.<by> = from.<by>} (point match).
+directly. SQL does \verb{to.<by> = from.<by>} (point match). A \code{by}
+holding \code{id_segment} must also hold \code{watershed_group_code} when \code{to}
+carries it, and \code{linear_feature_id} when both \code{to} and \code{from} carry
+it: \code{id_segment} is unique only within a watershed group, so the
+short key would update every group holding the same id. Such a call
+is refused. The default point join needs neither.
 \item \strong{Bridged (\code{bridge = "<segments_table>"})} — the \code{to} table is
 keyed by \verb{(id_segment, watershed_group_code)} (e.g.
 \code{fresh.streams_habitat}) and lacks the geographic keys in \code{by}. The

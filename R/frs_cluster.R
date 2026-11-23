@@ -137,6 +137,10 @@ frs_cluster <- function(conn, table, habitat,
   stopifnot(is.numeric(bridge_distance), length(bridge_distance) == 1)
   stopifnot(is.numeric(confluence_m), length(confluence_m) == 1)
 
+  # Every habitat match below equates the group, so a segment with none would
+  # be read by no pass, and the species lookup would find nothing (fresh#308).
+  .frs_group_required(conn, table)
+
   # Resolve species list. Scoped to the ground `table` holds: a shared
   # `habitat` can carry species that only occur elsewhere, and each would
   # otherwise cost a full pass that can match nothing. Since fresh#293 the

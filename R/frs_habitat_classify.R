@@ -280,8 +280,7 @@ frs_habitat_classify <- function(conn, table, to,
   # can never address. Up here rather than beside the delete because the walk
   # writes <to>_near_river, so a legacy target refused down there would be
   # refused only after that write (fresh#293 review, O2).
-  .frs_group_required(conn, table,
-                      "linear_feature_id" %in% .frs_cols_of(conn, table))
+  .frs_group_required(conn, table)
   tgt <- .frs_habitat_target(conn, table, to, wsg_code, overwrite)
 
   # Ensure input tables are indexed — critical when called directly
