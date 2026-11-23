@@ -17,8 +17,6 @@
 name: sync-link-rules
 
 on:
-  push:  # TEMPORARY: proves the workflow on its own branch; removed before merge
-    branches: [129-sync-link-rules]
   schedule:
     - cron: '0 12 * * THU'  # Thursday 12:00 UTC
   workflow_dispatch:
