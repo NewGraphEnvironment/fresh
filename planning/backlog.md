@@ -12,7 +12,7 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 | move | umbrella | batches | state | lane | waits on | model |
 |---|---|---|---|---|---|---|
 | - [x] 1 | #318 | 1: watershed-group keying fixes (3 issues) | done: https://github.com/NewGraphEnvironment/fresh/pull/327 | A | — | opus |
-| - [ ] 2 | #319 | 3: rules loading and persist validators (5 issues) | open | A | 1 | opus |
+| - [x] 2 | #319 | 3: rules loading and persist validators (5 issues) | done: https://github.com/NewGraphEnvironment/fresh/pull/331 | A | 1 | opus |
 | - [ ] 3 | #320 | 4, 5: frs_habitat() job plumbing, frs_db_query read path (6 issues) | open | A | 1, 2, 4, 7 | opus |
 | - [ ] 4 | #321 | 9: docs, naming and research re-verification (7 issues) | open | B | 1, 7 | sonnet |
 | - [ ] 5 | #322 | 2: id_segment identity at assignment (2 issues) | open | A | 1, 3, 4, 6 | fable then opus |
@@ -56,7 +56,7 @@ Tracks are separate efforts, not moves, each worked across several repos from it
 
 ### 3. Rules loading and persist validators
 
-- [ ] Carried by move 2, #319
+- [x] Carried by move 2, #319 (merged in https://github.com/NewGraphEnvironment/fresh/pull/331)
 
 **Touches:** `R/frs_params.R`, `R/frs_habitat_predicates.R`, `R/frs_col_join.R`, `R/frs_feature_find.R`, `R/utils.R`, `R/frs_habitat.R`, `R/frs_habitat_classify.R`, `CLAUDE.md`
 
