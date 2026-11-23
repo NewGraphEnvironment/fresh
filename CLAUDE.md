@@ -25,6 +25,8 @@ Freshwater Referenced Spatial Hydrology. A composable stream network modelling e
 - Fish habitat / connectivity: **link → fresh**. link's `lnk_pipeline_*()` helpers interpret features (crossings, observations, falls, user-definite barriers, habitat confirmations) and produce the `break_sources` and `barrier_overrides` table that feed `frs_habitat_classify()`. Without link, fresh still runs on any break sources you construct yourself.
 - Land cover change: fresh (network) → flooded (floodplains) → drift (land cover change).
 
+**link is fresh's main production user, so a fresh change must not change link's outputs or stop a link run.** link pins fresh in `Remotes:` and gates a pin bump with its own pre-run check, but a break is otherwise found only at that bump. Before merging, check every fresh function link reaches: its exported calls (`lnk_preflight_fresh()` lists them), the internals it takes through `getFromNamespace()`, and what those call. Run link's test suite against fresh `main` and against the branch, each from its own temporary library, and compare test by test. #318's archive README records the method; #328 automates the suite run and #329 pins the internals.
+
 ## Architecture
 
 Legend: `[link]` = building block used directly by `link` (called by `lnk_pipeline_*()` rather than via `frs_habitat()`).
