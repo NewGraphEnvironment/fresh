@@ -1,0 +1,112 @@
+# Weekly sync of the sample habitat rules from link.
+#
+# inst/extdata/parameters_habitat_rules.yaml is frs_habitat()'s fallback when
+# it is given no rules. fresh has no generator for it: link builds it from its
+# `default` bundle (link data-raw/build_rules.R, the bundle's dimensions.csv
+# and thresholds) and fresh ships a copy. This workflow compares fresh's copy
+# with link's main and, when they differ below the `# Generated` header lines,
+# force-pushes the fixed branch `rules-sync` (fresh's main plus link's file)
+# and opens or updates one PR from it, labelled `rules-sync`. It never merges:
+# a new sample changes what frs_habitat() classifies without a config.
+#
+# Requires the repo setting "Allow GitHub Actions to create and approve pull
+# requests" (Settings > Actions > General); without it `gh pr create` is
+# refused. A PR opened with GITHUB_TOKEN starts no other workflow, so the PR
+# body asks for R-CMD-check to be run by hand.
+
+name: sync-link-rules
+
+on:
+  push:  # TEMPORARY: proves the workflow on its own branch; removed before merge
+    branches: [129-sync-link-rules]
+  schedule:
+    - cron: '0 12 * * THU'  # Thursday 12:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: sync-link-rules
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compare with link's sample
+        id: compare
+        run: |
+          set -euo pipefail
+          f=inst/extdata/parameters_habitat_rules.yaml
+          url="https://raw.githubusercontent.com/NewGraphEnvironment/link/main/$f"
+          curl -fsSL --retry 3 --max-time 60 -o /tmp/link_rules.yaml "$url"
+          # A body that is not the rules (an error page) must not reach fresh.
+          grep -q '^# Generated from ' /tmp/link_rules.yaml
+          grep -q '^BT:' /tmp/link_rules.yaml
+          git fetch -q origin main
+          git show origin/main:"$f" > /tmp/fresh_rules.yaml
+          if diff -q <(grep -v '^# Generated' /tmp/fresh_rules.yaml) \
+                     <(grep -v '^# Generated' /tmp/link_rules.yaml) >/dev/null; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            echo "fresh's sample equals link's below the header"
+          else
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            diff <(grep -v '^# Generated' /tmp/fresh_rules.yaml) \
+                 <(grep -v '^# Generated' /tmp/link_rules.yaml) | head -200 || true
+          fi
+          git ls-remote https://github.com/NewGraphEnvironment/link.git refs/heads/main \
+            | cut -c1-12 > /tmp/link_sha
+
+      - name: Push rules-sync and open or update its PR
+        if: steps.compare.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          f=inst/extdata/parameters_habitat_rules.yaml
+          link_sha="$(cat /tmp/link_sha)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -B rules-sync origin/main
+          cp /tmp/link_rules.yaml "$f"
+          git add "$f"
+          git commit -q -m "Sync the sample habitat rules from link@${link_sha}"
+          # Idempotent: an unchanged rules-sync (same main, same file) is not
+          # pushed again.
+          if git fetch -q origin rules-sync 2>/dev/null && git diff --quiet FETCH_HEAD HEAD; then
+            echo "rules-sync already carries this file on this main"
+          else
+            git push -q --force origin rules-sync
+          fi
+          cat > /tmp/body.md <<EOF
+          The sample habitat rules (\`$f\`) differ from link's at \`NewGraphEnvironment/link@${link_sha}\`, below the \`# Generated\` lines. This branch carries link's file onto fresh's main; this workflow force-pushes it weekly while they differ.
+
+          link builds the sample from its \`default\` bundle (\`data-raw/build_rules.R\`), with that bundle's thresholds. fresh runs it on its own \`parameters_habitat_thresholds.csv\`, so \`frs_habitat()\` without a config classifies on \`default\`'s rules and fresh's thresholds.
+
+          Before merging:
+          - run R-CMD-check by hand (Actions > R-CMD-check > Run workflow, branch \`rules-sync\`): a PR opened by this workflow starts no other workflow;
+          - read the diff for what changes in the fallback, and release fresh after.
+
+          Opened by \`.github/workflows/sync-link-rules.yml\`; never merged automatically.
+          EOF
+          gh label create rules-sync --color BFD4F2 \
+            --description "Sample habitat rules synced from link" --force
+          n="$(gh pr list --head rules-sync --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$n" ]; then
+            gh pr edit "$n" --body-file /tmp/body.md
+            echo "updated PR #$n"
+          else
+            gh pr create --base main --head rules-sync --label rules-sync \
+              --title "Sync the sample habitat rules from link" --body-file /tmp/body.md
+          fi
