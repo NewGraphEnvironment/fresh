@@ -290,6 +290,47 @@ test_that(".frs_load_rules accepts empty file", {
   expect_length(rules, 0)
 })
 
+# Under LC_CTYPE=C, yaml::read_yaml() re-encodes the file to the native
+# encoding and readLines() stops at the first non-ASCII byte (#267).
+local_c_ctype <- function(env = parent.frame()) {
+  old <- Sys.getlocale("LC_CTYPE")
+  withCallingHandlers(Sys.setlocale("LC_CTYPE", "C"),
+                      warning = function(w) invokeRestart("muffleWarning"))
+  do.call(on.exit, list(substitute(Sys.setlocale("LC_CTYPE", old),
+                                   list(old = old)), add = TRUE),
+          envir = env)
+}
+
+test_that(".frs_load_rules reads the bundled rules under the C locale (#267)", {
+  path <- system.file("extdata", "parameters_habitat_rules.yaml",
+                      package = "fresh")
+  # The bundled file carries a non-ASCII byte, which is the whole case.
+  expect_true(any(grepl("[^\x01-\x7F]",
+    readLines(path, warn = FALSE), useBytes = TRUE)))
+  utf8 <- .frs_load_rules(path)
+  local_c_ctype()
+  expect_identical(Sys.getlocale("LC_CTYPE"), "C")
+  c_rules <- .frs_load_rules(path)
+  expect_gt(length(c_rules), 0)
+  expect_identical(names(c_rules), names(utf8))
+  expect_identical(c_rules, utf8)
+})
+
+test_that(".frs_load_rules keeps keys after a non-ASCII comment (#267)", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  lines <- enc2utf8(c(
+    "BT:",
+    "  rear: []",
+    "# a comment with an em-dash — mid-file",
+    "CO:",
+    "  rear: []"))
+  writeLines(lines, tmp, useBytes = TRUE)
+  local_c_ctype()
+  rules <- .frs_load_rules(tmp)
+  expect_identical(names(rules), c("BT", "CO"))
+})
+
 test_that(".frs_load_rules errors on non-integer edge_types_explicit", {
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp))

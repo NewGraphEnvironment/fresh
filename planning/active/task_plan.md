@@ -52,11 +52,11 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 ## Phase 1: Locale-safe rules read (#267)
 
-- [ ] Test (`test-frs_params.R`): under `Sys.setlocale("LC_CTYPE", "C")`, restored with `on.exit`, cover two files:
+- [x] Test (`test-frs_params.R`): under `Sys.setlocale("LC_CTYPE", "C")`, restored with `on.exit`, cover two files:
   - the bundled rules file loads all 11 species;
   - a temp YAML with an em-dash comment between keys keeps the keys after it (the truncation case).
   - Confirm both fail on `main` first.
-- [ ] `.frs_load_rules()`: `yaml::yaml.load(readLines(path, encoding = "UTF-8", warn = FALSE))`, with a comment naming #267.
+- [x] `.frs_load_rules()`: `yaml::yaml.load(readLines(path, encoding = "UTF-8", warn = FALSE))`, with a comment naming #267.
 
 ## Phase 2: Range and empty-value validators (#222, rules)
 

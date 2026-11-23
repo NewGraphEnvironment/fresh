@@ -154,7 +154,11 @@ frs_params <- function(conn = NULL,
   if (!file.exists(path)) {
     stop(sprintf("rules_yaml file not found: %s", path), call. = FALSE)
   }
-  raw <- yaml::read_yaml(path)
+  # Read the bytes as UTF-8 without re-encoding them (#267): read_yaml()
+  # converts to the session's native encoding, and under LC_CTYPE=C a
+  # non-ASCII byte (the bundled file's em-dash) stops readLines() there,
+  # emptying or silently truncating the rules.
+  raw <- yaml::yaml.load(readLines(path, encoding = "UTF-8", warn = FALSE))
   if (length(raw) == 0) {
     return(list())
   }
