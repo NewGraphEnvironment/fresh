@@ -85,16 +85,16 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 ## Phase 4: Typed `frs_col_join()` (#239, #222 col_join)
 
-- [ ] Live tests (`test-frs_col_join.R`, using `frs_test_tbl()` names or `pg_temp`):
+- [x] Live tests (`test-frs_col_join.R`, using `frs_test_tbl()` names or `pg_temp`):
   - a subquery joining `double precision` and `integer` columns creates those types;
   - a table source with an ltree column works;
   - an unqualified source resolves through `search_path` to the same relation the UPDATE reads;
   - a column the source lacks errors before any `ALTER`.
-- [ ] Resolve types once for both tables and subqueries: `CREATE TEMP TABLE pg_temp.<unique> AS SELECT <cols> FROM <from> _src LIMIT 0`, then read `format_type()` from `pg_attribute`, then drop the temp table.
+- [x] *(Mechanism corrected during the build: no temp table. `.frs_query_col_types()` prepares `SELECT <cols> FROM <from> _src LIMIT 0` and reads the result's type OIDs through `DBI::dbColumnInfo()` and `format_type()`: no DDL, no temp-table privilege, one statement through any pooler. It loses the typmod, exactly as the `information_schema` lookup did, so link's columns keep their types.)* Resolve types once for both tables and subqueries: `CREATE TEMP TABLE pg_temp.<unique> AS SELECT <cols> FROM <from> _src LIMIT 0`, then read `format_type()` from `pg_attribute`, then drop the temp table.
   - The temp table resolves names exactly as the UPDATE does.
   - Remove the `text` fallback and the `information_schema` lookup.
   - Document that the call needs one backend and permission to create temp tables, as `frs_point_snap()` does.
-- [ ] Update the roxygen and the `CLAUDE.md` technical note "`frs_col_join()` subquery sources". The no-alias rule stays.
+- [x] Update the roxygen and the `CLAUDE.md` technical note "`frs_col_join()` subquery sources". The no-alias rule stays.
 
 ## Phase 5: Persist appends (#222, persist)
 

@@ -333,7 +333,7 @@ Small durable technical reference for internal behavior worth remembering.
 ### `frs_col_join()` subquery sources
 
 - A subquery `from` must **not** carry its own alias: the function appends `_src`, so `(...) sub` becomes `(...) sub _src`, which is a syntax error.
-- Columns joined from a subquery are created as `text` (types are discovered only for real tables). Cast downstream; `frs_channel_width()` already casts its inputs.
+- New columns take the source's types, for a table and a subquery alike (#239): `.frs_query_col_types()` prepares `SELECT <cols> FROM <from> _src LIMIT 0` and names each result column with `format_type(oid, NULL)`. Types carry no modifier (`character varying`, `numeric`, `geometry`), which is what the `information_schema` lookup it replaced gave for a table, so the columns link joins keep their types. A column the source lacks errors before any `ALTER`; a column already on the target keeps its type.
 
 ### Watershed family
 

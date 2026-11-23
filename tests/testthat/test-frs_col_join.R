@@ -1,17 +1,8 @@
 # --- Unit tests (no DB) ---
 
-.mock_type_query <- function(conn, sql) {
-  cols_match <- regmatches(sql, gregexpr("'[a-z_]+'", sql))[[1]]
-  cols_match <- gsub("'", "", cols_match)
-  known_tables <- c("public", "fwa_stream_networks_channel_width",
-    "fwa_stream_networks_mean_annual_precip", "fwa_stream_networks_discharge",
-    "custom_model", "widths", "lookup")
-  cols_match <- cols_match[!cols_match %in% known_tables]
-  data.frame(
-    column_name = cols_match,
-    data_type = rep("double precision", length(cols_match)),
-    stringsAsFactors = FALSE
-  )
+# The type probe reads the database; unit tests stand it in.
+.mock_col_types <- function(conn, from, cols) {
+  stats::setNames(rep("double precision", length(cols)), cols)
 }
 
 test_that("frs_col_join builds correct SQL for single key", {
@@ -19,10 +10,7 @@ test_that("frs_col_join builds correct SQL for single key", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) { sql_log <<- c(sql_log, sql); 0L }
   )
-  local_mocked_bindings(
-    dbGetQuery = function(conn, sql) .mock_type_query(conn, sql),
-    .package = "DBI"
-  )
+  local_mocked_bindings(.frs_query_col_types = .mock_col_types)
 
   frs_col_join("mock", "working.streams",
     from = "fwa_stream_networks_channel_width",
@@ -43,10 +31,7 @@ test_that("frs_col_join handles composite keys", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) { sql_log <<- c(sql_log, sql); 0L }
   )
-  local_mocked_bindings(
-    dbGetQuery = function(conn, sql) .mock_type_query(conn, sql),
-    .package = "DBI"
-  )
+  local_mocked_bindings(.frs_query_col_types = .mock_col_types)
 
   frs_col_join("mock", "working.streams",
     from = "fwa_stream_networks_mean_annual_precip",
@@ -63,10 +48,7 @@ test_that("frs_col_join handles named by (different column names)", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) { sql_log <<- c(sql_log, sql); 0L }
   )
-  local_mocked_bindings(
-    dbGetQuery = function(conn, sql) .mock_type_query(conn, sql),
-    .package = "DBI"
-  )
+  local_mocked_bindings(.frs_query_col_types = .mock_col_types)
 
   frs_col_join("mock", "working.streams",
     from = "custom_model.widths",
@@ -82,6 +64,7 @@ test_that("frs_col_join accepts subquery in from", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) { sql_log <<- c(sql_log, sql); 0L }
   )
+  local_mocked_bindings(.frs_query_col_types = .mock_col_types)
 
   frs_col_join("mock", "working.streams",
     from = "(SELECT l.linear_feature_id, ua.upstream_area_ha
@@ -108,10 +91,7 @@ test_that("frs_col_join returns conn invisibly", {
   local_mocked_bindings(
     .frs_db_execute = function(conn, sql) 0L
   )
-  local_mocked_bindings(
-    dbGetQuery = function(conn, sql) .mock_type_query(conn, sql),
-    .package = "DBI"
-  )
+  local_mocked_bindings(.frs_query_col_types = .mock_col_types)
 
   result <- frs_col_join("mock_conn", "working.streams",
     from = "lookup", cols = "x", by = "id")
@@ -148,4 +128,68 @@ test_that("frs_col_join adds channel_width from FWA lookup", {
 
   expect_true(nrow(result) > 0)
   expect_true(all(result$channel_width > 0))
+})
+
+
+# Columns are typed as the source has them, for a subquery as for a table
+# (#239), and an unqualified name is resolved as the UPDATE resolves it
+# (#222): the information_schema lookup this replaced typed a subquery's
+# columns text, could not see a pg_temp table, and said USER-DEFINED for
+# ltree.
+.cj_types <- function(conn, tbl, cols) {
+  got <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT a.attname AS col, format_type(a.atttypid, a.atttypmod) AS type
+     FROM pg_attribute a WHERE a.attrelid = %s::regclass AND a.attnum > 0
+       AND NOT a.attisdropped", .frs_quote_string(tbl)))
+  stats::setNames(got$type, got$col)[cols]
+}
+
+.cj_fixture <- function(conn) {
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.cj_src, pg_temp.cj_dst")
+  DBI::dbExecute(conn, "CREATE TEMP TABLE cj_src AS
+    SELECT 1::bigint AS linear_feature_id, 2.5::double precision AS mad_m3s,
+           7::integer AS n, '100.200'::ltree AS code")
+  DBI::dbExecute(conn, "CREATE TEMP TABLE cj_dst AS
+    SELECT 1::bigint AS linear_feature_id")
+}
+
+test_that("frs_col_join types a subquery's columns as the source has them (#239)", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .cj_fixture(conn)
+  frs_col_join(conn, "pg_temp.cj_dst",
+    from = "(SELECT linear_feature_id, mad_m3s, n FROM pg_temp.cj_src)",
+    cols = c("mad_m3s", "n"))
+  expect_equal(unname(.cj_types(conn, "pg_temp.cj_dst", c("mad_m3s", "n"))),
+               c("double precision", "integer"))
+  # The first numeric predicate on them, which failed on text columns.
+  expect_equal(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS k FROM pg_temp.cj_dst
+     WHERE mad_m3s BETWEEN 1 AND 3 AND n > 5")$k, 1L)
+})
+
+test_that("frs_col_join types an unqualified table and an ltree column (#222)", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .cj_fixture(conn)
+  # Unqualified, so it resolves through search_path (pg_temp first).
+  frs_col_join(conn, "pg_temp.cj_dst", from = "cj_src",
+               cols = c("mad_m3s", "code"))
+  expect_equal(unname(.cj_types(conn, "pg_temp.cj_dst", c("mad_m3s", "code"))),
+               c("double precision", "ltree"))
+  expect_equal(DBI::dbGetQuery(conn,
+    "SELECT code::text AS code FROM pg_temp.cj_dst")$code, "100.200")
+})
+
+test_that("frs_col_join errors on a column the source lacks, before any ALTER", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  .cj_fixture(conn)
+  expect_error(frs_col_join(conn, "pg_temp.cj_dst", from = "pg_temp.cj_src",
+                            cols = c("mad_m3s", "no_such_col")),
+               "no_such_col")
+  expect_false("mad_m3s" %in% .frs_cols_of(conn, "pg_temp.cj_dst"))
 })

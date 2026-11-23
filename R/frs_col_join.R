@@ -23,6 +23,10 @@
 #' @param from Character. Source table (or subquery wrapped in parentheses)
 #'   containing the columns to join.
 #' @param cols Character vector. Column names to add from the source table.
+#'   New columns take the source's types, for a table and a subquery alike
+#'   (read from the result of `SELECT <cols> FROM <from> LIMIT 0`, so
+#'   without a length or precision modifier: `character varying`,
+#'   `numeric`, `geometry`). A column already on `table` keeps its type.
 #' @param by Character vector. Join key(s). Unnamed elements match the same
 #'   column in both tables. Named elements map working table column (name) to
 #'   source column (value): `c(linear_feature_id = "lid")`. Default
@@ -81,33 +85,11 @@ frs_col_join <- function(conn, table, from, cols,
   stopifnot(is.character(by), length(by) > 0)
   for (col in cols) .frs_validate_identifier(col, "column")
 
-  # Discover source column types so new columns get the right type.
-  # For real tables, query information_schema. For subqueries, default to text.
-  col_types <- rep("text", length(cols))
-  names(col_types) <- cols
-  if (!is_subquery) {
-    src_parts <- strsplit(from, "\\.")[[1]]
-    src_table <- src_parts[length(src_parts)]
-
-    # Build schema filter: explicit schema if provided, otherwise search_path
-    schema_filter <- if (length(src_parts) == 2) {
-      sprintf("table_schema = '%s'", src_parts[1])
-    } else {
-      "table_schema = ANY(string_to_array(current_setting('search_path'), ', '))"
-    }
-
-    type_sql <- sprintf(
-      "SELECT column_name, data_type FROM information_schema.columns
-       WHERE %s AND table_name = '%s'
-         AND column_name IN (%s)",
-      schema_filter, src_table,
-      paste(sprintf("'%s'", cols), collapse = ", ")
-    )
-    type_info <- DBI::dbGetQuery(conn, type_sql)
-    for (i in seq_len(nrow(type_info))) {
-      col_types[type_info$column_name[i]] <- type_info$data_type[i]
-    }
-  }
+  # Type each new column as the source has it (#239, #222): read from the
+  # source exactly as the UPDATE below reads it, so a subquery is typed too
+  # and an unqualified name resolves through search_path to the same
+  # relation. A column the source lacks errors here, before any ALTER.
+  col_types <- .frs_query_col_types(conn, from, cols)
 
   # Add columns if they don't exist
   for (col in cols) {
@@ -141,4 +123,39 @@ frs_col_join <- function(conn, table, from, cols,
   .frs_db_execute(conn, sql)
 
   invisible(conn)
+}
+
+
+#' Types of a source's columns, as the database resolves them
+#'
+#' Prepares `SELECT <cols> FROM <from> _src LIMIT 0` and names each result
+#' column's type with `format_type()`. Nothing is fetched or written. The
+#' type carries no modifier (`character varying`, not `character
+#' varying(4)`), as `information_schema.columns.data_type` did before #239,
+#' so columns `frs_col_join()` creates keep the types they had for a table
+#' source. Unlike that lookup it types a subquery, names an extension type
+#' (`ltree`, `geometry`) rather than `USER-DEFINED`, and resolves an
+#' unqualified name through `search_path` once, as the `UPDATE` does.
+#'
+#' @param conn DBI connection.
+#' @param from Character. Table name or parenthesised subquery.
+#' @param cols Character vector of validated column names.
+#' @return Named character vector, `cols` -> type.
+#' @noRd
+.frs_query_col_types <- function(conn, from, cols) {
+  res <- DBI::dbSendQuery(conn, sprintf(
+    "SELECT %s FROM %s _src LIMIT 0",
+    paste(sprintf("_src.%s", cols), collapse = ", "), from))
+  info <- tryCatch(DBI::dbColumnInfo(res),
+                   finally = DBI::dbClearResult(res))
+  oids <- info[[".oid"]]
+  if (is.null(oids) || length(oids) != length(cols) || anyNA(oids)) {
+    stop("could not read the column types of ", from, call. = FALSE)
+  }
+  types <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT format_type(o, NULL) AS type
+     FROM unnest(ARRAY[%s]::oid[]) WITH ORDINALITY AS u(o, i) ORDER BY i",
+    paste(sprintf("%.0f", as.numeric(oids)), collapse = ", ")))$type
+  names(types) <- cols
+  types
 }
