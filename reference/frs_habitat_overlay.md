@@ -76,7 +76,9 @@ frs_habitat_overlay(
 
   Character vector. Columns used to match `from` to either `to` (when
   `bridge = NULL`) or to `bridge` (when bridge supplied). Default
-  `c("blue_line_key", "downstream_route_measure")`.
+  `c("blue_line_key", "downstream_route_measure")`. In direct mode a
+  `by` with `id_segment` must name the other keys `to` carries (see Two
+  join modes).
 
 - species_col:
 
@@ -119,7 +121,12 @@ Shape-translation lives with the consumer.
 ### Two join modes (`bridge`)
 
 - **Direct (`bridge = NULL`)** — the `to` table has the join keys
-  directly. SQL does `to.<by> = from.<by>` (point match).
+  directly. SQL does `to.<by> = from.<by>` (point match). A `by` holding
+  `id_segment` must also hold `watershed_group_code` when `to` carries
+  it, and `linear_feature_id` when both `to` and `from` carry it:
+  `id_segment` is unique only within a watershed group, so the short key
+  would update every group holding the same id. Such a call is refused.
+  The default point join needs neither.
 
 - **Bridged (`bridge = "<segments_table>"`)** — the `to` table is keyed
   by `(id_segment, watershed_group_code)` (e.g. `fresh.streams_habitat`)

@@ -11,7 +11,7 @@ habitat via frs_habitat_classify(), and persist results."><meta property="og:ima
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.55.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.56.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -223,10 +223,19 @@ Default <code>NULL</code> (no overrides).</p></dd>
 <dt id="arg-to-barriers">to_barriers<a class="anchor" aria-label="anchor" href="#arg-to-barriers"></a></dt>
 <dd><p>Character or <code>NULL</code>. Schema-qualified table for
 persisting gradient barriers. Includes <code>blue_line_key</code>,
-<code>downstream_route_measure</code>, <code>gradient_class</code>, <code>label</code>,
-<code>wscode_ltree</code>, <code>localcode_ltree</code>. Useful for link's
-<code>lnk_barrier_overrides()</code>. Default <code>NULL</code> (barriers dropped after
-segmentation).</p></dd>
+<code>downstream_route_measure</code>, <code>gradient_class</code>, <code>label</code>, <code>source</code>,
+<code>wscode_ltree</code>, <code>localcode_ltree</code>, and the <code>linear_feature_id</code> and
+<code>watershed_group_code</code> of the segment each barrier falls on. Each job
+replaces only the barriers on its own segments, keyed by
+<code>linear_feature_id</code>, so a table shared by several watershed groups or
+AOIs keeps each one's barriers at its own gradient classes. Barrier
+detection reads whole blue lines, but the part of a line outside the
+job's segments (another watershed group, or beyond a custom AOI) is
+left to the job that covers it: run that group too if you need its
+barriers. Two jobs over the same segments still replace each other's.
+A table written before these two columns existed is refused: drop it
+and re-run. Useful for link's <code>lnk_barrier_overrides()</code>. Default <code>NULL</code>
+(barriers dropped after segmentation).</p></dd>
 
 
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>

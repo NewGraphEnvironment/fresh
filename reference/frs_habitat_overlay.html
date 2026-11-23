@@ -19,7 +19,7 @@ boolean-flagged target."><meta property="og:image" content="https://newgraphenvi
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.55.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.56.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -126,7 +126,9 @@ per-row indicator column).</p></dd>
 <dt id="arg-by">by<a class="anchor" aria-label="anchor" href="#arg-by"></a></dt>
 <dd><p>Character vector. Columns used to match <code>from</code> to either
 <code>to</code> (when <code>bridge = NULL</code>) or to <code>bridge</code> (when bridge supplied).
-Default <code>c("blue_line_key", "downstream_route_measure")</code>.</p></dd>
+Default <code>c("blue_line_key", "downstream_route_measure")</code>. In direct
+mode a <code>by</code> with <code>id_segment</code> must name the other keys <code>to</code> carries
+(see Two join modes).</p></dd>
 
 
 <dt id="arg-species-col">species_col<a class="anchor" aria-label="anchor" href="#arg-species-col"></a></dt>
@@ -169,7 +171,12 @@ overlay. Shape-translation lives with the consumer.</p>
 <h3 id="two-join-modes-bridge-">Two join modes (<code>bridge</code>)<a class="anchor" aria-label="anchor" href="#two-join-modes-bridge-"></a></h3>
 
 <ul><li><p><strong>Direct (<code>bridge = NULL</code>)</strong> — the <code>to</code> table has the join keys
-directly. SQL does <code>to.&lt;by&gt; = from.&lt;by&gt;</code> (point match).</p></li>
+directly. SQL does <code>to.&lt;by&gt; = from.&lt;by&gt;</code> (point match). A <code>by</code>
+holding <code>id_segment</code> must also hold <code>watershed_group_code</code> when <code>to</code>
+carries it, and <code>linear_feature_id</code> when both <code>to</code> and <code>from</code> carry
+it: <code>id_segment</code> is unique only within a watershed group, so the
+short key would update every group holding the same id. Such a call
+is refused. The default point join needs neither.</p></li>
 <li><p><strong>Bridged (<code>bridge = "&lt;segments_table&gt;"</code>)</strong> — the <code>to</code> table is
 keyed by <code>(id_segment, watershed_group_code)</code> (e.g.
 <code>fresh.streams_habitat</code>) and lacks the geographic keys in <code>by</code>. The
