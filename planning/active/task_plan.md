@@ -120,7 +120,7 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 - [ ] Run link's test suite against fresh `main` and against this branch, each from its own temporary library, and compare test by test (the method in #318's archive README).
   - Any difference must trace to #250's reservoir lines and nothing else.
 - [x] Direct #250 check (review Acceptance 2): classify one group with reservoirs on `main` and on the branch; `accessible`, `spawning`, `rearing` and `wetland_rearing` identical, every `lake_rearing` difference FALSE to TRUE on a manmade `waterbody_key`.
-- [ ] `devtools::document()`, `lintr` per-file diff against `main`, and `pkgdown::check_pkgdown()`.
+- [x] `devtools::document()`, `lintr` per-file diff against `main`, and `pkgdown::check_pkgdown()`.
 - [ ] Update `NEWS.md` and bump `DESCRIPTION` to 0.57.0 as the final commit. NEWS names the deliberate `lake_rearing` change, and that link takes it at its pin bump.
 
 ## Owed at the end (reported, done after merge)

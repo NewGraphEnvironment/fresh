@@ -1577,9 +1577,9 @@
 
 #' Column names and types of a table
 #'
-#' As [.frs_cols_of()], with each column's `format_type()` (modifier
+#' As `.frs_cols_of()`, with each column's `format_type()` (modifier
 #' included). One helper so the flag-column check in
-#' [.frs_habitat_target()] can be stood in by tests that mock the column
+#' `.frs_habitat_target()` can be stood in by tests that mock the column
 #' lookups.
 #'
 #' @param conn DBI connection.
