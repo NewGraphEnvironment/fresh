@@ -125,7 +125,7 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 ## Owed at the end (reported, done after merge)
 
-- [ ] File a link issue covering two things:
+- [ ] File a link issue covering four things:
   - `.lnk_discharge_join()` can drop its own `ADD COLUMN mad_m3s double precision` workaround once link pins ≥ 0.57.0 (#239);
   - the pin bump moves `lake_rearing` to include reservoirs (#250). Re-run `data-raw/pretest_run.sh` at that bump;
   - link's own #267: `names(yaml::read_yaml(rules_path))` in `lnk_config.R` reads nothing under the C locale;
@@ -133,10 +133,10 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 ## Validation
 
-- [ ] Tests pass
+- [x] Tests pass
 - [x] `/code-check` clean (once over the branch with `/code-check branch`)
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 How each change is proved:
 

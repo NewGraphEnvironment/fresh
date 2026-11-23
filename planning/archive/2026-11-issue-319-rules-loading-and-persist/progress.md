@@ -18,3 +18,4 @@
 - link suite (03:3x-03:47Z): identical test by test, fresh main vs branch (findings.md).
 - code-check branch: round 1 clean, round 2 clean (parallel with 3), round 3: two findings, both real. (1) `format_type(oid, NULL)` names char(n)/bit(n) `character`/`bit` = char(1)/bit(1): a subquery char(4) column broke the UPDATE and stayed; now mapped to the varying forms (+arrays), test red then green. (2) CLAUDE.md note over-claimed what the old lookup gave for geometry; corrected. NEWS updated.
 - code-check round 4: no bug in the round-3 fix (24-type catalog enumeration, domains/enums/ranges/arrays swept, guard proven by revert); one finding inside round 3's fix: NEWS/CLAUDE.md said a table source keeps its types, false for char(n)/bit(n). Reworded, plus the helper roxygen. Loop ended on enumeration (findings.md): 24 types, 6 claims.
+- Final full suite on d035ef3 (04:11-04:24Z): 2,962 expectations, 0 fail, 0 error, 6 skips (fwapg trial gates, no bcfishpass schema).
