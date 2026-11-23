@@ -138,3 +138,6 @@ The branch's six touched test files, copied into a worktree of `origin/main` (f3
 - `.frs_habitat_target`, `.frs_col_types_of`: add a flag only where it is missing.
 - `.frs_near_river_check`: message text only.
 - `frs_habitat_predicates`: `lake_rear` includes reservoirs (deliberate, #250).
+
+### link's suite, fresh main vs branch
+link origin/main (be06e2b4) worktree, `devtools::test()` with `R_LIBS` naming a library holding fresh main (f3e331d) or the branch (21db9a1), each confirmed by `find.package()` and by whether `.frs_query_col_types` exists. 1,492 tests on each side; every test's expectation count, failures, errors and skips identical (0 rows differ). Both sides: 2 failures + 3 errors in 4 tests (`lnk_habitat_validate` near_river persisted distances, `lnk_pipeline_prepare` study_area_run.sh #349, two `lnk_wsg_resolve` closure tests): link's own, identical with fresh main. As the plan review predicted, no link test reads fresh's `lake_rearing` from a database, so the #250 change shows only in the direct CHWK check above.
