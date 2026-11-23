@@ -133,12 +133,13 @@ frs_col_join <- function(conn, table, from, cols,
 #' column's type with `format_type()`. Nothing is fetched or written. The
 #' type carries no modifier (`character varying`, not `character
 #' varying(4)`), as `information_schema.columns.data_type` did before #239,
-#' except that `char(n)` and `bit(n)` become `character varying` and
-#' `bit varying`, whose bare forms would mean `char(1)` and `bit(1)`,
-#' so columns `frs_col_join()` creates keep the types they had for a table
-#' source. Unlike that lookup it types a subquery, names an extension type
-#' (`ltree`, `geometry`) rather than `USER-DEFINED`, and resolves an
-#' unqualified name through `search_path` once, as the `UPDATE` does.
+#' so a table source's built-in scalar columns are created with the types
+#' they had. Two exceptions: `char(n)` and `bit(n)` become `character
+#' varying` and `bit varying`, because their bare forms mean `char(1)` and
+#' `bit(1)` (the old lookup created them one wide). Unlike that lookup it
+#' types a subquery, names an extension type (`ltree`, `geometry`) rather
+#' than `USER-DEFINED`, and resolves an unqualified name through
+#' `search_path` once, as the `UPDATE` does.
 #'
 #' @param conn DBI connection.
 #' @param from Character. Table name or parenthesised subquery.
