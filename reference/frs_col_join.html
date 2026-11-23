@@ -13,7 +13,7 @@ model output."><meta property="og:image" content="https://newgraphenvironment.gi
 
     <a class="navbar-brand me-2" href="../index.html">fresh</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.56.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.57.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,7 +74,11 @@ containing the columns to join.</p></dd>
 
 
 <dt id="arg-cols">cols<a class="anchor" aria-label="anchor" href="#arg-cols"></a></dt>
-<dd><p>Character vector. Column names to add from the source table.</p></dd>
+<dd><p>Character vector. Column names to add from the source table.
+New columns take the source's types, for a table and a subquery alike
+(read from the result of <code>SELECT &lt;cols&gt; FROM &lt;from&gt; LIMIT 0</code>, so
+without a length or precision modifier: <code>character varying</code>,
+<code>numeric</code>, <code>geometry</code>; <code>char(n)</code> and <code>bit(n)</code> become <code>character varying</code> and <code>bit varying</code>). A column already on <code>table</code> keeps its type.</p></dd>
 
 
 <dt id="arg-by">by<a class="anchor" aria-label="anchor" href="#arg-by"></a></dt>

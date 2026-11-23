@@ -33,7 +33,13 @@ frs_col_join(conn, table, from, cols, by = "linear_feature_id")
 
 - cols:
 
-  Character vector. Column names to add from the source table.
+  Character vector. Column names to add from the source table. New
+  columns take the source's types, for a table and a subquery alike
+  (read from the result of `SELECT <cols> FROM <from> LIMIT 0`, so
+  without a length or precision modifier: `character varying`,
+  `numeric`, `geometry`; `char(n)` and `bit(n)` become
+  `character varying` and `bit varying`). A column already on `table`
+  keeps its type.
 
 - by:
 

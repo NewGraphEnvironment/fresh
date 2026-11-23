@@ -1,5 +1,63 @@
 # Changelog
 
+## fresh 0.57.0
+
+Fixes [\#267](https://github.com/NewGraphEnvironment/fresh/issues/267),
+[\#250](https://github.com/NewGraphEnvironment/fresh/issues/250),
+[\#251](https://github.com/NewGraphEnvironment/fresh/issues/251),
+[\#239](https://github.com/NewGraphEnvironment/fresh/issues/239) and
+[\#222](https://github.com/NewGraphEnvironment/fresh/issues/222).
+
+**`lake_rearing` now counts reservoirs.** This changes output. - A
+species’ `waterbody_type: L` rule already admitted reservoir lines (FWA
+manmade waterbodies) to `rearing`, but its `lake_rearing` bucket read
+natural lakes only. Both now read lakes and reservoirs, with the rule’s
+`lake_ha_min` on each. On CHWK, CO gains 24 `lake_rearing` lines on 4
+reservoirs and BT gains 20 on 2. `accessible`, `spawning`, `rearing` and
+`wetland_rearing` are unchanged, and every changed line lies in a
+reservoir. - Pipelines that persist `lake_rearing`, link among them, see
+this change when they move to this release. -
+[`frs_habitat_species()`](https://newgraphenvironment.github.io/fresh/reference/frs_habitat_species.md),
+the older wide-format path, still reads lakes only
+([\#330](https://github.com/NewGraphEnvironment/fresh/issues/330)).
+
+**Rules load the same way in every locale.** Under the C or POSIX
+locale, the bundled rules file loaded with no rules at all. That file
+has one non-ASCII character, in a comment. In other files, everything
+after such a character was silently dropped. Rules files are now read as
+UTF-8 whatever the session’s locale.
+
+**A rules file that says nothing is no longer read as saying
+something.** - A rule key with no value (`key:`, `key: ~`) is refused,
+as are empty `channel_width_min_bypass` sub-keys. Before, they were read
+as absent, so a file that loaded with one quietly lost that predicate.
+`spawn_connected` is unchanged. - `gradient` and `channel_width` must be
+a finite `[min, max]` with `min <= max`. A reversed range used to match
+nothing without an error. A mixed integer/decimal range such as
+`[0, 0.05]`, refused before, is now accepted. - Waterbody-connected
+spawning applies no area floor when the rule declares none. It used to
+apply 200 ha. Rules that set `lake_ha_min`, including every bundled SK
+and KO rule, get exactly the SQL they did before.
+
+**[`frs_col_join()`](https://newgraphenvironment.github.io/fresh/reference/frs_col_join.md)
+gives new columns the source’s types.** A subquery’s columns were
+created as `text`, so the first numeric comparison on them failed. They
+now take the subquery’s types. A table source’s columns keep the types
+they had, except `char(n)` and `bit(n)`, which were created one
+character (or bit) wide and are now `character varying` and
+`bit varying`. An unqualified source name resolves as the update
+resolves it, `ltree` and `geometry` columns can be joined, and a column
+the source lacks is refused before any column is added. Types carry no
+length or precision modifier.
+
+**Writing into an older table.** - A `to_habitat` created before a flag
+column existed (`wetland_rearing`) gains that column, and its older rows
+read `NULL` there. Before, the write failed after the partition delete.
+A flag column that is not boolean is refused before anything is
+changed. - `frs_feature_find(append = TRUE, col_id = ...)` adds
+`feature_id` to a target created without it, and refuses one that is not
+text.
+
 ## fresh 0.56.0
 
 Fixes [\#294](https://github.com/NewGraphEnvironment/fresh/issues/294),

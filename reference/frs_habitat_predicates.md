@@ -171,7 +171,9 @@ gated on the presence of a `waterbody_type: L` / `waterbody_type: W`
 rule in `rear:`. Without the rule, the predicate is `"FALSE"` — the
 species is not lake or wetland-rearing. With the rule, the predicate is
 polygon membership, filtered by the rule's optional `lake_ha_min` /
-`wetland_ha_min`. It carries no channel-width or discharge test under
+`wetland_ha_min`. `lake_rear` reads lakes and reservoirs (FWA manmade
+waterbodies), the same polygons an L rule's `rear` predicate reads, with
+the floor on each. It carries no channel-width or discharge test under
 either model: the line through a polygon measures its inflow, not the
 polygon. Connection to spawning is applied after classification, for
 rules that carry `requires_connected: spawning` (see
@@ -217,7 +219,7 @@ preds <- frs_habitat_predicates(sp_params)
 preds$spawn
 #> [1] "((s.edge_type IN (1000, 1100, 2000, 2300) AND s.waterbody_key IS NULL AND s.gradient BETWEEN 0 AND 0.0549 AND s.channel_width BETWEEN 2 AND 9999) OR (s.waterbody_key IN (SELECT waterbody_key FROM whse_basemapping.fwa_rivers_poly) AND s.gradient BETWEEN 0 AND 0.0549 AND s.channel_width BETWEEN 0 AND 9999))"
 preds$lake_rear
-#> [1] "s.waterbody_key IN (\n         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly WHERE area_ha >= 2)"
+#> [1] "s.waterbody_key IN (\n         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly WHERE area_ha >= 2 UNION ALL SELECT waterbody_key FROM whse_basemapping.fwa_manmade_waterbodies_poly WHERE area_ha >= 2)"
 
 # Discharge-based model, as for a `mad` watershed group
 frs_habitat_predicates(sp_params, model = "mad")$spawn
