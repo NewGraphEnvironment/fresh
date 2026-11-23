@@ -151,7 +151,8 @@ test_that("waterbody_type: L without lake_ha_min -> join with no WHERE filter", 
   sp <- sp_with_rules(rules = list(
     rear = list(list(waterbody_type = "L"))))
   preds <- frs_habitat_predicates(sp)
-  expect_match(preds$lake_rear, "fwa_lakes_poly\\)")
+  expect_match(preds$lake_rear,
+    "fwa_lakes_poly UNION ALL SELECT waterbody_key FROM whse_basemapping\\.fwa_manmade_waterbodies_poly\\)")
   expect_no_match(preds$lake_rear, "area_ha")
 })
 
@@ -176,10 +177,37 @@ test_that("lake / wetland buckets are sized by polygon area only under cw (#240)
     rear = list(list(waterbody_type = "L", lake_ha_min = 200),
                 list(waterbody_type = "W", wetland_ha_min = 1.5))))
   preds <- frs_habitat_predicates(sp)
-  expect_equal(preds$lake_rear, "s.waterbody_key IN (
-         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly WHERE area_ha >= 200)")
+  expect_equal(preds$lake_rear, paste0("s.waterbody_key IN (
+         SELECT waterbody_key FROM whse_basemapping.fwa_lakes_poly ",
+    "WHERE area_ha >= 200 UNION ALL SELECT waterbody_key FROM ",
+    "whse_basemapping.fwa_manmade_waterbodies_poly WHERE area_ha >= 200)"))
   expect_false(grepl("channel_width|mad_m3s", preds$wetland_rear))
   expect_match(preds$wetland_rear, "fwa_wetlands_poly WHERE area_ha >= 1\\.5")
+})
+
+test_that("lake bucket reads lakes and reservoirs, as the L rule does (#250)", {
+  # The rule's `rear` predicate (.frs_rule_to_sql) and its bucket must read
+  # the same polygons, each with the floor.
+  for (floor in list(200, NULL)) {
+    rule <- list(waterbody_type = "L")
+    rule$lake_ha_min <- floor
+    preds <- frs_habitat_predicates(sp_with_rules(rules = list(
+      rear = list(rule))))
+    for (tbl in .frs_waterbody_tables("L")) {
+      tail <- if (is.null(floor)) "" else " WHERE area_ha >= 200"
+      expect_true(grepl(paste0("FROM ", tbl, tail), preds$lake_rear,
+                        fixed = TRUE), info = paste(tbl, floor))
+      expect_true(grepl(paste0("FROM ", tbl, tail), preds$rear,
+                        fixed = TRUE), info = paste(tbl, floor))
+    }
+    expect_equal(lengths(regmatches(preds$lake_rear,
+      gregexpr("area_ha", preds$lake_rear))), if (is.null(floor)) 0L else 2L)
+  }
+  # Wetlands: one table, the same string as before #250.
+  preds <- frs_habitat_predicates(sp_with_rules(rules = list(
+    rear = list(list(waterbody_type = "W", wetland_ha_min = 1.5)))))
+  expect_equal(preds$wetland_rear, "s.waterbody_key IN (
+         SELECT waterbody_key FROM whse_basemapping.fwa_wetlands_poly WHERE area_ha >= 1.5)")
 })
 
 test_that("rear predicate applies the W rule's wetland_ha_min (#237)", {

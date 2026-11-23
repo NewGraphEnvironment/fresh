@@ -1289,11 +1289,12 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 
         # Detect waterbody-connected rearing: use two-phase approach.
         # The floor is read from the key of the rule's type (a W rule's
-        # wetland_ha_min, not lake_ha_min; fresh#237); 200 ha when the
-        # rule declares none.
+        # wetland_ha_min, not lake_ha_min; fresh#237). A rule that declares
+        # none has none here too, as in its rearing predicate (fresh#251):
+        # this used to fall back to 200 ha that no rule stated.
         rear_rules <- ps[["rules"]][["rear"]]
         wb_type <- NULL
-        wb_ha_min <- 200
+        wb_ha_min <- NULL
         for (rr in rear_rules) {
           wt <- rr[["waterbody_type"]]
           if (!is.null(wt) && wt %in% c("L", "W")) {
@@ -1643,8 +1644,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #'
 #' Phase 2 (upstream): find spawn-eligible segments upstream of
 #' rearing via `FWA_Upstream()`, cluster with `ST_ClusterDBSCAN`,
-#' keep only clusters within 2m of a qualifying lake polygon
-#' (`fwa_lakes_poly` with `area_ha >= lake_ha_min`).
+#' keep only clusters within 2m of a qualifying lake or reservoir polygon
+#' (`area_ha >= waterbody_ha_min` when the rule declares a floor).
 #'
 #' @noRd
 #' Trace downstream from origins with distance cap and gradient stop
@@ -1792,8 +1793,9 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #'   table(s) (e.g. `c("whse_basemapping.fwa_lakes_poly",
 #'   "whse_basemapping.fwa_manmade_waterbodies_poly")`). Multiple tables are
 #'   checked via UNION ALL — a cluster near ANY qualifying polygon qualifies.
-#' @param waterbody_ha_min Numeric. Minimum area (ha) for qualifying
-#'   waterbody polygons.
+#' @param waterbody_ha_min Numeric or `NULL`. Minimum area (ha) for
+#'   qualifying waterbody polygons; `NULL` (the default) puts no area test
+#'   on them, as a rule that declares no floor means (fresh#251).
 #' @param bridge_gradient Numeric. Gradient threshold for downstream trace
 #'   barrier detection.
 #' @param distance_max Numeric. Maximum downstream trace distance (metres).
@@ -1818,14 +1820,15 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #' @noRd
 .frs_connected_waterbody <- function(conn, table, habitat,
                                      species, waterbody_poly,
-                                     waterbody_ha_min = 200,
+                                     waterbody_ha_min = NULL,
                                      bridge_gradient = 0.05,
                                      distance_max = 3000,
                                      spawn_connected = NULL,
                                      lake_adjacent = TRUE,
                                      verbose = TRUE) {
   sp_quoted <- .frs_quote_string(species)
-  lhm <- .frs_sql_num(waterbody_ha_min)
+  area_clause <- if (is.null(waterbody_ha_min)) "" else
+    sprintf("lp.area_ha >= %s AND ", .frs_sql_num(waterbody_ha_min))
   lfid <- .frs_lfid_pair(conn, habitat, table)
   key <- .frs_key_match("h", "s", lfid)
   part <- .frs_wsg_in(table, if (lfid) "linear_feature_id" else
@@ -1911,8 +1914,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
     wb_exists <- paste(vapply(waterbody_poly, function(wt) {
       sprintf(
         "EXISTS (SELECT 1 FROM %s lp
-         WHERE lp.area_ha >= %s AND ST_DWithin(cg.geom, lp.geom, 2))",
-        wt, lhm)
+         WHERE %sST_DWithin(cg.geom, lp.geom, 2))",
+        wt, area_clause)
     }, character(1)), collapse = " OR ")
 
     .frs_db_execute(conn, sprintf(

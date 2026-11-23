@@ -441,7 +441,7 @@ test_that("integration: frs_network_segment carries mad_m3s (fresh#114)", {
 # Shared helper to invoke the function with a stubbed DB connection,
 # stubbed DBI::dbGetQuery (used only for the verbose count) and stubbed
 # .frs_trace_downstream (Phase 1; emits no SQL via .frs_db_execute).
-.run_connected_waterbody <- function(lake_adjacent_arg) {
+.run_connected_waterbody <- function(lake_adjacent_arg, ha_min = 200) {
   sql_log <- character(0)
   testthat::local_mocked_bindings(
     .frs_db_execute = function(conn, sql) {
@@ -468,7 +468,7 @@ test_that("integration: frs_network_segment carries mad_m3s (fresh#114)", {
     species = "SK",
     waterbody_poly = c("whse_basemapping.fwa_lakes_poly",
                        "whse_basemapping.fwa_manmade_waterbodies_poly"),
-    waterbody_ha_min = 200,
+    waterbody_ha_min = ha_min,
     bridge_gradient = 0.05,
     distance_max = 3000,
     spawn_connected = NULL,
@@ -598,9 +598,19 @@ test_that(".frs_run_connectivity passes a W rule's wetland_ha_min as the waterbo
                    cluster_spawn_bridge_distance = NA_real_)
   .frs_run_connectivity("mock", "w.s", "w.h", species = c("XW", "XL", "XN"),
     params = params, params_fresh = pf, verbose = FALSE)
-  expect_equal(vapply(calls, `[[`, numeric(1), "waterbody_ha_min"),
-               c(1.5, 50, 200))
+  # XN's W rule declares no floor, so none applies (fresh#251): before, it
+  # fell back to 200 ha that no rule stated.
+  expect_equal(lapply(calls, `[[`, "waterbody_ha_min"), list(1.5, 50, NULL))
   expect_match(calls[[1]]$waterbody_poly, "fwa_wetlands_poly")
+})
+
+test_that(".frs_connected_waterbody with no floor puts no area test on the polygons (#251)", {
+  sql <- paste(.run_connected_waterbody(TRUE, ha_min = NULL), collapse = "\n")
+  expect_match(sql, "ST_DWithin(cg.geom, lp.geom, 2)", fixed = TRUE)
+  expect_no_match(sql, "area_ha")
+  sql <- paste(.run_connected_waterbody(TRUE, ha_min = 200), collapse = "\n")
+  expect_equal(lengths(regmatches(sql, gregexpr("lp.area_ha >= 200 AND",
+    sql, fixed = TRUE))), 2L)
 })
 
 # The bucket pass runs per L / W rule carrying requires_connected, whatever

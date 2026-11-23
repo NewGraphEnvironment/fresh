@@ -14,7 +14,11 @@ frs_col_join(conn, table, from, cols, by = "linear_feature_id")
 \item{from}{Character. Source table (or subquery wrapped in parentheses)
 containing the columns to join.}
 
-\item{cols}{Character vector. Column names to add from the source table.}
+\item{cols}{Character vector. Column names to add from the source table.
+New columns take the source's types, for a table and a subquery alike
+(read from the result of \verb{SELECT <cols> FROM <from> LIMIT 0}, so
+without a length or precision modifier: \verb{character varying},
+\code{numeric}, \code{geometry}; \code{char(n)} and \code{bit(n)} become \verb{character varying} and \verb{bit varying}). A column already on \code{table} keeps its type.}
 
 \item{by}{Character vector. Join key(s). Unnamed elements match the same
 column in both tables. Named elements map working table column (name) to

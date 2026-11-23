@@ -98,17 +98,38 @@
   cols_from <- .frs_cols_of(conn, table)
   lfid <- "linear_feature_id" %in% cols_from
 
+  # The habitat flags classify writes. One vector for the CREATE and for
+  # the migration below, so a flag added later reaches both (#222).
+  cols_flags <- c("accessible", "spawning", "rearing", "lake_rearing",
+                  "wetland_rearing")
   .frs_db_execute(conn, sprintf(
     "CREATE TABLE IF NOT EXISTS %s (
        id_segment integer,%s
        watershed_group_code character varying(4),
        species_code text,
-       accessible boolean,
-       spawning boolean,
-       rearing boolean,
-       lake_rearing boolean,
-       wetland_rearing boolean
-     )", to, if (lfid) "\n       linear_feature_id bigint," else ""))
+       %s
+     )", to, if (lfid) "\n       linear_feature_id bigint," else "",
+    paste(cols_flags, "boolean", collapse = ",\n       ")))
+
+  # A target made before a flag existed (wetland_rearing) would fail the
+  # INSERT after the partition DELETE, rolled back but with an error that
+  # names neither (#222). Add a missing flag as the CREATE would have, as
+  # .frs_persist_columns() does for to_streams; its older rows read NULL,
+  # "never classified". A flag of another type is refused here, before
+  # anything is deleted.
+  types_to <- .frs_col_types_of(conn, to)
+  flag_types <- types_to$type[match(cols_flags, types_to$col)]
+  bad <- !is.na(flag_types) & flag_types != "boolean"
+  if (any(bad)) {
+    stop(sprintf(
+      "%s has habitat flag columns that are not boolean: %s. Drop or migrate %s and re-run.",
+      to, paste0(cols_flags[bad], " (", flag_types[bad], ")", collapse = ", "),
+      to), call. = FALSE)
+  }
+  for (col in cols_flags[is.na(flag_types)]) {
+    .frs_db_execute(conn, sprintf(
+      "ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s boolean", to, col))
+  }
 
   cols_to <- .frs_cols_of(conn, to)
   cols_added <- character()
@@ -1551,6 +1572,29 @@
        AND a.attnum > 0 AND NOT a.attisdropped
      ORDER BY a.attnum", .frs_quote_string(tbl)))
   as.character(d$col)
+}
+
+
+#' Column names and types of a table
+#'
+#' As `.frs_cols_of()`, with each column's `format_type()` (modifier
+#' included). One helper so the flag-column check in
+#' `.frs_habitat_target()` can be stood in by tests that mock the column
+#' lookups.
+#'
+#' @param conn DBI connection.
+#' @param tbl Character. Table name.
+#' @return Data frame with `col` and `type`, in column order; zero rows when
+#'   the table does not exist.
+#' @noRd
+.frs_col_types_of <- function(conn, tbl) {
+  .frs_validate_identifier(tbl, "table")
+  DBI::dbGetQuery(conn, sprintf(
+    "SELECT a.attname AS col, format_type(a.atttypid, a.atttypmod) AS type
+     FROM pg_attribute a
+     WHERE a.attrelid = to_regclass(%s)
+       AND a.attnum > 0 AND NOT a.attisdropped
+     ORDER BY a.attnum", .frs_quote_string(tbl)))
 }
 
 

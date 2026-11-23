@@ -347,15 +347,16 @@ frs_near_river <- function(conn, table, to, threshold, distance_max,
                  else "the columns frs_network_segment() writes"),
          call. = FALSE)
   }
-  # The walk compares each size column with a number; frs_col_join() types
-  # a joined column `text`, which Postgres would refuse mid-walk.
+  # The walk compares each size column with a number; a column joined as
+  # `text` (frs_col_join() did that to a subquery's columns before #239)
+  # would be refused by Postgres mid-walk.
   frame <- DBI::dbGetQuery(conn, sprintf("SELECT %s FROM %s LIMIT 0",
                                          paste(size_cols, collapse = ", "),
                                          table))
   not_num <- size_cols[!vapply(frame[size_cols], is.numeric, logical(1))]
   if (length(not_num) > 0) {
-    stop(sprintf(paste0("%s: %s must be numeric, got %s (frs_col_join() ",
-                        "types a joined column text; cast it)"), table,
+    stop(sprintf(paste0("%s: %s must be numeric, got %s (a column joined ",
+                        "as text must be cast)"), table,
                  paste(not_num, collapse = ", "),
                  paste(vapply(frame[not_num], function(x) class(x)[1],
                               character(1)), collapse = ", ")),

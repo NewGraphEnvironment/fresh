@@ -303,7 +303,21 @@ test_that("NA or absent columns compile every fixture rule as 0.41.0 did", {
           now <- frs_habitat_predicates(sp_of(params, sp), model = model,
             near_river_table = "w.streams_near_river",
             near_river_lfid = FALSE)
-          expect_identical(now, frozen[[key]],
+          # lake_rear reads reservoirs as well since 0.57.0 (#250): the
+          # frozen text plus exactly that arm, at the same floor. Every
+          # other predicate is byte-identical.
+          want <- frozen[[key]]
+          if (!identical(want$lake_rear, "FALSE")) {
+            want$lake_rear <- sub(
+              "FROM whse_basemapping\\.fwa_lakes_poly( WHERE area_ha >= [0-9.e+-]+)?\\)$",
+              paste0("FROM whse_basemapping.fwa_lakes_poly\\1 UNION ALL ",
+                     "SELECT waterbody_key FROM ",
+                     "whse_basemapping.fwa_manmade_waterbodies_poly\\1)"),
+              want$lake_rear)
+            expect_false(identical(want$lake_rear, frozen[[key]]$lake_rear),
+                         info = paste(key, "frozen lake_rear not rewritten"))
+          }
+          expect_identical(now, want,
                            info = paste(key, "with_cols", with_cols))
         }
       }

@@ -1,0 +1,27 @@
+# Code-check round 3 (#319 branch, ae56e31)
+
+## Checklist read
+
+- code-check.md: the prose of all fourteen H3s under `## Mechanisms`, table rows and evidence blocks skipped (a fuller read of the first five, the opening paragraphs of the other nine). Of the standalone and security headings, read "Documentation Staleness" and "Bare `y`, `n`, `on`, `off`, `yes`, `no` are booleans in YAML 1.1"; the other ~20 were not read because nothing in the diff touches their area.
+- code-check-r.md, by heading: "R's `yaml` returns a mixed int/float sequence as a list, not a numeric vector", "An `information_schema` lookup by the literal table name misses what Postgres resolves", "A database driver's value is not a base R type — and it fails twice". The ~125 other headings were not read: no tool, shape or pattern in the diff matches them.
+- code-check-infra.md: the Docker / Postgres section, from "Function-as-join-predicate" through the cascade-drop rule. Cloud-init, OpenTofu, DigitalOcean and Tailscale were not read, as none of them applies to this diff. So it was not read in full.
+- code-check-shell.md and code-check-spatial.md: index only. The diff has no shell and no spatial code.
+
+## What was checked and held
+
+- **#251.** Every link rules file under `inst/extdata` (bcfishpass, default, default_extrabreaks, default_rearbreaks, parameters_habitat_rules) and fresh's bundled file were checked: each species with `requires_connected` on a spawn rule has a first L/W rear rule with `lake_ha_min: 200` (SK, KO). So `.frs_run_connectivity()`, which link reaches through `getFromNamespace`, writes the same SQL there. The text of the old and the new `wb_exists` is identical when a floor is set.
+- **#250.** The bucket predicate and `.frs_rule_to_sql()` now both read `.frs_waterbody_tables("L")`, with the floor on each table. `.frs_bucket_connected()` keys on `waterbody_key` and reads no polygon table. `.frs_connected_waterbody()` reads `rearing`, not `lake_rearing`. link's `lnk_compare_rollup` already reads lakes and reservoirs, and its `lnk_compare_wsg` names both in its doc. The only reader still on lakes alone is the legacy `frs_habitat_species()` (#330, accepted).
+- **#267.** Under `LC_ALL=C`, the branch's `.frs_load_rules()` returns 11 species, where `yaml::read_yaml()` returns 0. `yaml.load()` pastes the vector with `"\n"` and calls `enc2utf8()`.
+- **#222 ranges.** The range readers are `.frs_rule_to_sql()` (`g[1]`, `g[2]`; `unlist(mad)`) and link's `.lnk_order_child_bounds()` (`rule$channel_width[[1]]`, `rule$gradient[[2]]`). Both work on the numeric vector the loader now stores. The empty-key refusal cannot be reached from link's `lnk_rules_build()`, which assigns optional keys with `$<-` (a NULL drops the key) and never writes a NULL element.
+- `.frs_query_col_types()`: RPostgres returns `.oid` as integer, and `finally` clears the result. The joined sources are all `relkind = 'r'` tables, so the old `information_schema` lookup saw them too.
+- Tests run with NOT_CRAN=true on frs_break, frs_channel_width, frs_col_join, frs_connectivity_wsg, frs_cluster, frs_habitat, frs_habitat_classify, habitat_partition_293, frs_params, frs_habitat_predicates and near_river_inherit: FAILED 0, ERR 0, SKIP 2 (bcfishpass schema absent).
+
+## Findings
+
+- **[severity: fragile]** R/frs_col_join.R:144-160 (`.frs_query_col_types()`). For `bpchar` and `bit`, `format_type(oid, NULL)` returns `character` and `bit`. As a column type in `ALTER TABLE … ADD COLUMN`, those mean `character(1)` and `bit(1)`, not an unbounded type. So a **subquery** source with a `char(n)` column, n > 1, now gets a `character(1)` column, and the UPDATE fails with `value too long for type character(1)`. Before #239 the same call made a `text` column and worked. Reproduced live:
+  `frs_col_join(conn, "pg_temp.r3x_t", "(SELECT 1 AS id, 'abcd'::char(4) AS c)", "c", by = "id")` returns `ERROR: value too long for type character(1)`.
+  The ALTER has already run by then, and `ADD COLUMN IF NOT EXISTS` keeps the `character(1)` column on every rerun. So the target stays broken until someone drops the column by hand, which contradicts the CLAUDE.md note's "errors before any ALTER" for this case. The same holds for `bit(n)` and for arrays of either type. A **table** source with `char(n)` was already broken before (`information_schema` also said `character`), so for tables this is not a regression. On the live database, the only `bpchar` columns are in `tiger`; none are in `whse_basemapping`, `bcfishobs` or `fresh`. So no current fresh or link call hits it. The NEWS line "They now take the subquery's types" is wrong for these types. The accepted tradeoff ("no modifier") assumes that a modifier-less type is a wider one, and for `character` and `bit` it is narrower.
+  - **Rule:** code-check.md "A proxy is not the property" ; code-check.md "Written data outlives the fix"
+
+- **[severity: fragile]** CLAUDE.md:336 (the `frs_col_join()` subquery-sources note) says the modifier-less types `character varying`, `numeric`, `geometry` are "what the `information_schema` lookup it replaced gave for a table". For `geometry`, and for any other extension type, that lookup gave `USER-DEFINED`, which made the ALTER fail. The function's own roxygen (`.frs_query_col_types`) and NEWS describe this correctly. The note is a false statement about past behaviour in a file read as durable reference: someone reading it would conclude that joining a geometry or ltree column from a table worked before 0.57.0.
+  - **Rule:** code-check.md "Documentation Staleness"

@@ -146,7 +146,9 @@ gated on the presence of a \code{waterbody_type: L} / \code{waterbody_type: W}
 rule in \verb{rear:}. Without the rule, the predicate is \code{"FALSE"} — the
 species is not lake or wetland-rearing. With the rule, the predicate
 is polygon membership, filtered by the rule's optional \code{lake_ha_min} /
-\code{wetland_ha_min}. It carries no channel-width or discharge test under
+\code{wetland_ha_min}. \code{lake_rear} reads lakes and reservoirs (FWA manmade
+waterbodies), the same polygons an L rule's \code{rear} predicate reads, with
+the floor on each. It carries no channel-width or discharge test under
 either model: the line through a polygon measures its inflow, not the
 polygon. Connection to spawning is applied after classification, for
 rules that carry \code{requires_connected: spawning} (see \code{\link[=frs_habitat]{frs_habitat()}}).

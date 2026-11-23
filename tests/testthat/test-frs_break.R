@@ -342,6 +342,45 @@ test_that("frs_feature_find snaps real sf points onto the network (live)", {
     conn, do.call(DBI::Id, frs_test_tbl_parts(frs_test_tbl("test_ff_out")))))
 })
 
+# A target made by a call without col_id has no feature_id; a later append
+# with col_id adds it rather than failing the INSERT, and refuses a
+# feature_id of another type rather than casting the ids (#222).
+test_that("frs_feature_find append adds a missing feature_id and refuses a non-text one (live)", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  tbls <- vapply(c("test_ff222_streams", "test_ff222_pts", "test_ff222_out"),
+                 frs_test_tbl, character(1), USE.NAMES = FALSE)
+  on.exit({
+    for (t in tbls) .frs_test_drop(conn, t)
+    DBI::dbDisconnect(conn)
+  })
+  for (t in tbls) .frs_test_drop(conn, t)
+  DBI::dbExecute(conn, paste("CREATE TABLE", tbls[1], "AS",
+    "SELECT 360873822::integer AS blue_line_key"))
+  DBI::dbExecute(conn, paste("CREATE TABLE", tbls[2], "AS",
+    "SELECT 360873822::integer AS blue_line_key,",
+    "100::double precision AS downstream_route_measure, 7 AS fid"))
+
+  frs_feature_find(conn, tbls[1], to = tbls[3], points_table = tbls[2],
+                   label = "a", append = TRUE)
+  expect_false("feature_id" %in% .frs_cols_of(conn, tbls[3]))
+  frs_feature_find(conn, tbls[1], to = tbls[3], points_table = tbls[2],
+                   col_id = "fid", label = "b", append = TRUE)
+  out <- DBI::dbGetQuery(conn, paste("SELECT label, feature_id FROM", tbls[3],
+                                     "ORDER BY label"))
+  expect_equal(out$label, c("a", "b"))
+  expect_equal(out$feature_id, c(NA, "7"))
+
+  DBI::dbExecute(conn, paste("ALTER TABLE", tbls[3],
+    "ALTER COLUMN feature_id TYPE integer USING feature_id::integer"))
+  expect_error(frs_feature_find(conn, tbls[1], to = tbls[3],
+                                points_table = tbls[2], col_id = "fid",
+                                append = TRUE),
+               "feature_id of type integer")
+  expect_equal(DBI::dbGetQuery(conn, paste("SELECT count(*)::int AS n FROM",
+                                           tbls[3]))$n, 2L)
+})
+
 test_that("frs_break_find skips drop when overwrite = FALSE", {
   sql_log <- character(0)
   local_mocked_bindings(

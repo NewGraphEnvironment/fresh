@@ -483,7 +483,7 @@ test_that("a 0.41.0 near-river table stops classify before any write (round 1)",
     verbose = FALSE), "distance_max must be finite")
   expect_identical(DBI::dbGetQuery(conn,
     "SELECT count(*)::int AS n FROM pg_temp.nr_hab")$n, 1L)
-  # Round 3: a size column typed text (as frs_col_join() types it) is caught
+  # Round 3: a size column typed text (as a text join leaves it) is caught
   # up front; and anything Postgres refuses inside the walk itself happens
   # before `to` is touched, because the walk runs first.
   params$CH$rules$rear[[1]]$near_river <- list(discharge_min = 3,
@@ -537,6 +537,13 @@ test_that("the per-species progress line counts only this job's groups", {
       .frs_cols_of = function(conn, tbl) {
         c("id_segment", "watershed_group_code", "linear_feature_id")
       },
+      # The flag-column check reads the target's types the same way (#222);
+      # every flag present and boolean, so nothing is added.
+      .frs_col_types_of = function(conn, tbl) {
+        data.frame(col = c("accessible", "spawning", "rearing",
+                           "lake_rearing", "wetland_rearing"),
+                   type = "boolean")
+      },
       # The guard reads the target itself, through its own DBI call rather
       # than one lexically inside frs_habitat_classify(), so the stub above
       # does not reach it and a mock connection would raise.
@@ -560,4 +567,78 @@ test_that("the per-species progress line counts only this job's groups", {
   expect_match(counts[1], "linear_feature_id IN", fixed = TRUE)
   expect_false(grepl("watershed_group_code IN", counts[1], fixed = TRUE))
   expect_match(counts[1], "FROM working.streams s", fixed = TRUE)
+})
+
+
+# --- A target made before a flag column existed (#222) -----------------------
+
+# A to_habitat persisted before wetland_rearing existed failed the INSERT
+# after the partition DELETE. The pre-flight now adds a missing flag, as the
+# CREATE would have, and refuses a flag of another type before anything is
+# deleted.
+test_that(".frs_habitat_target adds missing flag columns and refuses a non-boolean one", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.ht_streams, pg_temp.ht_old")
+  DBI::dbExecute(conn, "CREATE TEMP TABLE ht_streams (id_segment integer,
+    linear_feature_id bigint, watershed_group_code text)")
+  DBI::dbExecute(conn, "CREATE TEMP TABLE ht_old (id_segment integer,
+    linear_feature_id bigint, watershed_group_code character varying(4),
+    species_code text, accessible boolean, spawning boolean, rearing boolean)")
+  DBI::dbExecute(conn, "INSERT INTO ht_old VALUES (1, 1, 'OTHR', 'CO', TRUE,
+    TRUE, TRUE)")
+
+  .frs_habitat_target(conn, "pg_temp.ht_streams", "pg_temp.ht_old")
+  got <- DBI::dbGetQuery(conn,
+    "SELECT a.attname AS col, format_type(a.atttypid, a.atttypmod) AS type
+     FROM pg_attribute a WHERE a.attrelid = 'pg_temp.ht_old'::regclass
+       AND a.attnum > 0 AND NOT a.attisdropped")
+  expect_equal(got$type[match(c("lake_rearing", "wetland_rearing"), got$col)],
+               c("boolean", "boolean"))
+  old <- DBI::dbGetQuery(conn, "SELECT * FROM pg_temp.ht_old")
+  expect_equal(nrow(old), 1L)
+  expect_true(is.na(old$lake_rearing) && is.na(old$wetland_rearing))
+  expect_true(old$spawning)
+
+  DBI::dbExecute(conn, "ALTER TABLE pg_temp.ht_old
+    ALTER COLUMN spawning TYPE text USING spawning::text")
+  expect_error(.frs_habitat_target(conn, "pg_temp.ht_streams", "pg_temp.ht_old"),
+               "not boolean: spawning \\(text\\)")
+  expect_equal(DBI::dbGetQuery(conn,
+    "SELECT count(*)::int AS n FROM pg_temp.ht_old")$n, 1L)
+})
+
+test_that("integration: frs_habitat writes into a to_habitat made before wetland_rearing (#222)", {
+  skip_if_not(.frs_db_available(), "DB not available")
+  conn <- frs_db_conn()
+  to_streams <- frs_test_tbl("ht222_streams")
+  to_habitat <- frs_test_tbl("ht222_habitat")
+  on.exit({
+    for (tbl in c(to_streams, to_habitat)) .frs_test_drop(conn, tbl)
+    DBI::dbDisconnect(conn)
+  })
+  DBI::dbExecute(conn, "CREATE SCHEMA IF NOT EXISTS working")
+  DBI::dbExecute(conn, sprintf("DROP TABLE IF EXISTS %s", to_habitat))
+  DBI::dbExecute(conn, sprintf("CREATE TABLE %s (id_segment integer,
+    linear_feature_id bigint, watershed_group_code character varying(4),
+    species_code text, accessible boolean, spawning boolean, rearing boolean,
+    lake_rearing boolean)", to_habitat))
+  DBI::dbExecute(conn, sprintf("INSERT INTO %s VALUES (1, -1, 'OTHR', 'CO',
+    TRUE, TRUE, TRUE, FALSE)", to_habitat))
+
+  frs_habitat(conn,
+    aoi = "wscode_ltree <@ '100.190442.999098.995997.058910.432966'::ltree",
+    species = "CO", label = frs_test_label("ht222"),
+    to_streams = to_streams, to_habitat = to_habitat, verbose = FALSE)
+
+  got <- DBI::dbGetQuery(conn, sprintf(
+    "SELECT watershed_group_code AS wsg, count(*)::int AS n,
+            count(wetland_rearing)::int AS n_wet
+     FROM %s GROUP BY 1 ORDER BY 1", to_habitat))
+  expect_true("ADMS" %in% got$wsg)
+  # The job's rows carry the new flag; the older row reads NULL there.
+  expect_equal(got$n_wet[got$wsg == "ADMS"], got$n[got$wsg == "ADMS"])
+  expect_equal(got$n[got$wsg == "OTHR"], 1L)
+  expect_equal(got$n_wet[got$wsg == "OTHR"], 0L)
 })
