@@ -158,7 +158,8 @@ frs_params <- function(conn = NULL,
   # converts to the session's native encoding, and under LC_CTYPE=C a
   # non-ASCII byte (the bundled file's em-dash) stops readLines() there,
   # emptying or silently truncating the rules.
-  raw <- yaml::yaml.load(readLines(path, encoding = "UTF-8", warn = FALSE))
+  raw <- yaml::yaml.load(readLines(path, encoding = "UTF-8", warn = FALSE),
+                         error.label = path)
   if (length(raw) == 0) {
     return(list())
   }
@@ -467,6 +468,14 @@ frs_params <- function(conn = NULL,
         sp, habitat, idx,
         paste(unknown_b, collapse = ", "),
         paste(bypass_keys, collapse = ", ")), call. = FALSE)
+    }
+    # An empty sub-key reads as absent below: refuse it, as a rule key is
+    # refused (#222).
+    empty_b <- names(bypass)[vapply(bypass, is.null, logical(1))]
+    if (length(empty_b) > 0) {
+      stop(sprintf(
+        "rules YAML %s/%s rule %d channel_width_min_bypass has no value for: %s",
+        sp, habitat, idx, paste(empty_b, collapse = ", ")), call. = FALSE)
     }
     # All three integer keys must be positive integer scalars when present.
     for (k in c("stream_order_min", "stream_order_max", "stream_order_parent_min")) {

@@ -1644,8 +1644,8 @@ frs_habitat_species <- function(conn, species_code, base_tbl, breaks,
 #'
 #' Phase 2 (upstream): find spawn-eligible segments upstream of
 #' rearing via `FWA_Upstream()`, cluster with `ST_ClusterDBSCAN`,
-#' keep only clusters within 2m of a qualifying lake polygon
-#' (`fwa_lakes_poly` with `area_ha >= lake_ha_min`).
+#' keep only clusters within 2m of a qualifying lake or reservoir polygon
+#' (`area_ha >= waterbody_ha_min` when the rule declares a floor).
 #'
 #' @noRd
 #' Trace downstream from origins with distance cap and gradient stop

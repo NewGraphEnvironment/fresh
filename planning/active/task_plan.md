@@ -20,7 +20,7 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 - **#267:** `.frs_load_rules()` (`R/frs_params.R:157`) is the only YAML read in `R/`. Every rules file link ships, and fresh's own bundled file, has one non-ASCII line (the em-dash in the "DO NOT EDIT" header comment), so this is live for every bundle.
 - **#251:** the fallback lives in `.frs_run_connectivity()` (`R/frs_habitat.R:1292-1303`, `wb_ha_min <- 200`). It reaches SQL through `.frs_connected_waterbody(waterbody_ha_min = 200)` (`:1821`, used at `:1911-1915`). **link calls `.frs_run_connectivity` directly** through `getFromNamespace` (`lnk_pipeline_connect.R:101`).
-  - I parsed all 10 rules files link carries (4 configs, its bundled copy, 4 test fixtures) plus fresh's bundled file. Every species whose spawning has `requires_connected: rearing` (SK, KO) sets `lake_ha_min: 200` on its first rear L rule.
+  - I parsed the rules files link carries (24 on origin/main, per the Plan review: 4 configs, its bundled copy, 4 test fixtures, 15 `data-raw` score bundles) plus fresh's bundled file. Every species whose spawning has `requires_connected: rearing` (SK, KO) sets `lake_ha_min: 200` on its first rear L rule.
   - So either answer to this issue leaves link's outputs unchanged.
 - **#250:** `build_wb_pred()` (`R/frs_habitat_predicates.R:286-303`) hard-codes `fwa_lakes_poly` and `fwa_wetlands_poly`, while `.frs_waterbody_tables()` (`R/utils.R:287`) gives L as lakes plus manmade waterbodies.
   - **This changes link's outputs on purpose:** reservoir lines become `lake_rearing`. That is the owner's decision 5 on link#310 ("reservoirs count as lakes, in fresh's bucket and in link's rollup"). link's rollup already counts reservoir hectares, and link#310's Outcome names fresh#250 as the missing half.
@@ -98,19 +98,28 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 ## Phase 5: Persist appends (#222, persist)
 
-- [ ] Live test: a `to_habitat` created without `wetland_rearing`, plus one other flag column, is altered.
+- [x] Live test: a `to_habitat` created without `wetland_rearing`, plus one other flag column, is altered.
   - The classify run succeeds.
   - Older rows read NULL in the added columns.
   - A flag column of the wrong type is refused before the DELETE.
-- [ ] `.frs_habitat_target()` adds any missing flag column (`accessible`, `spawning`, `rearing`, `lake_rearing`, `wetland_rearing`) as `boolean`, and refuses a non-boolean one. The column list is one `cols_` vector shared with the `CREATE`.
-- [ ] Live test: a `frs_feature_find(append = TRUE, col_id = ...)` into a target created without `feature_id` succeeds and adds the column.
-- [ ] `.frs_feature_find_write()`: when appending with an id, run `ADD COLUMN IF NOT EXISTS feature_id text`.
+- [x] `.frs_habitat_target()` adds any missing flag column (`accessible`, `spawning`, `rearing`, `lake_rearing`, `wetland_rearing`) as `boolean`, and refuses a non-boolean one. The column list is one `cols_` vector shared with the `CREATE`.
+- [x] Live test: a `frs_feature_find(append = TRUE, col_id = ...)` into a target created without `feature_id` succeeds and adds the column.
+- [x] `.frs_feature_find_write()`: when appending with an id, run `ADD COLUMN IF NOT EXISTS feature_id text`.
+
+## Review corrections (Plan review, `review-plan.md`, folded 2026-11-23)
+
+- [x] `.frs_load_rules()` passes `error.label = path`, which `read_yaml()` did (Gap 6).
+- [x] Stale #239 text: `R/frs_near_river.R` comment and error message, a test comment, and the `R/frs_habitat.R` roxygen on lake polygons (Gaps 2, 3).
+- [x] Flag-column types read through a mockable `.frs_col_types_of()`; the mocked classify test stubs it (Gap 4). `frs_feature_find()` refuses a non-text `feature_id` (Gap 5).
+- [x] Empty `channel_width_min_bypass` sub-keys refused (Scope 1). `spawn_connected` stays out: it is a block, not a rule field, and link documents `edge_types: null` there as "no filter".
+- [ ] File the legacy `frs_habitat_species()` lakes-only path as its own issue naming move 2 (Scope 3).
 
 ## Phase 6: link check, docs, release
 
 - [ ] Diff every fresh function link reaches: its exports (`lnk_preflight_fresh()`), its four `getFromNamespace` internals, and what those call. Record which of them this branch changes.
 - [ ] Run link's test suite against fresh `main` and against this branch, each from its own temporary library, and compare test by test (the method in #318's archive README).
   - Any difference must trace to #250's reservoir lines and nothing else.
+- [ ] Direct #250 check (review Acceptance 2): classify one group with reservoirs on `main` and on the branch; `accessible`, `spawning`, `rearing` and `wetland_rearing` identical, every `lake_rearing` difference FALSE to TRUE on a manmade `waterbody_key`.
 - [ ] `devtools::document()`, `lintr` per-file diff against `main`, and `pkgdown::check_pkgdown()`.
 - [ ] Update `NEWS.md` and bump `DESCRIPTION` to 0.57.0 as the final commit. NEWS names the deliberate `lake_rearing` change, and that link takes it at its pin bump.
 
@@ -118,7 +127,9 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 - [ ] File a link issue covering two things:
   - `.lnk_discharge_join()` can drop its own `ADD COLUMN mad_m3s double precision` workaround once link pins ≥ 0.57.0 (#239);
-  - the pin bump moves `lake_rearing` to include reservoirs (#250). Re-run `data-raw/pretest_run.sh` at that bump.
+  - the pin bump moves `lake_rearing` to include reservoirs (#250). Re-run `data-raw/pretest_run.sh` at that bump;
+  - link's own #267: `names(yaml::read_yaml(rules_path))` in `lnk_config.R` reads nothing under the C locale;
+  - stale text: `lnk_rollup_wsg.R` roxygen ("until that changes no reservoir is flagged") and `lnk_discharge.R`'s note on `frs_col_join()` typing text.
 
 ## Validation
 

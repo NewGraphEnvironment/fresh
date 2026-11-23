@@ -1062,6 +1062,18 @@ test_that(".frs_load_rules stores a mixed int/float range as numeric (#222)", {
   expect_identical(.frs_load_rules(tmp)$BT$spawn[[1]]$gradient, c(0.05, 0.05))
 })
 
+test_that(".frs_load_rules refuses a channel_width_min_bypass sub-key given no value (#222)", {
+  for (k in c("stream_order_min", "stream_order_max", "stream_order_parent_min",
+              "distance_max", "width_known_below_min")) {
+    tmp <- tempfile(fileext = ".yaml")
+    writeLines(c("BT:", "  rear:", "    - channel_width_min_bypass:",
+                 paste0("        ", k, ":")), tmp)
+    expect_error(.frs_load_rules(tmp),
+      paste0("channel_width_min_bypass has no value for: ", k), info = k)
+    unlink(tmp)
+  }
+})
+
 test_that(".frs_load_rules refuses a rule key given no value (#222)", {
   # Each key with a valid companion so only the empty value can fail.
   cases <- list(
@@ -1235,10 +1247,10 @@ test_that(".frs_load_rules refuses a non-logical width_known_below_min", {
       "        stream_order_min: 1",
       paste0("        width_known_below_min: ", val)), tmp)
     if (val == "~") {
-      # YAML null reads as NULL: nothing to validate, nothing set.
-      rules <- .frs_load_rules(tmp)
-      expect_null(
-        rules$BT$rear[[1]]$channel_width_min_bypass$width_known_below_min)
+      # YAML null was read as "not set"; since #222 an empty sub-key is
+      # refused like an empty rule key.
+      expect_error(.frs_load_rules(tmp),
+                   "channel_width_min_bypass has no value for: width_known_below_min")
     } else {
       expect_error(.frs_load_rules(tmp), "width_known_below_min must be TRUE or FALSE",
                    info = val)
