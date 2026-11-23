@@ -193,3 +193,26 @@ test_that("frs_col_join errors on a column the source lacks, before any ALTER", 
                "no_such_col")
   expect_false("mad_m3s" %in% .frs_cols_of(conn, "pg_temp.cj_dst"))
 })
+
+# format_type() with no modifier names char(n) and bit(n) `character` and
+# `bit`, which ADD COLUMN reads as char(1) and bit(1): a subquery's char(4)
+# column would be created too narrow, the UPDATE would fail, and the column
+# would stay behind (code-check round 3).
+test_that("frs_col_join widens char(n) and bit(n) rather than narrowing them", {
+  skip_if_no_conn()
+  conn <- frs_db_conn()
+  on.exit(DBI::dbDisconnect(conn))
+  DBI::dbExecute(conn, "DROP TABLE IF EXISTS pg_temp.cj_w")
+  DBI::dbExecute(conn, "CREATE TEMP TABLE cj_w AS SELECT 1::bigint AS id")
+  frs_col_join(conn, "pg_temp.cj_w",
+    from = "(SELECT 1::bigint AS id, 'abcd'::char(4) AS c,
+               B'101'::bit(3) AS b, ARRAY['xy'::char(2)] AS ca)",
+    cols = c("c", "b", "ca"), by = "id")
+  expect_equal(unname(.cj_types(conn, "pg_temp.cj_w", c("c", "b", "ca"))),
+               c("character varying", "bit varying", "character varying[]"))
+  got <- DBI::dbGetQuery(conn,
+    "SELECT c, b::text AS b, ca[1] AS ca FROM pg_temp.cj_w")
+  expect_equal(got$c, "abcd")
+  expect_equal(got$b, "101")
+  expect_equal(got$ca, "xy")
+})

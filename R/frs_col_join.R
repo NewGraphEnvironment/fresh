@@ -26,7 +26,8 @@
 #'   New columns take the source's types, for a table and a subquery alike
 #'   (read from the result of `SELECT <cols> FROM <from> LIMIT 0`, so
 #'   without a length or precision modifier: `character varying`,
-#'   `numeric`, `geometry`). A column already on `table` keeps its type.
+#'   `numeric`, `geometry`; `char(n)` and `bit(n)` become `character
+#'   varying` and `bit varying`). A column already on `table` keeps its type.
 #' @param by Character vector. Join key(s). Unnamed elements match the same
 #'   column in both tables. Named elements map working table column (name) to
 #'   source column (value): `c(linear_feature_id = "lid")`. Default
@@ -132,6 +133,8 @@ frs_col_join <- function(conn, table, from, cols,
 #' column's type with `format_type()`. Nothing is fetched or written. The
 #' type carries no modifier (`character varying`, not `character
 #' varying(4)`), as `information_schema.columns.data_type` did before #239,
+#' except that `char(n)` and `bit(n)` become `character varying` and
+#' `bit varying`, whose bare forms would mean `char(1)` and `bit(1)`,
 #' so columns `frs_col_join()` creates keep the types they had for a table
 #' source. Unlike that lookup it types a subquery, names an extension type
 #' (`ltree`, `geometry`) rather than `USER-DEFINED`, and resolves an
@@ -152,8 +155,19 @@ frs_col_join <- function(conn, table, from, cols,
   if (is.null(oids) || length(oids) != length(cols) || anyNA(oids)) {
     stop("could not read the column types of ", from, call. = FALSE)
   }
+  # Without a modifier, `character` and `bit` mean char(1) and bit(1), so
+  # a char(4) or bit(3) column would be created too narrow, the UPDATE would
+  # fail, and the column would stay. Those two (and their arrays) take the
+  # varying form, which holds any length; every other type's bare name is
+  # its widest form.
   types <- DBI::dbGetQuery(conn, sprintf(
-    "SELECT format_type(o, NULL) AS type
+    "SELECT CASE o
+              WHEN 'bpchar'::regtype THEN 'character varying'
+              WHEN '_bpchar'::regtype THEN 'character varying[]'
+              WHEN 'bit'::regtype THEN 'bit varying'
+              WHEN '_bit'::regtype THEN 'bit varying[]'
+              ELSE format_type(o, NULL)
+            END AS type
      FROM unnest(ARRAY[%s]::oid[]) WITH ORDINALITY AS u(o, i) ORDER BY i",
     paste(sprintf("%.0f", as.numeric(oids)), collapse = ", ")))$type
   names(types) <- cols
