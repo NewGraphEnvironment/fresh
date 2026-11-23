@@ -193,9 +193,13 @@ frs_params <- function(conn = NULL,
         }
         .frs_validate_rule(rule, sp, habitat, i, valid_predicates)
         # yaml reads mixed int/float sequences like [0.164, 9999] as a
-        # list; store mad as a plain numeric vector for downstream use.
-        if (!is.null(rule[["mad"]])) {
-          raw[[sp]][[habitat]][[i]][["mad"]] <- as.numeric(unlist(rule[["mad"]]))
+        # list; store each range as a plain numeric vector for downstream
+        # use (#222).
+        for (field in c("mad", "gradient", "channel_width")) {
+          if (!is.null(rule[[field]])) {
+            raw[[sp]][[habitat]][[i]][[field]] <-
+              as.numeric(unlist(rule[[field]]))
+          }
         }
         # A mapping is stored as (measure, threshold, distance_max); a
         # `false` opt-out stays FALSE (#263).
@@ -243,8 +247,9 @@ frs_params <- function(conn = NULL,
 
 #' Validate a single rule entry
 #'
-#' Errors on unknown predicate keys, on a `mad` range that is not a
-#' numeric `[min, max]` pair with `min <= max`, on `lake_ha_min`
+#' Errors on unknown predicate keys, on a key given no value, on a `mad`,
+#' `gradient` or `channel_width` range that is not a finite numeric
+#' `[min, max]` pair with `min <= max`, on `lake_ha_min`
 #' without `waterbody_type: L` or `wetland_ha_min` without
 #' `waterbody_type: W`, on bad `waterbody_type`, or on a
 #' non-logical `thresholds` field.
@@ -265,20 +270,25 @@ frs_params <- function(conn = NULL,
   # Use [[ ]] not $ to avoid partial matching (e.g. rule$lake matching
   # rule$lake_ha_min by prefix).
   # Key presence, not !is.null(): an empty `mad:` parses to NULL and must
-  # error rather than silently mean "no MAD filter".
-  if ("mad" %in% keys) {
-    # Check each element: unlist() would coerce list(TRUE, 5) to c(1, 5)
-    # and flatten a nested [[0.1, 0.2], 5] to c(0.1, 0.2, 5).
-    all_num <- all(vapply(as.list(rule[["mad"]]),
-                          function(x) is.numeric(x) && length(x) == 1L,
-                          logical(1)))
-    mad <- unlist(rule[["mad"]])
-    if (!all_num || !is.numeric(mad) || length(mad) != 2L || !all(is.finite(mad)) ||
-        mad[1] > mad[2]) {
-      stop(sprintf(
-        "rules YAML %s/%s rule %d mad must be a finite numeric [min, max] with min <= max (got: %s)",
-        sp, habitat, idx, paste(mad, collapse = ", ")), call. = FALSE)
-    }
+  # error rather than silently mean "no MAD filter". gradient and
+  # channel_width get the same check (#222): a reversed or non-finite
+  # range compiles to a BETWEEN that matches nothing.
+  for (field in intersect(c("mad", "gradient", "channel_width"), keys)) {
+    .frs_validate_rule_range(rule[[field]], field, sp, habitat, idx)
+  }
+
+  # Every other key: an empty value (`key:`) parses to NULL, which the
+  # checks below read as "absent" -- refuse it rather than drop the
+  # predicate (#222). The keys skipped here refuse NULL with their own
+  # messages: the ranges above, the area floors and near_river below.
+  own_null <- c("mad", "gradient", "channel_width", "lake_ha_min",
+                "wetland_ha_min", "near_river")
+  empty <- keys[vapply(keys, function(k) is.null(rule[[k]]), logical(1)) &
+                  !keys %in% own_null]
+  if (length(empty) > 0) {
+    stop(sprintf(
+      "rules YAML %s/%s rule %d has no value for: %s",
+      sp, habitat, idx, paste(empty, collapse = ", ")), call. = FALSE)
   }
 
   if (!is.null(rule[["waterbody_type"]])) {
@@ -436,17 +446,6 @@ frs_params <- function(conn = NULL,
     }
   }
 
-  for (field in c("gradient", "channel_width")) {
-    val <- rule[[field]]
-    if (!is.null(val)) {
-      if (!is.numeric(val) || length(val) != 2) {
-        stop(sprintf(
-          "rules YAML %s/%s rule %d %s must be a numeric vector of length 2 [min, max]",
-          sp, habitat, idx, field), call. = FALSE)
-      }
-    }
-  }
-
   # channel_width_min_bypass: passthrough field consumed by
   # frs_order_child() after classification. Not used by the rule engine
   # itself — only validated for shape so a malformed YAML fails fast
@@ -507,6 +506,31 @@ frs_params <- function(conn = NULL,
   if ("near_river" %in% keys) {
     .frs_validate_near_river(rule, sp, habitat, idx)
   }
+}
+
+
+#' Validate a rule's `[min, max]` range field
+#'
+#' `mad`, `gradient` and `channel_width` are each a finite numeric
+#' `[min, max]` with `min <= max`. Each element is checked on its own:
+#' `unlist()` would coerce `list(TRUE, 5)` to `c(1, 5)` and flatten a
+#' nested `[[0.1, 0.2], 5]` to `c(0.1, 0.2, 5)`. A mixed int/float
+#' sequence, which yaml reads as a list, passes; the loader stores it as a
+#' numeric vector.
+#'
+#' @noRd
+.frs_validate_rule_range <- function(val, field, sp, habitat, idx) {
+  all_num <- all(vapply(as.list(val),
+                        function(x) is.numeric(x) && length(x) == 1L,
+                        logical(1)))
+  v <- unlist(val)
+  if (is.null(val) || !all_num || !is.numeric(v) || length(v) != 2L ||
+      !all(is.finite(v)) || v[1] > v[2]) {
+    stop(sprintf(
+      "rules YAML %s/%s rule %d %s must be a finite numeric [min, max] with min <= max (got: %s)",
+      sp, habitat, idx, field, paste(v, collapse = ", ")), call. = FALSE)
+  }
+  invisible(NULL)
 }
 
 

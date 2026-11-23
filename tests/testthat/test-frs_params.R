@@ -1027,7 +1027,64 @@ test_that(".frs_validate_rule errors on bad gradient format", {
     "BT:",
     "  spawn:",
     "    - gradient: 0.05"), tmp)
-  expect_error(.frs_load_rules(tmp), "numeric vector of length 2")
+  expect_error(.frs_load_rules(tmp),
+               "BT/spawn rule 1 gradient must be a finite numeric \\[min, max\\]")
+})
+
+test_that(".frs_load_rules refuses a bad gradient or channel_width range (#222)", {
+  bad <- c("[0.05, 0.01]", "[0, .inf]", "[.nan, 1]", "[0.05]",
+           "[0, 1, 2]", "[a, 1]", "[true, 1]", "[[0.1, 0.2], 1]", "",
+           "~")
+  for (field in c("gradient", "channel_width")) {
+    for (val in bad) {
+      tmp <- tempfile(fileext = ".yaml")
+      writeLines(c("BT:", "  spawn:", paste0("    - ", field, ": ", val)),
+                 tmp)
+      expect_error(.frs_load_rules(tmp),
+        sprintf("BT/spawn rule 1 %s must be a finite numeric", field),
+        info = paste(field, val))
+      unlink(tmp)
+    }
+  }
+})
+
+test_that(".frs_load_rules stores a mixed int/float range as numeric (#222)", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp))
+  writeLines(c("BT:", "  spawn:",
+               "    - gradient: [0, 0.05]",
+               "      channel_width: [2, 9999.5]"), tmp)
+  rules <- .frs_load_rules(tmp)
+  expect_identical(rules$BT$spawn[[1]]$gradient, c(0, 0.05))
+  expect_identical(rules$BT$spawn[[1]]$channel_width, c(2, 9999.5))
+  # A reversed range on equal ends is a single value, which is allowed.
+  writeLines(c("BT:", "  spawn:", "    - gradient: [0.05, 0.05]"), tmp)
+  expect_identical(.frs_load_rules(tmp)$BT$spawn[[1]]$gradient, c(0.05, 0.05))
+})
+
+test_that(".frs_load_rules refuses a rule key given no value (#222)", {
+  # Each key with a valid companion so only the empty value can fail.
+  cases <- list(
+    edge_types             = character(),
+    edge_types_explicit    = character(),
+    waterbody_type         = character(),
+    in_waterbody           = character(),
+    area_only              = "      waterbody_type: L",
+    thresholds             = character(),
+    channel_width_min_bypass = character(),
+    requires_connected     = "      connected_distance_max: 3000",
+    connected_distance_max = "      requires_connected: rearing")
+  for (k in names(cases)) {
+    for (empty in c("", " ~", " null")) {
+      tmp <- tempfile(fileext = ".yaml")
+      writeLines(c("BT:", "  spawn:", paste0("    - ", k, ":", empty),
+                   cases[[k]]), tmp)
+      expect_error(.frs_load_rules(tmp),
+        paste0("BT/spawn rule 1 has no value for: ", k),
+        info = paste(k, empty))
+      unlink(tmp)
+    }
+  }
 })
 
 

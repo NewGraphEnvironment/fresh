@@ -60,13 +60,13 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 ## Phase 2: Range and empty-value validators (#222, rules)
 
-- [ ] Tests for `gradient` and `channel_width`:
+- [x] Tests for `gradient` and `channel_width`:
   - refuse a reversed range, `Inf`, `.nan`, length ≠ 2, a non-numeric element and a nested list;
   - accept a mixed int/float list `[0, 0.05]` and store it as a plain numeric vector, as `mad` is.
-- [ ] Test: an empty value (`key:`) on each other rule key is refused and the error names the key. This covers `edge_types`, `edge_types_explicit`, `waterbody_type`, `in_waterbody`, `area_only`, `thresholds`, `gradient`, `channel_width`, `channel_width_min_bypass`, `requires_connected` and `connected_distance_max`.
-- [ ] `.frs_validate_rule()`: one shared range check for `mad`, `gradient` and `channel_width`, run per element as the `mad` check does (finite, `min <= max`), plus a generic empty-key check.
+- [x] Test: an empty value (`key:`) on each other rule key is refused and the error names the key. This covers `edge_types`, `edge_types_explicit`, `waterbody_type`, `in_waterbody`, `area_only`, `thresholds`, `gradient`, `channel_width`, `channel_width_min_bypass`, `requires_connected` and `connected_distance_max`.
+- [x] `.frs_validate_rule()`: one shared range check for `mad`, `gradient` and `channel_width`, run per element as the `mad` check does (finite, `min <= max`), plus a generic empty-key check.
   - The existing messages for `mad`, area floors and `near_river` stay as they are, since tests pin them.
-- [ ] `.frs_load_rules()`: normalise `gradient` and `channel_width` to numeric vectors beside `mad`.
+- [x] `.frs_load_rules()`: normalise `gradient` and `channel_width` to numeric vectors beside `mad`.
 
 ## Phase 3: Waterbody floors and tables (#251, #250)
 
