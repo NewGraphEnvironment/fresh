@@ -96,7 +96,9 @@
 #' rule in `rear:`. Without the rule, the predicate is `"FALSE"` — the
 #' species is not lake or wetland-rearing. With the rule, the predicate
 #' is polygon membership, filtered by the rule's optional `lake_ha_min` /
-#' `wetland_ha_min`. It carries no channel-width or discharge test under
+#' `wetland_ha_min`. `lake_rear` reads lakes and reservoirs (FWA manmade
+#' waterbodies), the same polygons an L rule's `rear` predicate reads, with
+#' the floor on each. It carries no channel-width or discharge test under
 #' either model: the line through a polygon measures its inflow, not the
 #' polygon. Connection to spawning is applied after classification, for
 #' rules that carry `requires_connected: spawning` (see [frs_habitat()]).
@@ -284,23 +286,27 @@ frs_habitat_predicates <- function(sp_params, model = "cw",
   # stream-size test on the line through the polygon sizes its inflow,
   # not the polygon (fresh#240; bcfishpass sizes lakes by area alone).
   # The floor comes from .frs_rule_ha_min(), the same reader the main
-  # `rear` predicate uses, so the two can't disagree (fresh#237).
-  build_wb_pred <- function(rule, poly_table) {
+  # `rear` predicate uses, so the two can't disagree (fresh#237). The
+  # polygon tables come from .frs_waterbody_tables(), as they do in
+  # .frs_rule_to_sql(): an L rule reads lakes and reservoirs (manmade
+  # waterbodies) in both predicates, with the floor on each (fresh#250).
+  build_wb_pred <- function(rule, wb_type) {
     if (is.null(rule)) return("FALSE")
     ha_min <- .frs_rule_ha_min(rule)
     area_clause <- if (is.null(ha_min)) "" else
       sprintf(" WHERE area_ha >= %s", .frs_sql_num(ha_min))
+    wb_sql <- paste(vapply(.frs_waterbody_tables(wb_type), function(wt) {
+      sprintf("SELECT waterbody_key FROM %s%s", wt, area_clause)
+    }, character(1)), collapse = " UNION ALL ")
     sprintf("s.waterbody_key IN (
-         SELECT waterbody_key FROM %s%s)", poly_table, area_clause)
+         %s)", wb_sql)
   }
 
   lake_rule    <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "L")
   wetland_rule <- .frs_find_waterbody_rule(params_sp[["rules"]][["rear"]], "W")
 
-  lake_rear_pred    <- build_wb_pred(lake_rule,
-                                     "whse_basemapping.fwa_lakes_poly")
-  wetland_rear_pred <- build_wb_pred(wetland_rule,
-                                     "whse_basemapping.fwa_wetlands_poly")
+  lake_rear_pred    <- build_wb_pred(lake_rule, "L")
+  wetland_rear_pred <- build_wb_pred(wetland_rule, "W")
 
   list(
     spawn        = spawn_pred,

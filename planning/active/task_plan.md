@@ -70,18 +70,18 @@ The goal is one PR on branch `319-backlog-move-2-rules-loading-and-persist`, cut
 
 ## Phase 3: Waterbody floors and tables (#251, #250)
 
-- [ ] Test (pure R, `test-frs_habitat_predicates.R`):
+- [x] Test (pure R, `test-frs_habitat_predicates.R`):
   - the L bucket predicate reads `fwa_lakes_poly` and `fwa_manmade_waterbodies_poly`, each with the floor;
   - with no floor, neither table carries an area clause;
   - the W predicate is unchanged.
-- [ ] `build_wb_pred()` takes its tables from `.frs_waterbody_tables(type)` for L and W, and applies the floor to each (`UNION ALL` of `waterbody_key`), as `.frs_rule_to_sql()` does.
-- [ ] Test, #251: an L rule with no `lake_ha_min` gives `.frs_connected_waterbody()` no floor, and its lake-adjacent `EXISTS` carries no `area_ha` clause.
+- [x] `build_wb_pred()` takes its tables from `.frs_waterbody_tables(type)` for L and W, and applies the floor to each (`UNION ALL` of `waterbody_key`), as `.frs_rule_to_sql()` does.
+- [x] Test, #251: an L rule with no `lake_ha_min` gives `.frs_connected_waterbody()` no floor, and its lake-adjacent `EXISTS` carries no `area_ha` clause.
   - Check this through a mock of `.frs_connected_waterbody` called from `.frs_run_connectivity()`, plus the SQL text.
   - Also check that a declared 200 still passes 200.
-- [ ] `.frs_run_connectivity()`: `wb_ha_min <- NULL` unless the rule declares a floor.
+- [x] `.frs_run_connectivity()`: `wb_ha_min <- NULL` unless the rule declares a floor.
   - `.frs_connected_waterbody(waterbody_ha_min = NULL)` drops the `lp.area_ha >= ...` clause when it is NULL.
   - Update the roxygen and comments.
-- [ ] Live check: on one group with SK, the SK and KO spawning counts on the bundled rules are unchanged before and after the change.
+- [x] Live check: on one group with SK, the SK and KO spawning counts on the bundled rules are unchanged before and after the change.
 
 ## Phase 4: Typed `frs_col_join()` (#239, #222 col_join)
 
