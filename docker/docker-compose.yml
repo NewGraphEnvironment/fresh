@@ -12,11 +12,26 @@
 #   conn <- DBI::dbConnect(RPostgres::Postgres(),
 #     host = "localhost", port = 5432,
 #     dbname = "fwapg", user = "postgres", password = "postgres")
+#
+# A second instance beside the first (README, "A second instance"): give it its
+# own project name, container names, port and data directory, e.g.
+#   FRESH_DB_CONTAINER=fresh-db-2 FRESH_LOADER_CONTAINER=fresh-loader-2 \
+#   FRESH_DB_PORT=5433 FRESH_DB_DATA=./postgres-data-2 \
+#   docker compose -p fresh-2 up -d db
+#
+# Image: PostGIS 3.5 on Debian bookworm (GEOS 3.11), as upstream fwapg's own
+# db image. Up to 2026-11 this was 17-3.5-bullseye (GEOS 3.9.0). The data
+# directory format is the same (PostgreSQL 17), so `docker compose up -d db`
+# over an existing bullseye directory starts on it, but answers change:
+# GEOS 3.9.0's wrong line-polygon intersections and repeat-varying polygon
+# simplification go away, and the newer glibc changes the collation version,
+# so text indexes need a REINDEX. Moving an existing database is a step of its
+# own; do not let a routine `up` make it.
 
 services:
   db:
-    image: imresamu/postgis:17-3.5-bullseye
-    container_name: fresh-db
+    image: imresamu/postgis:17-3.5.3-bookworm
+    container_name: ${FRESH_DB_CONTAINER:-fresh-db}
     shm_size: 36gb
     command: >
       postgres
@@ -37,9 +52,9 @@ services:
         -c effective_io_concurrency=200
         -c temp_buffers=64MB
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - ${FRESH_DB_DATA:-./postgres-data}:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${FRESH_DB_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -53,7 +68,7 @@ services:
   loader:
     build:
       context: .
-    container_name: fresh-loader
+    container_name: ${FRESH_LOADER_CONTAINER:-fresh-loader}
     volumes:
       - "${FWAPG_DIR:-../../fwapg}:/home/fwapg:ro"
       - "${BCFISHOBS_DIR:-../../bcfishobs}:/home/bcfishobs:ro"

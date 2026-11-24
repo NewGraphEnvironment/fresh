@@ -87,10 +87,25 @@ frs_habitat(conn, "ADMS", falls = "working.falls")
 
 ## Ports
 
-| Port | Service |
-|------|---------|
-| 5432 | Local Docker fwapg |
-| 63333 | SSH tunnel to remote fwapg (existing) |
+The database listens on 5432 unless `FRESH_DB_PORT` says otherwise (next section).
+
+## A second instance
+
+To build or try a database beside the one you use (a new image, a rebuild from current fwapg), give the second its own compose project, container names, port and data directory. The defaults are the first instance's, so a plain `docker compose` never touches the second:
+
+```bash
+cd docker
+export FRESH_DB_CONTAINER=fresh-db-2 FRESH_LOADER_CONTAINER=fresh-loader-2 \
+  FRESH_DB_PORT=5433 FRESH_DB_DATA=./postgres-data-2
+docker compose -p fresh-2 up -d db
+docker compose -p fresh-2 run --rm loader
+```
+
+Both share the machine's memory, so size the second with a `command:` override (`docker compose -p fresh-2 -f docker-compose.yml -f second.yml ...`; see `tuning.md`). `postgres-data*/` is gitignored.
+
+## Image
+
+`imresamu/postgis:17-3.5.3-bookworm`: PostgreSQL 17, PostGIS 3.5, GEOS 3.11, as upstream fwapg's own db image (PostGIS 3.5 on bookworm). Up to 2026-11 it was `17-3.5-bullseye`, whose GEOS 3.9.0 returns an empty intersection for a line lying wholly inside a box and simplifies a polygon differently from one call to the next (`data-raw/logs/docker_rebuild_324/image_probe.txt`). The data directory format did not change, so `up` over an existing bullseye directory starts, but on different GEOS answers and a new glibc collation version (text indexes need a `REINDEX`): move an existing database deliberately, not by a routine `up`.
 
 ## What's loaded
 
@@ -123,7 +138,7 @@ Falls are shipped as `inst/extdata/falls.csv`, sourced from `bcfishpass.falls_vw
 source("data-raw/bcfishpass_falls.R")
 ```
 
-Requires SSH tunnel on port 63333. Commit the updated CSV.
+Requires a connection to a database holding `bcfishpass`. Commit the updated CSV.
 
 ## Container details
 
@@ -134,4 +149,4 @@ The loader image (`docker/Dockerfile`) includes:
 - bcdata (Python, for BC Data Catalogue downloads)
 - AWS CLI (for S3 cached lookups)
 
-Same toolchain as fwapg and bcfishpass — portable across dev machines and ready for awshak deployment.
+Same toolchain as fwapg and bcfishpass, portable across machines.

@@ -44,6 +44,23 @@ When the plan finds that a batch, or one of its members, is more than one PR's w
 - Upstream fwapg db image: postgis/postgis:16-3.5. CI test-migration.yml runs schema.sql then `cd db && ./migrate.sh`.
 - The lut Parquet on fresh-bc was published on 2026-11-04 by another repo's cloud-env, not by fresh.
 
+## Image probe (Phase 2, 2026-11-24) — `data-raw/logs/docker_rebuild_324/image_probe.txt`
+
+Script: `data-raw/docker_image_probe.sh` (geometries copied as EWKB from the live fresh-db).
+
+| image | PostGIS | GEOS | #304 boundary `ST_Intersects` | vertical line in box | simplify 100 m ×20 |
+|---|---|---|---|---|---|
+| live 17-3.5-bullseye | 3.5.2 | 3.9.0 | f, f, f | EMPTY (x = 1000 and 1500) | 556 ×3, 557 ×17 |
+| 17-3.5.3-bookworm | 3.5.3 | 3.11.1 | f, f, f | the line | 556 ×20 |
+| 17-3.6.1-trixie | 3.6.1 | 3.13.1 | f, f, f | the line | 514 ×20 |
+| 16-3.4.3-bookworm | 3.4.3 | 3.11.1 | f, f, f | the line | 556 ×20 |
+| 16-3.4-alpine3.20 | 3.4.3 | 3.12.2 | f, f, f | the line | 514 ×20 |
+
+- **#304's diagnosis does not hold.** On these geometries `ST_Intersects`, `ST_Covers` and `ST_Contains` say false on every combination of PostGIS 3.4 to 3.6 and GEOS 3.9 to 3.13. `ST_Relate` gives `F0FFFF212` (the point's interior meets the boundary) and `ST_DWithin(p, geom, 0)` true on all of them. So the deciding code is not a GEOS version. #304's control (PostGIS 3.4.2, GEOS 3.12.1, "matches all 18") must have had different geometry, likely another FWA load: that database's tunnel was closed, so this is unmeasured. The image move does not recover the 18 lut rows. The fix belongs in fwapg's `load/fwa_streams_watersheds_lut.sql` (a predicate that agrees with `ST_Relate`, e.g. `ST_DWithin(p, geom, 0)` or `ST_Intersects(p, ST_Boundary(geom)) OR ST_Intersects(p, geom)`), as a fwapg fork issue. #304 stays open with its body corrected (plan correction, reported in the PR).
+- **GEOS 3.9.0 defects the move does fix:** the line-box intersection returns `LINESTRING EMPTY` for a contained vertical line (at x = 1500 too, on this probe, unlike the near_river note's x = 1000 only); polygon simplification differs between calls in one session (#306). Every newer image answers both correctly and repeatably.
+- **The simplifier's output changed between GEOS 3.11 and 3.12** (556 to 514 points on Tahtsa Reach at 100 m). Within one version it repeats.
+- **Image chosen: `imresamu/postgis:17-3.5.3-bookworm`** by the gate rule (no probe fails on bookworm that passes on trixie). Digest `sha256:35fe7dceda62bfe7d2965b0ba78d915ff9f901b5e0466d633ecc58421b5b5210`. It matches upstream fwapg's `postgis/postgis:16-3.5` on PostGIS minor and GEOS.
+
 ## Errors Encountered
 
 | Error | Resolution |

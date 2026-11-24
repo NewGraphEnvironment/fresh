@@ -38,9 +38,9 @@ Mechanism decided in the plan:
 - [x] `bash -n docker/load.sh`
 
 ## Phase 2: Image probes and a second instance beside the first (#304)
-- [ ] Pull both candidate images. On each, record `postgis_full_version()` and run: #304's three boundary pairs (geometries copied as WKB from live), #306's Tahtsa Reach `ST_SimplifyPreserveTopology(geom, 100)` 20× in one session, and the vertical x = 1000 line-box intersection. Log the results to `data-raw/logs/docker_rebuild_324/image_probe.txt`
-- [ ] Pin the chosen exact tag in `docker/docker-compose.yml`. Add the env defaults above, and a header note: recreating an existing bullseye data dir on this image changes GEOS answers and the glibc collation version, see the follow-up issue
-- [ ] `docker/.gitignore`: `postgres-data*/`, `docker-compose.override.yml*`
+- [x] Pull both candidate images. On each, record `postgis_full_version()` and run: #304's three boundary pairs (geometries copied as WKB from live), #306's Tahtsa Reach `ST_SimplifyPreserveTopology(geom, 100)` 20× in one session, and the vertical x = 1000 line-box intersection. Log the results to `data-raw/logs/docker_rebuild_324/image_probe.txt` — **done, and it disproved #304's premise:** the boundary case is false on every PostGIS 3.4–3.6 × GEOS 3.9–3.13 tried (findings.md, "Image probe"). Bookworm chosen by the gate rule. Correction: #304 is not fixed by the image; it stays open, body corrected, fix filed as a fwapg fork issue (Phase 5)
+- [x] Pin the chosen exact tag in `docker/docker-compose.yml`. Add the env defaults above, and a header note: recreating an existing bullseye data dir on this image changes GEOS answers and the glibc collation version, see the follow-up issue
+- [x] `docker/.gitignore`: `postgres-data*/`, `docker-compose.override.yml*`
 - [ ] `docker/tuning.md` and `docker/README.md`: host-neutral override paragraph, a section on a second instance, drop host names and the tunnel port; close PR #252 with a comment pointing here
 
 ## Phase 3: Full rebuild on an empty volume
