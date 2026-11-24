@@ -1,6 +1,6 @@
 # Walking FWA downstream: what `FWA_Downstream()` and the working table give a walk
 
-**Verified:** 2026-10-21 on local fwapg (`whse_basemapping`), BULK working table from `frs_network_segment()`; "Prefiltering the feature side" 2026-10-28 and "Existence walks" 2026-10-29, local fwapg with link's `fresh_default` barrier views · **Issues:** #259, #272, #281 · **Produced by:** `data-raw/near_river_check.R` (logs `data-raw/logs/near_river_259/`), probes in `planning/archive/2026-10-issue-259-near-river/` (findings and review rounds 1 to 6); `data-raw/network_features_prefilter.R` (logs `data-raw/logs/network_features_272/`), probes and mutation runs in `planning/archive/2026-10-issue-272-network-features-prefilter/`; `data-raw/network_features_exists.R` (logs `data-raw/logs/network_features_exists_281/`).
+**Verified:** 2026-10-21 on local fwapg (`whse_basemapping`), BULK working table from `frs_network_segment()`; "Prefiltering the feature side" 2026-10-28 and "Existence walks" 2026-10-29, local fwapg with link's `fresh_default` barrier views; "GEOS" and the SKGT pair count re-verified 2026-11-24 · **Issues:** #259, #272, #281, #302, #324 · **Produced by:** `data-raw/near_river_check.R` (logs `data-raw/logs/near_river_259/`), probes in `planning/archive/2026-10-issue-259-near-river/` (findings and review rounds 1 to 6); `data-raw/network_features_prefilter.R` (logs `data-raw/logs/network_features_272/`), probes and mutation runs in `planning/archive/2026-10-issue-272-network-features-prefilter/`; `data-raw/network_features_exists.R` (logs `data-raw/logs/network_features_exists_281/`); `data-raw/network_features_answer_pairs.R` and `data-raw/docker_image_probe.sh` (logs `data-raw/logs/docker_rebuild_324/`).
 
 A downstream walk that joins rows with `FWA_Downstream()` and sorts them `wscode_ltree DESC, downstream_route_measure DESC` reads as one contiguous chain from the origin. It is not one, in five ways. `frs_near_river()` handles each; any new walk should too.
 
@@ -127,4 +127,4 @@ Postgres replaces an unread `array_agg` output with `NULL`. To time the arrays, 
 
 ## GEOS
 
-GEOS 3.9.0 (local fwapg) returns `LINESTRING EMPTY` for the intersection of an exactly vertical line at x = 1000 with a box that `ST_Contains()` says holds it; x = 1500 and slanted lines are fine.
+GEOS 3.9.0 (the local fwapg's image up to 2026-11) returns `LINESTRING EMPTY` for the intersection of an exactly vertical line with a box that `ST_Contains()` says holds it. The first measurement saw it at x = 1000 and not at x = 1500; `data-raw/docker_image_probe.sh` (2026-11-24, #324) sees it at both, so do not rely on which x it spares. GEOS 3.11.1, 3.12.2 and 3.13.1 return the line, and `docker/` now pins a GEOS 3.11 image.
