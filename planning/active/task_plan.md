@@ -32,10 +32,10 @@ Mechanism decided in the plan:
 - The link check is mechanical: the parsed, non-comment R code is identical between main and branch. `docker/` and roxygen text change no link output.
 
 ## Phase 1: Loader fix (#253, #68) on current fwapg
-- [ ] `git merge origin/253-docker-load-sh-calls-fwapg-s-db-create-s` into this branch
-- [ ] `docker/load.sh` stage 1: after `schema.sql`, run `db/migrate.sh` from the copy (`DATABASE_URL` set), replacing the "no migrations yet" comment; stop on failure
-- [ ] `docker/README.md` stage-1 row: schema.sql, migrations, search_path
-- [ ] `bash -n docker/load.sh`
+- [x] `git merge origin/253-docker-load-sh-calls-fwapg-s-db-create-s` into this branch
+- [x] `docker/load.sh` stage 1: after `schema.sql`, run `db/migrate.sh` from the copy (`DATABASE_URL` set), replacing the "no migrations yet" comment; stop on failure
+- [x] `docker/README.md` stage-1 row: schema.sql, migrations, search_path
+- [x] `bash -n docker/load.sh`
 
 ## Phase 2: Image probes and a second instance beside the first (#304)
 - [ ] Pull both candidate images. On each, record `postgis_full_version()` and run: #304's three boundary pairs (geometries copied as WKB from live), #306's Tahtsa Reach `ST_SimplifyPreserveTopology(geom, 100)` 20× in one session, and the vertical x = 1000 line-box intersection. Log the results to `data-raw/logs/docker_rebuild_324/image_probe.txt`

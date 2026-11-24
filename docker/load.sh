@@ -61,12 +61,19 @@ $PSQL -f db/schema.sql
 # call each other unqualified (fwa_downstreamtrace -> fwa_downstream,
 # fwa_watershedatmeasure -> FWA_SliceWatershedAtPoint), and so does
 # fresh (fwa_upstream(), fwa_downstream()).
-# fwapg ships no db/migrations yet. When it does, check how it expects them
-# applied on a fresh install before running db/migrate.sh here: migrate.sh
-# counts from fwapg.db_version, which schema.sql does not create, so it would
-# re-apply what the dump already holds.
 DB_NAME=$($PSQL -AtX -c "SELECT current_database()")
 $PSQL -c "ALTER DATABASE \"$DB_NAME\" SET search_path TO public,whse_basemapping,usgs,hydrosheds"
+
+# schema.sql is a snapshot that fwapg regenerates only at a release, so
+# function fixes made since (the fwa_watershedatmeasure exbc fix, the
+# fwa_indexpoint tie rule) live only in db/migrations. Apply them as fwapg's
+# own CI does (test-migration.yml: schema.sql, then db/migrate.sh), after the
+# search_path above, since migrate.sh opens new sessions and SQL-language
+# function bodies resolve their tables when created. migrate.sh starts
+# fwapg.db_version at 0, applies every migration in order and stops on the
+# first error.
+(cd db && bash migrate.sh)
+echo "  fwapg.db_version: $($PSQL -AtX -c 'SELECT tag FROM fwapg.db_version ORDER BY applied_at DESC LIMIT 1')"
 echo ""
 
 # ---------------------

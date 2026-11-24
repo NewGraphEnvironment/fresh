@@ -7,3 +7,4 @@
 - Claimed #324 (in-flight) for the branch
 - Scaffolded PWF baseline from issue #324 with approved phases
 - Next: start Phase 1
+- Phase 1: merged PR #254's branch (98b4dd0); load.sh stage 1 now sets search_path, then runs db/migrate.sh, and prints fwapg.db_version; README stage-1 row updated; `bash -n` clean
