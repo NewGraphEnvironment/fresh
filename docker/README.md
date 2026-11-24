@@ -96,7 +96,7 @@ frs_habitat(conn, "ADMS", falls = "working.falls")
 
 | Stage | Source | Contents |
 |-------|--------|----------|
-| 1 | fwapg `db/create.sh` | Extensions (PostGIS, ltree), schemas, 23 SQL functions |
+| 1 | fwapg `db/schema.sql` | Extensions (PostGIS, ltree), schemas, tables, SQL functions; then the database `search_path` (`public,whse_basemapping,usgs,hydrosheds`), which `schema.sql` does not carry |
 | 2 | fwapg `load.sh` | Stream networks, lakes, wetlands, watersheds, channel width, discharge, precip lookups |
 | 3 | `inst/extdata/falls.csv` | 3,294 barrier falls → `working.falls` table |
 | 4 | bcfishobs (optional) | Fish observation events → `bcfishobs` schema |
