@@ -74,6 +74,15 @@ Script: `data-raw/docker_image_probe.sh` (geometries copied as EWKB from the liv
 
 The header is right for its stated population. #302's probe numbers (50,417 / 51,698) are exactly the whole fixture's: the probe counted the NULL-coded SKGT copies too, and the six-group database was not the cause. Header now gives both populations and the producer.
 
+## #304: the lut fix is a predicate in fwapg, measured on live (2026-11-24)
+
+fwapg `load/fwa_streams_watersheds_lut.sql:45` (newgraph 137fd69) falls back to `ST_Intersects(ST_LineInterpolatePoint(s.geom, .5), w.geom)` for streams with no code match. On the live DB, replacing it with `ST_DWithin(..., w.geom, 0)` (same filters, no lut row yet):
+
+- BULK 9, ADMS 9: exactly #304's 18 (40,486 + 18 = 40,504, its expected total); `ST_Intersects` adds 0 of them.
+- Province-wide: 2,835 streams in 239 groups (2.9 s).
+
+Where the midpoint sits on a shared edge `ST_DWithin` matches both polygons; the existing `ORDER BY ... ST_Distance(midpoint, ST_Centroid(w.geom))` already picks one, as it does for any multi-match.
+
 ## Errors Encountered
 
 | Error | Resolution |

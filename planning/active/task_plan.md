@@ -54,7 +54,7 @@ Mechanism decided in the plan:
 - [ ] #306: the repeat probe on the rebuild (20× SQL, 20× `frs_lake_fetch(aoi =, simplify_m = 100)` on one connection). Doc note per the outcome rule in `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`; revise `research/fwa_fetch_determinism.md`
 - [x] #302: re-derive both pair counts with the test's own fixture and query on the full-province rebuild (`data-raw/network_features_answer_pairs.R`, log beside it). Correct the header and `research/fwa_downstream_walk.md` (line 46) — header right for its population; #302's numbers are the whole fixture's (findings). Re-run on the rebuild in Phase 3 post-conditions
 - [x] Vertical-line probe result into the `test-frs_near_river.R` comment and `research/fwa_downstream_walk.md` "GEOS"
-- [ ] `research/fwapg_channel_width.md`: re-check its BULK counts that depend on the lut
+- [x] `research/fwapg_channel_width.md`: re-check its BULK counts that depend on the lut
 - [ ] `devtools::document()`, `lintr` per file against main
 
 ## Phase 5: Follow-ups and close-out
