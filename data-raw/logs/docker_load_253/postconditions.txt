@@ -1,0 +1,35 @@
+## search_path (database setting)
+fwapg|{"search_path=public, whse_basemapping, usgs, hydrosheds"}
+fwapg_253|{"search_path=public, whse_basemapping, usgs, hydrosheds"}
+
+## row counts: table, fwapg, fwapg_253, pct_diff
+whse_basemapping.fwa_stream_networks_sp	4907441	4907441	0.000
+whse_basemapping.fwa_streams	4538224	4538224	0.000
+whse_basemapping.fwa_lakes_poly	386025	386025	0.000
+whse_basemapping.fwa_wetlands_poly	375178	375178	0.000
+whse_basemapping.fwa_rivers_poly	37083	37083	0.000
+whse_basemapping.fwa_watersheds_poly	3245453	3245453	0.000
+whse_basemapping.fwa_assessment_watersheds_poly	19479	19479	0.000
+whse_basemapping.fwa_watershed_groups_poly	246	246	0.000
+whse_basemapping.fwa_stream_networks_channel_width	4907429	4907441	0.000
+whse_basemapping.fwa_stream_networks_discharge	2716652	2716652	0.000
+whse_basemapping.fwa_stream_networks_order_parent	1509493	1509492	-0.000
+whse_basemapping.fwa_streams_watersheds_lut	4538224	4538224	0.000
+whse_basemapping.pcic_fwa_crosswalk	48716	48716	0.000
+whse_basemapping.fwa_stream_networks_discharge_monthly	40524444	40524444	0.000
+working.falls	NA	3294	NA
+working.crossings	NA	533291	NA
+
+## functions on fwapg
+fwa_watershedatmeasure	231944.7
+postgisftw.fwa_watershedatmeasure	231944.7
+fwa_watershedatmeasure lake	11.5
+fwa_downstreamtrace	1567	590498
+fwa_upstream unqualified	8876
+
+## functions on fwapg_253
+ERROR:  relation "exbc" does not exist
+postgisftw.fwa_watershedatmeasure	231944.7
+fwa_watershedatmeasure lake	11.5
+fwa_downstreamtrace	1567	590498
+fwa_upstream unqualified	8876
