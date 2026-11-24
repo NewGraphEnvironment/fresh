@@ -1,0 +1,47 @@
+# docker_image_probe.sh, 2026-11-24T18:25:56Z
+# source: fresh-db/fwapg (imresamu/postgis:17-3.5-bullseye)
+
+===== fresh-db (source database)
+                                                                                                                                                                                               postgis_full_version                                                                                                                                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.5.2 dea6d0a" [EXTENSION] PGSQL="170" GEOS="3.9.0-CAPI-1.16.2" PROJ="7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 7.2.1) GDAL="GDAL 3.2.2, released 2021/03/05" LIBXML="2.9.10" LIBJSON="0.15" LIBPROTOBUF="1.3.3" WAGYU="0.5.0 (Internal)" TOPOLOGY RASTER
+
+  stream   |   ws    | dist | on_boundary | intersects | covers | contains | dwithin0 |   de9im   
+-----------+---------+------+-------------+------------+--------+----------+----------+-----------
+  17046241 | 7637979 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700244339 | 7630925 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700277597 | 7607864 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+
+ line_x |   intersection   | box_contains_line 
+--------+------------------+-------------------
+   1000 | LINESTRING EMPTY | t
+   1500 | LINESTRING EMPTY | t
+
+ simplify_100_npoints | calls 
+----------------------+-------
+                  556 |     4
+                  557 |    16
+
+
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+===== postgis/postgis:16-3.5 (postgis/postgis@sha256:94146ac37bc61e2322f88016056c5920729cb8c64c8542ed590af8fc2abdac07)
+                                                                                                                                                                        postgis_full_version                                                                                                                                                                        
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.5.2 dea6d0a" [EXTENSION] PGSQL="160" GEOS="3.9.0-CAPI-1.16.2" PROJ="7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 7.2.1) LIBXML="2.9.10" LIBJSON="0.15" LIBPROTOBUF="1.3.3" WAGYU="0.5.0 (Internal)" TOPOLOGY
+
+  stream   |   ws    | dist | on_boundary | intersects | covers | contains | dwithin0 |   de9im   
+-----------+---------+------+-------------+------------+--------+----------+----------+-----------
+  17046241 | 7637979 |    0 | t           | t          | t      | f        | t        | F0FFFF212
+ 700244339 | 7630925 |    0 | t           | t          | t      | f        | t        | F0FFFF212
+ 700277597 | 7607864 |    0 | t           | t          | t      | f        | t        | F0FFFF212
+
+ line_x |   intersection   | box_contains_line 
+--------+------------------+-------------------
+   1000 | LINESTRING EMPTY | t
+   1500 | LINESTRING EMPTY | t
+
+ simplify_100_npoints | calls 
+----------------------+-------
+                  557 |    20
+
+

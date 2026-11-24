@@ -98,11 +98,14 @@ for img in "$@"; do
   i=$((i + 1)); c="probe-$i-$$"
   docker run -d --rm --name "$c" -e POSTGRES_PASSWORD=probe "$img" >/dev/null
   STARTED+=("$c")
-  # The image's init script creates the postgis extension after the server
-  # first answers, so wait for the extension rather than pg_isready.
-  for _ in $(seq 1 200); do
-    docker exec "$c" psql -U postgres -AtXc "SELECT 1 FROM pg_extension WHERE extname = 'postgis'" 2>/dev/null \
-      | grep -q 1 && break
+  # The image's init runs a temporary server on the Unix socket only, creates
+  # the postgis extension there, then restarts: wait for TCP (the real server)
+  # and the extension, or psql can land on the temporary server as it stops.
+  for _ in $(seq 1 400); do
+    docker exec "$c" pg_isready -U postgres -h 127.0.0.1 -q 2>/dev/null \
+      && docker exec "$c" psql -U postgres -h 127.0.0.1 -AtXc \
+           "SELECT 1 FROM pg_extension WHERE extname = 'postgis'" 2>/dev/null | grep -q 1 \
+      && break
     sleep 3
   done
   run_probe "$c" postgres "$img ($(docker image inspect "$img" --format '{{index .RepoDigests 0}}'))"

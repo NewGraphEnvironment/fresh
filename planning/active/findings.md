@@ -83,7 +83,24 @@ fwapg `load/fwa_streams_watersheds_lut.sql:45` (newgraph 137fd69) falls back to 
 
 Where the midpoint sits on a shared edge `ST_DWithin` matches both polygons; the existing `ORDER BY ... ST_Distance(midpoint, ST_Centroid(w.geom))` already picks one, as it does for any multi-match.
 
+## #304 is an architecture effect, and upstream's image is bullseye (2026-11-24, after the plan review)
+
+`data-raw/logs/docker_rebuild_324/image_probe_amd64.txt`: upstream fwapg's own db base `postgis/postgis:16-3.5` is **amd64-only, Debian 11 bullseye, PostGIS 3.5.2, GEOS 3.9.0**: the same stack as the old local image. Run under emulation on the same EWKB:
+
+- boundary: `ST_Intersects` **t**, `ST_Covers` **t** (arm64: f, f on every stack); `ST_Contains` f and `ST_Relate` `F0FFFF212` on both.
+- vertical line: EMPTY (a GEOS 3.9.0 defect, both architectures).
+- simplify 100 m ×20: 557 ×20 (arm64 GEOS 3.9.0: 556/557 mixed; arm64 GEOS 3.11+: repeats).
+- the interpolated midpoints are bit-identical on arm64 and amd64 (EWKB hex compared), so the difference is in PostGIS's point-in-polygon test, not the point.
+
+Consequences:
+- #304's 18 missing lut rows (2,835 province-wide) are an artefact of building on arm64; an amd64 build has them. fwapg#60's `ST_DWithin(..., 0)` makes the lut the same on both. #304's control "PostgreSQL 16.15, PostGIS 3.4.2, GEOS 3.12.1" was presumably amd64.
+- **The gate premise "upstream builds on bookworm / GEOS 3.11" was wrong** (I read `postgis/postgis:16-3.5` as bookworm without checking). Upstream matches the old image, on amd64. Taken back to the owner.
+- #306's repeat-varying simplify was seen on arm64 GEOS 3.9.0; amd64 GEOS 3.9.0 repeated 20/20 here (one probe).
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| Rebuild attempt 1: `Connection refused` at stage 1 on an empty volume | compose healthcheck over TCP (`pg_isready -h 127.0.0.1`) + `start_period: 15m`; the socket check passed during the image's socket-only init |
+| `docker_image_probe.sh` on an amd64 image: `the database system is shutting down` | wait for TCP and the extension, not the extension alone (init restarts after creating it) |
+| `df -g` invalid (GNU df on this Mac) | `df -Pk` and divide |
