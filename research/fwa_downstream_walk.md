@@ -43,7 +43,7 @@ the segment's blue line with NULL codes. The wscode arm admits the AOI's own cod
 strict ancestors. The strict ancestors matter only where an answer reaches a code that is not
 one of the AOI's own. The answer pairs only they admit (a feature on neither an AOI blue line
 nor an AOI code; every 25th FWA segment as features, `include_equivalents = FALSE`) are 0 in
-CHWK, SAHD and UPET, 22 of 40,495 in SKGT, and 1.00 M of 1.05 M in UTRE. So a test that cuts
+CHWK, SAHD and UPET, 22 of 40,495 in SKGT (re-derived 2026-11-24 by `data-raw/network_features_answer_pairs.R`, #302), and 1.00 M of 1.05 M in UTRE. So a test that cuts
 an arm, or the wscode arm back to the AOI's own codes, needs a group and a feature table that
 reach it: the local live test uses SKGT, plus NULL-coded copies of SKGT segments.
 

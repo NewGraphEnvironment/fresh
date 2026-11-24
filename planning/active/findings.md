@@ -61,6 +61,19 @@ Script: `data-raw/docker_image_probe.sh` (geometries copied as EWKB from the liv
 - **The simplifier's output changed between GEOS 3.11 and 3.12** (556 to 514 points on Tahtsa Reach at 100 m). Within one version it repeats.
 - **Image chosen: `imresamu/postgis:17-3.5.3-bookworm`** by the gate rule (no probe fails on bookworm that passes on trixie). Digest `sha256:35fe7dceda62bfe7d2965b0ba78d915ff9f901b5e0466d633ecc58421b5b5210`. It matches upstream fwapg's `postgis/postgis:16-3.5` on PostGIS minor and GEOS.
 
+## #302 answer pairs (2026-11-24) — `data-raw/logs/docker_rebuild_324/answer_pairs_5432.tsv`
+
+`data-raw/network_features_answer_pairs.R` evaluates the test's own `nf_local_features()` (parsed from the test file) on the live full-province DB (246 groups, 4,907,441 segments):
+
+| population | include_equivalents | pairs | ancestor only |
+|---|---|---|---|
+| every 25th (header's) | FALSE | 40,495 | 22 |
+| every 25th | TRUE | 40,769 | 22 |
+| whole fixture | FALSE | 50,417 | 22 |
+| whole fixture | TRUE | 51,698 | 22 |
+
+The header is right for its stated population. #302's probe numbers (50,417 / 51,698) are exactly the whole fixture's: the probe counted the NULL-coded SKGT copies too, and the six-group database was not the cause. Header now gives both populations and the producer.
+
 ## Errors Encountered
 
 | Error | Resolution |
