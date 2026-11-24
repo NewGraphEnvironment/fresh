@@ -1,0 +1,77 @@
+# Task: Backlog move 7: docker image and loader rebuild (#324)
+
+**If we do it:** a local fwapg can be rebuilt against current fwapg, on a GEOS that answers point-on-boundary correctly. **If we never do:** no new local database can be built, and derived tables keep GEOS 3.9.0's wrong answers.
+
+Members: #253, #68, #304, #306, #302. Open PRs folded: #254 (merged into this branch), #252 (closed, folded host-neutral).
+
+## Context
+
+`docker/` can no longer build a local fwapg. `load.sh` calls fwapg's removed `db/create.sh` (#253, with #68's workaround). The image `imresamu/postgis:17-3.5-bullseye` ships GEOS 3.9.0, which says a point on a polygon's boundary does not intersect it (#304). That drops 18 streams from `fwa_streams_watersheds_lut` in BULK and ADMS, and it may also make polygon simplification differ between calls (#306). The header counts in `tests/testthat/test-frs_network_features-local.R` were never reproduced (#302). One full rebuild on a new image verifies all five. Open PR #254 has the loader fix, but it is stale: fwapg now ships three migrations newer than `schema.sql`, so `migrate.sh` must run. Open PR #252 adds host names to `docker/tuning.md` in this public repo.
+
+What exploration found:
+- Upstream fwapg builds on `postgis/postgis:16-3.5` (bookworm, GEOS 3.11). Its CI runs `schema.sql` then `db/migrate.sh`. Migrations on fwapg `newgraph`: `202610131654` (drop exbc), `202610240132` (indexpoint tiebreak), `202611131236` (named streams). `schema.sql` dates from 2026-04-17.
+- The fork's `newgraph` `load.sh` adds PCIC, which PR #254 loaded and compared. The local `~/Projects/repo/fwapg` checkout is 55 commits behind `origin/newgraph`, so the build runs from a detached worktree.
+- The live `fresh-db` holds 305 GB: link's outputs, `pcic` and `discharge` on top of the ~40 GB fwapg load. It cannot be replaced by a rebuild. 225 GB of disk is free, enough for a second ~40–60 GB instance.
+- `container_name: fresh-db`, port 5432 and `./postgres-data` are fixed in compose, and compose 2.15.1 has no `!override`, so an override file cannot move the port. A second instance needs env defaults in the base file.
+- The lut Parquet on fresh-bc is published by another repo's cloud-env, not by fresh.
+- Moves 1 and 2 have merged (#327, #331). The backlog's "leave `R/utils.R` and the `test-frs_near_river.R` comment to moves 1 and 2" no longer applies.
+
+## Decided at the gate
+
+Owner, 2026-11-24, by AskUserQuestion at the plan gate (the image after a follow-up: the owner asked why not trixie; answered that upstream fwapg builds on PostGIS 3.5 / GEOS 3.11, then chose to probe both).
+
+1. **Live fresh-db stays on bullseye.** A filed follow-up issue swaps it. This PR proves the image with a full rebuild in a second container.
+2. **Image: probe both, bookworm unless it fails.** Run the #304, #306 and vertical-line probes on `17-3.5.3-bookworm` and `17-3.6.1-trixie` before the load. Pin bookworm, which matches upstream's tested stack, unless a probe fails on bookworm and passes on trixie.
+3. **Close PR #252, fold it in host-neutral.** Take its `.gitignore` line, and rewrite the override paragraph without hosts or private repos. Also scrub the existing host names and tunnel port in `tuning.md` and `docker/README.md`.
+4. **Merge PR #254's branch into this branch**, keeping its commits, logs and archive. `migrate.sh` goes on top. This PR carries Fixes #253, #68.
+
+Mechanism decided in the plan:
+- Compose takes `FRESH_DB_CONTAINER`, `FRESH_DB_PORT`, `FRESH_DB_DATA` and `FRESH_LOADER_CONTAINER`, with defaults equal to today's values. The second instance runs under `-p fresh-rebuild` with a memory-sized `command:` override kept in the scratchpad.
+- The image is pinned to an exact tag, never a floating one.
+- #306's outcome rule: if polygon simplification repeats on the pinned GEOS, a doc note naming both versions closes #306. If it does not, the doc note lands and #306 stays open, its body updated with the measurement, for the next sweep.
+- The link check is mechanical: the parsed, non-comment R code is identical between main and branch. `docker/` and roxygen text change no link output.
+
+## Phase 1: Loader fix (#253, #68) on current fwapg
+- [ ] `git merge origin/253-docker-load-sh-calls-fwapg-s-db-create-s` into this branch
+- [ ] `docker/load.sh` stage 1: after `schema.sql`, run `db/migrate.sh` from the copy (`DATABASE_URL` set), replacing the "no migrations yet" comment; stop on failure
+- [ ] `docker/README.md` stage-1 row: schema.sql, migrations, search_path
+- [ ] `bash -n docker/load.sh`
+
+## Phase 2: Image probes and a second instance beside the first (#304)
+- [ ] Pull both candidate images. On each, record `postgis_full_version()` and run: #304's three boundary pairs (geometries copied as WKB from live), #306's Tahtsa Reach `ST_SimplifyPreserveTopology(geom, 100)` 20× in one session, and the vertical x = 1000 line-box intersection. Log the results to `data-raw/logs/docker_rebuild_324/image_probe.txt`
+- [ ] Pin the chosen exact tag in `docker/docker-compose.yml`. Add the env defaults above, and a header note: recreating an existing bullseye data dir on this image changes GEOS answers and the glibc collation version, see the follow-up issue
+- [ ] `docker/.gitignore`: `postgres-data*/`, `docker-compose.override.yml*`
+- [ ] `docker/tuning.md` and `docker/README.md`: host-neutral override paragraph, a section on a second instance, drop host names and the tunnel port; close PR #252 with a comment pointing here
+
+## Phase 3: Full rebuild on an empty volume
+- [ ] Detached worktree of fwapg at `origin/newgraph`; record its sha
+- [ ] `-p fresh-rebuild`, port 5433, empty `docker/postgres-data-rebuild/`; loader in the background with its log, launch stamp and done marker under `data-raw/logs/docker_rebuild_324/`, and a disk watchdog that stops it at 30 GB free
+- [ ] Post-conditions against live (adapting #254's `postconditions.sh`): key table counts, `search_path`, `fwapg.db_version` = `202611131236`, `fwa_downstreamtrace`, `fwa_upstream()`, `fwa_watershedatmeasure()` at a non-lake point
+- [ ] `FRESH_PG*` at 5433: `FRESH_FWAPG_CURRENT=true` `test-frs_fwapg_gate.R` passes; full `devtools::test()` with `PG*` at 5433
+
+## Phase 4: Measurements and the member fixes
+- [ ] #304: the 18 named streams have lut rows; BULK+ADMS count recorded. Grep fwapg `load/*.sql` for boundary-sensitive predicates and list the tables for the follow-up issue
+- [ ] #306: the repeat probe on the rebuild (20× SQL, 20× `frs_lake_fetch(aoi =, simplify_m = 100)` on one connection). Doc note per the outcome rule in `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`; revise `research/fwa_fetch_determinism.md`
+- [ ] #302: re-derive both pair counts with the test's own fixture and query on the full-province rebuild (`data-raw/network_features_answer_pairs.R`, log beside it). Correct the header and `research/fwa_downstream_walk.md` (line 46)
+- [ ] Vertical-line probe result into the `test-frs_near_river.R` comment and `research/fwa_downstream_walk.md` "GEOS"
+- [ ] `research/fwapg_channel_width.md`: re-check its BULK counts that depend on the lut
+- [ ] `devtools::document()`, `lintr` per file against main
+
+## Phase 5: Follow-ups and close-out
+- [ ] File: move the live local fwapg onto the new image (recreate over its data dir, refresh the collation version and reindex, rebuild the lut and the listed tables, measure link's outputs before and after), naming move 7
+- [ ] File the lut Parquet re-export with its publisher (private repo), and the `--bcfishobs` stage-4 issue from #254's draft, each naming move 7
+- [ ] Link check: parse-compare `R/` between main and branch
+- [ ] Edit #302, #304, #306 bodies with what was measured
+
+## Owed at the end (reported, done after merge)
+- [ ] Remove the `fresh-rebuild` instance, `docker/postgres-data-rebuild/` and the fwapg worktree, unless the live-swap issue wants them kept
+- [ ] Confirm PR #254 shows merged and PR #252 is closed
+
+## Validation
+- [ ] Tests pass
+- [ ] `/code-check` clean (`/code-check branch`)
+- [ ] PWF checkboxes match landed work
+- [ ] `/planning-archive` on completion
+
+Verification: the image probe log shows the pinned image answering #304's boundary case true. The loader exits 0 on an empty volume, with its done marker newer than the launch stamp. Post-conditions match live apart from the measured lut additions. The gate test passes under `FRESH_FWAPG_CURRENT=true`, and the full suite passes on the rebuild. The #302 counts come from a committed script that a second run reproduces. The R parse-compare shows no executable change.
+
