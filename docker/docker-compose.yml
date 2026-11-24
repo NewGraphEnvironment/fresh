@@ -56,10 +56,15 @@ services:
     ports:
       - "${FRESH_DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # Over TCP, not the socket: on an empty data directory the image's init
+      # runs a temporary server on the Unix socket only (creating extensions,
+      # which can take minutes), and a socket check calls that healthy, so the
+      # loader started and got "Connection refused" (#324).
+      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
       interval: 5s
       timeout: 1s
       retries: 5
+      start_period: 15m
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres

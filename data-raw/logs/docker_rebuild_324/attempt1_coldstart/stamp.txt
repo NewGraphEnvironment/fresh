@@ -1,0 +1,4 @@
+fresh: 072c522ae6e8a9c024f3bcacf5367120d58ab23a
+fwapg: 137fd6989f8cbad8de7be23bab7b05eb0ddcb0a0 (/Users/airvine/Projects/repo/fwapg-324)
+image: imresamu/postgis:17-3.5.3-bookworm
+db: 

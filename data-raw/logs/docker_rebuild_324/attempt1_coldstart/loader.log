@@ -1,0 +1,47 @@
+Network fresh-rebuild_default  Creating
+Network fresh-rebuild_default  Created
+Container fresh-db-rebuild  Creating
+Container fresh-db-rebuild  Created
+Container fresh-db-rebuild  Starting
+Container fresh-db-rebuild  Started
+Container fresh-db-rebuild  Waiting
+Container fresh-db-rebuild  Healthy
+Container fresh-db-rebuild  Running
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.86kB done
+#1 DONE 0.0s
+
+#2 [internal] load .dockerignore
+#2 transferring context: 2B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for ghcr.io/osgeo/gdal:ubuntu-full-3.12.1
+#3 DONE 0.0s
+
+#4 [1/5] FROM ghcr.io/osgeo/gdal:ubuntu-full-3.12.1
+#4 DONE 0.0s
+
+#5 [2/5] RUN apt-get update && apt-get --assume-yes upgrade     && apt-get -qq install -y --no-install-recommends postgresql-common     && apt-get -qq install -y --no-install-recommends yes     && apt-get -qq install -y --no-install-recommends gnupg     && yes '' | sh /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh     && apt-get -qq install -y --no-install-recommends postgresql-client-17     && apt-get -qq install -y --no-install-recommends make     && apt-get -qq install -y --no-install-recommends g++     && apt-get -qq install -y --no-install-recommends zip     && apt-get -qq install -y --no-install-recommends unzip     && apt-get -qq install -y --no-install-recommends parallel     && apt-get -qq install -y --no-install-recommends python3-pip     && apt-get -qq install -y --no-install-recommends python3-dev     && apt-get -qq install -y --no-install-recommends python3-venv     && apt-get -qq install -y --no-install-recommends python3-psycopg2     && apt-get -qq install -y --no-install-recommends jq     && rm -rf /var/lib/apt/lists/*
+#5 CACHED
+
+#6 [3/5] RUN ARCH=$(uname -m)     && curl "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}-2.22.21.zip" -o "awscliv2.zip"     && unzip awscliv2.zip     && ./aws/install     && rm -rf awscliv2.zip aws
+#6 CACHED
+
+#7 [4/5] RUN python3 -m venv /opt/venv &&     /opt/venv/bin/python -m pip install -U pip &&     /opt/venv/bin/python -m pip install --no-cache-dir --upgrade numpy &&     /opt/venv/bin/python -m pip install --no-cache-dir rasterstats &&     /opt/venv/bin/python -m pip install --no-cache-dir bcdata
+#7 CACHED
+
+#8 [5/5] WORKDIR /home/fresh
+#8 CACHED
+
+#9 exporting to image
+#9 exporting layers done
+#9 writing image sha256:df9900f3bca4f18463bac41c3ad12087da1ccb1c6d94d2b9681bc8a5be6bf57e done
+#9 naming to docker.io/library/fresh-rebuild-loader done
+#9 DONE 0.0s
+=== fresh local DB loader ===
+  fwapg:    /home/fwapg
+  database: postgresql://postgres:postgres@db:5432/fwapg
+
+--- Stage 1: fwapg schema + functions ---
+psql: error: connection to server at "db" (172.19.0.2), port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
