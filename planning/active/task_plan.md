@@ -58,8 +58,8 @@ Mechanism decided in the plan:
 - [ ] `devtools::document()`, `lintr` per file against main
 
 ## Phase 5: Follow-ups and close-out
-- [ ] File: move the live local fwapg onto the new image (recreate over its data dir, refresh the collation version and reindex, rebuild the lut and the listed tables, measure link's outputs before and after), naming move 7
-- [ ] File the lut Parquet re-export with its publisher (private repo), and the `--bcfishobs` stage-4 issue from #254's draft, each naming move 7
+- [x] File: move the live local fwapg onto the new image (recreate over its data dir, refresh the collation version and reindex, rebuild the lut and the listed tables, measure link's outputs before and after), naming move 7 — #335
+- [x] File the lut Parquet re-export with its publisher (private repo), and the `--bcfishobs` stage-4 issue from #254's draft, each naming move 7 — rtj#446 (re-export, after fwapg#60), #334 (bcfishobs stage 4), plus NewGraphEnvironment/fwapg#60 (the lut predicate, #304's real fix)
 - [ ] Link check: parse-compare `R/` between main and branch
 - [ ] Edit #302, #304, #306 bodies with what was measured
 
