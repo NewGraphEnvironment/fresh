@@ -16,8 +16,8 @@ rm -f "$L/loader.done"
 date -u +%FT%TZ > "$L/launch_utc.txt"
 {
   echo "fresh: $(git -C "$REPO" rev-parse HEAD)"
-  echo "fwapg: $(git -C "$FWAPG" rev-parse HEAD) ($FWAPG)"
-  echo "image: $(grep -E '^ +image:' "$REPO/docker/docker-compose.yml" | awk '{print $2}')"
+  echo "fwapg: $(git -C "$FWAPG" rev-parse HEAD) ($(basename "$FWAPG"))"
+  echo "image: $("${DC[@]}" config --images db 2>/dev/null | head -1)"
 } > "$L/stamp.txt"
 
 [ ! -e "$REPO/docker/postgres-data-rebuild" ] || { echo "docker/postgres-data-rebuild exists: not an empty volume" >&2; echo 90 > "$L/loader.done"; exit 90; }
@@ -41,7 +41,8 @@ echo "db: $(docker exec fresh-db-rebuild psql -U postgres -d fwapg -AtXc 'select
 WD=$!
 trap 'kill "$WD" 2>/dev/null' EXIT
 
-"${DC[@]}" run --rm loader >> "$L/loader.log" 2>&1
+# compose `run` ignores container_name, so name it here: the watchdog stops it by name.
+"${DC[@]}" run --rm --name fresh-loader-rebuild loader >> "$L/loader.log" 2>&1
 rc=$?
 echo "$rc" > "$L/loader.done"
 exit "$rc"

@@ -13,3 +13,11 @@
 - #302 resolved on live: the header's counts are right for every-25th; #302's probe counted the whole fixture
 - #304: measured on live that ST_DWithin(0) in fwapg's lut fallback recovers exactly the 18 (2,835 province-wide); filed NewGraphEnvironment/fwapg#60. BULK's one order-1 segment without channel-width inputs (research/fwapg_channel_width.md) is one of them
 - Filed follow-ups: #335 (move an existing local fwapg onto bookworm), #334 (bcfishobs stage 4, from #254's draft), NewGraphEnvironment/fwapg#60 (lut predicate), rtj#446 (Parquet re-export after fwapg#60). fwapg's load SQL has one spatial predicate, the lut's
+
+## Session 2026-11-24 (continued) and 2026-11-25
+
+- Plan review returned (review-plan.md): 2 blockers (watchdog no-op, gate test cannot pass on newgraph's migrations), gaps G1-G4; all reproduced
+- amd64 probe (`image_probe_amd64.txt`): upstream's `postgis/postgis:16-3.5` is bullseye / GEOS 3.9.0; #304's boundary case is true there and false on arm64, same libraries, bit-identical midpoints. #304 is architecture, not image
+- Owner switched the image to trixie; bookworm load (attempt 2) stopped at ~18:40Z and kept as `attempt2_bookworm_stopped/`
+- Compose now `${FRESH_DB_IMAGE:-imresamu/postgis:17-3.6.1-trixie}`, `.env` gitignored; README second-instance (COMPOSE_PROJECT_NAME, run --name, FWAPG_DIR) and Image sections rewritten; run.sh watchdog fixed; home paths scrubbed from stamps
+- Next: relaunch the trixie load (first box under "Corrections"), then Phase 3 post-conditions and tests on 5433

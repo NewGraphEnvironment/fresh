@@ -1,3 +1,5 @@
 postgres-data*/
 # Host-specific overrides are deployed per machine; never commit them.
 docker-compose.override.yml*
+# Machine-local settings, e.g. FRESH_DB_IMAGE for a database not yet moved (docker-compose.yml)
+.env

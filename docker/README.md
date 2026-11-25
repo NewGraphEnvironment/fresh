@@ -91,21 +91,23 @@ The database listens on 5432 unless `FRESH_DB_PORT` says otherwise (next section
 
 ## A second instance
 
-To build or try a database beside the one you use (a new image, a rebuild from current fwapg), give the second its own compose project, container names, port and data directory. The defaults are the first instance's, so a plain `docker compose` never touches the second:
+To build or try a database beside the one you use (a new image, a rebuild from current fwapg), give the second its own compose project, container name, port and data directory. The defaults are the first instance's, and `COMPOSE_PROJECT_NAME` keeps every later `docker compose` in that shell on the second (without it, the project is named after this directory and addresses the first):
 
 ```bash
 cd docker
-export FRESH_DB_CONTAINER=fresh-db-2 FRESH_LOADER_CONTAINER=fresh-loader-2 \
-  FRESH_DB_PORT=5433 FRESH_DB_DATA=./postgres-data-2
-docker compose -p fresh-2 up -d db
-docker compose -p fresh-2 run --rm loader
+export COMPOSE_PROJECT_NAME=fresh-2 FRESH_DB_CONTAINER=fresh-db-2 \
+  FRESH_DB_PORT=5433 FRESH_DB_DATA=./postgres-data-2 FWAPG_DIR=/path/to/fwapg
+docker compose up -d --wait db
+docker compose run --rm --name fresh-loader-2 loader
 ```
 
-Both share the machine's memory, so size the second with a `command:` override (`docker compose -p fresh-2 -f docker-compose.yml -f second.yml ...`; see `tuning.md`). `postgres-data*/` is gitignored.
+`docker compose run` ignores `container_name`, hence `--name` (`FRESH_LOADER_CONTAINER` applies only under `up`). Point `FWAPG_DIR` at an fwapg checkout that is current. Both instances share the machine's memory, so size the second with a `command:` override (`-f docker-compose.yml -f second.yml`; see `tuning.md`). `postgres-data*/` is gitignored.
 
 ## Image
 
-`imresamu/postgis:17-3.5.3-bookworm`: PostgreSQL 17, PostGIS 3.5, GEOS 3.11, as upstream fwapg's own db image (PostGIS 3.5 on bookworm). Up to 2026-11 it was `17-3.5-bullseye`, whose GEOS 3.9.0 returns an empty intersection for a line lying wholly inside a box and simplifies a polygon differently from one call to the next (`data-raw/logs/docker_rebuild_324/image_probe.txt`). The data directory format did not change, so `up` over an existing bullseye directory starts, but on different GEOS answers and a new glibc collation version (text indexes need a `REINDEX`): move an existing database deliberately, not by a routine `up`.
+`imresamu/postgis:17-3.6.1-trixie`: PostgreSQL 17, PostGIS 3.6, GEOS 3.13. Up to 2026-11 it was `17-3.5-bullseye` (PostGIS 3.5.2, GEOS 3.9.0), whose GEOS returns an empty intersection for a line lying wholly inside a box and, on arm64, simplifies a polygon differently from one call to the next (`data-raw/logs/docker_rebuild_324/image_probe.txt`). Upstream fwapg's own db image is still PostGIS 3.5.2 / GEOS 3.9.0 (`postgis/postgis:16-3.5`, amd64).
+
+A database built on the old image is not moved by changing this file alone: `up` over its data directory would start it on the new image, with a new glibc collation version (text indexes need a `REINDEX`) and a PostGIS library one minor version ahead of its catalog (`ALTER EXTENSION postgis UPDATE`). Keep such a machine on the old image with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye` in `docker/.env` (gitignored) until it is moved deliberately (#335).
 
 ## What's loaded
 

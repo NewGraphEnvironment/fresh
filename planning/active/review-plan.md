@@ -20,6 +20,18 @@ Findings, verbatim in substance; verdicts are added below each after a probe.
 - Privacy: stamp.txt (and attempt1's) records an absolute home path in a public repo. Don't quote PR #252's title in the closing comment.
 - Acceptance: compare the suite on the rebuild against a live run rather than reading it as a plain pass.
 
+## Verdicts (probed 2026-11-24)
+
+- B1 reproduced (`docker ps`: `fresh-rebuild_loader_run_dba75d0455fa`); fixed in run.sh with `run --name`.
+- B2 reproduced (rebuild's fwa_indexpoint args: `point geometry, tolerance ..., num_features ...`); expected failure, issue to file.
+- G1 reproduced (load.sh:118 rebuilds fwa_named_streams with `ST_Simplify(ST_Union(geom), 25)`); fwapg issue to file.
+- G2, G3 folded: COMPOSE_PROJECT_NAME in README; FRESH_DB_IMAGE with gitignored docker/.env, owed after merge.
+- G4: to apply in Phase 3.
+- O1: #302 counted on live, done before the review landed.
+- A1 confirmed by measurement: amd64 answers true (image_probe_amd64.txt).
+- S1, S2: plan text corrected under "Corrections after the plan review".
+- A2: kept the exact tag; digest recorded in the probe log. A3: README sets FWAPG_DIR. Privacy: stamps scrubbed.
+
 ## Files the plan names
 
 docker/load.sh

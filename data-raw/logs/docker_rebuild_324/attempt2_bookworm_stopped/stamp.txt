@@ -1,0 +1,4 @@
+fresh: 06ca28410055a8f66c17283f61c160788a94311a
+fwapg: 137fd6989f8cbad8de7be23bab7b05eb0ddcb0a0 (fwapg-324)
+image: imresamu/postgis:17-3.5.3-bookworm
+db: POSTGIS="3.5.3 aab5f55" [EXTENSION] PGSQL="170" GEOS="3.11.1-CAPI-1.17.1" PROJ="9.1.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 9.1.1) LIBXML="2.9.14" LIBJSON="0.16" LIBPROTOBUF="1.4.1" WAGYU="0.5.0 (Internal)" TOPOLOGY

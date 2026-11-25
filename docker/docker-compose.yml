@@ -15,22 +15,23 @@
 #
 # A second instance beside the first (README, "A second instance"): give it its
 # own project name, container names, port and data directory, e.g.
-#   FRESH_DB_CONTAINER=fresh-db-2 FRESH_LOADER_CONTAINER=fresh-loader-2 \
-#   FRESH_DB_PORT=5433 FRESH_DB_DATA=./postgres-data-2 \
-#   docker compose -p fresh-2 up -d db
+#   COMPOSE_PROJECT_NAME=fresh-2 FRESH_DB_CONTAINER=fresh-db-2 \
+#   FRESH_DB_PORT=5433 FRESH_DB_DATA=./postgres-data-2 docker compose up -d db
 #
-# Image: PostGIS 3.5 on Debian bookworm (GEOS 3.11), as upstream fwapg's own
-# db image. Up to 2026-11 this was 17-3.5-bullseye (GEOS 3.9.0). The data
-# directory format is the same (PostgreSQL 17), so `docker compose up -d db`
-# over an existing bullseye directory starts on it, but answers change:
-# GEOS 3.9.0's wrong line-polygon intersections and repeat-varying polygon
-# simplification go away, and the newer glibc changes the collation version,
-# so text indexes need a REINDEX. Moving an existing database is a step of its
-# own; do not let a routine `up` make it.
+# Image: PostgreSQL 17, PostGIS 3.6, GEOS 3.13 on Debian trixie. Up to 2026-11
+# this was 17-3.5-bullseye (PostGIS 3.5.2, GEOS 3.9.0), whose GEOS returns an
+# empty intersection for a line lying inside a box and, on arm64, simplifies a
+# polygon differently from one call to the next (#324). A routine `up` over
+# a data directory built on the old image would start this one on it, and it
+# must not: the newer glibc changes the collation version (text indexes need a
+# REINDEX) and the postgis extension needs an UPDATE (#335). Until that machine
+# moves, keep it on the old image with
+# FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye in a docker/.env beside this
+# file (gitignored).
 
 services:
   db:
-    image: imresamu/postgis:17-3.5.3-bookworm
+    image: ${FRESH_DB_IMAGE:-imresamu/postgis:17-3.6.1-trixie}
     container_name: ${FRESH_DB_CONTAINER:-fresh-db}
     shm_size: 36gb
     command: >

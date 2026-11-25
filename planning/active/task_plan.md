@@ -21,7 +21,7 @@ What exploration found:
 Owner, 2026-11-24, by AskUserQuestion at the plan gate (the image after a follow-up: the owner asked why not trixie; answered that upstream fwapg builds on PostGIS 3.5 / GEOS 3.11, then chose to probe both).
 
 1. **Live fresh-db stays on bullseye.** A filed follow-up issue swaps it. This PR proves the image with a full rebuild in a second container.
-2. **Image: probe both, bookworm unless it fails.** Run the #304, #306 and vertical-line probes on `17-3.5.3-bookworm` and `17-3.6.1-trixie` before the load. Pin bookworm, which matches upstream's tested stack, unless a probe fails on bookworm and passes on trixie.
+2. **Image: trixie (`17-3.6.1-trixie`), revised 2026-11-24.** First decided "probe both, bookworm unless it fails", on my claim that upstream fwapg builds on bookworm / GEOS 3.11. The amd64 probe showed upstream's `postgis/postgis:16-3.5` is bullseye / PostGIS 3.5.2 / GEOS 3.9.0; told, the owner chose trixie and a restarted load. Original wording: Run the #304, #306 and vertical-line probes on `17-3.5.3-bookworm` and `17-3.6.1-trixie` before the load. Pin bookworm, which matches upstream's tested stack, unless a probe fails on bookworm and passes on trixie.
 3. **Close PR #252, fold it in host-neutral.** Take its `.gitignore` line, and rewrite the override paragraph without hosts or private repos. Also scrub the existing host names and tunnel port in `tuning.md` and `docker/README.md`.
 4. **Merge PR #254's branch into this branch**, keeping its commits, logs and archive. `migrate.sh` goes on top. This PR carries Fixes #253, #68.
 
@@ -63,9 +63,22 @@ Mechanism decided in the plan:
 - [ ] Link check: parse-compare `R/` between main and branch
 - [ ] Edit #302, #304, #306 bodies with what was measured
 
+## Corrections after the plan review and the probes (2026-11-24)
+
+The review is `planning/active/review-plan.md`; these replace the plan text they name.
+- [ ] Relaunch the full load on trixie: `bash data-raw/logs/docker_rebuild_324/run.sh ~/Projects/repo/fwapg-324` from the repo root, in the background (needs the commit of the trixie compose first). run.sh now names the loader (`run --name fresh-loader-rebuild`) so its watchdog can stop it (review B1), and records the fwapg dir by basename (privacy). Attempts 1 (cold-start race) and 2 (bookworm, stopped for the switch) are kept under `data-raw/logs/docker_rebuild_324/attempt*`
+- [ ] Phase 3 gate test: with `FRESH_FWAPG_CURRENT=true` it FAILS on this rebuild, as expected (review B2): fwapg newgraph's `202610240132__indexpoint_tiebreak.sql` is upstream's 3-argument version, and fresh's gate keys on `include_disconnected` from fwapg#41's rework, never merged. Run the gate test without CURRENT and record it; file a fresh issue to re-key the gate and CLAUDE.md's `FRESH_FWAPG_TRIAL` example
+- [ ] Post-conditions: say that `fwapg.db_version` 202611131236 does not mean `fwa_named_streams` is current: migration 3 is a data migration run before `load.sh`, which rebuilds the table with the old SQL (review G1). fresh does not read the table. File a fwapg fork issue
+- [ ] Tests against 5433: `~/.Renviron` sets `PG*` to another host, so `Sys.setenv()` all five inside R before `load_all()`, prove the target with `SELECT tag FROM fwapg.db_version` (live has no such table), and compare against a run on live rather than reading a plain pass (review G4)
+- [ ] #304 (replaces Phase 4's "the 18 named streams have lut rows"): the rebuild's lut still misses them, because the deciding test is architecture-dependent (arm64 false, amd64 true, same PostGIS/GEOS), not the image. Record the rebuild's BULK+ADMS count; fix is NewGraphEnvironment/fwapg#60. #304 body already corrected (2026-11-24)
+- [ ] #306 doc note: repeat-variation was seen on arm64 GEOS 3.9.0 (amd64 3.9.0 repeated); GEOS 3.11 gives 556 points, 3.12+ 514, each repeating, so a simplified layer repeats within one GEOS version only (review S2). Edit #335 to re-run the #306 probe after its swap
+- [ ] Edit #335 for trixie: a PostGIS minor upgrade (`ALTER EXTENSION postgis UPDATE`) and the `FRESH_DB_IMAGE` hold in `docker/.env`
+- [ ] Close PR #252 without quoting its title (it names hosts and a private repo)
+
 ## Owed at the end (reported, done after merge)
 - [ ] Remove the `fresh-rebuild` instance, `docker/postgres-data-rebuild/` and the fwapg worktree, unless the live-swap issue wants them kept
 - [ ] Confirm PR #254 shows merged and PR #252 is closed
+- [ ] Before anyone runs `docker compose up -d db` in the main fresh checkout after the merge: write `docker/.env` there with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye`, so the live database is not moved onto trixie by accident (review G3; undone by #335)
 
 ## Validation
 - [ ] Tests pass
@@ -73,5 +86,5 @@ Mechanism decided in the plan:
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
-Verification: the image probe log shows the pinned image answering #304's boundary case true. The loader exits 0 on an empty volume, with its done marker newer than the launch stamp. Post-conditions match live apart from the measured lut additions. The gate test passes under `FRESH_FWAPG_CURRENT=true`, and the full suite passes on the rebuild. The #302 counts come from a committed script that a second run reproduces. The R parse-compare shows no executable change.
+Verification (corrected 2026-11-24: #304's case is architecture-dependent, so no image answers it true on arm64): the image probe log shows the pinned image fixing GEOS 3.9.0's vertical-line case and repeating the simplify. The loader exits 0 on an empty volume, with its done marker newer than the launch stamp. Post-conditions match live, with differences explained (FWA snapshot drift, migrations live lacks). The gate test's expected failure under `FRESH_FWAPG_CURRENT=true` is recorded, and the full suite on the rebuild is compared with a run on live. The #302 counts come from a committed script that a second run reproduces. The R parse-compare shows no executable change.
 
