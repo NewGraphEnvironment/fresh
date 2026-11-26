@@ -41,7 +41,7 @@ Mechanism decided in the plan:
 - [x] Pull both candidate images. On each, record `postgis_full_version()` and run: #304's three boundary pairs (geometries copied as WKB from live), #306's Tahtsa Reach `ST_SimplifyPreserveTopology(geom, 100)` 20× in one session, and the vertical x = 1000 line-box intersection. Log the results to `data-raw/logs/docker_rebuild_324/image_probe.txt` — **done, and it disproved #304's premise:** the boundary case is false on every PostGIS 3.4–3.6 × GEOS 3.9–3.13 tried (findings.md, "Image probe"). Bookworm chosen by the gate rule. Correction: #304 is not fixed by the image; it stays open, body corrected, fix filed as a fwapg fork issue (Phase 5)
 - [x] Pin the chosen exact tag in `docker/docker-compose.yml`. Add the env defaults above, and a header note: recreating an existing bullseye data dir on this image changes GEOS answers and the glibc collation version, see the follow-up issue
 - [x] `docker/.gitignore`: `postgres-data*/`, `docker-compose.override.yml*`
-- [ ] `docker/tuning.md` and `docker/README.md`: host-neutral override paragraph, a section on a second instance, drop host names and the tunnel port; close PR #252 with a comment pointing here
+- [x] `docker/tuning.md` and `docker/README.md`: host-neutral override paragraph, a section on a second instance, drop host names and the tunnel port; close PR #252 with a comment pointing here
 
 ## Phase 3: Full rebuild on an empty volume
 - [x] Detached worktree of fwapg at `origin/newgraph`; record its sha — 137fd69 (`stamp.txt`)
@@ -73,7 +73,7 @@ The review is `planning/active/review-plan.md`; these replace the plan text they
 - [x] #304 (replaces Phase 4's "the 18 named streams have lut rows"): the rebuild's lut still misses them, because the deciding test is architecture-dependent (arm64 false, amd64 true, same PostGIS/GEOS), not the image. Record the rebuild's BULK+ADMS count; fix is NewGraphEnvironment/fwapg#60. #304 body already corrected (2026-11-24)
 - [x] #306 doc note: repeat-variation was seen on arm64 GEOS 3.9.0 (amd64 3.9.0 repeated); GEOS 3.11 gives 556 points, 3.12+ 514, each repeating, so a simplified layer repeats within one GEOS version only (review S2). Edit #335 to re-run the #306 probe after its swap
 - [x] Edit #335 for trixie: a PostGIS minor upgrade (`ALTER EXTENSION postgis UPDATE`) and the `FRESH_DB_IMAGE` hold in `docker/.env`
-- [ ] Close PR #252 without quoting its title (it names hosts and a private repo)
+- [x] Close PR #252 without quoting its title (closed 2026-11-26, pointing at PR #337) (it names hosts and a private repo)
 
 ## Owed at the end (reported, done after merge)
 - [ ] Remove the `fresh-rebuild` instance, `docker/postgres-data-rebuild/` and the fwapg worktree, unless the live-swap issue wants them kept

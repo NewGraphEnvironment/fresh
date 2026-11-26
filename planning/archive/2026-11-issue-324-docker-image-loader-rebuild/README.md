@@ -2,7 +2,7 @@
 
 ## Outcome
 
-`docker/` builds a local fwapg from current fwapg again. `load.sh` runs fwapg's `db/migrate.sh` after `schema.sql` (#253, #68, PR #254 merged in), and the compose file pins `imresamu/postgis:17-3.6.1-trixie` (PostGIS 3.6.1, GEOS 3.13.1), overridable with `FRESH_DB_IMAGE`, with container, port, data directory and loader name taken from env so a second instance can run beside the first. A full load on an empty volume on that image succeeded, and fresh's whole suite on it matched a run on the live database test for test. Two of the gate's premises did not hold and were taken back to the owner: #304's missing lut rows are an arm64 effect, not a GEOS version (fixed upstream of fresh by NewGraphEnvironment/fwapg#60), and upstream fwapg's own image is bullseye / GEOS 3.9.0, not bookworm. The live database stays on bullseye until #335. PR: see the branch's PR.
+`docker/` builds a local fwapg from current fwapg again. `load.sh` runs fwapg's `db/migrate.sh` after `schema.sql` (#253, #68, PR #254 merged in), and the compose file pins `imresamu/postgis:17-3.6.1-trixie` (PostGIS 3.6.1, GEOS 3.13.1), overridable with `FRESH_DB_IMAGE`, with container, port, data directory and loader name taken from env so a second instance can run beside the first. A full load on an empty volume on that image succeeded, and fresh's whole suite on it matched a run on the live database test for test. Two of the gate's premises did not hold and were taken back to the owner: #304's missing lut rows are an arm64 effect, not a GEOS version (fixed upstream of fresh by NewGraphEnvironment/fwapg#60), and upstream fwapg's own image is bullseye / GEOS 3.9.0, not bookworm. The live database stays on bullseye until #335. PR: #337.
 
 Closes #253, #68, #306, #302. #304 stays open (its body corrected). Filed: #334, #335, #336, NewGraphEnvironment/fwapg#60, NewGraphEnvironment/fwapg#61, and the Parquet re-export with its publisher.
 
@@ -33,4 +33,4 @@ After the merge, for the owner (the third before the merge reaches each such mac
 
 Code review: `/code-check branch`, 4 rounds, ended by enumeration (`review-verdict.md`, `review-round*.md`).
 
-Closed by: PR (this branch's; number added when opened)
+Closed by: PR #337
