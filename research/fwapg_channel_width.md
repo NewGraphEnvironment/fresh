@@ -40,7 +40,7 @@ On fwapg's own inputs the formula is exact on every row. The remaining gap to th
 FWA placeholder (`999…` wscode) and unmapped (NULL localcode) segments get no upstream area. That is 366,377 of 4,907,441 segments (7.5%).
 
 - `fwapg/load/fwa_streams_watersheds_lut.sql` excludes them on purpose; its spatial-midpoint fallback runs only for real-network segments.
-- In the Bulkley group, 15,830 of the 15,831 real-network order-1 segments have both inputs. The one without (`linear_feature_id` 17060680) has its midpoint on a watershed edge, where the fallback's `ST_Intersects` answers false (re-measured 2026-11-24, #304, #324). Province-wide that leaves 2,835 real-network streams with no lut row; the predicate fix is NewGraphEnvironment/fwapg#60.
+- In the Bulkley group, 15,830 of the 15,831 real-network order-1 segments have both inputs. The one without (`linear_feature_id` 17060680) has its midpoint on a watershed edge, where the fallback's `ST_Intersects` answers false on a database built on arm64; amd64 answers true on the same point (re-measured 2026-11-24 and 2026-11-26, #304, #324). Province-wide an arm64 build leaves 2,840 real-network streams with no lut row (`data-raw/logs/docker_rebuild_324/postconditions.txt`); NewGraphEnvironment/fwapg#60's `ST_DWithin(..., 0)` recovers 2,835 of them on either architecture.
 - The rest are mostly construction lines inside waterbodies, plus 219 secondary-flow side channels (75 km).
 - Deriving an area for them is half reachable: fresh#246.
 

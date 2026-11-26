@@ -40,5 +40,7 @@ cat(sprintf("suite took %.1f min\n", as.numeric(difftime(Sys.time(), t0, units =
 keep <- c("file", "context", "test", "nb", "failed", "skipped", "error", "warning", "passed")
 r <- r[intersect(keep, names(r))]
 write.csv(r[order(r$file, r$test, method = "radix"), ], out, row.names = FALSE)
-cat(sprintf("%s: %d tests, %d with a failure, %d errored, %d skipped\n", out, nrow(r),
+# The frame has one row per test_that() block, so these count blocks; a file-level skip
+# adds no row. The reporter's [ FAIL | WARN | SKIP | PASS ] line above counts expectations.
+cat(sprintf("%s: %d test blocks, %d with a failure, %d errored, %d with a skip\n", out, nrow(r),
             sum(r$failed > 0), sum(r$error), sum(r$skipped)))

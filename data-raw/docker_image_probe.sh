@@ -17,6 +17,11 @@
 #   bash data-raw/docker_image_probe.sh fresh-db fwapg \
 #     imresamu/postgis:17-3.5.3-bookworm imresamu/postgis:17-3.6.1-trixie \
 #     > data-raw/logs/docker_rebuild_324/image_probe.txt
+# An image may carry a platform after `::`, passed to `docker run --platform`:
+#   bash data-raw/docker_image_probe.sh fresh-db fwapg postgis/postgis:16-3.5::linux/amd64 \
+#     > data-raw/logs/docker_rebuild_324/image_probe_amd64.txt
+# Without one, Docker runs the host's platform, and an image without it fails
+# unless an other-platform copy is already cached.
 #
 # Each image runs as a container named probe-<n>, with no port published, and
 # is stopped (and removed) on exit.
@@ -94,9 +99,12 @@ echo
 run_probe "$SRC" "$DB" "$SRC (source database)"
 
 i=0
-for img in "$@"; do
+for spec in "$@"; do
   i=$((i + 1)); c="probe-$i-$$"
-  docker run -d --rm --name "$c" -e POSTGRES_PASSWORD=probe "$img" >/dev/null
+  img=${spec%%::*}
+  plat=()
+  [ "$img" = "$spec" ] || plat=(--platform "${spec#*::}")
+  docker run -d --rm --name "$c" ${plat[@]+"${plat[@]}"} -e POSTGRES_PASSWORD=probe "$img" >/dev/null
   STARTED+=("$c")
   # The image's init runs a temporary server on the Unix socket only, creates
   # the postgis extension there, then restarts: wait for TCP (the real server)
@@ -108,5 +116,5 @@ for img in "$@"; do
       && break
     sleep 3
   done
-  run_probe "$c" postgres "$img ($(docker image inspect "$img" --format '{{index .RepoDigests 0}}'))"
+  run_probe "$c" postgres "$spec ($(docker image inspect "$img" --format '{{index .RepoDigests 0}}'))"
 done

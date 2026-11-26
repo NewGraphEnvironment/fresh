@@ -43,7 +43,8 @@ Tahtsa Reach, `ST_SimplifyPreserveTopology(geom, 100)` 20 times in one session:
   simplify_m = 100)` (`data-raw/logs/docker_rebuild_324/simplify_repeat.R`, 2026-11-26): the
   arm64 GEOS 3.9.0 database gave two different layers (14 and 6 calls; the SQL alone gave
   556 ×4, 557 ×16), the full rebuild on PostGIS 3.6.1 / GEOS 3.13.1 one (20 of 20).
-- Only GEOS 3.9.0 on arm64 varied between calls. Every later GEOS repeats its own answer, so on
+- Only GEOS 3.9.0 on arm64 varied between calls. GEOS 3.11, 3.12 and 3.13 each repeat their own
+  answer (3.10 was compared only between databases, never repeated in one), so on
   `docker/`'s image since #324 (PostGIS 3.6.1 / GEOS 3.13.1) one database returns one polygon.
 - The simplifier's output changed between GEOS 3.11 and 3.12 (556 to 514 points), on top of the
   3.9-to-3.10 difference above. A saved layer still carries `postgis_full_version()`.

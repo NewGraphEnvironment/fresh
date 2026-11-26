@@ -4,10 +4,13 @@
 # Writes beside itself: launch_utc.txt, stamp.txt, loader.log, disk.tsv and,
 # last, loader.done holding the loader's exit status.
 set -uo pipefail
-FWAPG=${1:?fwapg checkout to load from}
+# Changed after attempt 3 ran (code review, 2026-11-26): the fwapg path is made
+# absolute, and the image is exported so a docker/.env cannot replace it.
+FWAPG=$(cd "${1:?fwapg checkout to load from}" && pwd) || exit 1
+IMAGE=${FRESH_DB_IMAGE:-imresamu/postgis:17-3.6.1-trixie}
 L=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$L/../../.." && pwd)
-export FRESH_DB_CONTAINER=fresh-db-rebuild FRESH_LOADER_CONTAINER=fresh-loader-rebuild \
+export FRESH_DB_IMAGE="$IMAGE" FRESH_DB_CONTAINER=fresh-db-rebuild FRESH_LOADER_CONTAINER=fresh-loader-rebuild \
   FRESH_DB_PORT=5433 FRESH_DB_DATA=./postgres-data-rebuild FWAPG_DIR="$FWAPG"
 DC=(docker compose -p fresh-rebuild -f "$REPO/docker/docker-compose.yml" -f "$L/second.yml")
 FLOOR_G=${FLOOR_G:-30}

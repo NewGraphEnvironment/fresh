@@ -127,4 +127,4 @@ Postgres replaces an unread `array_agg` output with `NULL`. To time the arrays, 
 
 ## GEOS
 
-GEOS 3.9.0 (the local fwapg's image up to 2026-11) returns `LINESTRING EMPTY` for the intersection of an exactly vertical line with a box that `ST_Contains()` says holds it. The first measurement saw it at x = 1000 and not at x = 1500; `data-raw/docker_image_probe.sh` (2026-11-24, #324) sees it at both, so do not rely on which x it spares. GEOS 3.11.1, 3.12.2 and 3.13.1 return the line, and `docker/` now pins a GEOS 3.11 image.
+GEOS 3.9.0 (the local fwapg's image up to 2026-11) returns `LINESTRING EMPTY` for the intersection of an exactly vertical line with a box that `ST_Contains()` says holds it. The first measurement saw it at x = 1000 and not at x = 1500; `data-raw/docker_image_probe.sh` (2026-11-24, #324) sees it at both, so do not rely on which x it spares. GEOS 3.11.1, 3.12.2 and 3.13.1 return the line, and `docker/` now pins a GEOS 3.13.1 image (`17-3.6.1-trixie`).

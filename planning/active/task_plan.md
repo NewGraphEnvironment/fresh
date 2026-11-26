@@ -78,7 +78,7 @@ The review is `planning/active/review-plan.md`; these replace the plan text they
 ## Owed at the end (reported, done after merge)
 - [ ] Remove the `fresh-rebuild` instance, `docker/postgres-data-rebuild/` and the fwapg worktree, unless the live-swap issue wants them kept
 - [ ] Confirm PR #254 shows merged and PR #252 is closed
-- [ ] Before anyone runs `docker compose up -d db` in the main fresh checkout after the merge: write `docker/.env` there with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye`, so the live database is not moved onto trixie by accident (review G3; undone by #335)
+- [ ] Before the merge reaches any machine holding a bullseye-built `docker/postgres-data` (this Mac's main fresh checkout, and each other host running this compose file through its own override; code-check round 1): write `docker/.env` there with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye`, or `image:` in its override, before its next `up`, so the database is not moved onto trixie by accident (review G3; undone by #335). The main checkout has no `docker/.env` yet (round 1 listed it)
 
 ## Validation
 - [ ] Tests pass

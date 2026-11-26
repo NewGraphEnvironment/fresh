@@ -24,4 +24,6 @@ data-raw/logs/docker_rebuild_324/suite_5433.csv: 897 tests, 0 with a failure, 0 
       2 Reason: schema bcfishpass not in DB
 
 ## per-test comparison
-897 tests on each; 0 whose nb/failed/skipped/error/warning/passed differ.
+897 test_that() blocks on each; 0 whose nb/failed/skipped/error/warning/passed differ. The
+frame counts blocks ("6 skipped" is 6 blocks with a skip; the reporter's SKIP 7 counts skips)
+and cannot see a file-level skip; the reporter's totals above are equal on both runs.

@@ -1,5 +1,8 @@
 # Memory for the #324 rebuild instance, run beside a live fresh-db on the same
 # machine (tuning.md's 32 GB preset). Replaces the base `command:` list.
+# Sized for the loader alone, one session: shm_size 12gb is under what two
+# concurrent parallel hash joins at work_mem=1GB can need; raise
+# shm_size or lower work_mem before running a pipeline against it.
 services:
   db:
     shm_size: 12gb
