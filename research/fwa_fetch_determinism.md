@@ -45,7 +45,9 @@ Tahtsa Reach, `ST_SimplifyPreserveTopology(geom, 100)` 20 times in one session:
   556 ×4, 557 ×16), the full rebuild on PostGIS 3.6.1 / GEOS 3.13.1 one (20 of 20).
 - Only GEOS 3.9.0 on arm64 varied between calls. GEOS 3.11, 3.12 and 3.13 each repeat their own
   answer (3.10 was compared only between databases, never repeated in one), so on
-  `docker/`'s image since #324 (PostGIS 3.6.1 / GEOS 3.13.1) one database returns one polygon.
+  `docker/`'s image since #324 (PostGIS 3.6.1 / GEOS 3.13.1) one database returned one polygon for
+  this lake (arm64; one polygon at one tolerance, not a sweep, and `frs_watershed_at_measure()`'s
+  subbasin path was not repeat-tested).
 - The simplifier's output changed between GEOS 3.11 and 3.12 (556 to 514 points), on top of the
   3.9-to-3.10 difference above. A saved layer still carries `postgis_full_version()`.
 

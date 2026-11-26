@@ -26,6 +26,8 @@ docker compose run --rm loader --bcfishobs
 
 ## Restart after stop (data already loaded)
 
+(A second instance: see "A second instance"; the `fresh-db` below is the first.)
+
 If `postgres-data/` is already populated from a previous run, **don't re-run the loader** — just start the DB:
 
 ```bash
@@ -102,11 +104,19 @@ docker compose up -d --wait db
 docker compose run --rm --name fresh-loader-2 loader
 ```
 
-`docker compose run` ignores `container_name`, hence `--name` (`FRESH_LOADER_CONTAINER` applies only under `up`). Point `FWAPG_DIR` at an fwapg checkout that is current, by absolute path. Both instances share the machine's memory, so size the second with a `command:` override, the `second.yml` in `COMPOSE_FILE` (see `tuning.md`; `data-raw/logs/docker_rebuild_324/second.yml` is the one #324's load used, sized for the loader alone, one session). To run on the base file's memory, set `COMPOSE_FILE=docker-compose.yml`, never leave it unset. `postgres-data*/` is gitignored.
+`docker compose run` ignores `container_name`, hence `--name` (`FRESH_LOADER_CONTAINER` applies only under `up`). Every other section of this file assumes a shell without these exports: its literal `fresh-db` and `postgres-data` name the first instance. Stop and remove the second, then leave its settings, with
+
+```bash
+docker compose down
+rm -rf postgres-data-2
+unset COMPOSE_PROJECT_NAME COMPOSE_FILE FRESH_DB_IMAGE FRESH_DB_CONTAINER FRESH_DB_PORT FRESH_DB_DATA FWAPG_DIR
+```
+
+Point `FWAPG_DIR` at an fwapg checkout that is current, by absolute path. Both instances share the machine's memory, so size the second with a `command:` override, the `second.yml` in `COMPOSE_FILE` (see `tuning.md`; `data-raw/logs/docker_rebuild_324/second.yml` is the one #324's load used, sized for the loader alone, one session). To run on the base file's memory, set `COMPOSE_FILE=docker-compose.yml`, never leave it unset. `postgres-data*/` is gitignored.
 
 ## Image
 
-`imresamu/postgis:17-3.6.1-trixie`: PostgreSQL 17, PostGIS 3.6, GEOS 3.13. Up to 2026-11 it was `17-3.5-bullseye` (PostGIS 3.5.2, GEOS 3.9.0), whose GEOS returns an empty intersection for a line lying wholly inside a box and, on arm64, simplifies a polygon differently from one call to the next (`data-raw/logs/docker_rebuild_324/image_probe.txt`). Upstream fwapg's own db image is still PostGIS 3.5.2 / GEOS 3.9.0 (`postgis/postgis:16-3.5`, amd64).
+`imresamu/postgis:17-3.6.1-trixie`: PostgreSQL 17, PostGIS 3.6, GEOS 3.13. Up to 2026-11 it was `17-3.5-bullseye` (PostGIS 3.5.2, GEOS 3.9.0), whose GEOS returns an empty intersection for an exactly vertical line lying wholly inside a box and, on arm64, simplifies a polygon differently from one call to the next (`data-raw/logs/docker_rebuild_324/image_probe.txt`). Upstream fwapg's own db image is still PostGIS 3.5.2 / GEOS 3.9.0 (`postgis/postgis:16-3.5`, amd64).
 
 A database built on the old image is not moved by changing this file alone: `up` over its data directory would start it on the new image, with a new glibc collation version (text indexes need a `REINDEX`) and a PostGIS library one minor version ahead of its catalog (`ALTER EXTENSION postgis UPDATE`). Every machine holding a data directory built on the old image keeps it there with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye` in `docker/.env` (gitignored), written before it next runs `up` on this file (not `image:` in an override, which an exported `FRESH_DB_IMAGE` cannot outrank), until it is moved deliberately (#335).
 
@@ -120,6 +130,8 @@ A database built on the old image is not moved by changing this file alone: `up`
 | 4 | bcfishobs (optional) | Fish observation events → `bcfishobs` schema |
 
 ## Managing data
+
+In a shell holding a second instance's exports, use that section's commands instead: here `rm -rf postgres-data` deletes the first instance's data.
 
 ```bash
 # Stop container (data persists in postgres-data/)

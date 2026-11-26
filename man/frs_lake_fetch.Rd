@@ -74,10 +74,11 @@ so the same database returns the same \code{sf} on every call. For map layers,
 \code{ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))};
 \code{ST_Normalize()} fixes the order of parts, rings and ring start vertices so
 equal polygons serialise equally. \code{area_ha} is the stored, unsimplified
-area. The simplified ring depends on the GEOS version (3.11 and 3.12 or
-later give different vertices), so a caller that saves the result should
+area. The simplified ring depends on the GEOS version (3.11 and 3.12 to
+3.13 gave different vertices), so a caller that saves the result should
 record \code{postgis_full_version()} with it. GEOS 3.9.0 on arm64 can also give
-different rings on two calls to one database; 3.11 to 3.13 repeat.
+different rings on two calls to one database; 3.11 to 3.13 repeated (one
+lake, arm64).
 }
 \examples{
 \dontrun{

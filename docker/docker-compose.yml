@@ -22,7 +22,7 @@
 #
 # Image: PostgreSQL 17, PostGIS 3.6, GEOS 3.13 on Debian trixie. Up to 2026-11
 # this was 17-3.5-bullseye (PostGIS 3.5.2, GEOS 3.9.0), whose GEOS returns an
-# empty intersection for a line lying inside a box and, on arm64, simplifies a
+# empty intersection for an exactly vertical line inside a box and, on arm64, simplifies a
 # polygon differently from one call to the next (#324). A routine `up` over
 # a data directory built on the old image would start this one on it, and it
 # must not: the newer glibc changes the collation version (text indexes need a
