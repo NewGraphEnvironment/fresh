@@ -16,14 +16,17 @@
 #   bash data-raw/docker_image_probe.sh <source container> <db> <image>... > <log>
 #   bash data-raw/docker_image_probe.sh fresh-db fwapg \
 #     imresamu/postgis:17-3.5.3-bookworm imresamu/postgis:17-3.6.1-trixie \
+#     imresamu/postgis:16-3.4.3-bookworm imresamu/postgis:16-3.4-alpine3.20 \
 #     > data-raw/logs/docker_rebuild_324/image_probe.txt
 # An image may carry a platform after `::`, passed to `docker run --platform`:
 #   bash data-raw/docker_image_probe.sh fresh-db fwapg postgis/postgis:16-3.5::linux/amd64 \
 #     > data-raw/logs/docker_rebuild_324/image_probe_amd64.txt
 # Without one, Docker runs the host's platform, and an image without it fails
-# unless an other-platform copy is already cached.
+# unless an other-platform copy is already cached. (The committed amd64 log was
+# made before `::` existed, from a cached amd64 copy, run under emulation on an
+# arm64 host.)
 #
-# Each image runs as a container named probe-<n>, with no port published, and
+# Each image runs as a container named probe-<n>-<pid>, with no port published, and
 # is stopped (and removed) on exit.
 
 set -euo pipefail
