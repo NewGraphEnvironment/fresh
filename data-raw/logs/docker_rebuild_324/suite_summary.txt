@@ -1,0 +1,27 @@
+# Full suite, live (5432) and rebuild (5433), from suite_run.R; per-test counts in suite_<port>.csv.
+# The raw logs are not committed: a skip reason names a local port. Skip reasons below with it replaced.
+
+## 5432
+target: port 5432, GEOS 3.9.0-CAPI-1.16.2, fwapg.db_version NA
+[ FAIL 0 | WARN 18 | SKIP 7 | PASS 2938 ]
+suite took 3.2 min
+data-raw/logs/docker_rebuild_324/suite_5432.csv: 897 tests, 0 with a failure, 0 errored, 6 skipped
+      1 Reason: DB connection failed: connection to server at "localhost" (::1), port <local tunnel> failed: Connection refused
+      1 Reason: FRESH_FWAPG_CURRENT is not set: nothing is claimed about this database
+      1 Reason: FRESH_FWAPG_TRIAL names no migration files
+      2 Reason: fwapg's fwa_indexpoint() predates migration 202610240132__indexpoint_tiebreak (NewGraphEnvironment/fwapg#41); set FRESH_FWAPG_TRIAL to trial it
+      2 Reason: schema bcfishpass not in DB
+
+## 5433
+target: port 5433, GEOS 3.13.1-CAPI-1.19.2, fwapg.db_version 0 (this run printed the first of four tags; latest 202611131236, postconditions.txt; suite_run.R now prints the latest)
+[ FAIL 0 | WARN 18 | SKIP 7 | PASS 2938 ]
+suite took 5.3 min
+data-raw/logs/docker_rebuild_324/suite_5433.csv: 897 tests, 0 with a failure, 0 errored, 6 skipped
+      1 Reason: DB connection failed: connection to server at "localhost" (::1), port <local tunnel> failed: Connection refused
+      1 Reason: FRESH_FWAPG_CURRENT is not set: nothing is claimed about this database
+      1 Reason: FRESH_FWAPG_TRIAL names no migration files
+      2 Reason: fwapg's fwa_indexpoint() predates migration 202610240132__indexpoint_tiebreak (NewGraphEnvironment/fwapg#41); set FRESH_FWAPG_TRIAL to trial it
+      2 Reason: schema bcfishpass not in DB
+
+## per-test comparison
+897 tests on each; 0 whose nb/failed/skipped/error/warning/passed differ.

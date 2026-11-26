@@ -1,0 +1,7 @@
+# 2026-11-26 02:59:58 UTC port 5433, PostgreSQL 17.7 (Debian 17.7-3.pgdg13+1), GEOS 3.13.1-CAPI-1.19.2
+# 4907441 segments in 246 groups; features: 195875 every 25th, 196882 in the whole fixture
+population	include_equivalents	pairs	ancestor_only
+every_25th	FALSE	40495	22
+every_25th	TRUE	40769	22
+whole_fixture	FALSE	50417	22
+whole_fixture	TRUE	51698	22

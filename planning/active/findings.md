@@ -104,3 +104,23 @@ Consequences:
 | Rebuild attempt 1: `Connection refused` at stage 1 on an empty volume | compose healthcheck over TCP (`pg_isready -h 127.0.0.1`) + `start_period: 15m`; the socket check passed during the image's socket-only init |
 | `docker_image_probe.sh` on an amd64 image: `the database system is shutting down` | wait for TCP and the extension, not the extension alone (init restarts after creating it) |
 | `df -g` invalid (GNU df on this Mac) | `df -Pk` and divide |
+
+## The trixie rebuild (attempt 3, 2026-11-26) — `data-raw/logs/docker_rebuild_324/`
+
+Loader 00:08:37Z to 02:50:24Z (2 h 42 min), exit 0, done marker newer than the launch stamp, no ERROR lines, disk 218 to 159 GB free. fwapg 137fd69, `imresamu/postgis:17-3.6.1-trixie` (PostgreSQL 17.7, PostGIS 3.6.1, GEOS 3.13.1, PROJ 9.6.0, glibc collation 2.41).
+
+`postconditions.txt` against live:
+- Row counts equal on every table but `fwa_stream_networks_channel_width` (+12) and `fwa_stream_networks_order_parent` (-1), the two #254 also saw (fwapg's channel-width and order-parent outputs changed since live was loaded). `working.falls` 3,294, `working.crossings` 533,291 (live's fwapg database has neither; they were loaded elsewhere there).
+- `fwapg.db_version` holds 0, 202610131654, 202610240132, 202611131236; `fwa_watershedatmeasure` no longer mentions `exbc` (live: does). `fwa_indexpoint` has the three-argument signature on both.
+- `fwa_named_streams` 11,681 on both: the rebuild's comes from `load/fwa_named_streams.sql`, not the migration (review G1, NewGraphEnvironment/fwapg#61).
+- Extensions: the rebuild lacks `dblink`, `pgcrypto`, `postgis_raster`, which live gained after its load; no test needed them (suite below).
+- Functions: `fwa_watershedatmeasure` 231,944.7 ha (both schemas), lake branch 11.5, `fwa_downstreamtrace` 1,567 / 590,498 m, unqualified `fwa_upstream` 8,876: identical to live.
+- #304 lut coverage: BULK + ADMS 40,486 of 40,504 (18 missing), province 4,538,224 of 4,541,064 (2,840 missing): identical to live, as the architecture finding predicts. fwapg#60's `ST_DWithin(..., 0)` recovered 2,835 of those 2,840 on live.
+
+Gate test (`FRESH_FWAPG_CURRENT=true`, FRESH_PG* at 5433): FAIL 4, PASS 2. `fwa_locatealong()` at blue line 360447231's head returns 0 rows (the head case is present: its skip did not fire), so fwapg#41's measure rework is genuinely absent from newgraph, not just its `include_disconnected` signature. `fwa_watershedatmeasure()` at 359434058 / 159 no longer errors (its red side fails because the committed function is fixed). #336 rewritten with this. Without CURRENT: all three skip.
+
+Full suite (`suite_run.R`, PG* and FRESH_PG* set inside R): live and rebuild both `FAIL 0 | WARN 18 | SKIP 7 | PASS 2938`; 897 tests each, 0 whose counts differ. Raw logs uncommitted (a skip reason names a local port); `suite_summary.txt` is the scrubbed record.
+
+#306 (`simplify_repeat.R`, one connection, 20 calls): rebuild 514 ×20 one EWKB, `frs_lake_fetch(aoi =, simplify_m = 100)` one layer ×20; live (arm64 GEOS 3.9.0) 556 ×4 / 557 ×16, two layers (14 / 6). First try reported a 556- and a 557-point row with one md5: the planner inlined the subquery and evaluated the simplify twice; `OFFSET 0` fixed the probe.
+
+#302 on the rebuild (`answer_pairs_5433.tsv`): identical to live.

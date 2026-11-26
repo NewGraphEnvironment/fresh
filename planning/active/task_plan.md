@@ -44,14 +44,14 @@ Mechanism decided in the plan:
 - [ ] `docker/tuning.md` and `docker/README.md`: host-neutral override paragraph, a section on a second instance, drop host names and the tunnel port; close PR #252 with a comment pointing here
 
 ## Phase 3: Full rebuild on an empty volume
-- [ ] Detached worktree of fwapg at `origin/newgraph`; record its sha
-- [ ] `-p fresh-rebuild`, port 5433, empty `docker/postgres-data-rebuild/`; loader in the background with its log, launch stamp and done marker under `data-raw/logs/docker_rebuild_324/`, and a disk watchdog that stops it at 30 GB free
-- [ ] Post-conditions against live (adapting #254's `postconditions.sh`): key table counts, `search_path`, `fwapg.db_version` = `202611131236`, `fwa_downstreamtrace`, `fwa_upstream()`, `fwa_watershedatmeasure()` at a non-lake point
-- [ ] `FRESH_PG*` at 5433: `FRESH_FWAPG_CURRENT=true` `test-frs_fwapg_gate.R` passes; full `devtools::test()` with `PG*` at 5433
+- [x] Detached worktree of fwapg at `origin/newgraph`; record its sha — 137fd69 (`stamp.txt`)
+- [x] `-p fresh-rebuild`, port 5433, empty `docker/postgres-data-rebuild/`; loader in the background with its log, launch stamp and done marker under `data-raw/logs/docker_rebuild_324/`, and a disk watchdog that stops it at 30 GB free
+- [x] Post-conditions against live (adapting #254's `postconditions.sh`): key table counts, `search_path`, `fwapg.db_version` = `202611131236`, `fwa_downstreamtrace`, `fwa_upstream()`, `fwa_watershedatmeasure()` at a non-lake point
+- [x] `FRESH_PG*` at 5433: `FRESH_FWAPG_CURRENT=true` `test-frs_fwapg_gate.R` passes; full `devtools::test()` with `PG*` at 5433 — corrected below: the gate fails as expected; the full suite matches live test by test
 
 ## Phase 4: Measurements and the member fixes
-- [ ] #304: the 18 named streams have lut rows; BULK+ADMS count recorded. Grep fwapg `load/*.sql` for boundary-sensitive predicates and list the tables for the follow-up issue
-- [ ] #306: the repeat probe on the rebuild (20× SQL, 20× `frs_lake_fetch(aoi =, simplify_m = 100)` on one connection). Doc note per the outcome rule in `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`; revise `research/fwa_fetch_determinism.md`
+- [x] (superseded by the correction below) #304: the 18 named streams have lut rows; BULK+ADMS count recorded. Grep fwapg `load/*.sql` for boundary-sensitive predicates and list the tables for the follow-up issue
+- [x] #306: the repeat probe on the rebuild (20× SQL, 20× `frs_lake_fetch(aoi =, simplify_m = 100)` on one connection). Doc note per the outcome rule in `R/frs_lake_fetch.R`, `R/frs_wetland_fetch.R`, `R/frs_watershed_at_measure.R`; revise `research/fwa_fetch_determinism.md`
 - [x] #302: re-derive both pair counts with the test's own fixture and query on the full-province rebuild (`data-raw/network_features_answer_pairs.R`, log beside it). Correct the header and `research/fwa_downstream_walk.md` (line 46) — header right for its population; #302's numbers are the whole fixture's (findings). Re-run on the rebuild in Phase 3 post-conditions
 - [x] Vertical-line probe result into the `test-frs_near_river.R` comment and `research/fwa_downstream_walk.md` "GEOS"
 - [x] `research/fwapg_channel_width.md`: re-check its BULK counts that depend on the lut
@@ -61,16 +61,16 @@ Mechanism decided in the plan:
 - [x] File: move the live local fwapg onto the new image (recreate over its data dir, refresh the collation version and reindex, rebuild the lut and the listed tables, measure link's outputs before and after), naming move 7 — #335
 - [x] File the lut Parquet re-export with its publisher (private repo), and the `--bcfishobs` stage-4 issue from #254's draft, each naming move 7 — rtj#446 (re-export, after fwapg#60), #334 (bcfishobs stage 4), plus NewGraphEnvironment/fwapg#60 (the lut predicate, #304's real fix)
 - [x] Link check: parse-compare `R/` between main and branch — 2026-11-25: 46 files each side, 0 whose parsed code differs, positive control detected (re-run in `/code-check branch` if `R/` moves again)
-- [ ] Edit #302, #304, #306 bodies with what was measured
+- [x] Edit #302, #304, #306 bodies with what was measured
 
 ## Corrections after the plan review and the probes (2026-11-24)
 
 The review is `planning/active/review-plan.md`; these replace the plan text they name.
-- [ ] Relaunch the full load on trixie: `bash data-raw/logs/docker_rebuild_324/run.sh ~/Projects/repo/fwapg-324` from the repo root, in the background (needs the commit of the trixie compose first). run.sh now names the loader (`run --name fresh-loader-rebuild`) so its watchdog can stop it (review B1), and records the fwapg dir by basename (privacy). Attempts 1 (cold-start race) and 2 (bookworm, stopped for the switch) are kept under `data-raw/logs/docker_rebuild_324/attempt*`
-- [ ] Phase 3 gate test: with `FRESH_FWAPG_CURRENT=true` it FAILS on this rebuild, as expected (review B2): fwapg newgraph's `202610240132__indexpoint_tiebreak.sql` is upstream's 3-argument version, and fresh's gate keys on `include_disconnected` from fwapg#41's rework, never merged. Run the gate test without CURRENT and record it; file a fresh issue to re-key the gate and CLAUDE.md's `FRESH_FWAPG_TRIAL` example
-- [ ] Post-conditions: say that `fwapg.db_version` 202611131236 does not mean `fwa_named_streams` is current: migration 3 is a data migration run before `load.sh`, which rebuilds the table with the old SQL (review G1). fresh does not read the table. File a fwapg fork issue
-- [ ] Tests against 5433: `~/.Renviron` sets `PG*` to another host, so `Sys.setenv()` all five inside R before `load_all()`, prove the target with `SELECT tag FROM fwapg.db_version` (live has no such table), and compare against a run on live rather than reading a plain pass (review G4)
-- [ ] #304 (replaces Phase 4's "the 18 named streams have lut rows"): the rebuild's lut still misses them, because the deciding test is architecture-dependent (arm64 false, amd64 true, same PostGIS/GEOS), not the image. Record the rebuild's BULK+ADMS count; fix is NewGraphEnvironment/fwapg#60. #304 body already corrected (2026-11-24)
+- [x] Relaunch the full load on trixie (attempt 3: 2026-11-26 00:08:37Z to 02:50:24Z, exit 0): `bash data-raw/logs/docker_rebuild_324/run.sh ~/Projects/repo/fwapg-324` from the repo root, in the background (needs the commit of the trixie compose first). run.sh now names the loader (`run --name fresh-loader-rebuild`) so its watchdog can stop it (review B1), and records the fwapg dir by basename (privacy). Attempts 1 (cold-start race) and 2 (bookworm, stopped for the switch) are kept under `data-raw/logs/docker_rebuild_324/attempt*`
+- [x] Phase 3 gate test: with `FRESH_FWAPG_CURRENT=true` it FAILS on this rebuild, as expected (review B2): fwapg newgraph's `202610240132__indexpoint_tiebreak.sql` is upstream's 3-argument version, and fresh's gate keys on `include_disconnected` from fwapg#41's rework, never merged. Run the gate test without CURRENT and record it; file a fresh issue to re-key the gate and CLAUDE.md's `FRESH_FWAPG_TRIAL` example
+- [x] Post-conditions: say that `fwapg.db_version` 202611131236 does not mean `fwa_named_streams` is current: migration 3 is a data migration run before `load.sh`, which rebuilds the table with the old SQL (review G1). fresh does not read the table. File a fwapg fork issue
+- [x] Tests against 5433: `~/.Renviron` sets `PG*` to another host, so `Sys.setenv()` all five inside R before `load_all()`, prove the target with `SELECT tag FROM fwapg.db_version` (live has no such table), and compare against a run on live rather than reading a plain pass (review G4)
+- [x] #304 (replaces Phase 4's "the 18 named streams have lut rows"): the rebuild's lut still misses them, because the deciding test is architecture-dependent (arm64 false, amd64 true, same PostGIS/GEOS), not the image. Record the rebuild's BULK+ADMS count; fix is NewGraphEnvironment/fwapg#60. #304 body already corrected (2026-11-24)
 - [x] #306 doc note: repeat-variation was seen on arm64 GEOS 3.9.0 (amd64 3.9.0 repeated); GEOS 3.11 gives 556 points, 3.12+ 514, each repeating, so a simplified layer repeats within one GEOS version only (review S2). Edit #335 to re-run the #306 probe after its swap
 - [x] Edit #335 for trixie: a PostGIS minor upgrade (`ALTER EXTENSION postgis UPDATE`) and the `FRESH_DB_IMAGE` hold in `docker/.env`
 - [ ] Close PR #252 without quoting its title (it names hosts and a private repo)

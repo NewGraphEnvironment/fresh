@@ -30,3 +30,6 @@
 - Edited #335 for trixie: glibc 2.31 to 2.41 (measured in both images), PostGIS 3.5.2 to 3.6.1, remove the `FRESH_DB_IMAGE` hold, re-run the #306 probe after the move, #304 as architecture
 - #306 doc note in `frs_lake_fetch()`, `frs_wetland_fetch()`, `frs_watershed_at_measure()`; `research/fwa_fetch_determinism.md` gains "Repeating within one database" from the image probes. The rebuild's own 20x probe is still owed (Phase 4)
 - Link check: parse-compare of `R/` (each file's `parse(keep.source = FALSE)` deparsed) main vs branch: 0 of 46 files differ; a one-line control is detected. No R/ code, DESCRIPTION, NAMESPACE or inst/ change on the branch
+- Baseline suite on live (00:16Z): FAIL 0 | SKIP 7 | PASS 2938
+- Load done 02:50:24Z, exit 0. Post-conditions match live (differences explained in findings); gate test fails as expected and showed the head-case measure is truly absent on newgraph (#336 rewritten); suite on 5433 identical to live test by test; #306 repeats on the rebuild and not on live (#306 body updated, closes by the outcome rule); #302 counts identical on the rebuild
+- Next: `/code-check branch`, close PR #252, archive, PR

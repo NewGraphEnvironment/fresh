@@ -28,6 +28,7 @@ conn <- frs_db_conn()
 g <- DBI::dbGetQuery(conn, "SELECT postgis_geos_version() AS g")$g
 v <- tryCatch(DBI::dbGetQuery(conn, "SELECT tag FROM fwapg.db_version")$tag,
               error = function(e) NA_character_)
+v <- if (length(v)) max(v) else NA_character_
 DBI::dbDisconnect(conn)
 cat(sprintf("target: port %s, GEOS %s, fwapg.db_version %s\n", port, g, v))
 if (!startsWith(g, geos)) stop("GEOS ", g, " is not the expected ", geos, ": wrong database")
