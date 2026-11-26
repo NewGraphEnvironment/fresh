@@ -33,3 +33,5 @@
 - Baseline suite on live (00:16Z): FAIL 0 | SKIP 7 | PASS 2938
 - Load done 02:50:24Z, exit 0. Post-conditions match live (differences explained in findings); gate test fails as expected and showed the head-case measure is truly absent on newgraph (#336 rewritten); suite on 5433 identical to live test by test; #306 repeats on the rebuild and not on live (#306 body updated, closes by the outcome rule); #302 counts identical on the rebuild
 - Next: `/code-check branch`, close PR #252, archive, PR
+- `/code-check branch`: 4 rounds (03:01Z to 03:36Z). R1 10 findings (second-instance recipe and image pin reach, research counts, GEOS ranges, probe platform); R2 3 (two inside R1's fixes: an unnamed override file, "either architecture"); R3 5 with enumerations of 25 docker invocations and 40 claims (second-instance shell vs the first's literal commands; claims wider than the sample); R4 re-walked 27 + 55, 4 above source, fixed. Verdict: enumeration
+- Scrubbed a private repo's issue number from planning text; older archives on main still name it and a host (pre-existing, reported)

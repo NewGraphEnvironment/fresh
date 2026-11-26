@@ -81,9 +81,9 @@ The review is `planning/active/review-plan.md`; these replace the plan text they
 - [ ] Before the merge reaches any machine holding a bullseye-built `docker/postgres-data` (this Mac's main fresh checkout, and each other host running this compose file through its own override; code-check round 1): write `docker/.env` there with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye` before its next `up` (not `image:` in its override: code-check round 2), so the database is not moved onto trixie by accident (review G3; undone by #335). The main checkout has no `docker/.env` yet (round 1 listed it)
 
 ## Validation
-- [ ] Tests pass
-- [ ] `/code-check` clean (`/code-check branch`)
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass — full suite on live and on the rebuild, FAIL 0 | SKIP 7 | PASS 2938 each, identical test by test (R/ code unchanged since)
+- [x] `/code-check` clean (`/code-check branch`) — 4 rounds, ended by enumeration (review-verdict.md)
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 Verification (corrected 2026-11-24: #304's case is architecture-dependent, so no image answers it true on arm64): the image probe log shows the pinned image fixing GEOS 3.9.0's vertical-line case and repeating the simplify. The loader exits 0 on an empty volume, with its done marker newer than the launch stamp. Post-conditions match live, with differences explained (FWA snapshot drift, migrations live lacks). The gate test's expected failure under `FRESH_FWAPG_CURRENT=true` is recorded, and the full suite on the rebuild is compared with a run on live. The #302 counts come from a committed script that a second run reproduces. The R parse-compare shows no executable change.
