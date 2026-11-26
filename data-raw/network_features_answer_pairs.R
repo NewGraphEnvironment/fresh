@@ -52,13 +52,14 @@ meta <- DBI::dbGetQuery(conn, "
          (SELECT count(*) FROM pg_temp.nf_features WHERE linear_feature_id > 0)
            AS features_every_25th,
          (SELECT count(*) FROM pg_temp.nf_features) AS features_all")
-cat(sprintf("# %s port %s, PostgreSQL %s, GEOS %s\n", format(Sys.time(), tz = "UTC",
-  usetz = TRUE), env("FRESH_PGPORT", "5432"), meta$pg, meta$geos))
+run_utc <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+cat(sprintf("# %s port %s, PostgreSQL %s, GEOS %s\n",
+            run_utc, env("FRESH_PGPORT", "5432"), meta$pg, meta$geos))
 cat(sprintf("# %s segments in %s groups; features: %s every 25th, %s in the whole fixture\n",
-  meta$segments, meta$groups, meta$features_every_25th, meta$features_all))
+            meta$segments, meta$groups, meta$features_every_25th, meta$features_all))
 
 count_sql <- function(ie, population) {
-  sprintf("
+  sql <- "
     WITH own AS (
       SELECT blue_line_key, wscode_ltree
       FROM whse_basemapping.fwa_stream_networks_sp
@@ -79,9 +80,9 @@ count_sql <- function(ie, population) {
                AND wscode_ltree NOT IN (
                  SELECT wscode_ltree FROM own WHERE wscode_ltree IS NOT NULL)
            )::bigint AS ancestor_only
-    FROM pairs",
-    features, if (ie) "true" else "false",
-    if (population == "every_25th") "b.linear_feature_id > 0" else "true")
+    FROM pairs"
+  sprintf(sql, features, if (ie) "true" else "false",
+          if (population == "every_25th") "b.linear_feature_id > 0" else "true")
 }
 
 cat("population\tinclude_equivalents\tpairs\tancestor_only\n")
