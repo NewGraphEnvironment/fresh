@@ -10,9 +10,10 @@
 #' `ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))`;
 #' `ST_Normalize()` fixes the order of parts, rings and ring start vertices so
 #' equal polygons serialise equally. `area_ha` is the stored, unsimplified
-#' area. Two databases on different GEOS versions can still simplify a ring
-#' differently, so a caller that saves the result should record
-#' `postgis_full_version()` with it.
+#' area. The simplified ring depends on the GEOS version (3.11 and 3.12 or
+#' later give different vertices), so a caller that saves the result should
+#' record `postgis_full_version()` with it. GEOS 3.9.0 on arm64 can also give
+#' different rings on two calls to one database; later versions repeat.
 #'
 #' @param watershed_group_code Character. Watershed group code (e.g. `"BULK"`).
 #'   Default `NULL`.

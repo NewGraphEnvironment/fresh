@@ -32,11 +32,12 @@ on a tributary.}
 \item{simplify_m}{Numeric or \code{NULL}. Simplification tolerance in metres,
 applied in the database as
 \code{ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))}, so the
-same database returns the same polygon on every call. For a subbasin the
+same database returns the same polygon on every call (GEOS 3.9.0 on
+arm64 is the exception: two calls can differ). For a subbasin the
 difference is taken first and simplified once, so the shared boundary
 is not simplified twice. Two databases on different GEOS versions can
-still simplify a ring differently. Default \code{NULL} (fwapg's polygon
-unchanged).}
+still simplify a ring differently (3.11 and 3.12 or later do). Default
+\code{NULL} (fwapg's polygon unchanged).}
 }
 \value{
 An \code{sf} data frame with a single polygon geometry.

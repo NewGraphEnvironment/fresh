@@ -60,7 +60,7 @@ Mechanism decided in the plan:
 ## Phase 5: Follow-ups and close-out
 - [x] File: move the live local fwapg onto the new image (recreate over its data dir, refresh the collation version and reindex, rebuild the lut and the listed tables, measure link's outputs before and after), naming move 7 — #335
 - [x] File the lut Parquet re-export with its publisher (private repo), and the `--bcfishobs` stage-4 issue from #254's draft, each naming move 7 — rtj#446 (re-export, after fwapg#60), #334 (bcfishobs stage 4), plus NewGraphEnvironment/fwapg#60 (the lut predicate, #304's real fix)
-- [ ] Link check: parse-compare `R/` between main and branch
+- [x] Link check: parse-compare `R/` between main and branch — 2026-11-25: 46 files each side, 0 whose parsed code differs, positive control detected (re-run in `/code-check branch` if `R/` moves again)
 - [ ] Edit #302, #304, #306 bodies with what was measured
 
 ## Corrections after the plan review and the probes (2026-11-24)
@@ -71,8 +71,8 @@ The review is `planning/active/review-plan.md`; these replace the plan text they
 - [ ] Post-conditions: say that `fwapg.db_version` 202611131236 does not mean `fwa_named_streams` is current: migration 3 is a data migration run before `load.sh`, which rebuilds the table with the old SQL (review G1). fresh does not read the table. File a fwapg fork issue
 - [ ] Tests against 5433: `~/.Renviron` sets `PG*` to another host, so `Sys.setenv()` all five inside R before `load_all()`, prove the target with `SELECT tag FROM fwapg.db_version` (live has no such table), and compare against a run on live rather than reading a plain pass (review G4)
 - [ ] #304 (replaces Phase 4's "the 18 named streams have lut rows"): the rebuild's lut still misses them, because the deciding test is architecture-dependent (arm64 false, amd64 true, same PostGIS/GEOS), not the image. Record the rebuild's BULK+ADMS count; fix is NewGraphEnvironment/fwapg#60. #304 body already corrected (2026-11-24)
-- [ ] #306 doc note: repeat-variation was seen on arm64 GEOS 3.9.0 (amd64 3.9.0 repeated); GEOS 3.11 gives 556 points, 3.12+ 514, each repeating, so a simplified layer repeats within one GEOS version only (review S2). Edit #335 to re-run the #306 probe after its swap
-- [ ] Edit #335 for trixie: a PostGIS minor upgrade (`ALTER EXTENSION postgis UPDATE`) and the `FRESH_DB_IMAGE` hold in `docker/.env`
+- [x] #306 doc note: repeat-variation was seen on arm64 GEOS 3.9.0 (amd64 3.9.0 repeated); GEOS 3.11 gives 556 points, 3.12+ 514, each repeating, so a simplified layer repeats within one GEOS version only (review S2). Edit #335 to re-run the #306 probe after its swap
+- [x] Edit #335 for trixie: a PostGIS minor upgrade (`ALTER EXTENSION postgis UPDATE`) and the `FRESH_DB_IMAGE` hold in `docker/.env`
 - [ ] Close PR #252 without quoting its title (it names hosts and a private repo)
 
 ## Owed at the end (reported, done after merge)

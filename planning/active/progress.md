@@ -21,3 +21,12 @@
 - Owner switched the image to trixie; bookworm load (attempt 2) stopped at ~18:40Z and kept as `attempt2_bookworm_stopped/`
 - Compose now `${FRESH_DB_IMAGE:-imresamu/postgis:17-3.6.1-trixie}`, `.env` gitignored; README second-instance (COMPOSE_PROJECT_NAME, run --name, FWAPG_DIR) and Image sections rewritten; run.sh watchdog fixed; home paths scrubbed from stamps
 - Next: relaunch the trixie load (first box under "Corrections"), then Phase 3 post-conditions and tests on 5433
+
+## Session 2026-11-25 (resumed 00:08Z, 2026-11-26 UTC)
+
+- Merged origin/main (CLAUDE.md sync); RESUME-OK at 0ef9c98
+- Trixie load (attempt 3) launched 2026-11-26T00:08:37Z: `run.sh ~/Projects/repo/fwapg-324`, fwapg 137fd69, image `17-3.6.1-trixie`; healthcheck passed, data stage running
+- Filed #336 (fwapg gate keys on `include_disconnected`, which newgraph's migrations lack: review B2) and NewGraphEnvironment/fwapg#61 (`fwa_named_streams` stays on the pre-migration SQL after a fresh load: review G1, upstream-draft)
+- Edited #335 for trixie: glibc 2.31 to 2.41 (measured in both images), PostGIS 3.5.2 to 3.6.1, remove the `FRESH_DB_IMAGE` hold, re-run the #306 probe after the move, #304 as architecture
+- #306 doc note in `frs_lake_fetch()`, `frs_wetland_fetch()`, `frs_watershed_at_measure()`; `research/fwa_fetch_determinism.md` gains "Repeating within one database" from the image probes. The rebuild's own 20x probe is still owed (Phase 4)
+- Link check: parse-compare of `R/` (each file's `parse(keep.source = FALSE)` deparsed) main vs branch: 0 of 46 files differ; a one-line control is detected. No R/ code, DESCRIPTION, NAMESPACE or inst/ change on the branch
