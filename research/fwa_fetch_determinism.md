@@ -1,8 +1,10 @@
 # What makes a fetch return the same `sf` twice
 
-**Verified:** 2026-10-31 · **Issues:** #286 (spawned by wet#155) · **Produced by:** probes recorded in
+**Verified:** 2026-10-31; "Repeating within one database" 2026-11-26 · **Issues:** #286 (spawned
+by wet#155), #306, #324 · **Produced by:** probes recorded in
 `planning/archive/2026-10-issue-286-deterministic-fetchers/findings.md`; local fwapg PostGIS 3.5.2 /
-GEOS 3.9.0, second fwapg GEOS 3.10.2.
+GEOS 3.9.0, second fwapg GEOS 3.10.2; `data-raw/docker_image_probe.sh`, logs
+`data-raw/logs/docker_rebuild_324/image_probe*.txt` and `simplify_repeat_*.txt`.
 
 ## Row order
 
@@ -25,6 +27,29 @@ a second column (`order_by = c("linear_feature_id", "downstream_route_measure")`
   simplified polygon layer means recording `postgis_full_version()` with it.
 - A subbasin is simplified after `ST_Difference()`, once; simplifying the two watersheds first
   simplifies their shared boundary twice.
+
+### Repeating within one database
+
+Tahtsa Reach, `ST_SimplifyPreserveTopology(geom, 100)` 20 times in one session:
+
+| stack | points, 20 calls |
+|---|---|
+| arm64, PostGIS 3.5.2 / GEOS 3.9.0 (the old `docker/` image) | 556 ×3, 557 ×17 |
+| amd64, PostGIS 3.5.2 / GEOS 3.9.0 (one probe) | 557 ×20 |
+| arm64, GEOS 3.11.1 (PostGIS 3.4.3, 3.5.3) | 556 ×20 |
+| arm64, GEOS 3.12.2, 3.13.1 (PostGIS 3.4.3, 3.6.1) | 514 ×20 |
+
+- Through fresh, on one connection, 20 calls of `frs_lake_fetch(aoi = <Tahtsa Reach + 10 m>,
+  simplify_m = 100)` (`data-raw/logs/docker_rebuild_324/simplify_repeat.R`, 2026-11-26): the
+  arm64 GEOS 3.9.0 database gave two different layers (14 and 6 calls; the SQL alone gave
+  556 ×4, 557 ×16), the full rebuild on PostGIS 3.6.1 / GEOS 3.13.1 one (20 of 20).
+- Only GEOS 3.9.0 on arm64 varied between calls. GEOS 3.11, 3.12 and 3.13 each repeat their own
+  answer (3.10 was compared only between databases, never repeated in one), so on
+  `docker/`'s image since #324 (PostGIS 3.6.1 / GEOS 3.13.1) one database returned one polygon for
+  this lake (arm64; one polygon at one tolerance, not a sweep, and `frs_watershed_at_measure()`'s
+  subbasin path was not repeat-tested).
+- The simplifier's output changed between GEOS 3.11 and 3.12 (556 to 514 points), on top of the
+  3.9-to-3.10 difference above. A saved layer still carries `postgis_full_version()`.
 
 ## Numbers written into SQL
 

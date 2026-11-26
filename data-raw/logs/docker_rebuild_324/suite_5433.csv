@@ -1,0 +1,898 @@
+"file","context","test","nb","failed","skipped","error","warning","passed"
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate adds where filter",1,0,FALSE,FALSE,0,1
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate builds correct upstream SQL",8,0,FALSE,FALSE,0,8
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate builds downstream SQL",1,0,FALSE,FALSE,0,1
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate returns conn when writing to table",1,0,FALSE,FALSE,0,1
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate returns data.frame with collect",7,0,FALSE,FALSE,0,7
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate uses .frs_opt for feature column names",3,0,FALSE,FALSE,0,3
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate validates direction",1,0,FALSE,FALSE,0,1
+"test-frs_aggregate.R","frs_aggregate","frs_aggregate validates identifiers",1,0,FALSE,FALSE,0,1
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal errors on source table missing ltree columns",1,0,FALSE,FALSE,0,1
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal generates SQL with fwa_upstream self-join",5,0,FALSE,FALSE,0,5
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal keeps points on different blue_line_keys",1,0,FALSE,FALSE,0,1
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal passes tolerance into SQL",2,0,FALSE,FALSE,0,2
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal reduces two points on same reach to the downstream-most",2,0,FALSE,FALSE,0,2
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal rejects invalid identifiers",2,0,FALSE,FALSE,0,2
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal rejects invalid tolerance",3,0,FALSE,FALSE,0,3
+"test-frs_barriers_minimal.R","frs_barriers_minimal","frs_barriers_minimal skips drop when overwrite is FALSE",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break calls find, validate, apply in sequence",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break forwards only arguments its helpers accept",2,0,FALSE,FALSE,0,2
+"test-frs_break.R","frs_break","frs_break skips validate when no evidence_table",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_apply builds 4 SQL statements with carried columns",9,0,FALSE,FALSE,0,9
+"test-frs_break.R","frs_break","frs_break_apply returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_apply splits stream segments",2,0,FALSE,FALSE,0,2
+"test-frs_break.R","frs_break","frs_break_apply validates identifiers",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_find attribute mode builds correct SQL",5,0,FALSE,FALSE,0,5
+"test-frs_break.R","frs_break","frs_break_find attribute mode creates breaks table",3,0,FALSE,FALSE,0,3
+"test-frs_break.R","frs_break","frs_break_find requires attribute",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_find requires threshold or classes",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_find returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_find skips drop when overwrite = FALSE",2,0,FALSE,FALSE,0,2
+"test-frs_break.R","frs_break","frs_break_find validates identifiers",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_validate builds SQL with where filter",3,0,FALSE,FALSE,0,3
+"test-frs_break.R","frs_break","frs_break_validate builds SQL without where filter",2,0,FALSE,FALSE,0,2
+"test-frs_break.R","frs_break","frs_break_validate returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_break_validate validates identifiers",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_feature_find adds BLK filter",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_feature_find adds where filter",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_feature_find append adds a missing feature_id and refuses a non-text one (live)",5,0,FALSE,FALSE,0,5
+"test-frs_break.R","frs_break","frs_feature_find combines where and BLK filter",3,0,FALSE,FALSE,0,3
+"test-frs_break.R","frs_break","frs_feature_find points mode checks label_col",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_feature_find points mode honours label and append",5,0,FALSE,FALSE,0,5
+"test-frs_break.R","frs_break","frs_feature_find points mode rejects non-sf",1,0,FALSE,FALSE,0,1
+"test-frs_break.R","frs_break","frs_feature_find points mode snaps and writes features",9,0,FALSE,FALSE,0,9
+"test-frs_break.R","frs_break","frs_feature_find refuses a `to` it would read",2,0,FALSE,FALSE,0,2
+"test-frs_break.R","frs_break","frs_feature_find snaps real sf points onto the network (live)",14,0,FALSE,FALSE,0,14
+"test-frs_break.R","frs_break","frs_feature_find table mode builds correct SQL",2,0,FALSE,FALSE,0,2
+"test-frs_break.R","frs_break","label_map compares and returns label_col as text",5,0,FALSE,FALSE,0,5
+"test-frs_bucket_connected.R","frs_bucket_connected",".frs_run_connectivity filters a bucket only when its rule opts in",2,0,FALSE,FALSE,0,2
+"test-frs_bucket_connected.R","frs_bucket_connected","a cluster spanning a confluence is traced from the parent stream",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","a disconnected lake loses its bucket, a connected one keeps it",2,0,FALSE,FALSE,0,2
+"test-frs_bucket_connected.R","frs_bucket_connected","a lake on a sub-threshold inflow is in the bucket under cw and mad",2,0,FALSE,FALSE,0,2
+"test-frs_bucket_connected.R","frs_bucket_connected","a polygon with two outflows is traced from both",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","another watershed group's rows sharing an id_segment are never read or cleared",2,0,FALSE,FALSE,0,2
+"test-frs_bucket_connected.R","frs_bucket_connected","lake with spawning downstream beyond distance loses its bucket",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","lake with spawning downstream within distance keeps its bucket",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","lake with spawning upstream beyond distance loses its bucket",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","lake with spawning upstream within distance keeps its bucket",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","spawning on a sibling tributary does not connect; downstream of it does",2,0,FALSE,FALSE,0,2
+"test-frs_bucket_connected.R","frs_bucket_connected","spawning on the polygon's own line connects at any distance",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","the network-distance cap decides when straight-line distance is short",4,0,FALSE,FALSE,0,4
+"test-frs_bucket_connected.R","frs_bucket_connected","the outlet trace starts at the polygon's lowest line",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","the spawning trace starts at the cluster's lowest segment",1,0,FALSE,FALSE,0,1
+"test-frs_bucket_connected.R","frs_bucket_connected","wetland filter leaves lake_rearing and other species alone",3,0,FALSE,FALSE,0,3
+"test-frs_candidates_pick.R","frs_candidates_pick","SQL composes DROP + CREATE + WITH scored + DISTINCT ON + ORDER BY",8,0,FALSE,FALSE,0,8
+"test-frs_candidates_pick.R","frs_candidates_pick","`col_key` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_candidates_pick.R","frs_candidates_pick","`exp_filter`, when supplied, must be a non-empty character",1,0,FALSE,FALSE,0,1
+"test-frs_candidates_pick.R","frs_candidates_pick","`exp_score`, when supplied, must be a non-empty character",2,0,FALSE,FALSE,0,2
+"test-frs_candidates_pick.R","frs_candidates_pick","`order_by` is required and non-empty",3,0,FALSE,FALSE,0,3
+"test-frs_candidates_pick.R","frs_candidates_pick","`table_in` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_candidates_pick.R","frs_candidates_pick","`table_to` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_candidates_pick.R","frs_candidates_pick","exp_filter = NULL omits the WHERE clause",1,0,FALSE,FALSE,0,1
+"test-frs_candidates_pick.R","frs_candidates_pick","exp_score = NULL omits the WITH scored CTE",2,0,FALSE,FALSE,0,2
+"test-frs_candidates_pick.R","frs_candidates_pick","identifiers reject characters outside [A-Za-z_][A-Za-z0-9_.]*",2,0,FALSE,FALSE,0,2
+"test-frs_candidates_pick.R","frs_candidates_pick","table_in with `score` column is allowed when exp_score is NULL",2,0,FALSE,FALSE,0,2
+"test-frs_candidates_pick.R","frs_candidates_pick","table_in with existing `score` column is rejected when exp_score is set",1,0,FALSE,FALSE,0,1
+"test-frs_categorize.R","frs_categorize","frs_categorize builds correct CASE SQL",7,0,FALSE,FALSE,0,7
+"test-frs_categorize.R","frs_categorize","frs_categorize respects priority order",1,0,FALSE,FALSE,0,1
+"test-frs_categorize.R","frs_categorize","frs_categorize returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_categorize.R","frs_categorize","frs_categorize validates inputs",2,0,FALSE,FALSE,0,2
+"test-frs_channel_width.R","frs_channel_width","SQL matches the presets and poisson2021 reproduces fwapg MODELLED",13,0,FALSE,FALSE,0,13
+"test-frs_channel_width.R","frs_channel_width","col_source = NULL writes no label",1,0,FALSE,FALSE,0,1
+"test-frs_channel_width.R","frs_channel_width","custom coefficients are formatted and labelled",6,0,FALSE,FALSE,0,6
+"test-frs_channel_width.R","frs_channel_width","default call fills NULL widths and leaves existing ones alone",10,0,FALSE,FALSE,0,10
+"test-frs_channel_width.R","frs_channel_width","default run fills only NULL rows and labels only those",8,0,FALSE,FALSE,0,8
+"test-frs_channel_width.R","frs_channel_width","existing output columns must have usable types",2,0,FALSE,FALSE,0,2
+"test-frs_channel_width.R","frs_channel_width","hall2007 preset converts ha to km2 and mm to cm, unrounded",4,0,FALSE,FALSE,0,4
+"test-frs_channel_width.R","frs_channel_width","identifiers are validated",4,0,FALSE,FALSE,0,4
+"test-frs_channel_width.R","frs_channel_width","integer64 value and coefficients render as numbers",2,0,FALSE,FALSE,0,2
+"test-frs_channel_width.R","frs_channel_width","missing input columns error with the frs_col_join recipe",3,0,FALSE,FALSE,0,3
+"test-frs_channel_width.R","frs_channel_width","mixed-case names compare as Postgres folds them",2,0,FALSE,FALSE,0,2
+"test-frs_channel_width.R","frs_channel_width","model validation rejects bad input",9,0,FALSE,FALSE,0,9
+"test-frs_channel_width.R","frs_channel_width","output columns cannot collide with inputs or each other",3,0,FALSE,FALSE,0,3
+"test-frs_channel_width.R","frs_channel_width","overwrite = TRUE rewrites every row in one statement",4,0,FALSE,FALSE,0,4
+"test-frs_channel_width.R","frs_channel_width","poisson2021 preset reproduces the fwapg expression",4,0,FALSE,FALSE,0,4
+"test-frs_channel_width.R","frs_channel_width","preset coefficients match the published formulas",2,0,FALSE,FALSE,0,2
+"test-frs_channel_width.R","frs_channel_width","returns conn invisibly",2,0,FALSE,FALSE,0,2
+"test-frs_channel_width.R","frs_channel_width","source column defaults to <to>_source",3,0,FALSE,FALSE,0,3
+"test-frs_channel_width.R","frs_channel_width","type checks ignore typmods",1,0,FALSE,FALSE,0,1
+"test-frs_channel_width.R","frs_channel_width","value fills what the regression leaves NULL, labelled ASSIGNED",3,0,FALSE,FALSE,0,3
+"test-frs_channel_width.R","frs_channel_width","value must be a positive finite number",7,0,FALSE,FALSE,0,7
+"test-frs_channel_width.R","frs_channel_width","value runs after an overwrite too, without a label if asked",3,0,FALSE,FALSE,0,3
+"test-frs_channel_width.R","frs_channel_width","verbose = FALSE runs no count query and says nothing",2,0,FALSE,FALSE,0,2
+"test-frs_channel_width.R","frs_channel_width","verbose reports modelled, assigned and still-NULL counts",3,0,FALSE,FALSE,0,3
+"test-frs_classify.R","frs_classify","frs_classify breaks builds correct SQL",5,0,FALSE,FALSE,0,5
+"test-frs_classify.R","frs_classify","frs_classify combined modes generates 3 updates",5,0,FALSE,FALSE,0,5
+"test-frs_classify.R","frs_classify","frs_classify overrides builds correct SQL",3,0,FALSE,FALSE,0,3
+"test-frs_classify.R","frs_classify","frs_classify ranges adds and populates label column",2,0,FALSE,FALSE,0,2
+"test-frs_classify.R","frs_classify","frs_classify ranges builds correct SQL",6,0,FALSE,FALSE,0,6
+"test-frs_classify.R","frs_classify","frs_classify requires at least one mode",1,0,FALSE,FALSE,0,1
+"test-frs_classify.R","frs_classify","frs_classify returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_classify.R","frs_classify","frs_classify validates identifiers",1,0,FALSE,FALSE,0,1
+"test-frs_classify.R","frs_classify","frs_classify validates range inputs",2,0,FALSE,FALSE,0,2
+"test-frs_classify.R","frs_classify","frs_classify value = FALSE sets FALSE",1,0,FALSE,FALSE,0,1
+"test-frs_classify.R","frs_classify","frs_classify where param scopes breaks SQL",3,0,FALSE,FALSE,0,3
+"test-frs_classify.R","frs_classify","frs_classify where param scopes overrides SQL",3,0,FALSE,FALSE,0,3
+"test-frs_classify.R","frs_classify","frs_classify where param scopes ranges SQL",3,0,FALSE,FALSE,0,3
+"test-frs_classify.R","frs_classify","frs_classify without where does not add extra AND",1,0,FALSE,FALSE,0,1
+"test-frs_clip.R","frs_clip","frs_clip clips linestrings to AOI",3,0,FALSE,FALSE,0,3
+"test-frs_clip.R","frs_clip","frs_clip clips polygons to AOI",3,0,FALSE,FALSE,0,3
+"test-frs_clip.R","frs_clip","frs_clip returns empty sf for non-intersecting features",2,0,FALSE,FALSE,0,2
+"test-frs_clip.R","frs_clip","frs_clip returns input unchanged when empty",1,0,FALSE,FALSE,0,1
+"test-frs_clip.R","frs_clip","frs_clip transforms CRS when mismatched",2,0,FALSE,FALSE,0,2
+"test-frs_clip.R","frs_clip","frs_clip validates inputs",2,0,FALSE,FALSE,0,2
+"test-frs_cluster.R","frs_cluster","both direction creates temp table and evaluates independently",1,0,FALSE,FALSE,0,1
+"test-frs_cluster.R","frs_cluster","bridge_distance must be numeric scalar",1,0,FALSE,FALSE,0,1
+"test-frs_cluster.R","frs_cluster","bridge_gradient must be numeric scalar",1,0,FALSE,FALSE,0,1
+"test-frs_cluster.R","frs_cluster","confluence_m must be numeric scalar",1,0,FALSE,FALSE,0,1
+"test-frs_cluster.R","frs_cluster","direction validates",1,0,FALSE,FALSE,0,1
+"test-frs_cluster.R","frs_cluster","downstream SQL includes fwa_downstreamtrace and gradient bridge",10,0,FALSE,FALSE,0,10
+"test-frs_cluster.R","frs_cluster","frs_cluster upstream removes disconnected rearing",1,0,FALSE,FALSE,0,1
+"test-frs_cluster.R","frs_cluster","identifier validation catches bad names",2,0,FALSE,FALSE,0,2
+"test-frs_cluster.R","frs_cluster","label_cluster must be character scalar",2,0,FALSE,FALSE,0,2
+"test-frs_cluster.R","frs_cluster","label_connect must be character scalar",1,0,FALSE,FALSE,0,1
+"test-frs_cluster.R","frs_cluster","upstream SQL includes FWA_Upstream and confluence check",8,0,FALSE,FALSE,0,8
+"test-frs_col_generate.R","frs_col_generate","frs_col_generate + frs_break_apply produces correct gradient",2,0,FALSE,FALSE,0,2
+"test-frs_col_generate.R","frs_col_generate","frs_col_generate builds correct ALTER statements",11,0,FALSE,FALSE,0,11
+"test-frs_col_generate.R","frs_col_generate","frs_col_generate creates generated columns",2,0,FALSE,FALSE,0,2
+"test-frs_col_generate.R","frs_col_generate","frs_col_generate returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_col_generate.R","frs_col_generate","frs_col_generate validates identifiers",1,0,FALSE,FALSE,0,1
+"test-frs_col_generate.R","frs_col_generate","frs_col_generate values match original after roundtrip",1,0,FALSE,FALSE,0,1
+"test-frs_col_join.R","frs_col_join","frs_col_join accepts subquery in from",2,0,FALSE,FALSE,0,2
+"test-frs_col_join.R","frs_col_join","frs_col_join adds channel_width from FWA lookup",2,0,FALSE,FALSE,0,2
+"test-frs_col_join.R","frs_col_join","frs_col_join builds correct SQL for single key",7,0,FALSE,FALSE,0,7
+"test-frs_col_join.R","frs_col_join","frs_col_join errors on a column the source lacks, before any ALTER",2,0,FALSE,FALSE,0,2
+"test-frs_col_join.R","frs_col_join","frs_col_join handles composite keys",2,0,FALSE,FALSE,0,2
+"test-frs_col_join.R","frs_col_join","frs_col_join handles named by (different column names)",1,0,FALSE,FALSE,0,1
+"test-frs_col_join.R","frs_col_join","frs_col_join returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_col_join.R","frs_col_join","frs_col_join types a subquery's columns as the source has them (#239)",2,0,FALSE,FALSE,0,2
+"test-frs_col_join.R","frs_col_join","frs_col_join types an unqualified table and an ltree column (#222)",2,0,FALSE,FALSE,0,2
+"test-frs_col_join.R","frs_col_join","frs_col_join validates identifiers",1,0,FALSE,FALSE,0,1
+"test-frs_col_join.R","frs_col_join","frs_col_join widens char(n) and bit(n) rather than narrowing them",4,0,FALSE,FALSE,0,4
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","another group's rearing on an id this group calls FALSE does not move the cluster minimum",1,0,FALSE,FALSE,0,1
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","another group's rows do not inflate the downstream trace distance",1,0,FALSE,FALSE,0,1
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","another group's spawning does not lend lake adjacency to this group's cluster",7,0,FALSE,FALSE,0,7
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","cluster both leaves another group's rows alone and is not rescued by them",5,0,FALSE,FALSE,0,5
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","cluster downstream is not rescued by another group's connect rows",2,0,FALSE,FALSE,0,2
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","cluster downstream never clears another group's rows",3,0,FALSE,FALSE,0,3
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","cluster upstream leaves another group's rows alone and is not rescued by them",4,0,FALSE,FALSE,0,4
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","connected_waterbody never clears another group's spawning rows",3,0,FALSE,FALSE,0,3
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","connected_waterbody takes no trace origin from another group's rearing",2,0,FALSE,FALSE,0,2
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","distance_filter is not rescued by another group's connect rows",2,0,FALSE,FALSE,0,2
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","distance_filter never clears another group's rows",3,0,FALSE,FALSE,0,3
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","species = NULL resolves only the species in this job's groups",5,0,FALSE,FALSE,0,5
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","the additive spawn_connected step promotes no other group's row",3,0,FALSE,FALSE,0,3
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","the same holds for the downstream direction's clustering CTE",1,0,FALSE,FALSE,0,1
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","the same holds for the upstream direction's clustering CTE",1,0,FALSE,FALSE,0,1
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","the verbose progress lines count this job's groups, not the table's",4,0,FALSE,FALSE,0,4
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","without linear_feature_id, another group's rearing lends no origin",2,0,FALSE,FALSE,0,2
+"test-frs_connectivity_wsg.R","frs_connectivity_wsg","without linear_feature_id, the group alone keeps another group's spawning",4,0,FALSE,FALSE,0,4
+"test-frs_db_conn.R","frs_db_conn",".frs_conn_params carries the bounds to frs_habitat() workers",4,0,FALSE,FALSE,0,4
+"test-frs_db_conn.R","frs_db_conn","PGSERVICE or PGHOSTADDR alone count as the standard group",2,0,FALSE,FALSE,0,2
+"test-frs_db_conn.R","frs_db_conn","PG_*_SHARE fallback resolves and messages once per session",4,0,FALSE,FALSE,0,4
+"test-frs_db_conn.R","frs_db_conn","a silent host fails within connect_timeout, so the gate skips",3,0,FALSE,FALSE,0,3
+"test-frs_db_conn.R","frs_db_conn","an invalid connect_timeout is refused",9,0,FALSE,FALSE,0,9
+"test-frs_db_conn.R","frs_db_conn","connect_timeout = 0 is allowed (libpq: no limit)",1,0,FALSE,FALSE,0,1
+"test-frs_db_conn.R","frs_db_conn","connect_timeout: explicit wins, then PGCONNECT_TIMEOUT, then 10 s",4,0,FALSE,FALSE,0,4
+"test-frs_db_conn.R","frs_db_conn","empty PG_PASS_SHARE is dropped so libpq can use .pgpass",2,0,FALSE,FALSE,0,2
+"test-frs_db_conn.R","frs_db_conn","explicit args override the environment per field",4,0,FALSE,FALSE,0,4
+"test-frs_db_conn.R","frs_db_conn","explicit empty-string args are treated as unset",1,0,FALSE,FALSE,0,1
+"test-frs_db_conn.R","frs_db_conn","frs_db_conn passes the bounds under every variable group",8,0,FALSE,FALSE,0,8
+"test-frs_db_conn.R","frs_db_conn","frs_db_conn returns a DBI connection",1,0,FALSE,FALSE,0,1
+"test-frs_db_conn.R","frs_db_conn","groups never mix: PGHOST alone blocks PG_DB_SHARE",2,0,FALSE,FALSE,0,2
+"test-frs_db_conn.R","frs_db_conn","idle-connection bounds default on, and ... overrides them",6,0,FALSE,FALSE,0,6
+"test-frs_db_conn.R","frs_db_conn","nothing set leaves everything to libpq defaults",3,0,FALSE,FALSE,0,3
+"test-frs_db_conn.R","frs_db_conn","standard PG* vars are left to libpq",2,0,FALSE,FALSE,0,2
+"test-frs_db_conn.R","frs_db_conn","standard PG* vars win when both groups are set",3,0,FALSE,FALSE,0,3
+"test-frs_db_conn.R","frs_db_conn","whole doubles reach libpq as integers, never in e-notation",5,0,FALSE,FALSE,0,5
+"test-frs_db_query.R","frs_db_query","frs_db_query returns sf from spatial query",2,0,FALSE,FALSE,0,2
+"test-frs_edge_types.R","frs_edge_types","frs_edge_types filters by category",5,0,FALSE,FALSE,0,5
+"test-frs_edge_types.R","frs_edge_types","frs_edge_types rejects invalid category",1,0,FALSE,FALSE,0,1
+"test-frs_edge_types.R","frs_edge_types","frs_edge_types returns full table",5,0,FALSE,FALSE,0,5
+"test-frs_edge_types.R","frs_edge_types","frs_edge_types subsurface codes match snap guards",2,0,FALSE,FALSE,0,2
+"test-frs_extract.R","frs_extract","frs_extract ANDs aoi and where together",3,0,FALSE,FALSE,0,3
+"test-frs_extract.R","frs_extract","frs_extract adds WHERE clause from character aoi",1,0,FALSE,FALSE,0,1
+"test-frs_extract.R","frs_extract","frs_extract adds WHERE clause from where parameter",2,0,FALSE,FALSE,0,2
+"test-frs_extract.R","frs_extract","frs_extract builds correct SQL for SELECT *",3,0,FALSE,FALSE,0,3
+"test-frs_extract.R","frs_extract","frs_extract builds correct SQL with cols",1,0,FALSE,FALSE,0,1
+"test-frs_extract.R","frs_extract","frs_extract combines aoi and where",2,0,FALSE,FALSE,0,2
+"test-frs_extract.R","frs_extract","frs_extract creates table in working schema",2,0,FALSE,FALSE,0,2
+"test-frs_extract.R","frs_extract","frs_extract drops table when overwrite = TRUE",3,0,FALSE,FALSE,0,3
+"test-frs_extract.R","frs_extract","frs_extract errors when table exists and overwrite = FALSE",1,0,FALSE,FALSE,0,1
+"test-frs_extract.R","frs_extract","frs_extract filters by where predicate",2,0,FALSE,FALSE,0,2
+"test-frs_extract.R","frs_extract","frs_extract overwrites when overwrite = TRUE",1,0,FALSE,FALSE,0,1
+"test-frs_extract.R","frs_extract","frs_extract returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_extract.R","frs_extract","frs_extract validates cols",2,0,FALSE,FALSE,0,2
+"test-frs_extract.R","frs_extract","frs_extract validates identifiers",2,0,FALSE,FALSE,0,2
+"test-frs_extract.R","frs_extract","frs_extract validates where parameter",3,0,FALSE,FALSE,0,3
+"test-frs_feature_index.R","frs_feature_index","frs_feature_index indexes the output on both key columns",2,0,FALSE,FALSE,0,2
+"test-frs_feature_index.R","frs_feature_index","frs_feature_index keys its output on id_segment and watershed_group_code",7,0,FALSE,FALSE,0,7
+"test-frs_feature_index.R","frs_feature_index","frs_feature_index names a segments table lacking watershed_group_code",2,0,FALSE,FALSE,0,2
+"test-frs_fetch_live.R","frs_fetch_live",".frs_sql_exact text reads back in Postgres as the same double",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_live.R","frs_fetch_live","a watershed at a segment's own start measure is found",2,0,FALSE,FALSE,0,2
+"test-frs_fetch_live.R","frs_fetch_live","aoi intersects exactly where bbox matches envelopes",2,0,FALSE,FALSE,0,2
+"test-frs_fetch_live.R","frs_fetch_live","limit returns the lowest keys",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_live.R","frs_fetch_live","simplified fetches return identical sf, ordered by key",9,0,FALSE,FALSE,0,9
+"test-frs_fetch_live.R","frs_fetch_live","simplified watershed and subbasin are identical on repeat",4,0,FALSE,FALSE,0,4
+"test-frs_fetch_live.R","frs_fetch_live","simplify_m keeps stored area_ha and stream direction",3,0,FALSE,FALSE,0,3
+"test-frs_fetch_sql.R","frs_fetch_sql","fetch orders by several columns when given them",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake and wetland fetch write area_ha_min exactly",6,0,FALSE,FALSE,0,6
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch drops ORDER BY with order_by = NULL",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch filters an sf aoi with ST_Intersects",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch keeps bbox as envelope overlap",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch orders by its unique key, before LIMIT",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch rejects a bad order_by",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch rejects a bad simplify_m",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch rejects an invalid table name",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch selects plain geom without simplify_m",2,0,FALSE,FALSE,0,2
+"test-frs_fetch_sql.R","frs_fetch_sql","lake fetch simplifies geom with simplify_m",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","new fetch arguments come after limit, keeping positional calls",6,0,FALSE,FALSE,0,6
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch drops ORDER BY with order_by = NULL",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch filters an sf aoi with ST_Intersects",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch keeps bbox as envelope overlap",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch orders by its unique key, before LIMIT",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch rejects a bad order_by",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch rejects a bad simplify_m",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch rejects an invalid table name",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch selects plain geom without simplify_m",2,0,FALSE,FALSE,0,2
+"test-frs_fetch_sql.R","frs_fetch_sql","stream fetch simplifies geom with simplify_m",2,0,FALSE,FALSE,0,2
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch drops ORDER BY with order_by = NULL",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch filters an sf aoi with ST_Intersects",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch keeps bbox as envelope overlap",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch orders by its unique key, before LIMIT",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch rejects a bad order_by",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch rejects a bad simplify_m",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch rejects an invalid table name",1,0,FALSE,FALSE,0,1
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch selects plain geom without simplify_m",2,0,FALSE,FALSE,0,2
+"test-frs_fetch_sql.R","frs_fetch_sql","wetland fetch simplifies geom with simplify_m",1,0,FALSE,FALSE,0,1
+"test-frs_fwapg_gate.R","frs_fwapg_gate","FRESH_FWAPG_CURRENT=true means the database really is current",1,0,TRUE,FALSE,0,0
+"test-frs_fwapg_gate.R","frs_fwapg_gate","fwa_locatealong() resolves a measure at a stream's head",1,0,TRUE,FALSE,0,0
+"test-frs_fwapg_gate.R","frs_fwapg_gate","fwa_watershedatmeasure() no longer errors where it used to",1,0,TRUE,FALSE,0,0
+"test-frs_habitat.R","frs_habitat",".frs_connected_waterbody defaults to lake_adjacent=TRUE when arg omitted",2,0,FALSE,FALSE,0,2
+"test-frs_habitat.R","frs_habitat",".frs_connected_waterbody lake_adjacent=FALSE emits spawn_upstream-only INSERT, no cluster CTEs",8,0,FALSE,FALSE,0,8
+"test-frs_habitat.R","frs_habitat",".frs_connected_waterbody lake_adjacent=TRUE emits cluster + lake-adjacency CTEs",5,0,FALSE,FALSE,0,5
+"test-frs_habitat.R","frs_habitat",".frs_connected_waterbody with no floor puts no area test on the polygons (#251)",3,0,FALSE,FALSE,0,3
+"test-frs_habitat.R","frs_habitat",".frs_run_connectivity calls the bucket filter only for opted-in rules",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat",".frs_run_connectivity passes a W rule's wetland_ha_min as the waterbody floor",2,0,FALSE,FALSE,0,2
+"test-frs_habitat.R","frs_habitat",".frs_trace_downstream default SQL is unchanged (fresh#240)",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat",".frs_trace_downstream options: id_segment, origin, no gradient, prefilter",5,0,FALSE,FALSE,0,5
+"test-frs_habitat.R","frs_habitat","both frs_habitat paths persist streams through the one helper",22,0,FALSE,FALSE,0,22
+"test-frs_habitat.R","frs_habitat","breaks_gradient accepts valid 4-decimal values",2,0,FALSE,FALSE,0,2
+"test-frs_habitat.R","frs_habitat","breaks_gradient custom override produces more segments than disabled",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","breaks_gradient dedup by integer-percent label",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","breaks_gradient default auto-derives from params",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","breaks_gradient default produces more breaks than disabled",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","breaks_gradient errors on NA",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","breaks_gradient errors on duplicate labels",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","breaks_gradient errors on excess precision",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","breaks_gradient validates range [0,1]",2,0,FALSE,FALSE,0,2
+"test-frs_habitat.R","frs_habitat","breaks_gradient validates type",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","custom-AOI persist keeps another group's row at a colliding id_segment",6,0,FALSE,FALSE,0,6
+"test-frs_habitat.R","frs_habitat","frs_habitat_access forwards only arguments its finders accept",4,0,FALSE,FALSE,0,4
+"test-frs_habitat.R","frs_habitat","integration: NULL to_barriers does not persist",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","integration: frs_network_segment carries mad_m3s (fresh#114)",2,0,FALSE,FALSE,0,2
+"test-frs_habitat.R","frs_habitat","integration: multiple labels at same position preserved in breaks",2,0,FALSE,FALSE,0,2
+"test-frs_habitat.R","frs_habitat","integration: to_barriers persists gradient barriers table",10,0,FALSE,FALSE,0,10
+"test-frs_habitat.R","frs_habitat","integration: wsg + aoi does not scan entire province",2,0,FALSE,FALSE,0,2
+"test-frs_habitat.R","frs_habitat","regression #110: distinct thresholds produce distinct labels",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","wsg + character aoi are ANDed, not replaced",3,0,FALSE,FALSE,0,3
+"test-frs_habitat.R","frs_habitat","wsg + sf aoi uses sf directly (not combined string)",1,0,FALSE,FALSE,0,1
+"test-frs_habitat.R","frs_habitat","wsg without aoi uses WSG code directly",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify",".frs_habitat_target adds missing flag columns and refuses a non-boolean one",6,0,FALSE,FALSE,0,6
+"test-frs_habitat_classify.R","frs_habitat_classify","a 0.41.0 near-river table stops classify before any write (round 1)",11,0,FALSE,FALSE,0,11
+"test-frs_habitat_classify.R","frs_habitat_classify","custom label_block block",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_classify.R","frs_habitat_classify","gate parameter validates type",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_classify.R","frs_habitat_classify","gradient labels below threshold do not block",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_classify.R","frs_habitat_classify","gradient_NNNN with various values parses to expected fractions",12,0,FALSE,FALSE,0,12
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: a near_river rule admits small streams near a river (#259)",5,0,FALSE,FALSE,0,5
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: bundled rules — CO rear includes wetland-flow segments",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: bundled rules — PK and CM get rearing = 0",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: bundled rules — SK rear on streams = 0",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: frs_habitat writes into a to_habitat made before wetland_rearing (#222)",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: lake_rearing column preserved with rules",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: mad guard reads columns from mixed-case / empty tables",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: params_method = mad classifies on mad_m3s",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_classify.R","frs_habitat_classify","integration: rules = FALSE matches pre-rules behavior",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_classify.R","frs_habitat_classify","legacy gradient_N format still parses correctly",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_classify.R","frs_habitat_classify","malformed gradient labels do not block",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify","mixed legacy and new format both parse correctly",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_classify.R","frs_habitat_classify","no blocking labels returns FALSE",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify","only label_block and gradient labels block (new format)",5,0,FALSE,FALSE,0,5
+"test-frs_habitat_classify.R","frs_habitat_classify","species is required",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_classify.R","frs_habitat_classify","the per-species progress line counts only this job's groups",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_overlay.R","frs_habitat_overlay","NULL species pulls from table.species_code",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_overlay.R","frs_habitat_overlay","UPDATE SQL emits canonical-shape WHERE clause",10,0,FALSE,FALSE,0,10
+"test-frs_habitat_overlay.R","frs_habitat_overlay","bridge requires schema-qualified name",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","bridge: `to` and `bridge` must carry watershed_group_code",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_overlay.R","frs_habitat_overlay","bridge: missing required columns errors clearly",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","custom by= produces matching join predicate",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_overlay.R","frs_habitat_overlay","custom species_col interpolated into SQL",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_overlay.R","frs_habitat_overlay","direct mode names the source when it lacks the group",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","direct mode refuses id_segment without the group a multi-group to carries",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_overlay.R","frs_habitat_overlay","direct mode refuses id_segment without the parent both tables carry",5,0,FALSE,FALSE,0,5
+"test-frs_habitat_overlay.R","frs_habitat_overlay","direct mode's point join is not affected by the id_segment rule",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_overlay.R","frs_habitat_overlay","empty target table -> early return without error",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","integration (bridge): another watershed group sharing an id_segment is left alone",5,0,FALSE,FALSE,0,5
+"test-frs_habitat_overlay.R","frs_habitat_overlay","integration (bridge): range-containment flips contained segments",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_overlay.R","frs_habitat_overlay","integration: already-TRUE rows are not re-touched (additive-only)",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","integration: canonical shape flips matching species/habitat",8,0,FALSE,FALSE,0,8
+"test-frs_habitat_overlay.R","frs_habitat_overlay","integration: text 'TRUE'/'true'/'t' indicators flip",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_overlay.R","frs_habitat_overlay","malicious identifiers rejected by validator",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_overlay.R","frs_habitat_overlay","rejects from table missing required columns",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","rejects from table missing species_col",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","rejects habitat_types not in target table",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","rejects malformed species codes (non-alphabetic)",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_overlay.R","frs_habitat_overlay","rejects malicious from / to identifiers",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_overlay.R","frs_habitat_overlay","rejects malicious species_col identifier",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","requires schema-qualified from / to",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","validates conn",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_overlay.R","frs_habitat_overlay","validates from / to are schema-qualified strings",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_predicates.R","frs_habitat_predicates","CSV ranges path attaches edge_type filter when present",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","CSV ranges path uses spawn_gradient_min / max + channel_width",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_predicates.R","frs_habitat_predicates","CSV ranges path with no edge_types emits no edge filter",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","L rule without a rear channel_width window keeps the area bucket under cw (#240)",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","area_only=false (or absent) does not filter — backward compat",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","area_only=true filters L rule from rear predicate but keeps lake_rear",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_predicates.R","frs_habitat_predicates","area_only=true filters W rule from rear but keeps wetland_rear",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","bundled rules: every W rear rule's floor reaches the rear predicate (#237)",13,0,FALSE,FALSE,0,13
+"test-frs_habitat_predicates.R","frs_habitat_predicates","cw model (default) does not apply CSV mad_m3s ranges",5,0,FALSE,FALSE,0,5
+"test-frs_habitat_predicates.R","frs_habitat_predicates","lake / wetland buckets are sized by polygon area only under cw (#240)",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_predicates.R","frs_habitat_predicates","lake bucket reads lakes and reservoirs, as the L rule does (#250)",11,0,FALSE,FALSE,0,11
+"test-frs_habitat_predicates.R","frs_habitat_predicates","mad model CSV path swaps channel_width for mad_m3s",5,0,FALSE,FALSE,0,5
+"test-frs_habitat_predicates.R","frs_habitat_predicates","mad model rules path inherits CSV mad_m3s, not channel_width",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_predicates.R","frs_habitat_predicates","mad model: explicit rule mad overrides the inherited range",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","mad model: lake / wetland buckets ignore the rear MAD window (#240)",7,0,FALSE,FALSE,0,7
+"test-frs_habitat_predicates.R","frs_habitat_predicates","mad model: rule-level channel_width is ignored, MAD inherited",4,0,FALSE,FALSE,0,4
+"test-frs_habitat_predicates.R","frs_habitat_predicates","mad model: species without MAD thresholds get no size habitat",5,0,FALSE,FALSE,0,5
+"test-frs_habitat_predicates.R","frs_habitat_predicates","mad model: thresholds: false and L/W rules do not inherit mad",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","model validates",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","no waterbody_type rule -> lake_rear and wetland_rear are FALSE",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rear CSV path uses gradient max + channel_width + edge_type",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rear CSV path with edge_types only emits edge filter",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rear CSV path with no rear ranges returns FALSE",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rear predicate applies the W rule's wetland_ha_min (#237)",6,0,FALSE,FALSE,0,6
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rear rules path uses rear gradient (min=0) for inheritance",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rear rules with both L and stream rules emit lake_rear from L rule only",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rejects non-list sp_params",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rejects sp_params missing params_sp",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rejects sp_params missing species_code",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","returns named list with exactly 4 character predicates",9,0,FALSE,FALSE,0,9
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rules path emits .frs_rules_to_sql output",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rules path emits mad_m3s for explicit mad rules",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rules path inherits csv channel_width when rule omits it",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_predicates.R","frs_habitat_predicates","rules path inherits csv_thresholds when rule omits gradient",3,0,FALSE,FALSE,0,3
+"test-frs_habitat_predicates.R","frs_habitat_predicates","spawn predicate applies a W rule's wetland_ha_min (#237)",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","waterbody_type: L with lake_ha_min adds area_ha threshold",1,0,FALSE,FALSE,0,1
+"test-frs_habitat_predicates.R","frs_habitat_predicates","waterbody_type: L without lake_ha_min -> join with no WHERE filter",2,0,FALSE,FALSE,0,2
+"test-frs_habitat_predicates.R","frs_habitat_predicates","waterbody_type: W with wetland_ha_min adds area_ha threshold",1,0,FALSE,FALSE,0,1
+"test-frs_lake_fetch.R","frs_lake_fetch","frs_lake_fetch filters by area_ha_min",1,0,FALSE,FALSE,0,1
+"test-frs_lake_fetch.R","frs_lake_fetch","frs_lake_fetch returns sf with watershed_group_code filter",4,0,FALSE,FALSE,0,4
+"test-frs_migration_trial.R","frs_migration_trial","a comment around the migration's own pair is not a refusal",3,0,FALSE,FALSE,0,3
+"test-frs_migration_trial.R","frs_migration_trial","a file with no statements in it is refused, not reported as a success",1,0,FALSE,FALSE,0,1
+"test-frs_migration_trial.R","frs_migration_trial","a migration that commits midway is refused before anything runs",2,0,FALSE,FALSE,0,2
+"test-frs_migration_trial.R","frs_migration_trial","a migration with no transaction of its own passes through",1,0,FALSE,FALSE,0,1
+"test-frs_migration_trial.R","frs_migration_trial","a migration's own BEGIN; and COMMIT; are stripped and its plpgsql kept",3,0,FALSE,FALSE,0,3
+"test-frs_migration_trial.R","frs_migration_trial","a missing migration file is named",1,0,FALSE,FALSE,0,1
+"test-frs_migration_trial.R","frs_migration_trial","a non-ASCII letter before a dollar quote is part of the identifier",3,0,FALSE,FALSE,0,3
+"test-frs_migration_trial.R","frs_migration_trial","a plpgsql body's own BEGIN and END; are not transaction control",3,0,FALSE,FALSE,0,3
+"test-frs_migration_trial.R","frs_migration_trial","a quoted identifier is code, not a place to hide a COMMIT",8,0,FALSE,FALSE,0,8
+"test-frs_migration_trial.R","frs_migration_trial","a refusal in any file stops the whole run before the first one applies",3,0,FALSE,FALSE,0,3
+"test-frs_migration_trial.R","frs_migration_trial","a region that never closes is refused rather than guessed at",3,0,FALSE,FALSE,0,3
+"test-frs_migration_trial.R","frs_migration_trial","a trial migrates its own session only, and its rollback undoes it",4,0,FALSE,FALSE,0,4
+"test-frs_migration_trial.R","frs_migration_trial","calls whose effect a rollback does not undo are refused",13,0,FALSE,FALSE,0,13
+"test-frs_migration_trial.R","frs_migration_trial","each rollback-unsafe call is reported with its own line",1,0,FALSE,FALSE,0,1
+"test-frs_migration_trial.R","frs_migration_trial","several migrations are applied in one transaction, in the order given",2,0,FALSE,FALSE,0,2
+"test-frs_migration_trial.R","frs_migration_trial","the real fwapg migrations pass the screen and apply as one transaction",1,0,TRUE,FALSE,0,0
+"test-frs_migration_trial.R","frs_migration_trial","the rollback is not deferred to the end of the session",2,0,FALSE,FALSE,0,2
+"test-frs_migration_trial.R","frs_migration_trial","transaction control hidden in a string or a dollar body is not a false refusal",4,0,FALSE,FALSE,0,4
+"test-frs_migration_trial.R","frs_migration_trial","transaction control left inside the migration is refused, with its line",28,0,FALSE,FALSE,0,28
+"test-frs_near_river.R","frs_near_river","NULL discharge is never a target",2,0,FALSE,FALSE,0,2
+"test-frs_near_river.R","frs_near_river","a discharge above the river's finds nothing",1,0,FALSE,FALSE,0,1
+"test-frs_near_river.R","frs_near_river","a jump across a side-line connector into the polygon is the bank",1,0,FALSE,FALSE,0,1
+"test-frs_near_river.R","frs_near_river","a polygon passed through keeps its connector in the distance",3,0,FALSE,FALSE,0,3
+"test-frs_near_river.R","frs_near_river","a row the prefilter drops cuts the path behind it",3,0,FALSE,FALSE,0,3
+"test-frs_near_river.R","frs_near_river","a stretch outside the table counts at its straight length",3,0,FALSE,FALSE,0,3
+"test-frs_near_river.R","frs_near_river","a tributary meeting its parent mid-row walks only the part below",1,0,FALSE,FALSE,0,1
+"test-frs_near_river.R","frs_near_river","bank = FALSE measures to the centreline",1,0,FALSE,FALSE,0,1
+"test-frs_near_river.R","frs_near_river","bank distance leaves out the target polygon's connector",2,0,FALSE,FALSE,0,2
+"test-frs_near_river.R","frs_near_river","distance_max caps at the bank distance, inclusive",3,0,FALSE,FALSE,0,3
+"test-frs_near_river.R","frs_near_river","frs_near_river reports rows measured and rows with no local code",4,0,FALSE,FALSE,0,4
+"test-frs_near_river.R","frs_near_river","frs_near_river validates its inputs",6,0,FALSE,FALSE,0,6
+"test-frs_near_river.R","frs_near_river","frs_near_river validates the measure and refuses a 0.41.0 table",6,0,FALSE,FALSE,0,6
+"test-frs_near_river.R","frs_near_river","on the origin's own line a row upstream is never on the path",1,0,FALSE,FALSE,0,1
+"test-frs_near_river.R","frs_near_river","one discharge at two distances is walked twice, each on its own",2,0,FALSE,FALSE,0,2
+"test-frs_near_river.R","frs_near_river","only the ground the walk covers is replaced",3,0,FALSE,FALSE,0,3
+"test-frs_near_river.R","frs_near_river","only the part of a jump inside the polygon is left out",2,0,FALSE,FALSE,0,2
+"test-frs_near_river.R","frs_near_river","the bank subtraction holds with the straight-line prefilter live",1,0,FALSE,FALSE,0,1
+"test-frs_near_river.R","frs_near_river","two discharges in one call measure each from its own origins",2,0,FALSE,FALSE,0,2
+"test-frs_near_river.R","frs_near_river","two entries into one polygon cannot make an answer depend on the call",2,0,FALSE,FALSE,0,2
+"test-frs_near_river.R","frs_near_river","width and order find the river the way discharge does (#262)",6,0,FALSE,FALSE,0,6
+"test-frs_network.R","frs_network","frs_check_upstream errors on empty result",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_default_cols returns sensible defaults",7,0,FALSE,FALSE,0,7
+"test-frs_network.R","frs_network","frs_network clip param clips results",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network detects waterbody bridge for lakes",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","frs_network detects waterbody bridge for wetlands",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","frs_network equal measures on same BLK errors",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network errors when both clip and to provided",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network includes guards for FWA streams by default",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","frs_network includes guards in waterbody CTE",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network passes custom cols and wscode_col",4,0,FALSE,FALSE,0,4
+"test-frs_network.R","frs_network","frs_network passes direction downstream",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","frs_network passes extra_where",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects NA blue_line_key",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects NA downstream_route_measure",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects NA upstream_measure",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects NULL blue_line_key",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects character blue_line_key",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects character upstream_blk",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects invalid direction",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network rejects vector measure",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network returns named list for multiple tables",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","frs_network same BLK passed as upstream_blk still checks measures",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network sends every measure at full precision",13,0,FALSE,FALSE,0,13
+"test-frs_network.R","frs_network","frs_network skips guards for non-FWA tables",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network skips guards with include_all = TRUE",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","frs_network to= generates CREATE TABLE AS",5,0,FALSE,FALSE,0,5
+"test-frs_network.R","frs_network","frs_network to= returns conn invisibly",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network to= with multi-table creates suffixed tables",6,0,FALSE,FALSE,0,6
+"test-frs_network.R","frs_network","frs_network to= with overwrite=FALSE skips DROP",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","frs_network to= with upstream_measure uses network subtraction",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","frs_network to= writes table and matches sf return",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","frs_network upstream_blk with downstream direction errors",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","frs_network uses direct query for crossings",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","frs_network with no tables returns streams directly",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","upstream_blk on different network errors",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","upstream_blk on same network passes validation",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","upstream_blk skips measure check for different BLK",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","upstream_blk uses different BLK in ref_up for direct table",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","upstream_blk uses different BLK in ref_up for waterbody table",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","upstream_blk without upstream_measure is ignored",2,0,FALSE,FALSE,0,2
+"test-frs_network.R","frs_network","upstream_measure <= downstream_route_measure errors on same BLK",1,0,FALSE,FALSE,0,1
+"test-frs_network.R","frs_network","upstream_measure NULL preserves single-ref SQL",3,0,FALSE,FALSE,0,3
+"test-frs_network.R","frs_network","upstream_measure generates between SQL for direct table",5,0,FALSE,FALSE,0,5
+"test-frs_network.R","frs_network","upstream_measure generates between SQL for waterbody table",4,0,FALSE,FALSE,0,4
+"test-frs_network.R","frs_network","upstream_measure with custom wscode_col",4,0,FALSE,FALSE,0,4
+"test-frs_network.R","frs_network","upstream_measure with downstream direction errors",1,0,FALSE,FALSE,0,1
+"test-frs_network_downstream.R","frs_network_downstream","frs_network_downstream returns sf of downstream segments",3,0,FALSE,FALSE,0,3
+"test-frs_network_downstream.R","frs_network_downstream","frs_network_downstream sends the measure at full precision",1,0,FALSE,FALSE,0,1
+"test-frs_network_downstream.R","frs_network_downstream","guards are included by default for FWA base table",1,0,FALSE,FALSE,0,1
+"test-frs_network_downstream.R","frs_network_downstream","guards are skipped with include_all = TRUE",1,0,FALSE,FALSE,0,1
+"test-frs_network_features-local.R","frs_network_features-local","aoi-scoped downstream walk equals the unprefiltered join (SKGT)",19,0,FALSE,FALSE,2,17
+"test-frs_network_features-local.R","frs_network_features-local","result = ""distinct"" returns unique() of the array walk's ids (SKGT)",24,0,FALSE,FALSE,6,18
+"test-frs_network_features-local.R","frs_network_features-local","result = ""exists"" returns the array walk's segments (SKGT)",41,0,FALSE,FALSE,10,31
+"test-frs_network_features.R","frs_network_features",".frs_parse_pg_array handles edge cases",7,0,FALSE,FALSE,0,7
+"test-frs_network_features.R","frs_network_features","ORDER BY ends in the feature id in both directions",4,0,FALSE,FALSE,0,4
+"test-frs_network_features.R","frs_network_features","`aoi` must be a WSG code matching [A-Z]{3,5}",3,0,FALSE,FALSE,0,3
+"test-frs_network_features.R","frs_network_features","`direction` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","`direction` must be one of downstream/upstream",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","`feature_id_col` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","`include_equivalents` must be a single non-NA logical",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","`result` must be one of ids/exists/distinct",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","a session that cannot build the temp table gets a named cause",8,0,FALSE,FALSE,0,8
+"test-frs_network_features.R","frs_network_features","an id column that is also a key column is projected once",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","aoi = NULL sends no DDL and no prefilter",3,0,FALSE,FALSE,0,3
+"test-frs_network_features.R","frs_network_features","aoi NULL omits the WHERE clause",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","aoi scopes segments in the temp table's DDL, not the walk's WHERE",3,0,FALSE,FALSE,0,3
+"test-frs_network_features.R","frs_network_features","direction = upstream sends no DDL and no prefilter, with or without aoi",7,0,FALSE,FALSE,0,7
+"test-frs_network_features.R","frs_network_features","downstream + aoi builds an indexed, analyzed temp table first",7,0,FALSE,FALSE,0,7
+"test-frs_network_features.R","frs_network_features","downstream + aoi walks the temp table against prefiltered features",8,0,FALSE,FALSE,0,8
+"test-frs_network_features.R","frs_network_features","downstream direction composes fwa_downstream predicate",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","feature_ids returned as list-column of character vectors",5,0,FALSE,FALSE,0,5
+"test-frs_network_features.R","frs_network_features","features-side override threads through SQL (segments stay default)",3,0,FALSE,FALSE,0,3
+"test-frs_network_features.R","frs_network_features","identifiers reject characters outside [A-Za-z_][A-Za-z0-9_.]*",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","include_equivalents = FALSE (default) produces 'false' in SQL",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","include_equivalents = TRUE produces 'true' in SQL",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","per-side code columns thread into the temp table and the prefilter",9,0,FALSE,FALSE,0,9
+"test-frs_network_features.R","frs_network_features","result = ""distinct"" aggregates each id once, sorted, with no ordered subquery",16,0,FALSE,FALSE,0,16
+"test-frs_network_features.R","frs_network_features","result = ""distinct"" returns the id column and a list-column of ids",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","result = ""distinct"" walks the array walk's own join, filter and scoped path",24,0,FALSE,FALSE,0,24
+"test-frs_network_features.R","frs_network_features","result = ""exists"" builds no arrays and sorts no pairs",20,0,FALSE,FALSE,0,20
+"test-frs_network_features.R","frs_network_features","result = ""exists"" keeps the scoped walk: temp table and prefilter",5,0,FALSE,FALSE,0,5
+"test-frs_network_features.R","frs_network_features","result = ""exists"" returns the id column and a logical has_features",8,0,FALSE,FALSE,0,8
+"test-frs_network_features.R","frs_network_features","result = ""exists"" walks the array walk's own join and filter",32,0,FALSE,FALSE,0,32
+"test-frs_network_features.R","frs_network_features","result = ""exists"" without the scoped walk filters on aoi and creates nothing",9,0,FALSE,FALSE,0,9
+"test-frs_network_features.R","frs_network_features","result = ""ids"" sends the same walk as the default",4,0,FALSE,FALSE,0,4
+"test-frs_network_features.R","frs_network_features","returned tibble preserves segment_id_col name verbatim",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","segments-first / features-second arg order in fwa predicate",1,0,FALSE,FALSE,0,1
+"test-frs_network_features.R","frs_network_features","segments-side and features-side overrides are independent",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","the temp table is dropped after the walk, last",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","the temp table's DROP is attempted when the walk throws",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","upstream direction composes fwa_upstream predicate",2,0,FALSE,FALSE,0,2
+"test-frs_network_features.R","frs_network_features","wscode/localcode args default to ltree-suffixed names on both sides",4,0,FALSE,FALSE,0,4
+"test-frs_network_features.R","frs_network_features","wscode/localcode args reject invalid identifiers",2,0,FALSE,FALSE,0,2
+"test-frs_network_prune.R","frs_network_prune","frs_network_prune filters by gradient",1,0,FALSE,FALSE,0,1
+"test-frs_network_prune.R","frs_network_prune","frs_network_prune filters upstream by stream order",1,0,FALSE,FALSE,0,1
+"test-frs_network_prune.R","frs_network_prune","frs_network_prune includes guards by default",1,0,FALSE,FALSE,0,1
+"test-frs_network_prune.R","frs_network_prune","frs_network_prune sends the measure at full precision",1,0,FALSE,FALSE,0,1
+"test-frs_network_prune.R","frs_network_prune","frs_network_prune skips guards with include_all = TRUE",1,0,FALSE,FALSE,0,1
+"test-frs_network_upstream.R","frs_network_upstream","frs_network_upstream returns sf of upstream segments",3,0,FALSE,FALSE,0,3
+"test-frs_network_upstream.R","frs_network_upstream","frs_network_upstream sends the measure at full precision",1,0,FALSE,FALSE,0,1
+"test-frs_network_upstream.R","frs_network_upstream","guards are included by default for FWA base table",2,0,FALSE,FALSE,0,2
+"test-frs_network_upstream.R","frs_network_upstream","guards are skipped for non-FWA tables",1,0,FALSE,FALSE,0,1
+"test-frs_network_upstream.R","frs_network_upstream","guards are skipped with include_all = TRUE",2,0,FALSE,FALSE,0,2
+"test-frs_network_upstream.R","frs_network_upstream","include_all = TRUE returns more or equal segments (placeholder/unmapped)",1,0,FALSE,FALSE,0,1
+"test-frs_order_child.R","frs_order_child","frs_order_child SQL always derives stream_order_max via CTE",14,0,FALSE,FALSE,0,14
+"test-frs_order_child.R","frs_order_child","frs_order_child admits only a known, narrow enough, gentle line (live)",3,0,FALSE,FALSE,0,3
+"test-frs_order_child.R","frs_order_child","frs_order_child default emits the direct-child SQL",15,0,FALSE,FALSE,0,15
+"test-frs_order_child.R","frs_order_child","frs_order_child emits child_order_min/max bounds when set",3,0,FALSE,FALSE,0,3
+"test-frs_order_child.R","frs_order_child","frs_order_child emits distance_max clause when set",1,0,FALSE,FALSE,0,1
+"test-frs_order_child.R","frs_order_child","frs_order_child emits no width or gradient test by default",2,0,FALSE,FALSE,0,2
+"test-frs_order_child.R","frs_order_child","frs_order_child emits the width and gradient tests when set",6,0,FALSE,FALSE,0,6
+"test-frs_order_child.R","frs_order_child","frs_order_child handles parent_order_min override",2,0,FALSE,FALSE,0,2
+"test-frs_order_child.R","frs_order_child","frs_order_child names a table lacking watershed_group_code",3,0,FALSE,FALSE,0,3
+"test-frs_order_child.R","frs_order_child","frs_order_child refuses a bad width or gradient bound",10,0,FALSE,FALSE,0,10
+"test-frs_order_child.R","frs_order_child","frs_order_child rejects bad identifiers",3,0,FALSE,FALSE,0,3
+"test-frs_order_child.R","frs_order_child","frs_order_child species code is SQL-quoted (defends against injection)",1,0,FALSE,FALSE,0,1
+"test-frs_order_child.R","frs_order_child","frs_order_child works on non-rearing label (lake_rearing)",3,0,FALSE,FALSE,0,3
+"test-frs_order_child.R","frs_order_child","frs_order_child writes and counts one watershed group only",6,0,FALSE,FALSE,0,6
+"test-frs_order_filter.R","frs_order_filter","frs_order_filter errors without stream_order column",1,0,FALSE,FALSE,0,1
+"test-frs_order_filter.R","frs_order_filter","frs_order_filter keeps only streams >= min_order",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts area_only on L/W rules (fresh#182)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules accepts channel_width_min_bypass.distance_max",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts channel_width_min_bypass.width_known_below_min",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts connected_distance_max with requires_connected",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts custom stream_order_parent_min",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts empty file",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts empty rear list",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts in_waterbody predicate (fresh#180)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules accepts mad predicate (fresh#114)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules accepts requires_connected: spawning on rear L / W rules",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts spawn_connected.lake_adjacent yes/no",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules accepts valid channel_width_min_bypass",4,0,FALSE,FALSE,0,4
+"test-frs_params.R","frs_params",".frs_load_rules accepts valid spawn_connected block",4,0,FALSE,FALSE,0,4
+"test-frs_params.R","frs_params",".frs_load_rules accepts wider stream_order range (e.g. 1..5)",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_load_rules errors on an empty, null, NA or NaN area floor (#237)",10,0,FALSE,FALSE,0,10
+"test-frs_params.R","frs_params",".frs_load_rules errors on area_only with waterbody_type R",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on area_only without waterbody_type L|W",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on bad habitat block",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on bad waterbody_type",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on connected_distance_max without requires_connected",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on invalid spawn_connected direction",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on lake_ha_min without waterbody_type L",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on legacy `stream_order` key (replaced by min/max)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on malformed mad predicate (fresh#114)",10,0,FALSE,FALSE,0,10
+"test-frs_params.R","frs_params",".frs_load_rules errors on missing file",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on missing required spawn_connected keys",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on misspelled lake_adjacent key",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-character edge_types",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-integer channel_width_min_bypass values",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-integer edge_types_explicit",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-list channel_width_min_bypass",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-logical area_only",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-logical lake_adjacent",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-numeric connected_distance_max",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on non-positive channel_width_min_bypass.distance_max",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on rear requires_connected without a finite positive distance",4,0,FALSE,FALSE,0,4
+"test-frs_params.R","frs_params",".frs_load_rules errors on rear requires_connected without waterbody_type L|W",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_load_rules errors on rear requires_connected: rearing",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on requires_connected on a second L rule",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on unknown channel_width_min_bypass keys",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on unknown predicate",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules errors on unknown spawn_connected keys",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules keeps keys after a non-ASCII comment (#267)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules reads the bundled rules under the C locale (#267)",5,0,FALSE,FALSE,0,5
+"test-frs_params.R","frs_params",".frs_load_rules refuses a bad gradient or channel_width range (#222)",20,0,FALSE,FALSE,0,20
+"test-frs_params.R","frs_params",".frs_load_rules refuses a channel_width_min_bypass sub-key given no value (#222)",5,0,FALSE,FALSE,0,5
+"test-frs_params.R","frs_params",".frs_load_rules refuses a non-logical width_known_below_min",4,0,FALSE,FALSE,0,4
+"test-frs_params.R","frs_params",".frs_load_rules refuses a rule key given no value (#222)",27,0,FALSE,FALSE,0,27
+"test-frs_params.R","frs_params",".frs_load_rules spawn requires_connected rules are unchanged by the rear checks",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_load_rules stores a mixed int/float range as numeric (#222)",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_rule_to_sql NA mad_m3s inheritance emits FALSE",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql W without wetland_ha_min has no area filter",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql absent in_waterbody behaves as today",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql edge_types translates via frs_edge_types",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql edge_types_explicit uses raw codes",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql empty rule returns (TRUE)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql explicit mad overrides inherited mad_m3s",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql in_waterbody composes with waterbody_type",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql in_waterbody rejects non-logical values",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_rule_to_sql in_waterbody=FALSE adds IS NULL constraint",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_rule_to_sql in_waterbody=TRUE adds IS NOT NULL constraint",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql inherits CSV mad_m3s when supplied (fresh#220)",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql inherits CSV thresholds by default",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql lake rule auto-skips gradient/cw inheritance",4,0,FALSE,FALSE,0,4
+"test-frs_params.R","frs_params",".frs_rule_to_sql lake rule with explicit gradient still applies it",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql lake_ha_min adds area_ha filter",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql mad composes with edge_types and CSV thresholds",4,0,FALSE,FALSE,0,4
+"test-frs_params.R","frs_params",".frs_rule_to_sql mad translates to mad_m3s BETWEEN (fresh#114)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql reads only the floor key of the rule's type (#237)",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql river rule still inherits thresholds",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql rule-level channel_width overrides CSV",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql rule-level gradient overrides CSV",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_rule_to_sql rule-level override WITH thresholds=false",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql skips CSV thresholds when thresholds=FALSE",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_rule_to_sql waterbody_type L uses fwa_lakes_poly",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rule_to_sql waterbody_type R uses fwa_rivers_poly",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql waterbody_type W uses fwa_wetlands_poly",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rule_to_sql wetland rule auto-skips gradient/cw inheritance",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_rule_to_sql wetland_ha_min adds area_ha filter (#237)",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params",".frs_rules_to_sql CO rear pattern: 4 rules with carve-out",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_rules_to_sql empty list returns FALSE",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params",".frs_rules_to_sql joins multiple rules with OR",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params",".frs_validate_rule errors on bad gradient format",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params","bundled YAML has connected_distance_max on SK spawn rules",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params","frs_params attaches spawn_connected to species params",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params","frs_params builds rear ranges",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params","frs_params builds spawn ranges",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params","frs_params bundled rules has expected species blocks",7,0,FALSE,FALSE,0,7
+"test-frs_params.R","frs_params","frs_params errors on empty CSV",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params","frs_params errors on missing species_code column",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params","frs_params errors without conn or csv",1,0,FALSE,FALSE,0,1
+"test-frs_params.R","frs_params","frs_params handles NULL thresholds",4,0,FALSE,FALSE,0,4
+"test-frs_params.R","frs_params","frs_params loads bundled rules YAML by default",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params","frs_params ranges match DB values",1,0,TRUE,FALSE,0,0
+"test-frs_params.R","frs_params","frs_params reads CSV and returns named list",2,0,FALSE,FALSE,0,2
+"test-frs_params.R","frs_params","frs_params reads bcfishpass parameter table",1,0,TRUE,FALSE,0,0
+"test-frs_params.R","frs_params","frs_params species have correct threshold values",3,0,FALSE,FALSE,0,3
+"test-frs_params.R","frs_params","frs_params with rules_yaml = NULL skips rules",2,0,FALSE,FALSE,0,2
+"test-frs_point_locate.R","frs_point_locate","frs_point_locate refuses a measure that is not one finite number",3,0,FALSE,FALSE,0,3
+"test-frs_point_locate.R","frs_point_locate","frs_point_locate returns sf point geometry",2,0,FALSE,FALSE,0,2
+"test-frs_point_locate.R","frs_point_locate","frs_point_locate writes the key as an integer and the measure in full",3,0,FALSE,FALSE,0,3
+"test-frs_point_match.R","frs_point_match","LEFT JOIN preserves table_a rows with no match",2,0,FALSE,FALSE,0,2
+"test-frs_point_match.R","frs_point_match","ORDER BY uses distance_instream ASC NULLS LAST for dedup tiebreak",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","SQL applies bidirectional dedup via ROW_NUMBER OVER (PARTITION BY b_id)",2,0,FALSE,FALSE,0,2
+"test-frs_point_match.R","frs_point_match","SQL composes DROP + CREATE + same-blk join + DISTINCT ON",5,0,FALSE,FALSE,0,5
+"test-frs_point_match.R","frs_point_match","SQL refuses table_a containing reserved output column names",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","`col_a_id` and `col_b_id` must differ",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","`distance_max` must be positive scalar numeric",5,0,FALSE,FALSE,0,5
+"test-frs_point_match.R","frs_point_match","`table_a` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","`table_b` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","`table_to` is required (no default)",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","col_b_id carried through SELECT as named column",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","distance_max appears as a numeric literal in the join predicate",1,0,FALSE,FALSE,0,1
+"test-frs_point_match.R","frs_point_match","identifiers reject characters outside [A-Za-z_][A-Za-z0-9_.]*",2,0,FALSE,FALSE,0,2
+"test-frs_point_snap.R","frs_point_snap",".frs_db_write_temp writes a temporary table with a unique name",4,0,FALSE,FALSE,0,4
+"test-frs_point_snap.R","frs_point_snap","a data frame travels as one temp table and one query",10,0,FALSE,FALSE,0,10
+"test-frs_point_snap.R","frs_point_snap","a per-row blue_line_key hint constrains only its own row",4,0,FALSE,FALSE,0,4
+"test-frs_point_snap.R","frs_point_snap","a table input writes the snap to `to`",4,0,FALSE,FALSE,0,4
+"test-frs_point_snap.R","frs_point_snap","a tie goes to the segment starting at the shared vertex",4,0,FALSE,FALSE,0,4
+"test-frs_point_snap.R","frs_point_snap","an exact distance tie goes to the higher raw measure (#266)",6,0,FALSE,FALSE,0,6
+"test-frs_point_snap.R","frs_point_snap","an integer64 tolerance renders as its value",1,0,FALSE,FALSE,0,1
+"test-frs_point_snap.R","frs_point_snap","candidate_rank only when num_features > 1, outside the lateral",7,0,FALSE,FALSE,0,7
+"test-frs_point_snap.R","frs_point_snap","col_blk must be a numeric column of points",4,0,FALSE,FALSE,0,4
+"test-frs_point_snap.R","frs_point_snap","col_id must exist, be unique, non-missing and not collide",5,0,FALSE,FALSE,0,5
+"test-frs_point_snap.R","frs_point_snap","data frame input needs its coordinate columns",3,0,FALSE,FALSE,0,3
+"test-frs_point_snap.R","frs_point_snap","hint and stream order filters land in the lateral",5,0,FALSE,FALSE,0,5
+"test-frs_point_snap.R","frs_point_snap","num_features = 1 returns what num_features > 1 ranks first",2,0,FALSE,FALSE,0,2
+"test-frs_point_snap.R","frs_point_snap","num_features returns ranked candidates per point",10,0,FALSE,FALSE,0,10
+"test-frs_point_snap.R","frs_point_snap","one call snaps a dataset and returns its watershed group",12,0,FALSE,FALSE,0,12
+"test-frs_point_snap.R","frs_point_snap","out-of-range lon/lat drop with a message instead of failing",8,0,FALSE,FALSE,0,8
+"test-frs_point_snap.R","frs_point_snap","points must be a data frame, sf or table name",1,0,FALSE,FALSE,0,1
+"test-frs_point_snap.R","frs_point_snap","scalar options are validated",9,0,FALSE,FALSE,0,9
+"test-frs_point_snap.R","frs_point_snap","sf input must be POINT with an EPSG CRS",2,0,FALSE,FALSE,0,2
+"test-frs_point_snap.R","frs_point_snap","sf input takes the CRS and coordinates from the geometry",3,0,FALSE,FALSE,0,3
+"test-frs_point_snap.R","frs_point_snap","snap SQL applies the snap guards",5,0,FALSE,FALSE,0,5
+"test-frs_point_snap.R","frs_point_snap","snap SQL is one lateral KNN query within tolerance",6,0,FALSE,FALSE,0,6
+"test-frs_point_snap.R","frs_point_snap","snap SQL projects the network position and watershed group",14,0,FALSE,FALSE,0,14
+"test-frs_point_snap.R","frs_point_snap","snap SQL reads table and columns from .frs_opt()",4,0,FALSE,FALSE,0,4
+"test-frs_point_snap.R","frs_point_snap","table input checks ids and SRID in one query, then snaps",9,0,FALSE,FALSE,0,9
+"test-frs_point_snap.R","frs_point_snap","table input requires col_id and rejects bad ids or SRID 0",3,0,FALSE,FALSE,0,3
+"test-frs_point_snap.R","frs_point_snap","the KNN index-ordered scan survives the tie key",3,0,FALSE,FALSE,0,3
+"test-frs_point_snap.R","frs_point_snap","the pre-0.40.0 x/y call errors with a migration hint",3,0,FALSE,FALSE,0,3
+"test-frs_point_snap.R","frs_point_snap","the tie key is the measure column .frs_opt() names",3,0,FALSE,FALSE,0,3
+"test-frs_point_snap.R","frs_point_snap","the tie rule orders the candidate list, not just the first pick",6,0,FALSE,FALSE,0,6
+"test-frs_point_snap.R","frs_point_snap","to cannot be the points table",3,0,FALSE,FALSE,0,3
+"test-frs_point_snap.R","frs_point_snap","tolerance drops far points and an all-far input returns 0 rows",4,0,FALSE,FALSE,0,4
+"test-frs_point_snap.R","frs_point_snap","tolerance renders locale-safe",2,0,FALSE,FALSE,0,2
+"test-frs_point_snap.R","frs_point_snap","unknown arguments are rejected",1,0,FALSE,FALSE,0,1
+"test-frs_point_snap.R","frs_point_snap","without col_id rows are numbered in id_point",2,0,FALSE,FALSE,0,2
+"test-frs_stream_fetch.R","frs_stream_fetch","frs_stream_fetch filters by stream_order_min",1,0,FALSE,FALSE,0,1
+"test-frs_stream_fetch.R","frs_stream_fetch","frs_stream_fetch includes guards by default",2,0,FALSE,FALSE,0,2
+"test-frs_stream_fetch.R","frs_stream_fetch","frs_stream_fetch returns sf with watershed_group_code filter",4,0,FALSE,FALSE,0,4
+"test-frs_stream_fetch.R","frs_stream_fetch","frs_stream_fetch skips guards with include_all = TRUE",1,0,FALSE,FALSE,0,1
+"test-frs_waterbody_network.R","frs_waterbody_network","frs_waterbody_network accepts custom table and cols",2,0,FALSE,FALSE,0,2
+"test-frs_waterbody_network.R","frs_waterbody_network","frs_waterbody_network builds correct upstream SQL",5,0,FALSE,FALSE,0,5
+"test-frs_waterbody_network.R","frs_waterbody_network","frs_waterbody_network rejects invalid direction",1,0,FALSE,FALSE,0,1
+"test-frs_waterbody_network.R","frs_waterbody_network","frs_waterbody_network sends the measure at full precision",1,0,FALSE,FALSE,0,1
+"test-frs_waterbody_network.R","frs_waterbody_network","frs_waterbody_network switches to downstream",2,0,FALSE,FALSE,0,2
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure calls fwa_watershedatmeasure",5,0,FALSE,FALSE,0,5
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure equal measures on same BLK errors",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure errors when upstream <= downstream on same BLK",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure errors when watersheds don't intersect",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure handles negative measure",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects NA blue_line_key",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects NA measure",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects NA upstream_measure",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects NULL blue_line_key",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects NULL measure",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects a bad simplify_m before the DB",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects character blue_line_key",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects character upstream_blk",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure rejects vector blk",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure simplified subbasin drops an empty difference",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure simplified subbasin errors when not intersecting",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure simplifies a subbasin once, after the difference",5,0,FALSE,FALSE,0,5
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure simplifies and normalizes a single watershed",2,0,FALSE,FALSE,0,2
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure skips measure check for different BLK",2,0,FALSE,FALSE,0,2
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure upstream_blk without upstream_measure is ignored",2,0,FALSE,FALSE,0,2
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure with upstream_blk uses different BLK",6,0,FALSE,FALSE,0,6
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure with upstream_measure returns difference",4,0,FALSE,FALSE,0,4
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure without simplify_m sends the same SQL as before",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure writes a measure at full precision",3,0,FALSE,FALSE,0,3
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure writes a round key and measure in full",6,0,FALSE,FALSE,0,6
+"test-frs_watershed_at_measure.R","frs_watershed_at_measure","frs_watershed_at_measure zero measure works",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_split.R","frs_watershed_split","frs_watershed_split drops sf geometry from input",2,0,FALSE,FALSE,0,2
+"test-frs_watershed_split.R","frs_watershed_split","frs_watershed_split errors when all snaps fail",3,0,FALSE,FALSE,0,3
+"test-frs_watershed_split.R","frs_watershed_split","frs_watershed_split errors when all watersheds fail",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_split.R","frs_watershed_split","frs_watershed_split produces sub-basins from mocked data",9,0,FALSE,FALSE,0,9
+"test-frs_watershed_split.R","frs_watershed_split","frs_watershed_split transforms to target crs",1,0,FALSE,FALSE,0,1
+"test-frs_watershed_split.R","frs_watershed_split","frs_watershed_split validates inputs",4,0,FALSE,FALSE,0,4
+"test-frs_wetland_fetch.R","frs_wetland_fetch","frs_wetland_fetch filters by area_ha_min",1,0,FALSE,FALSE,0,1
+"test-frs_wetland_fetch.R","frs_wetland_fetch","frs_wetland_fetch returns sf with watershed_group_code filter",4,0,FALSE,FALSE,0,4
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage closure is invariant to focal input order",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage errors when no focal codes match",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage excludes tributaries and upstream neighbours",3,0,FALSE,FALSE,0,3
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage includes the focal groups themselves",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage orders same-stem groups by measure, not alphabet",3,0,FALSE,FALSE,0,3
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage rejects NA in watershed_group_code",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage rejects an outlets table missing columns",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage rejects empty watershed_group_code",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage rejects empty-string focal codes",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage rejects non-character watershed_group_code",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage respects hydrology where FWA naming inverts it",3,0,FALSE,FALSE,0,3
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage upper-cases focal codes internally",1,0,FALSE,FALSE,0,1
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_drainage warns on unmatched focal codes but returns valid ones",4,0,FALSE,FALSE,0,4
+"test-frs_wsg_drainage.R","frs_wsg_drainage","frs_wsg_outlets ships one complete row per watershed group",7,0,FALSE,FALSE,0,7
+"test-frs_wsg_drainage.R","frs_wsg_drainage","outlet selection avoids the sliver that broke public.wsg_outlet",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","a call that classifies no species deletes nothing",3,0,FALSE,FALSE,0,3
+"test-habitat_partition_293.R","habitat_partition_293","a custom-AOI classify keeps the group's rows for ground outside the AOI",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","a failure during a near_river walk leaves its pairs as they were",5,0,FALSE,FALSE,0,5
+"test-habitat_partition_293.R","habitat_partition_293","a failure during classify leaves the partition as it was",5,0,FALSE,FALSE,0,5
+"test-habitat_partition_293.R","habitat_partition_293","a habitat target that cannot carry the key is refused, naming the repair",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","a near_river failure in a caller's transaction raises its own error",1,0,FALSE,FALSE,0,1
+"test-habitat_partition_293.R","habitat_partition_293","a near_river row the delete cannot address is refused before the delete",3,0,FALSE,FALSE,0,3
+"test-habitat_partition_293.R","habitat_partition_293","a near_river target that cannot carry the key is refused",3,0,FALSE,FALSE,0,3
+"test-habitat_partition_293.R","habitat_partition_293","a near_river walk replaces only the pairs it walks",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","a network with no linear_feature_id still classifies on id_segment",7,0,FALSE,FALSE,0,7
+"test-habitat_partition_293.R","habitat_partition_293","a network with no watershed group is refused, with or without the parent",9,0,FALSE,FALSE,0,9
+"test-habitat_partition_293.R","habitat_partition_293","a same-group row for another parent lends connectivity no rearing",2,0,FALSE,FALSE,0,2
+"test-habitat_partition_293.R","habitat_partition_293","a stale same-group near_river row for another parent is not read",3,0,FALSE,FALSE,0,3
+"test-habitat_partition_293.R","habitat_partition_293","a subset delete carries the extra predicate and a whole-group delete does not",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","an empty pair list narrows the delete to nothing, not to everything",2,0,FALSE,FALSE,0,2
+"test-habitat_partition_293.R","habitat_partition_293","classify runs inside a transaction the caller already opened",2,0,FALSE,FALSE,0,2
+"test-habitat_partition_293.R","habitat_partition_293","classifying one species leaves another species' rows for the same ground",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","every exported reader of group-keyed habitat rows refuses a NULL group",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","no habitat key is built with the parent segment switched off",3,0,FALSE,FALSE,0,3
+"test-habitat_partition_293.R","habitat_partition_293","no habitat-to-streams join is left spelled inline",8,0,FALSE,FALSE,0,8
+"test-habitat_partition_293.R","habitat_partition_293","the key-match predicate adds linear_feature_id only when asked",5,0,FALSE,FALSE,0,5
+"test-habitat_partition_293.R","habitat_partition_293","the near_river predicate keys on the parent segment when it can",6,0,FALSE,FALSE,0,6
+"test-habitat_partition_293.R","habitat_partition_293","the predicate builder refuses to guess the near_river key",9,0,FALSE,FALSE,0,9
+"test-habitat_partition_293.R","habitat_partition_293","the subtractive clear cannot reach another parent's row",4,0,FALSE,FALSE,0,4
+"test-habitat_partition_293.R","habitat_partition_293","wsg_code must be the one group the table holds",2,0,FALSE,FALSE,0,2
+"test-helper-db.R","helper-db","skip_if_no_conn does not skip when the connection works",1,0,FALSE,FALSE,0,1
+"test-helper-db.R","helper-db","skip_if_no_conn skips when the connection fails",2,0,FALSE,FALSE,0,2
+"test-near_river_inherit.R","near_river_inherit",".frs_near_river_specs lists the effective pairs, from one resolver",4,0,FALSE,FALSE,0,4
+"test-near_river_inherit.R","near_river_inherit","NA or absent columns compile every fixture rule as 0.41.0 did",209,0,FALSE,FALSE,0,209
+"test-near_river_inherit.R","near_river_inherit","NA or absent near_river columns give no pair",4,0,FALSE,FALSE,0,4
+"test-near_river_inherit.R","near_river_inherit","a blank cell is unset, as NA is (round 1)",3,0,FALSE,FALSE,0,3
+"test-near_river_inherit.R","near_river_inherit","a mad species with no MAD range reads (FALSE OR EXISTS)",1,0,FALSE,FALSE,0,1
+"test-near_river_inherit.R","near_river_inherit","a rule with no size test inherits no pair (no tightening)",3,0,FALSE,FALSE,0,3
+"test-near_river_inherit.R","near_river_inherit","a rule's own mapping wins over the inherited pair",2,0,FALSE,FALSE,0,2
+"test-near_river_inherit.R","near_river_inherit","a thresholds: false rule inherits no pair; false there is a no-op",2,0,FALSE,FALSE,0,2
+"test-near_river_inherit.R","near_river_inherit","an explicit measure applies under both models",6,0,FALSE,FALSE,0,6
+"test-near_river_inherit.R","near_river_inherit","an inheriting rule takes the pair; model resolves per size model",2,0,FALSE,FALSE,0,2
+"test-near_river_inherit.R","near_river_inherit","frs_params stops on half pairs and bad values",12,0,FALSE,FALSE,0,12
+"test-near_river_inherit.R","near_river_inherit","frs_params stores each stage's pair beside ranges",5,0,FALSE,FALSE,0,5
+"test-near_river_inherit.R","near_river_inherit","frs_params warns on an unknown near_river column",1,0,FALSE,FALSE,0,1
+"test-near_river_inherit.R","near_river_inherit","lake and wetland rules never inherit a pair",2,0,FALSE,FALSE,0,2
+"test-near_river_inherit.R","near_river_inherit","near_river: false opts out of the inherited pair",2,0,FALSE,FALSE,0,2
+"test-near_river_inherit.R","near_river_inherit","params with rules but no near_river slot give the empty frame",2,0,FALSE,FALSE,0,2
+"test-near_river_inherit.R","near_river_inherit","the river-polygon rule inherits under cw and under mad",3,0,FALSE,FALSE,0,3
+"test-near_river_rules.R","near_river_rules",".frs_load_rules accepts near_river and stores numerics",7,0,FALSE,FALSE,0,7
+"test-near_river_rules.R","near_river_rules",".frs_load_rules accepts near_river on spawn and on a river rule",1,0,FALSE,FALSE,0,1
+"test-near_river_rules.R","near_river_rules",".frs_load_rules normalizes each size key to its measure (#262)",4,0,FALSE,FALSE,0,4
+"test-near_river_rules.R","near_river_rules",".frs_load_rules refuses near_river on lake and wetland rules",2,0,FALSE,FALSE,0,2
+"test-near_river_rules.R","near_river_rules",".frs_load_rules rejects malformed near_river",22,0,FALSE,FALSE,0,22
+"test-near_river_rules.R","near_river_rules",".frs_near_river_specs lists each distinct pair once",4,0,FALSE,FALSE,0,4
+"test-near_river_rules.R","near_river_rules",".frs_rules_to_sql threads near_river_table to every rule",2,0,FALSE,FALSE,0,2
+"test-near_river_rules.R","near_river_rules","frs_habitat_predicates threads the table to spawn and rear",3,0,FALSE,FALSE,0,3
+"test-near_river_rules.R","near_river_rules","near_river ORs the inherited channel width with the EXISTS",1,0,FALSE,FALSE,0,1
+"test-near_river_rules.R","near_river_rules","near_river groups channel width AND mad before the OR",1,0,FALSE,FALSE,0,1
+"test-near_river_rules.R","near_river_rules","near_river rescues a mad species with no MAD range",1,0,FALSE,FALSE,0,1
+"test-near_river_rules.R","near_river_rules","near_river with no size part is the rule's only size test",1,0,FALSE,FALSE,0,1
+"test-near_river_rules.R","near_river_rules","near_river without a table errors, naming the argument",2,0,FALSE,FALSE,0,2
+"test-near_river_rules.R","near_river_rules","near_river: false loads as FALSE; true is refused (#263)",5,0,FALSE,FALSE,0,5
+"test-near_river_rules.R","near_river_rules","rules without near_river compile byte-identically",9,0,FALSE,FALSE,0,9
+"test-near_river_rules.R","near_river_rules","species without near_river build no EXISTS and need no table",1,0,FALSE,FALSE,0,1
+"test-near_river_rules.R","near_river_rules","the EXISTS matches the measure, threshold and distance",2,0,FALSE,FALSE,0,2
+"test-near_river_rules.R","near_river_rules","the EXISTS never reads s.mad_m3s or s.channel_width",2,0,FALSE,FALSE,0,2
+"test-near_river_rules.R","near_river_rules","thresholds: false + near_river carries no gradient test",2,0,FALSE,FALSE,0,2
+"test-near_river_rules.R","near_river_rules","under mad, near_river keeps a mad range or rescues a missing one",4,0,FALSE,FALSE,0,4
+"test-persist_barriers_294.R","persist_barriers_294","a barrier in the gap below a segment's start is keyed to the segment under it",5,0,FALSE,FALSE,0,5
+"test-persist_barriers_294.R","persist_barriers_294","a barrier on no segment is not written",3,0,FALSE,FALSE,0,3
+"test-persist_barriers_294.R","persist_barriers_294","a barriers table written before the key existed is refused",4,0,FALSE,FALSE,0,4
+"test-persist_barriers_294.R","persist_barriers_294","a re-run replaces its own barriers instead of adding to them",2,0,FALSE,FALSE,0,2
+"test-persist_barriers_294.R","persist_barriers_294","a second group's job leaves the first group's barriers alone",5,0,FALSE,FALSE,0,5
+"test-persist_barriers_294.R","persist_barriers_294","a target that is its own source is refused",1,0,FALSE,FALSE,0,1
+"test-persist_barriers_294.R","persist_barriers_294","the delete is undone when the insert fails",2,0,FALSE,FALSE,0,2
+"test-resolve_aoi.R","resolve_aoi",".frs_resolve_aoi blk+measure writes the call as frs_watershed_at_measure does",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","NULL aoi returns empty string",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","SQL injection in character aoi is escaped",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","SQL injection in table+id string is escaped",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","alias prepends to geom column",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","blk+measure aoi resolves against real DB",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","blk+measure list produces watershed delineation predicate",3,0,FALSE,FALSE,0,3
+"test-resolve_aoi.R","resolve_aoi","character aoi produces partition table predicate",3,0,FALSE,FALSE,0,3
+"test-resolve_aoi.R","resolve_aoi","character aoi resolves against real DB",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","character aoi respects options",2,0,FALSE,FALSE,0,2
+"test-resolve_aoi.R","resolve_aoi","character vector aoi handles multiple codes",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","custom geom_col is used",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","invalid aoi type errors",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","list without required keys errors",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","sf aoi produces ST_Intersects predicate",3,0,FALSE,FALSE,0,3
+"test-resolve_aoi.R","resolve_aoi","sf aoi transforms to 3005",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","table+id aoi resolves against real assessment watershed",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","table+id defaults id_col to 'id'",1,0,FALSE,FALSE,0,1
+"test-resolve_aoi.R","resolve_aoi","table+id list produces lookup predicate",2,0,FALSE,FALSE,0,2
+"test-resolve_aoi.R","resolve_aoi","table+id with string id gets quoted",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","a block calling a file's own live connector is checked",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","a call that leaves `to` at a working default is flagged",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","a connector defined in helper-db.R makes a block live",2,0,FALSE,FALSE,0,2
+"test-test_table_names.R","test_table_names","a fixed index or constraint name in a live block is flagged",2,0,FALSE,FALSE,0,2
+"test-test_table_names.R","test_table_names","a fixed working name in a live block is flagged",3,0,FALSE,FALSE,0,3
+"test-test_table_names.R","test_table_names","a fixed working name in a mock block is not flagged",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","a frs_habitat() label not built by frs_test_label() is flagged",2,0,FALSE,FALSE,0,2
+"test-test_table_names.R","test_table_names","a live block that names tables through the helpers is clean",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","a top-level helper is checked even without a connection",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","a top-level helper is not exempted by a comment quoting mock",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","a top-level helper that drives a mock connection is not flagged",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","each spelling of the working schema is flagged",8,0,FALSE,FALSE,0,8
+"test-test_table_names.R","test_table_names","frs_habitat() in watershed-group mode is flagged",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","no test names a table two runs against one database would share",2,0,FALSE,FALSE,0,2
+"test-test_table_names.R","test_table_names","prose and the working schema's creation are not flagged",1,0,FALSE,FALSE,0,1
+"test-test_table_names.R","test_table_names","the default-to list is read from the package",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_build_where adds an sf aoi as ST_Intersects",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_build_where with a NULL aoi is unchanged",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_find_waterbody_rule handles NULL / empty rules",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_find_waterbody_rule returns NULL when no matching rule",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_find_waterbody_rule returns matching L rule",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_find_waterbody_rule returns matching W rule",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_find_waterbody_rule returns the first match if multiple",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_geom_select errors when the geometry column is not selected",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_geom_select passes cols through without simplify_m",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_geom_select rejects a bad simplify_m",7,0,FALSE,FALSE,0,7
+"test-utils.R","utils",".frs_geom_select simplifies and normalizes the geometry column",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_geom_select skips ST_Normalize when normalize = FALSE",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_habitat_models resolves per WSG, defaulting to cw",4,0,FALSE,FALSE,0,4
+"test-utils.R","utils",".frs_habitat_models validates params_method",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_index_working is idempotent — no error on double call",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_index_working skips non-DB connections",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_order_by builds a clause or nothing",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_order_by rejects anything but identifiers",7,0,FALSE,FALSE,0,7
+"test-utils.R","utils",".frs_order_by takes several key columns",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_partition_wsg keeps the group only for a whole-group job",4,0,FALSE,FALSE,0,4
+"test-utils.R","utils",".frs_persist_columns adds missing columns to a stale target (fresh#114)",7,0,FALSE,FALSE,0,7
+"test-utils.R","utils",".frs_persist_columns errors on a shared column type mismatch (fresh#114)",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_persist_delete_key needs its key on BOTH sides",5,0,FALSE,FALSE,0,5
+"test-utils.R","utils",".frs_persist_delete_key returns the three keys it should",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_persist_delete_sql errors when a WSG target lacks the column",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_persist_delete_sql errors when one side lacks the key",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_persist_delete_sql errors with no key at all",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_persist_delete_sql falls back to id_segment only off-FWA",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_persist_delete_sql keys a WSG job on the watershed group",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_persist_delete_sql keys a custom AOI on the parent segment",4,0,FALSE,FALSE,0,4
+"test-utils.R","utils",".frs_persist_delete_sql quotes a WSG code rather than pasting it",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_persist_delete_sql refuses a target equal to its source",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_persist_streams allows an empty target gaining the key",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_persist_streams raises on a dbBegin failure that is not nesting",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_persist_streams re-runs over a target with a unique index",12,0,FALSE,FALSE,0,12
+"test-utils.R","utils",".frs_persist_streams refuses a target that RESOLVES to its source",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_persist_streams refuses a target whose key it just added",5,0,FALSE,FALSE,0,5
+"test-utils.R","utils",".frs_persist_streams replaces its partition atomically",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_persist_streams works inside a caller's transaction",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_preds_by_model mixed models switch on watershed_group_code",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_preds_by_model single model returns preds untouched",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_preds_by_model with no WSGs (empty table) returns cw",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_quote_string escapes single quotes",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_resolve_aoi errors on an sf aoi with no CRS",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_resolve_aoi sends full coordinates whatever digits is set to",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils",".frs_rule_ha_min reads the floor key of the rule's type (#237)",9,0,FALSE,FALSE,0,9
+"test-utils.R","utils",".frs_same_relation compares folded names",2,0,FALSE,FALSE,0,2
+"test-utils.R","utils",".frs_sql_exact writes 17 significant digits and refuses non-finite input",13,0,FALSE,FALSE,0,13
+"test-utils.R","utils",".frs_sql_num handles every input shape it receives",8,0,FALSE,FALSE,0,8
+"test-utils.R","utils",".frs_sql_num renders Inf as a Postgres infinity literal",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_validate_identifier accepts valid names",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_validate_identifier rejects injection attempts",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils",".frs_wsg_in qualifies its inner column",3,0,FALSE,FALSE,0,3
+"test-utils.R","utils","bundled parameters_habitat_method.csv resolves all cw",1,0,FALSE,FALSE,0,1
+"test-utils.R","utils","the delete key chooser and the statement it builds never disagree",18,0,FALSE,FALSE,0,18

@@ -184,7 +184,9 @@ test_that("two entries into one polygon cannot make an answer depend on the call
   segs$y[segs$id == 1] <- -100
   # Row 1 ends at x = 990, so the second jump is not exactly vertical:
   # GEOS 3.9.0 intersects an exactly vertical x = 1000 line with the box
-  # as EMPTY (2026-10-21).
+  # as EMPTY (2026-10-21). GEOS 3.11 to 3.13 (arm64) return the line
+  # (data-raw/logs/docker_rebuild_324/image_probe.txt); the slant stays so
+  # the test passes on a database still on 3.9.0.
   segs$len[segs$id == 1] <- 990
   .nr_fixture(conn, segs)
   .nr_polys(conn, list(list(wbk = 7, x0 = -10, y0 = -150, x1 = 2100, y1 = 100)))

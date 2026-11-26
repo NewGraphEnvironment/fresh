@@ -1,0 +1,526 @@
+Network fresh-rebuild_default  Creating
+Network fresh-rebuild_default  Created
+Container fresh-db-rebuild  Creating
+Container fresh-db-rebuild  Created
+Container fresh-db-rebuild  Starting
+Container fresh-db-rebuild  Started
+Container fresh-db-rebuild  Waiting
+Container fresh-db-rebuild  Healthy
+Container fresh-db-rebuild  Running
+=== fresh local DB loader ===
+  fwapg:    /home/fwapg
+  database: postgresql://postgres:postgres@db:5432/fwapg
+
+--- Stage 1: fwapg schema + functions ---
+SET
+SET
+SET
+SET
+SET
+ set_config 
+------------
+ 
+(1 row)
+
+SET
+SET
+SET
+SET
+CREATE SCHEMA
+CREATE SCHEMA
+CREATE SCHEMA
+CREATE SCHEMA
+CREATE SCHEMA
+CREATE SCHEMA
+CREATE EXTENSION
+COMMENT
+CREATE EXTENSION
+COMMENT
+CREATE EXTENSION
+COMMENT
+CREATE EXTENSION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE FUNCTION
+COMMENT
+CREATE AGGREGATE
+CREATE AGGREGATE
+SET
+SET
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER DATABASE
+Current database version: 0
+Pending migrations: 3
+
+--- Applying: 202610131654__watershedatmeasure_drop_exbc.sql ---
+BEGIN
+CREATE FUNCTION
+CREATE FUNCTION
+COMMIT
+INSERT 0 1
+  Version updated to 202610131654
+
+--- Applying: 202610240132__indexpoint_tiebreak.sql ---
+BEGIN
+CREATE FUNCTION
+COMMIT
+INSERT 0 1
+  Version updated to 202610240132
+
+--- Applying: 202611131236__namedstreams.sql ---
+BEGIN
+TRUNCATE TABLE
+INSERT 0 0
+COMMIT
+INSERT 0 1
+  Version updated to 202611131236
+
+Migrations complete. Database is now at 202611131236
+  fwapg.db_version: 202611131236
+
+--- Stage 2: fwapg data (this takes a while) ---
++ PSQL='psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1'
+++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -tAXc 'show server_version_num'
++ '[' 170006 -ge 150000 ']'
++ tables=(assessment_watersheds_poly bays_and_channels_poly coastlines_sp glaciers_poly islands_poly lakes_poly manmade_waterbodies_poly named_point_features_sp named_watersheds_poly obstructions_sp rivers_poly watershed_groups_poly watersheds_xborder_poly wetlands_poly)
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_assessment_watersheds_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_assessment_watersheds_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_assessment_watersheds_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_bays_and_channels_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_bays_and_channels_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_bays_and_channels_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_coastlines_sp'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_coastlines_sp /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_coastlines_sp.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_glaciers_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_glaciers_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_glaciers_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_islands_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_islands_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_islands_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_lakes_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_lakes_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_lakes_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_manmade_waterbodies_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_manmade_waterbodies_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_manmade_waterbodies_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_named_point_features_sp'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_named_point_features_sp /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_named_point_features_sp.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_named_watersheds_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_named_watersheds_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_named_watersheds_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_obstructions_sp'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_obstructions_sp /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_obstructions_sp.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_rivers_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_rivers_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_rivers_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_watershed_groups_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_watershed_groups_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_watershed_groups_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_watersheds_xborder_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_watersheds_xborder_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_watersheds_xborder_poly.parquet
++ for table in "${tables[@]}"
++ psql postgresql://postgres:postgres@db:5432/fwapg -v ON_ERROR_STOP=1 -c 'truncate whse_basemapping.fwa_wetlands_poly'
+TRUNCATE TABLE
++ ogr2ogr -f PostgreSQL PG:postgresql://postgres:postgres@db:5432/fwapg --config PG_USE_COPY YES -append -update -preserve_fid -nln whse_basemapping.fwa_wetlands_poly /vsicurl/https://nrs.objectstore.gov.bc.ca/bchamp/fwapg/fwa_wetlands_poly.parquet

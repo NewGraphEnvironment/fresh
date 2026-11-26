@@ -1,12 +1,6 @@
 # PostgreSQL Tuning
 
-Tuning notes for the local Docker fwapg instance. Settings in `docker-compose.yml` are tuned for the development machine — adjust for your hardware.
-
-## Current machine
-
-- Apple M4 Max Pro
-- 128 GB RAM
-- 16 cores
+Tuning notes for the local Docker fwapg instance. Settings in `docker-compose.yml` are tuned for a 128 GB, 16-core machine — adjust for your hardware.
 
 ## Settings rationale
 
@@ -27,8 +21,8 @@ Tuning notes for the local Docker fwapg instance. Settings in `docker-compose.ym
 
 ## SSD assumption
 
-All NewGraph hosts run on SSD (M4 NVMe, M1 Colima virtiofs over APFS,
-cypher DO block storage). The `random_page_cost`,
+These settings assume SSD storage (local NVMe, or a VM's or cloud provider's
+SSD-backed volume). The `random_page_cost`,
 `effective_io_concurrency`, and `temp_buffers` defaults above bias the
 planner toward index scans for segment-keyed lookups (the
 `WHERE blue_line_key = … AND drm <= …` against `streams_breaks` hot
@@ -36,11 +30,12 @@ path in link's pipeline). Out-of-the-box PostgreSQL defaults (4.0 / 1
 / 8MB) are calibrated for spinning rust and are wrong for any modern
 host. Don't lower these without a spinning-disk reason.
 
-**M1/cypher hosts use a docker-compose override file.** Compose merges
-override `command:` lists by **replacing** the base, not by appending —
-so any `-c` flags added here must also be added to the M1/cypher
-override (tracked in the rtj repo). Forgetting this silently leaves
-the 32 GB hosts on PostgreSQL defaults.
+**Smaller hosts use a `docker-compose.override.yml`.** Compose merges an
+override's `command:` by **replacing** the base list, not by appending,
+so any `-c` flag added here must also be added to every host's override.
+Forgetting this silently leaves that host on PostgreSQL defaults for the
+flag. Overrides are host-specific (one may name its own data volume), so
+`docker/.gitignore` keeps them out of the repo.
 
 ## Scaling for other machines
 

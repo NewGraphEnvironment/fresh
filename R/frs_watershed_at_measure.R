@@ -20,12 +20,14 @@
 #'   on a tributary.
 #' @param simplify_m Numeric or `NULL`. Simplification tolerance in metres,
 #'   applied in the database as
-#'   `ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))`, so the
-#'   same database returns the same polygon on every call. For a subbasin the
-#'   difference is taken first and simplified once, so the shared boundary
-#'   is not simplified twice. Two databases on different GEOS versions can
-#'   still simplify a ring differently. Default `NULL` (fwapg's polygon
-#'   unchanged).
+#'   `ST_Normalize(ST_SimplifyPreserveTopology(geom, simplify_m))`. On GEOS
+#'   3.11 to 3.13 that simplifier repeated its answer between calls on one
+#'   database (measured on a lake, arm64); on GEOS 3.9.0 under arm64 two calls
+#'   can differ. For a subbasin the difference is taken first and simplified
+#'   once, so the shared boundary is not simplified twice. Two databases on
+#'   different GEOS versions can still simplify a ring differently (3.11 and
+#'   3.12 to 3.13 did). Default
+#'   `NULL` (fwapg's polygon unchanged).
 #' @param conn A [DBI::DBIConnection-class] object (from [frs_db_conn()]).
 #'
 #' @return An `sf` data frame with a single polygon geometry.

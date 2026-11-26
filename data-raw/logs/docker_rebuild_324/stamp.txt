@@ -1,0 +1,4 @@
+fresh: f42f231c463524e071c9dfedc7682fae574aa8f8
+fwapg: 137fd6989f8cbad8de7be23bab7b05eb0ddcb0a0 (fwapg-324)
+image: imresamu/postgis:17-3.6.1-trixie
+db: POSTGIS="3.6.1 f533623" [EXTENSION] PGSQL="170" GEOS="3.13.1-CAPI-1.19.2" PROJ="9.6.0 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 9.6.0) LIBXML="2.9.14" LIBJSON="0.18" LIBPROTOBUF="1.5.1" WAGYU="0.5.0 (Internal)" TOPOLOGY

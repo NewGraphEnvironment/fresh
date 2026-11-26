@@ -12,11 +12,33 @@
 #   conn <- DBI::dbConnect(RPostgres::Postgres(),
 #     host = "localhost", port = 5432,
 #     dbname = "fwapg", user = "postgres", password = "postgres")
+#
+# A second instance beside the first (README, "A second instance"): give it its
+# own project name, files, container names, port and data directory, e.g.
+#   COMPOSE_PROJECT_NAME=fresh-2 COMPOSE_FILE=docker-compose.yml \
+#   FRESH_DB_IMAGE=imresamu/postgis:17-3.6.1-trixie \
+#   FRESH_DB_CONTAINER=fresh-db-2 FRESH_DB_PORT=5433 \
+#   FRESH_DB_DATA=./postgres-data-2 docker compose up -d db
+#
+# Image: PostgreSQL 17, PostGIS 3.6, GEOS 3.13 on Debian trixie. Up to 2026-11
+# this was 17-3.5-bullseye (PostGIS 3.5.2, GEOS 3.9.0), whose GEOS returns an
+# empty intersection for an exactly vertical line inside a box and, on arm64, simplifies a
+# polygon differently from one call to the next (#324). A routine `up` over
+# a data directory built on the old image would start this one on it, and it
+# must not: the newer glibc changes the collation version (text indexes need a
+# REINDEX) and the postgis extension needs an UPDATE (#335). Every machine
+# holding a data directory built on the old image keeps it there, before its
+# next `up`, with FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye in a
+# docker/.env beside this file (gitignored), until it moves. A .env here is read
+# by every project using this file, so a second instance on the new image
+# exports FRESH_DB_IMAGE; and it names its files (COMPOSE_FILE), because with
+# none Compose also merges a host's docker-compose.override.yml, which can name
+# the first instance's volume (README).
 
 services:
   db:
-    image: imresamu/postgis:17-3.5-bullseye
-    container_name: fresh-db
+    image: ${FRESH_DB_IMAGE:-imresamu/postgis:17-3.6.1-trixie}
+    container_name: ${FRESH_DB_CONTAINER:-fresh-db}
     shm_size: 36gb
     command: >
       postgres
@@ -37,14 +59,19 @@ services:
         -c effective_io_concurrency=200
         -c temp_buffers=64MB
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - ${FRESH_DB_DATA:-./postgres-data}:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${FRESH_DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # Over TCP, not the socket: on an empty data directory the image's init
+      # runs a temporary server on the Unix socket only (creating extensions,
+      # which can take minutes), and a socket check calls that healthy, so the
+      # loader started and got "Connection refused" (#324).
+      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
       interval: 5s
       timeout: 1s
       retries: 5
+      start_period: 15m
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -53,7 +80,7 @@ services:
   loader:
     build:
       context: .
-    container_name: fresh-loader
+    container_name: ${FRESH_LOADER_CONTAINER:-fresh-loader}
     volumes:
       - "${FWAPG_DIR:-../../fwapg}:/home/fwapg:ro"
       - "${BCFISHOBS_DIR:-../../bcfishobs}:/home/bcfishobs:ro"

@@ -1,0 +1,9 @@
+# 2026-11-26 02:58:51 UTC port 5433: POSTGIS="3.6.1 f533623" [EXTENSION] PGSQL="170" GEOS="3.13.1-CAPI-1.19.2" PROJ="9.6.0 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 9.6.0) LIBXML="2.9.14" LIBJSON="0.18" LIBPROTOBUF="1.5.1" WAGYU="0.5.0 (Internal)" TOPOLOGY
+
+## sql: points, md5 (first 12), calls
+ points          md5 calls
+    514 5122df0a5f85    20
+
+## frs_lake_fetch(aoi =, simplify_m = 100): rows and layer md5 (first 12), calls
+       rows_md5 calls
+ 3 92b7e1775db5    20

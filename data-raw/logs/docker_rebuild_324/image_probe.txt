@@ -1,0 +1,109 @@
+# docker_image_probe.sh, 2026-11-24T18:15:01Z
+# source: fresh-db/fwapg (imresamu/postgis:17-3.5-bullseye)
+
+===== fresh-db (source database)
+                                                                                                                                                                                               postgis_full_version                                                                                                                                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.5.2 dea6d0a" [EXTENSION] PGSQL="170" GEOS="3.9.0-CAPI-1.16.2" PROJ="7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 7.2.1) GDAL="GDAL 3.2.2, released 2021/03/05" LIBXML="2.9.10" LIBJSON="0.15" LIBPROTOBUF="1.3.3" WAGYU="0.5.0 (Internal)" TOPOLOGY RASTER
+
+  stream   |   ws    | dist | on_boundary | intersects | covers | contains | dwithin0 |   de9im   
+-----------+---------+------+-------------+------------+--------+----------+----------+-----------
+  17046241 | 7637979 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700244339 | 7630925 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700277597 | 7607864 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+
+ line_x |   intersection   | box_contains_line 
+--------+------------------+-------------------
+   1000 | LINESTRING EMPTY | t
+   1500 | LINESTRING EMPTY | t
+
+ simplify_100_npoints | calls 
+----------------------+-------
+                  556 |     3
+                  557 |    17
+
+
+===== imresamu/postgis:17-3.5.3-bookworm (imresamu/postgis@sha256:35fe7dceda62bfe7d2965b0ba78d915ff9f901b5e0466d633ecc58421b5b5210)
+                                                                                                                                                                        postgis_full_version                                                                                                                                                                         
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.5.3 aab5f55" [EXTENSION] PGSQL="170" GEOS="3.11.1-CAPI-1.17.1" PROJ="9.1.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 9.1.1) LIBXML="2.9.14" LIBJSON="0.16" LIBPROTOBUF="1.4.1" WAGYU="0.5.0 (Internal)" TOPOLOGY
+
+  stream   |   ws    | dist | on_boundary | intersects | covers | contains | dwithin0 |   de9im   
+-----------+---------+------+-------------+------------+--------+----------+----------+-----------
+  17046241 | 7637979 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700244339 | 7630925 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700277597 | 7607864 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+
+ line_x |         intersection         | box_contains_line 
+--------+------------------------------+-------------------
+   1000 | LINESTRING(1000 0,1000 -100) | t
+   1500 | LINESTRING(1500 0,1500 -100) | t
+
+ simplify_100_npoints | calls 
+----------------------+-------
+                  556 |    20
+
+
+===== imresamu/postgis:17-3.6.1-trixie (imresamu/postgis@sha256:ad502214bf88d074cbed19315c7b846b612e20dff0fcd8cc91bdf0f92f636b2d)
+                                                                                                                                                                        postgis_full_version                                                                                                                                                                         
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.6.1 f533623" [EXTENSION] PGSQL="170" GEOS="3.13.1-CAPI-1.19.2" PROJ="9.6.0 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 9.6.0) LIBXML="2.9.14" LIBJSON="0.18" LIBPROTOBUF="1.5.1" WAGYU="0.5.0 (Internal)" TOPOLOGY
+
+  stream   |   ws    | dist | on_boundary | intersects | covers | contains | dwithin0 |   de9im   
+-----------+---------+------+-------------+------------+--------+----------+----------+-----------
+  17046241 | 7637979 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700244339 | 7630925 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700277597 | 7607864 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+
+ line_x |         intersection         | box_contains_line 
+--------+------------------------------+-------------------
+   1000 | LINESTRING(1000 0,1000 -100) | t
+   1500 | LINESTRING(1500 0,1500 -100) | t
+
+ simplify_100_npoints | calls 
+----------------------+-------
+                  514 |    20
+
+
+===== imresamu/postgis:16-3.4.3-bookworm (imresamu/postgis@sha256:6da75969915039b7356058b4310d43fde88c275ada982c2dfee29da68445ff4d)
+                                                                                                                                                         postgis_full_version                                                                                                                                                          
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.4.3 e365945" [EXTENSION] PGSQL="160" GEOS="3.11.1-CAPI-1.17.1" PROJ="9.1.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" LIBXML="2.9.14" LIBJSON="0.16" LIBPROTOBUF="1.4.1" WAGYU="0.5.0 (Internal)" TOPOLOGY
+
+  stream   |   ws    | dist | on_boundary | intersects | covers | contains | dwithin0 |   de9im   
+-----------+---------+------+-------------+------------+--------+----------+----------+-----------
+  17046241 | 7637979 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700244339 | 7630925 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700277597 | 7607864 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+
+ line_x |         intersection         | box_contains_line 
+--------+------------------------------+-------------------
+   1000 | LINESTRING(1000 0,1000 -100) | t
+   1500 | LINESTRING(1500 0,1500 -100) | t
+
+ simplify_100_npoints | calls 
+----------------------+-------
+                  556 |    20
+
+
+===== imresamu/postgis:16-3.4-alpine3.20 (imresamu/postgis@sha256:52c1c80746ac4bfc9660e42c0b3cce52d68aeeda63ff836bddbe79d25d51980f)
+                                                                                                                                                          postgis_full_version                                                                                                                                                          
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.4.3 e365945" [EXTENSION] PGSQL="160" GEOS="3.12.2-CAPI-1.18.2" PROJ="9.4.0 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" LIBXML="2.12.10" LIBJSON="0.17" LIBPROTOBUF="1.5.0" WAGYU="0.5.0 (Internal)" TOPOLOGY
+
+  stream   |   ws    | dist | on_boundary | intersects | covers | contains | dwithin0 |   de9im   
+-----------+---------+------+-------------+------------+--------+----------+----------+-----------
+  17046241 | 7637979 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700244339 | 7630925 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+ 700277597 | 7607864 |    0 | t           | f          | f      | f        | t        | F0FFFF212
+
+ line_x |         intersection         | box_contains_line 
+--------+------------------------------+-------------------
+   1000 | LINESTRING(1000 0,1000 -100) | t
+   1500 | LINESTRING(1500 0,1500 -100) | t
+
+ simplify_100_npoints | calls 
+----------------------+-------
+                  514 |    20
+
+

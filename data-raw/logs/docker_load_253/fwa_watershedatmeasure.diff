@@ -1,0 +1,27 @@
+# whse_basemapping.fwa_watershedatmeasure: live fwapg (-) vs fwapg_253 (+), pg_get_functiondef
+# fwapg_253 loaded from NewGraphEnvironment/fwapg@b010209 db/schema.sql; the CTE was dropped in 3c43bdd (Xborder, #185)
+--- wam_fwapg.sql	2026-10-11 22:28:16
++++ wam_fwapg_253.sql	2026-10-11 22:28:16
+@@ -253,22 +253,6 @@
+         (SELECT
+           slice.wsds, ST_Force2D(slice.geom) as geom
+         FROM FWA_SliceWatershedAtPoint(v_blkey, v_measure) slice
+-        ),
+-
+-        -- find any upstream contributing area outside of BC (but not including Alaska panhandle)
+-        exbc AS
+-         (
+-          SELECT hydrosheds.hydroshed(h.hybas_id) AS geom
+-          FROM ref_point s
+-          INNER JOIN hydrosheds.hybas_lev12_v1c h
+-          ON ST_Intersects(h.geom, s.geom_pt)
+-          WHERE FWA_UpstreamBorderCrossings(s.blue_line_key, s.measure_pt) IN ('AB_120','YTNWT_60')
+-          UNION ALL
+-          SELECT FWA_Huc12(h.huc12) AS geom
+-          FROM ref_point s
+-          INNER JOIN usgs.wbdhu12 h
+-          ON ST_intersects(h.geom, s.geom_pt)
+-          WHERE FWA_UpstreamBorderCrossings(s.blue_line_key, s.measure_pt) = 'USA_49'
+         ),
+ 
+         -- aggregate the result and dump to singlepart

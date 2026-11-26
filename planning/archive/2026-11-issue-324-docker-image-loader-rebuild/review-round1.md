@@ -1,0 +1,50 @@
+# Code-check round 1: #324 branch
+
+## Checklist read
+
+- code-check-infra.md: in full.
+- code-check-r.md: read "`on.exit()` at a script's top level never fires", "testthat counts an uncaught error under `error`, not `failed`", "`stats::aggregate()` has three separate silent behaviours…", "Postgres row order is never fixed…", "A `data-raw/` script must load the source tree…" (5 read, 127 not).
+- code-check-shell.md: read "An amd64-only image needs `--platform`…", "`mktemp` template needs enough X's…", "Empty arrays under `set -u` on bash 3.2", "Put cleanup on the EXIT trap, not RETURN…" (4 read, 71 not).
+- code-check-spatial.md: read "`sf::st_as_binary()` returns a LIST of raw vectors…" (1 read, 97 not).
+- code-check.md: the prose of all 14 H3s under `## Mechanisms` (table rows skipped), plus "Documentation Staleness".
+- Index, diff and changed files read from file.
+
+## Findings
+
+- **[severity: fragile]** docker/README.md:104 ("A second instance") — the recipe exports `COMPOSE_PROJECT_NAME` so every later command reaches the second project, but it does not do the same for the memory override. Anyone who adds `-f docker-compose.yml -f second.yml` to `up` and then runs the loader as shown (`docker compose run --rm --name fresh-loader-2 loader`, no `-f`) has the second db **recreated from the base file**: 32 GB `shared_buffers`, 36 GB `shm_size`, beside the first instance, just before a multi-hour load. Measured with this machine's Compose v2.15.1 on a scratch project: `up -d db` with base + override, then `run --rm job` with the base file only. The db container came back with a new id and the base file's environment (`Container … Recreated`). `run.sh` avoids this because it passes the same `DC` array to both commands. The README's prose does not. Also, `second.yml` does not exist in `docker/` (it is at `data-raw/logs/docker_rebuild_324/second.yml`), so after the recipe's `cd docker`, `-f second.yml` names no file. Fix: add `COMPOSE_FILE=docker-compose.yml:<path to override>` to the same `export` line, and name where the example override lives.
+  - **Rule:** code-check.md "A fix lands in one of two callers that share a harness" ; code-check-infra.md "Tuning vs host RAM"
+
+- **[severity: fragile]** docker/docker-compose.yml:34 (`image: ${FRESH_DB_IMAGE:-imresamu/postgis:17-3.6.1-trixie}`) — the default image change reaches every host that runs this compose file, not only the one the accepted `docker/.env` pin protects. `tuning.md` says smaller hosts run it through a host-specific `docker-compose.override.yml`. I read the two such overrides kept outside this repo, and neither sets `image:`. On those hosts the first routine `up -d db` after pulling `main` recreates the container on trixie over a bullseye-built data directory. That changes the collation version (2.31 to 2.41 per `postconditions.txt`), so text indexes need a REINDEX, and puts a PostGIS 3.6 library under a 3.5.2 catalog. This is the same hazard the comment and README describe, but the remedy is written for one machine. Separately, `docker/.env` does not exist yet in the checkout the live `fresh-db` runs from (checked by listing that checkout's `docker/`). Until it is written, a pull there followed by any `up` moves the live database too. Before merge, every host holding a bullseye-built `postgres-data` needs the pin, in its `.env` or as `image:` in its override.
+  - **Rule:** code-check.md "A fix lands in one of two callers that share a harness"
+
+- **[severity: fragile]** README "A second instance" + docker-compose.yml header + data-raw/logs/docker_rebuild_324/run.sh:11-12 — Compose reads `.env` from the project directory, which is the directory of the first `-f` file. Checked on Compose v2.15.1: with a `.env` beside the compose file, it won whether the command ran from that directory, its parent or a sibling directory. So on the machine that follows the README and pins `FRESH_DB_IMAGE=…bullseye` in `docker/.env`, the "second instance" recipe (whose stated purpose is "a new image") and `run.sh` both build on **bullseye**. Neither exports `FRESH_DB_IMAGE`, and only an exported shell variable outranks `.env`. `run.sh` records the image in `stamp.txt`, so a rebuild would at least be labelled, but the README recipe gives no sign. Fix: export `FRESH_DB_IMAGE` explicitly in both (`run.sh` can set it beside `FRESH_DB_CONTAINER`).
+  - **Rule:** code-check.md "A guard's scope, escape hatches, and remedies"
+
+- **[severity: bug]** research/fwa_downstream_walk.md:130 ("GEOS") — "and `docker/` now pins a GEOS 3.11 image" is wrong. `docker/` pins `17-3.6.1-trixie`, which is GEOS 3.13.1 (README "Image", `image_probe.txt`, `postconditions.txt`). 3.11 is what the earlier bookworm candidate (`17-3.5.3-bookworm`) carried. The research file is the durable record, and this sentence contradicts the README in the same diff.
+  - **Rule:** code-check.md "Documentation Staleness"
+
+- **[severity: bug]** research/fwapg_channel_width.md:43 — "Province-wide that leaves 2,835 real-network streams with no lut row" gives the wrong count. `data-raw/logs/docker_rebuild_324/postconditions.txt` reads **2,840** missing on both databases (4,541,064 streams, 4,538,224 with a row). 2,835 is how many of them fwapg#60's `ST_DWithin(…, 0)` recovers (`planning/active/findings.md`, #304 sections). The sentence also gives the predicate as the cause, while the branch's own finding (`image_probe_amd64.txt`) is that the midpoint test answers true on amd64 GEOS 3.9.0: the missing rows are an arm64 build effect. A reader of the research file would not learn that an amd64 build has them.
+  - **Rule:** none
+
+- **[severity: fragile]** R/frs_lake_fetch.R:16, R/frs_wetland_fetch.R:16 (roxygen, and man/), research/fwa_fetch_determinism.md:46 — "later versions repeat" / "Every later GEOS repeats its own answer" quantifies over every GEOS after 3.9.0. Repetition was measured only on 3.11.1, 3.12.2 and 3.13.1 (arm64) and on amd64 3.9.0. The 3.10.2 database in the same research file's header was measured only between databases (#286 findings, line 40), never repeated within one. This is shipped user documentation. Narrow it to "3.11 and later repeat (measured)".
+  - **Rule:** code-check.md "A guard's scope, escape hatches, and remedies"
+
+- **[severity: fragile]** data-raw/logs/docker_rebuild_324/run.sh:7,19 — `FWAPG=${1:?}` is used two ways. `git -C "$FWAPG"` resolves it against the caller's working directory (the repo root). The compose bind mount `${FWAPG_DIR}` resolves it against the project directory, `docker/`. A relative argument therefore stamps one checkout (or none) in `stamp.txt` and loads another: `../../fwapg` from the repo root names a different directory than the same path from `docker/`, which is the compose default's own sibling checkout. Make it absolute first (`FWAPG=$(cd "$1" && pwd) || exit 1`).
+  - **Rule:** code-check.md "One fact derived twice"
+
+- **[severity: fragile]** data-raw/logs/docker_rebuild_324/suite_run.R:44 — `sum(r$skipped)` counts `test_that()` blocks with a skip, not skips, and a file-level skip adds no row. The committed `suite_summary.txt` shows the disagreement: `[ … SKIP 7 … ]` from the reporter beside "6 skipped" from this line, on both runs. The per-test comparison runs off the same frame, so it inherits the blind spot for whole-file skips. Take the skip count from a `ProgressReporter`'s `n_skip`.
+  - **Rule:** code-check-r.md "testthat counts an uncaught error under `error`, not `failed`"
+
+- **[severity: fragile]** data-raw/docker_image_probe.sh:99 — `docker run -d --rm … "$img"` passes no `--platform`. `image_probe_amd64.txt` (cited by README "Image" and the research files for the amd64 result) probes `postgis/postgis:16-3.5`, which is amd64-only (`docker image inspect`: amd64). The run only worked because the image was already cached; its log carries Docker's "platform (linux/amd64) does not match" warning. On a clean arm64 machine the documented command fails with "no matching manifest". For a multi-arch image, the script cannot ask for amd64 at all, so the arm64-vs-amd64 comparison the research rests on cannot be regenerated from the committed script. Add an optional platform per image (e.g. `image@platform`) and pass `--platform` through.
+  - **Rule:** code-check-shell.md "An amd64-only image needs `--platform`, and it works on your machine because it is cached"
+
+- **[severity: fragile]** data-raw/logs/docker_rebuild_324/second.yml:5 — `shm_size: 12gb` with `work_mem=1GB` and `max_parallel_workers=6` is the 32 GB preset that the infra checklist records failing with `could not resize shared memory segment … No space left on device` under two concurrent parallel hash joins. It held for this one loader run and suite. README now points readers at this file as the model for sizing a second instance. Size `shm_size` to the parallel-hash term, or say beside the file that it holds only for the single-session loader.
+  - **Rule:** code-check-infra.md "Tuning vs host RAM"
+
+## Checked and clean
+
+- `load.sh`: fwapg `db/migrate.sh` reads `DATABASE_URL` (set in the loader's environment), bootstraps `fwapg.db_version` with an `applied_at` column, and stops on the first error. The `search_path` matches fwapg's own `docker/db/search_path.sh`. The three functions the old script added separately: `fwa_slopealonginterval` and `fwa_segmentalonginterval` are in `schema.sql`, and `FWA_StreamProfile` is not, but nothing in fresh calls it.
+- The answer-pairs script's ancestor-only predicate is the test's `ancestor_sql` rule. Both logs reproduce the header's 40,495 / 40,769 / 50,417 / 51,698 and 22.
+- The probe script's empty-array expansion is bash-3.2 safe, its `mktemp` template has six X's, and its cleanup is on EXIT.
+- No host names, tunnels, home paths or private repo names in the added lines. `NewGraphEnvironment/fwapg` is public.
+- Not a finding: `simplify_repeat.R`'s top-level `on.exit()` never fires (code-check-r.md "`on.exit()` at a script's top level never fires"). The connection still closes when Rscript exits.

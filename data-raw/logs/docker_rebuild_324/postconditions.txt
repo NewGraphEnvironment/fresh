@@ -1,0 +1,79 @@
+## fresh-db: versions
+server	17.5 (Debian 17.5-1.pgdg110+1)
+postgis_full_version	POSTGIS="3.5.2 dea6d0a" [EXTENSION] PGSQL="170" GEOS="3.9.0-CAPI-1.16.2" PROJ="7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 7.2.1) GDAL="GDAL 3.2.2, released 2021/03/05" LIBXML="2.9.10" LIBJSON="0.15" LIBPROTOBUF="1.3.3" WAGYU="0.5.0 (Internal)" TOPOLOGY RASTER
+extension	dblink	1.2
+extension	fuzzystrmatch	1.2
+extension	intarray	1.5
+extension	ltree	1.3
+extension	pgcrypto	1.3
+extension	plpgsql	1.0
+extension	postgis	3.5.2
+extension	postgis_raster	3.5.2
+extension	postgis_tiger_geocoder	3.5.2
+extension	postgis_topology	3.5.2
+collation	en_US.utf8	2.31
+ERROR:  relation "fwapg.db_version" does not exist
+search_path	search_path=public, whse_basemapping, usgs, hydrosheds
+fwa_indexpoint args	point geometry, tolerance double precision DEFAULT 5000, num_features integer DEFAULT 1
+fwa_watershedatmeasure mentions exbc	t
+
+## fresh-db-rebuild: versions
+server	17.7 (Debian 17.7-3.pgdg13+1)
+postgis_full_version	POSTGIS="3.6.1 f533623" [EXTENSION] PGSQL="170" GEOS="3.13.1-CAPI-1.19.2" PROJ="9.6.0 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 9.6.0) LIBXML="2.9.14" LIBJSON="0.18" LIBPROTOBUF="1.5.1" WAGYU="0.5.0 (Internal)" TOPOLOGY
+extension	fuzzystrmatch	1.2
+extension	intarray	1.5
+extension	ltree	1.3
+extension	plpgsql	1.0
+extension	postgis	3.6.1
+extension	postgis_tiger_geocoder	3.6.1
+extension	postgis_topology	3.6.1
+collation	en_US.utf8	2.41
+fwapg.db_version	0
+fwapg.db_version	202610131654
+fwapg.db_version	202610240132
+fwapg.db_version	202611131236
+search_path	search_path=public, whse_basemapping, usgs, hydrosheds
+fwa_indexpoint args	point geometry, tolerance double precision DEFAULT 5000, num_features integer DEFAULT 1
+fwa_watershedatmeasure mentions exbc	f
+
+## row counts: table, then one count per container (fresh-db fresh-db-rebuild), pct_diff of the second against the first
+whse_basemapping.fwa_stream_networks_sp	4907441	4907441	0.000
+whse_basemapping.fwa_streams	4538224	4538224	0.000
+whse_basemapping.fwa_lakes_poly	386025	386025	0.000
+whse_basemapping.fwa_wetlands_poly	375178	375178	0.000
+whse_basemapping.fwa_rivers_poly	37083	37083	0.000
+whse_basemapping.fwa_manmade_waterbodies_poly	1812	1812	0.000
+whse_basemapping.fwa_watersheds_poly	3245453	3245453	0.000
+whse_basemapping.fwa_assessment_watersheds_poly	19479	19479	0.000
+whse_basemapping.fwa_watershed_groups_poly	246	246	0.000
+whse_basemapping.fwa_named_streams	11681	11681	0.000
+whse_basemapping.fwa_stream_networks_channel_width	4907429	4907441	0.000
+whse_basemapping.fwa_stream_networks_discharge	2716652	2716652	0.000
+whse_basemapping.fwa_stream_networks_order_parent	1509493	1509492	-0.000
+whse_basemapping.fwa_streams_watersheds_lut	4538224	4538224	0.000
+whse_basemapping.pcic_fwa_crosswalk	48716	48716	0.000
+whse_basemapping.fwa_stream_networks_discharge_monthly	40524444	40524444	0.000
+working.falls	NA	3294	NA
+working.crossings	NA	533291	NA
+
+## fresh-db: lut coverage (#304)
+BULK+ADMS streams, with lut row, missing	40504	40486	18
+province streams, with lut row, missing	4541064	4538224	2840
+
+## fresh-db: functions
+fwa_watershedatmeasure	231944.7
+postgisftw.fwa_watershedatmeasure	231944.7
+fwa_watershedatmeasure lake	11.5
+fwa_downstreamtrace	1567	590498
+fwa_upstream unqualified	8876
+
+## fresh-db-rebuild: lut coverage (#304)
+BULK+ADMS streams, with lut row, missing	40504	40486	18
+province streams, with lut row, missing	4541064	4538224	2840
+
+## fresh-db-rebuild: functions
+fwa_watershedatmeasure	231944.7
+postgisftw.fwa_watershedatmeasure	231944.7
+fwa_watershedatmeasure lake	11.5
+fwa_downstreamtrace	1567	590498
+fwa_upstream unqualified	8876

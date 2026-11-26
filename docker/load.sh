@@ -26,6 +26,12 @@ if [ ! -d "$FWAPG_DIR/db" ]; then
   echo "Set FWAPG_DIR env var in docker-compose.yml"
   exit 1
 fi
+if [ ! -f "$FWAPG_DIR/db/schema.sql" ]; then
+  echo "ERROR: $FWAPG_DIR/db/schema.sql not found"
+  echo "This loader needs fwapg's db/schema.sql layout (smnorris/fwapg#193)."
+  echo "A checkout with db/create.sh predates it: pull fwapg and re-run."
+  exit 1
+fi
 
 echo "=== fresh local DB loader ==="
 echo "  fwapg:    $FWAPG_DIR"
@@ -37,8 +43,8 @@ echo ""
 # ---------------------
 echo "--- Stage 1: fwapg schema + functions ---"
 
-# fwapg's create.sh uses relative paths, so we need to cd
-# but it's read-only, so copy the db scripts to a writable temp dir
+# fwapg's load.sh uses relative paths, so we need to cd
+# but it's read-only, so copy the scripts to a writable temp dir
 WORK_DIR=$(mktemp -d)
 cp -r "$FWAPG_DIR/db" "$WORK_DIR/db"
 cp -r "$FWAPG_DIR/load.sh" "$WORK_DIR/load.sh"
@@ -46,13 +52,28 @@ cp -r "$FWAPG_DIR/load" "$WORK_DIR/load"
 [ -d "$FWAPG_DIR/fixes" ] && cp -r "$FWAPG_DIR/fixes" "$WORK_DIR/fixes"
 [ -f "$FWAPG_DIR/.env.docker" ] && cp "$FWAPG_DIR/.env.docker" "$WORK_DIR/.env.docker"
 
-cd "$WORK_DIR/db"
-bash create.sh
+cd "$WORK_DIR"
+$PSQL -f db/schema.sql
 
-# Functions missing from create.sh that fresh needs
-$PSQL -f sql/FWA_SlopeAlongInterval.sql
-$PSQL -f sql/FWA_SegmentAlongInterval.sql
-$PSQL -f sql/FWA_StreamProfile.sql
+# schema.sql is a pg_dump, which does not carry database settings.
+# fwapg sets search_path in its own db image (docker/db/search_path.sh);
+# this image is not that one, so set it here. fwapg's function bodies
+# call each other unqualified (fwa_downstreamtrace -> fwa_downstream,
+# fwa_watershedatmeasure -> FWA_SliceWatershedAtPoint), and so does
+# fresh (fwa_upstream(), fwa_downstream()).
+DB_NAME=$($PSQL -AtX -c "SELECT current_database()")
+$PSQL -c "ALTER DATABASE \"$DB_NAME\" SET search_path TO public,whse_basemapping,usgs,hydrosheds"
+
+# schema.sql is a snapshot that fwapg regenerates only at a release, so
+# function fixes made since (the fwa_watershedatmeasure exbc fix, the
+# fwa_indexpoint tie rule) live only in db/migrations. Apply them as fwapg's
+# own CI does (test-migration.yml: schema.sql, then db/migrate.sh), after the
+# search_path above, since migrate.sh opens new sessions and SQL-language
+# function bodies resolve their tables when created. migrate.sh starts
+# fwapg.db_version at 0, applies every migration in order and stops on the
+# first error.
+(cd db && bash migrate.sh)
+echo "  fwapg.db_version: $($PSQL -AtX -c 'SELECT tag FROM fwapg.db_version ORDER BY applied_at DESC LIMIT 1')"
 echo ""
 
 # ---------------------
