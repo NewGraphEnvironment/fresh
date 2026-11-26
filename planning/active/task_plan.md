@@ -59,7 +59,7 @@ Mechanism decided in the plan:
 
 ## Phase 5: Follow-ups and close-out
 - [x] File: move the live local fwapg onto the new image (recreate over its data dir, refresh the collation version and reindex, rebuild the lut and the listed tables, measure link's outputs before and after), naming move 7 — #335
-- [x] File the lut Parquet re-export with its publisher (private repo), and the `--bcfishobs` stage-4 issue from #254's draft, each naming move 7 — rtj#446 (re-export, after fwapg#60), #334 (bcfishobs stage 4), plus NewGraphEnvironment/fwapg#60 (the lut predicate, #304's real fix)
+- [x] File the lut Parquet re-export with its publisher (private repo), and the `--bcfishobs` stage-4 issue from #254's draft, each naming move 7 — an issue in the publisher's private repo (re-export, after fwapg#60), #334 (bcfishobs stage 4), plus NewGraphEnvironment/fwapg#60 (the lut predicate, #304's real fix)
 - [x] Link check: parse-compare `R/` between main and branch — 2026-11-25: 46 files each side, 0 whose parsed code differs, positive control detected (re-run in `/code-check branch` if `R/` moves again)
 - [x] Edit #302, #304, #306 bodies with what was measured
 

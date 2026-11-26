@@ -12,7 +12,7 @@
 - Stage 1 of the rebuild had a cold-start race (attempt 1, kept under `attempt1_coldstart/`): the compose healthcheck now checks over TCP with a 15 min start_period (06ca284). Attempt 2 launched 18:18Z; schema.sql + three migrations applied, db_version 202611131236
 - #302 resolved on live: the header's counts are right for every-25th; #302's probe counted the whole fixture
 - #304: measured on live that ST_DWithin(0) in fwapg's lut fallback recovers exactly the 18 (2,835 province-wide); filed NewGraphEnvironment/fwapg#60. BULK's one order-1 segment without channel-width inputs (research/fwapg_channel_width.md) is one of them
-- Filed follow-ups: #335 (move an existing local fwapg onto bookworm), #334 (bcfishobs stage 4, from #254's draft), NewGraphEnvironment/fwapg#60 (lut predicate), rtj#446 (Parquet re-export after fwapg#60). fwapg's load SQL has one spatial predicate, the lut's
+- Filed follow-ups: #335 (move an existing local fwapg onto bookworm), #334 (bcfishobs stage 4, from #254's draft), NewGraphEnvironment/fwapg#60 (lut predicate), an issue with the Parquet publisher, in its own private repo (re-export after fwapg#60). fwapg's load SQL has one spatial predicate, the lut's
 
 ## Session 2026-11-24 (continued) and 2026-11-25
 
