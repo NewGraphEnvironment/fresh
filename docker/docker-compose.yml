@@ -14,8 +14,9 @@
 #     dbname = "fwapg", user = "postgres", password = "postgres")
 #
 # A second instance beside the first (README, "A second instance"): give it its
-# own project name, container names, port and data directory, e.g.
-#   COMPOSE_PROJECT_NAME=fresh-2 FRESH_DB_IMAGE=imresamu/postgis:17-3.6.1-trixie \
+# own project name, files, container names, port and data directory, e.g.
+#   COMPOSE_PROJECT_NAME=fresh-2 COMPOSE_FILE=docker-compose.yml \
+#   FRESH_DB_IMAGE=imresamu/postgis:17-3.6.1-trixie \
 #   FRESH_DB_CONTAINER=fresh-db-2 FRESH_DB_PORT=5433 \
 #   FRESH_DB_DATA=./postgres-data-2 docker compose up -d db
 #
@@ -28,9 +29,11 @@
 # REINDEX) and the postgis extension needs an UPDATE (#335). Every machine
 # holding a data directory built on the old image keeps it there, before its
 # next `up`, with FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye in a
-# docker/.env beside this file (gitignored) or `image:` in its override, until
-# it moves. A .env here is read by every project using this file, so a second
-# instance on the new image exports FRESH_DB_IMAGE (README).
+# docker/.env beside this file (gitignored), until it moves. A .env here is read
+# by every project using this file, so a second instance on the new image
+# exports FRESH_DB_IMAGE; and it names its files (COMPOSE_FILE), because with
+# none Compose also merges a host's docker-compose.override.yml, which can name
+# the first instance's volume (README).
 
 services:
   db:

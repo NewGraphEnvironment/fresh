@@ -91,7 +91,7 @@ The database listens on 5432 unless `FRESH_DB_PORT` says otherwise (next section
 
 ## A second instance
 
-To build or try a database beside the one you use (a new image, a rebuild from current fwapg), give the second its own compose project, container name, port and data directory, and name its image. The defaults are the first instance's. Exported, `COMPOSE_PROJECT_NAME` and `COMPOSE_FILE` keep every later `docker compose` in that shell on the second and its files (without the project name, the project is named after this directory and addresses the first; a command given fewer files than the `up` recreates the db from them). `FRESH_DB_IMAGE` is exported because a `docker/.env` holding the first instance on an older image is read by every project in this directory, and only an exported variable outranks it:
+To build or try a database beside the one you use (a new image, a rebuild from current fwapg), give the second its own compose project, container name, port and data directory, and name its image. The defaults are the first instance's. Exported, `COMPOSE_PROJECT_NAME` and `COMPOSE_FILE` keep every later `docker compose` in that shell on the second and its files (without the project name, the project is named after this directory and addresses the first; with no files named, Compose also merges a `docker-compose.override.yml` here, which on a host that keeps one can name the first instance's volume; and a command given fewer files than the `up` recreates the db from them). `FRESH_DB_IMAGE` is exported because a `docker/.env` holding the first instance on an older image is read by every project in this directory, and only an exported variable outranks it:
 
 ```bash
 cd docker
@@ -102,13 +102,13 @@ docker compose up -d --wait db
 docker compose run --rm --name fresh-loader-2 loader
 ```
 
-`docker compose run` ignores `container_name`, hence `--name` (`FRESH_LOADER_CONTAINER` applies only under `up`). Point `FWAPG_DIR` at an fwapg checkout that is current, by absolute path. Both instances share the machine's memory, so size the second with a `command:` override, the `second.yml` in `COMPOSE_FILE` (see `tuning.md`; `data-raw/logs/docker_rebuild_324/second.yml` is the one #324's load used, sized for the loader alone, one session). Drop `COMPOSE_FILE` to run on the base file's memory. `postgres-data*/` is gitignored.
+`docker compose run` ignores `container_name`, hence `--name` (`FRESH_LOADER_CONTAINER` applies only under `up`). Point `FWAPG_DIR` at an fwapg checkout that is current, by absolute path. Both instances share the machine's memory, so size the second with a `command:` override, the `second.yml` in `COMPOSE_FILE` (see `tuning.md`; `data-raw/logs/docker_rebuild_324/second.yml` is the one #324's load used, sized for the loader alone, one session). To run on the base file's memory, set `COMPOSE_FILE=docker-compose.yml`, never leave it unset. `postgres-data*/` is gitignored.
 
 ## Image
 
 `imresamu/postgis:17-3.6.1-trixie`: PostgreSQL 17, PostGIS 3.6, GEOS 3.13. Up to 2026-11 it was `17-3.5-bullseye` (PostGIS 3.5.2, GEOS 3.9.0), whose GEOS returns an empty intersection for a line lying wholly inside a box and, on arm64, simplifies a polygon differently from one call to the next (`data-raw/logs/docker_rebuild_324/image_probe.txt`). Upstream fwapg's own db image is still PostGIS 3.5.2 / GEOS 3.9.0 (`postgis/postgis:16-3.5`, amd64).
 
-A database built on the old image is not moved by changing this file alone: `up` over its data directory would start it on the new image, with a new glibc collation version (text indexes need a `REINDEX`) and a PostGIS library one minor version ahead of its catalog (`ALTER EXTENSION postgis UPDATE`). Every machine holding a data directory built on the old image keeps it there with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye` in `docker/.env` (gitignored), or `image:` in its `docker-compose.override.yml`, written before it next runs `up` on this file, until it is moved deliberately (#335).
+A database built on the old image is not moved by changing this file alone: `up` over its data directory would start it on the new image, with a new glibc collation version (text indexes need a `REINDEX`) and a PostGIS library one minor version ahead of its catalog (`ALTER EXTENSION postgis UPDATE`). Every machine holding a data directory built on the old image keeps it there with `FRESH_DB_IMAGE=imresamu/postgis:17-3.5-bullseye` in `docker/.env` (gitignored), written before it next runs `up` on this file (not `image:` in an override, which an exported `FRESH_DB_IMAGE` cannot outrank), until it is moved deliberately (#335).
 
 ## What's loaded
 
