@@ -1,6 +1,6 @@
 # fwapg channel width: where the NULLs come from and how MODELLED is computed
 
-Source: measured 2026-10-07 on fwapg (`whse_basemapping`), while working fresh#234 (#29, #28); "Segments with no inputs" re-measured 2026-11-24 for #304 (#324). Details and queries in `planning/archive/2026-10-issue-234-channel-width-every-segment/findings.md`.
+**Verified:** 2026-10-07; "Segments with no inputs" 2026-11-26 · **Issues:** fresh#234 (#29, #28), #304, #324 · **Produced by:** queries in `planning/archive/2026-10-issue-234-channel-width-every-segment/findings.md`; `data-raw/logs/docker_rebuild_324/postconditions.txt` and `planning/archive/2026-11-issue-324-docker-image-loader-rebuild/findings.md` for the lut counts.
 
 ## Why first-order streams have no width
 

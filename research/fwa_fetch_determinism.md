@@ -28,7 +28,7 @@ a second column (`order_by = c("linear_feature_id", "downstream_route_measure")`
 - A subbasin is simplified after `ST_Difference()`, once; simplifying the two watersheds first
   simplifies their shared boundary twice.
 
-### Repeating within one database (#306)
+### Repeating within one database
 
 Tahtsa Reach, `ST_SimplifyPreserveTopology(geom, 100)` 20 times in one session:
 
